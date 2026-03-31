@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events - Sports Coaching</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script> window.FontAwesomeConfig = { autoReplaceSvg: 'nest'};</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0A0A0A',
+                        text: '#D4D0C8',
+                        gold: '#D4AF37',
+                        card: '#1A1A1A',
+                        cardHover: '#2A2A2A',
+                        accent: '#7F52FC', // From inspiration, though query asks for gold theme, keeping as secondary if needed
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'sans-serif'],
+                        dm: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { display: none; }
+        body {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+        }
+        .truncate-20 {
+            display: inline-block;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="w-full min-h-screen bg-background text-text flex justify-center pb-24">
+    <!-- Main Mobile Container -->
+    <div id="mobile-app-container" class="w-full max-w-[480px] min-h-screen bg-background relative flex flex-col shadow-2xl">
+        
+        <!-- Header Section -->
+        <header id="header" class="px-6 pt-12 pb-4 sticky top-0 bg-background/95 backdrop-blur-md z-40 border-b border-white/5">
+            <div class="flex items-center justify-between">
+                <h1 class="font-bebas text-[32px] text-text tracking-wide leading-none">EVENTS</h1>
+                <button class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+                    <i class="fa-solid fa-bell text-text/80 text-lg"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto px-6 py-6 space-y-10">
+            
+            <!-- Upcoming Events Section -->
+            <section id="upcoming-events">
+                <h2 class="font-dm font-medium text-[11px] text-gold uppercase tracking-[3px] mb-4">UPCOMING</h2>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Event Card 1 -->
+                    <a href="8-Event Booking - Event Details.html" class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5 block no-underline text-inherit">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Oct 15 • 10:00 AM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">STRENGTH CAMP</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Elite performance tra...</p>
+                        </div>
+                    </a>
+
+                    <!-- Event Card 2 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1526506114642-94fb211c471c?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Oct 18 • 08:00 AM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">MOBILITY MASTERCLASS</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Unlock your full rang...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 3 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Oct 22 • 06:00 PM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">ENDURANCE RUN</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Push your limits with...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 4 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Oct 25 • 09:00 AM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">HIIT SESSION</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">High intensity interv...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 5 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1552674605-db6ffd4facb5?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Oct 28 • 07:00 AM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">TRACK & FIELD</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Sprint training and t...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 6 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Oct 30 • 05:00 PM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">CYCLING CHALLENGE</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Road cycling endurance...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 7 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Nov 02 • 06:30 AM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">BOXING FUNDAMENTALS</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Learn striking techni...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 8 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1519505907962-0a6cb0167c73?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Nov 05 • 08:30 AM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">SWIMMING CLINIC</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Technique refinement ...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 9 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1530549387789-4c1017266635?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Nov 08 • 04:00 PM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">MARATHON PREP</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Long distance running...</p>
+                        </div>
+                    </div>
+
+                    <!-- Event Card 10 -->
+                    <div class="relative w-full aspect-square rounded-[10px] overflow-hidden group cursor-pointer border border-white/5">
+                        <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image: url('https://images.unsplash.com/photo-1577221084712-45b0445d2b00?q=80&w=600&auto=format&fit=crop')"></div>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                        <div class="absolute bottom-0 left-0 w-full p-4 flex flex-col justify-end h-full">
+                            <span class="font-dm text-[12px] text-gold mb-1">Nov 12 • 10:30 AM</span>
+                            <h3 class="font-bebas text-[18px] text-text leading-tight mb-1 truncate">CROSSFIT WOD</h3>
+                            <p class="font-dm text-[10px] text-text/60 truncate-20">Workout of the day ch...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Extra padding for bottom nav -->
+            <div class="h-8"></div>
+        </main>
+
+        <!-- Bottom Navigation Bar -->
+        <nav id="bottom-nav" class="fixed bottom-0 w-full max-w-[480px] bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            <div class="flex justify-between items-center">
+                <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Community</span>
+                </a>
+                <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-solid fa-play text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Media</span>
+                </a>
+                <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Sponsors</span>
+                </a>
+                <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-gold relative group no-underline">
+                    <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Events</span>
+                </a>
+                <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-regular fa-user text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Profile</span>
+                </a>
+            </div>
+        </nav>
+
+    </div>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

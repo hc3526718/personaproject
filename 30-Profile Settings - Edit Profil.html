@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+          autoReplaceSvg: 'nest'
+        };
+      </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Profile Sections</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0A0A0A',
+                        gold: '#D4AF37',
+                        gray: {
+                            800: '#1F1F1F',
+                            900: '#121212'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        bebas: ['"Bebas Neue"', 'cursive']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            background-color: #0A0A0A;
+            color: white;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .gold-gradient-text {
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="font-sans antialiased w-full min-h-screen m-0 pb-20">
+    <!-- Header -->
+    <header id="header" class="w-full px-6 py-4 flex justify-between items-center sticky top-0 bg-dark/90 backdrop-blur-md z-50">
+        <a href="14-Profile Settings - Settings.html" class="text-gray-400 hover:text-white transition-colors h-11 w-11 flex items-center justify-center rounded-full hover:bg-gray-800 no-underline">
+            <i class="fa-solid fa-arrow-left text-xl"></i>
+        </a>
+        <h1 class="font-bebas text-xl tracking-wide gold-gradient-text">EDIT PROFILE</h1>
+        <div class="w-11"></div>
+    </header>
+
+    <main id="main" class="w-full max-w-md mx-auto px-4">
+        <!-- Profile Sections -->
+        <section id="profile-sections" class="mt-6 space-y-3">
+            <!-- Basic Info -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-id-card text-gold text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-sm">Basic Info</h3>
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Name, location, contact details</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Profile Photo -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-camera text-gold text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-sm">Profile Photo</h3>
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Upload or change your profile picture</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Athlete Details -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-trophy text-gold text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-sm">Athlete Details</h3>
+                                <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Sport, position, team, achievements</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Highlights -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-star text-gold text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-sm">Highlights</h3>
+                                <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Featured videos, photos, moments</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Recent Results -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-chart-line text-gold text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-sm">Recent Results</h3>
+                                <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Latest performance stats and scores</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Social Links -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-link text-gold text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-sm">Social Links</h3>
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Instagram, Twitter, website links</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Bio & Description -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-align-left text-gold text-sm"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-sm">Bio & Description</h3>
+                                <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">Personal story, career overview</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Completion Status -->
+        <section id="completion-status" class="mt-8 bg-gray-900/50 rounded-xl border border-gray-800 p-4">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-8 h-8 bg-gold/20 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-chart-pie text-gold text-xs"></i>
+                </div>
+                <h3 class="font-medium text-sm">Profile Completion</h3>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-2 mb-2">
+                <div class="bg-gradient-to-r from-gold to-yellow-400 h-2 rounded-full" style="width: 65%"></div>
+            </div>
+            <p class="text-xs text-gray-400">65% complete - Add highlights and bio to improve visibility</p>
+        </section>
+
+        <!-- Legend -->
+        <section id="status-legend" class="mt-6 mb-8">
+            <h4 class="text-xs font-medium text-gray-400 mb-3">Status Indicators</h4>
+            <div class="flex gap-6 text-xs">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span class="text-gray-400">Complete</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span class="text-gray-400">Partial</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span class="text-gray-400">Missing</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav id="footer" class="fixed bottom-0 w-full bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-user-group text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Community</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-play text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Media</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-handshake text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Sponsors</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Events</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gold">
+            <i class="fa-regular fa-user text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Profile</span>
+        </button>
+    </nav>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

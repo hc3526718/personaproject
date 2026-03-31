@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = { autoReplaceSvg: 'nest' };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Password</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: '#0A0A0A',
+                            card: '#1C1C1C',
+                            input: '#2A2A2A',
+                            gold: '#C8A84B',
+                            primary: '#D4D0C8',
+                            secondary: '#9A9690',
+                            border: '#787570',
+                            error: '#E8533A',
+                            success: '#4CAF50'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['"Bebas Neue"', 'sans-serif'],
+                        body: ['"DM Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, h5, h6, .font-heading {
+            font-family: 'Bebas Neue', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        ::-webkit-scrollbar { display: none; }
+
+        .input-focus:focus-within {
+            border-color: #C8A84B;
+        }
+
+        .input-error:focus-within {
+            border-color: #E8533A;
+        }
+
+        .input-success:focus-within {
+            border-color: #4CAF50;
+        }
+
+        .validation-icon {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .validation-icon.show {
+            opacity: 1;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+
+<body class="w-full min-h-screen bg-brand-bg text-brand-primary m-0 p-0 overflow-x-hidden">
+    <main id="forgot-password-screen" class="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-6 py-12">
+        <div class="flex items-center mb-12 pt-4">
+            <button onclick="navToLogin()" class="text-brand-primary hover:text-brand-gold transition-colors">
+                <i class="fa-solid fa-arrow-left text-xl"></i>
+            </button>
+            <h1 class="text-3xl font-heading mx-auto pr-6">Forgot Password</h1>
+        </div>
+        
+        <div class="space-y-6 flex-1">
+            <div class="bg-brand-card rounded-lg p-6 border border-brand-border border-opacity-30 mb-8">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-full bg-brand-gold bg-opacity-10 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-lock text-brand-gold text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-heading text-brand-gold mb-2">Reset Your Password</h2>
+                        <p class="text-sm text-brand-secondary leading-relaxed">Enter your email address and we'll send you a verification code to reset your password.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Email Address</label>
+                <div id="email-container" class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors flex items-center gap-3">
+                    <input 
+                        type="email" 
+                        id="email-input" 
+                        placeholder="athlete@example.com" 
+                        class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary"
+                        oninput="validateEmail()"
+                    >
+                    <i id="validation-icon" class="validation-icon text-lg"></i>
+                </div>
+                <p id="email-error" class="text-brand-error text-xs mt-1 opacity-0 transition-opacity">Please enter a valid email address</p>
+                <p id="email-success" class="text-brand-success text-xs mt-1 opacity-0 transition-opacity">Email format is valid</p>
+            </div>
+            
+            <button 
+                id="send-code-btn" 
+                onclick="handleSendCode()" 
+                disabled
+                class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all mt-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                Send Reset Code
+            </button>
+
+            <div id="success-message" class="bg-brand-gold bg-opacity-10 border border-brand-gold rounded-lg p-4 mt-6 opacity-0 transition-opacity pointer-events-none">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-circle-check text-brand-gold text-xl mt-0.5"></i>
+                    <div>
+                        <p class="text-brand-gold font-medium mb-1">Code Sent Successfully!</p>
+                        <p class="text-sm text-brand-secondary">Check your email for the verification code.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-auto pt-8">
+            <p class="text-brand-secondary">Remember your password? 
+                <button onclick="navToLogin()" class="text-brand-gold hover:underline transition-all">Back to Log In</button>
+            </p>
+        </div>
+    </main>
+
+    <script>
+        let isEmailValid = false;
+
+        function validateEmail() {
+            const emailInput = document.getElementById('email-input');
+            const emailContainer = document.getElementById('email-container');
+            const validationIcon = document.getElementById('validation-icon');
+            const emailError = document.getElementById('email-error');
+            const emailSuccess = document.getElementById('email-success');
+            const sendCodeBtn = document.getElementById('send-code-btn');
+            
+            const email = emailInput.value.trim();
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            if (email === '') {
+                emailContainer.classList.remove('input-error', 'input-success');
+                validationIcon.classList.remove('show', 'fa-circle-check', 'fa-circle-xmark', 'text-brand-success', 'text-brand-error');
+                emailError.classList.remove('opacity-100');
+                emailError.classList.add('opacity-0');
+                emailSuccess.classList.remove('opacity-100');
+                emailSuccess.classList.add('opacity-0');
+                isEmailValid = false;
+                sendCodeBtn.disabled = true;
+                return;
+            }
+            
+            if (emailRegex.test(email)) {
+                emailContainer.classList.remove('input-error');
+                emailContainer.classList.add('input-success');
+                validationIcon.className = 'validation-icon show fa-solid fa-circle-check text-brand-success text-lg';
+                emailError.classList.remove('opacity-100');
+                emailError.classList.add('opacity-0');
+                emailSuccess.classList.remove('opacity-0');
+                emailSuccess.classList.add('opacity-100');
+                isEmailValid = true;
+                sendCodeBtn.disabled = false;
+            } else {
+                emailContainer.classList.remove('input-success');
+                emailContainer.classList.add('input-error');
+                validationIcon.className = 'validation-icon show fa-solid fa-circle-xmark text-brand-error text-lg';
+                emailError.classList.remove('opacity-0');
+                emailError.classList.add('opacity-100');
+                emailSuccess.classList.remove('opacity-100');
+                emailSuccess.classList.add('opacity-0');
+                isEmailValid = false;
+                sendCodeBtn.disabled = true;
+            }
+        }
+
+        function handleSendCode() {
+            if (!isEmailValid) return;
+            
+            const sendCodeBtn = document.getElementById('send-code-btn');
+            const successMessage = document.getElementById('success-message');
+            
+            sendCodeBtn.disabled = true;
+            sendCodeBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Sending...';
+            
+            setTimeout(() => {
+                successMessage.classList.remove('opacity-0', 'pointer-events-none');
+                successMessage.classList.add('opacity-100');
+                
+                sendCodeBtn.innerHTML = 'Code Sent <i class="fa-solid fa-check ml-2"></i>';
+                
+                setTimeout(function () {
+                    window.location.href = '2-Onboarding Flow - Verify Reset.html';
+                }, 900);
+            }, 1500);
+        }
+
+        function navToLogin() {
+            window.location.href = '1-Onboarding Flow - Log In.html';
+        }
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

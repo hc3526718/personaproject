@@ -1,0 +1,416 @@
+<html lang="en">
+
+  <head>
+    <script>
+      window.FontAwesomeConfig = {
+        autoReplaceSvg: 'nest'
+      };
+    </script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"
+      crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grant Access - Sports Mentorship</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=DM+Sans:wght@300;400;500&amp;family=JetBrains+Mono&amp;display=swap"
+      rel="stylesheet">
+    <link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <script>
+      tailwind.config = {
+        theme:
+        {
+          extend:
+          {
+            colors:
+            {
+              brand:
+              {
+                bg: '#0A0A0A',
+                card: '#1C1C1C',
+                input: '#2A2A2A',
+                gold: '#C8A84B',
+                primary: '#D4D0C8',
+                secondary: '#9A9690',
+                border: '#787570',
+                error: '#E8533A'
+              }
+            },
+            fontFamily:
+            {
+              heading: ['"Bebas Neue"', 'sans-serif'],
+              body: ['"DM Sans"', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace']
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body
+      {
+        background-color: #0A0A0A;
+        color: #D4D0C8;
+        font-family: 'DM Sans', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6,
+      .font-heading
+      {
+        font-family: 'Bebas Neue', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .promo-code
+      {
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      /* Hide scrollbar for cleaner mobile look */
+      ::-webkit-scrollbar
+      {
+        display: none;
+      }
+
+      .card-border
+      {
+        border: 0.5px solid rgba(200, 168, 75, 0.3);
+        border-radius: 10px;
+      }
+
+      .input-focus:focus-within
+      {
+        border-color: #C8A84B;
+      }
+
+      .ghost-btn
+      {
+        border: 1px solid #787570;
+        background: transparent;
+        transition: all 0.2s;
+      }
+
+      .ghost-btn:active
+      {
+        border-color: #C8A84B;
+        color: #C8A84B;
+      }
+
+      /* Mobile container constraints to simulate app flow */
+      .app-screen
+      {
+        width: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        min-height: 100vh;
+        position: relative;
+        background: #0A0A0A;
+        display: none;
+        /* Hidden by default, toggled via JS */
+        flex-direction: column;
+      }
+
+      .app-screen.active
+      {
+        display: flex;
+      }
+    </style>
+      <link rel="stylesheet" href="shared/theme.css">
+</head>
+
+  <body
+    class="w-full min-h-screen bg-brand-bg text-brand-primary m-0 p-0 overflow-x-hidden">
+    <!-- Screen 1: Splash -->
+    <main id="screen-splash"
+      class="app-screen active justify-center items-center px-6 py-12">
+      <div class="flex-1 flex flex-col items-center justify-center w-full">
+        <!-- Logo Placeholder -->
+        <div class="w-32 h-32 mb-6 rounded-full border-2 border-brand-gold/30 flex items-center justify-center">
+          <div class="w-24 h-24 rounded-full bg-brand-gold/10 flex items-center justify-center">
+            <i class="fa-solid fa-star text-brand-gold text-5xl"></i>
+          </div>
+        </div>
+        
+        <h1 class="text-7xl font-heading text-brand-gold mb-3 tracking-wider">DG</h1>
+        <p class="text-brand-primary text-center text-lg tracking-[0.3em] uppercase font-heading mb-2">
+          Grant Access
+        </p>
+        <p class="text-brand-secondary text-center text-sm max-w-xs mt-4 leading-relaxed font-light">
+          Elite sports mentorship from British Olympic high jumper Dalton Grant
+        </p>
+      </div>
+      
+      <div class="w-full text-center pb-8">
+        <p class="text-brand-secondary text-xs">Tap anywhere to continue</p>
+      </div>
+    </main><!-- Screen 2: Sign Up -->
+    <main id="screen-signup" class="app-screen px-6 py-12">
+      <div class="flex items-center mb-12 pt-4"><a href="31-Sponsor Listings.html"
+          class="text-brand-primary hover:text-brand-gold no-underline"><i
+            class="fa-solid fa-arrow-left text-xl"></i></a>
+        <h1 class="text-3xl font-heading mx-auto pr-6">Create Account</h1>
+      </div>
+      <div class="space-y-6 flex-1">
+        <div class="space-y-2"><label
+            class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Email</label>
+          <div
+            class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors">
+            <input type="email" placeholder="athlete@example.com"
+              class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+          </div>
+        </div>
+        <div class="space-y-2"><label
+            class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Password</label>
+          <div
+            class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors flex justify-between items-center">
+            <input type="password" placeholder="••••••••"
+              class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary"><button
+              class="text-brand-secondary"><i
+                class="fa-regular fa-eye"></i></button></div>
+        </div><button
+          class="w-full py-4 ghost-btn rounded-lg font-heading text-xl tracking-wider mt-8">Continue</button>
+        <div class="flex items-center gap-4 my-8">
+          <div class="flex-1 h-px bg-brand-border opacity-30"></div><span
+            class="text-brand-secondary text-sm">OR</span>
+          <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+        </div>
+        <div class="space-y-4"><button
+            class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors"><i
+              class="fa-brands fa-apple text-xl"></i><span>Continue with
+              Apple</span></button><button
+            class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors"><i
+              class="fa-brands fa-google text-xl"></i><span>Continue with
+              Google</span></button></div>
+      </div>
+      <div class="text-center mt-auto pt-8">
+        <p class="text-brand-secondary">Already have an account? <button
+            class="text-brand-gold hover:underline">Log In</button></p>
+      </div>
+    </main><!-- Screen 3: Community Feed (Main App) -->
+    <main id="screen-community" class="app-screen bg-brand-bg pb-24">
+      <!-- Top Bar -->
+      <header
+        class="sticky top-0 z-50 bg-brand-bg/95 backdrop-blur-md px-4 py-4 border-b border-brand-border/20 flex justify-between items-center">
+        <h1 class="text-2xl font-heading text-brand-gold tracking-widest">GRANT
+          ACCESS</h1>
+        <div class="flex gap-4"><button
+            class="text-brand-primary hover:text-brand-gold"><i
+              class="fa-regular fa-bell text-xl"></i></button><button
+            class="text-brand-primary hover:text-brand-gold"><i
+              class="fa-regular fa-paper-plane text-xl"></i></button></div>
+      </header><!-- Filters -->
+      <div
+        class="px-4 py-3 overflow-x-auto whitespace-nowrap border-b border-brand-border/10 flex gap-2">
+        <button
+          class="px-4 py-1.5 rounded-full border border-brand-gold text-brand-gold text-sm">All</button><button
+          class="px-4 py-1.5 rounded-full border border-brand-border text-brand-secondary text-sm hover:border-brand-primary hover:text-brand-primary">Sprints</button><button
+          class="px-4 py-1.5 rounded-full border border-brand-border text-brand-secondary text-sm hover:border-brand-primary hover:text-brand-primary">Jumps</button><button
+          class="px-4 py-1.5 rounded-full border border-brand-border text-brand-secondary text-sm hover:border-brand-primary hover:text-brand-primary">Nutrition</button>
+      </div><!-- Feed Content -->
+      <div class="p-4 space-y-6">
+        <!-- Post 1 -->
+        <article class="bg-brand-card card-border p-4">
+          <div class="flex items-center gap-3 mb-3"><img
+              src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-4.jpg"
+              alt="Dalton Grant" class="w-10 h-10 rounded-full object-cover">
+            <div>
+              <h3 class="font-medium text-brand-primary">Dalton Grant</h3>
+              <p class="text-xs text-brand-secondary">2 hours ago • Head Coach
+              </p>
+            </div>
+          </div>
+          <p class="text-sm leading-relaxed mb-4 text-brand-primary">Focus on
+            the drive phase today. Keep those knees high and drive back down
+            into the track. It's all about applying force in the right
+            direction.</p>
+          <div class="h-48 w-full rounded-lg overflow-hidden mb-4"><img
+              src="https://storage.googleapis.com/uxpilot-auth.appspot.com/5179b4413a-bd8b5d6cf15ed36b9404.png"
+              alt="athlete sprinting on track low angle dramatic lighting dark theme"
+              class="w-full h-full object-cover"></div>
+          <div
+            class="flex items-center gap-6 text-brand-secondary text-sm pt-2 border-t border-brand-border/20">
+            <button class="flex items-center gap-2 hover:text-brand-gold"><i
+                class="fa-regular fa-heart"></i> 24</button><button
+              class="flex items-center gap-2 hover:text-brand-gold"><i
+                class="fa-regular fa-comment"></i> 8</button></div>
+        </article><!-- Post 2 -->
+        <article class="bg-brand-card card-border p-4">
+          <div class="flex items-center gap-3 mb-3"><img
+              src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-1.jpg"
+              alt="Sarah Jones" class="w-10 h-10 rounded-full object-cover">
+            <div>
+              <h3 class="font-medium text-brand-primary">Sarah Jones</h3>
+              <p class="text-xs text-brand-secondary">5 hours ago • U20 Sprints
+              </p>
+            </div>
+          </div>
+          <p class="text-sm leading-relaxed mb-4 text-brand-primary">Hit a new
+            PB in the 100m today! 11.8s. The block start drills are finally
+            paying off.</p>
+          <div
+            class="flex items-center gap-6 text-brand-secondary text-sm pt-2 border-t border-brand-border/20">
+            <button class="flex items-center gap-2 hover:text-brand-gold"><i
+                class="fa-regular fa-heart"></i> 42</button><button
+              class="flex items-center gap-2 hover:text-brand-gold"><i
+                class="fa-regular fa-comment"></i> 12</button></div>
+        </article>
+      </div><!-- FAB Admin --><button
+        class="fixed bottom-24 right-6 w-14 h-14 bg-brand-gold text-brand-bg rounded-full shadow-lg flex items-center justify-center text-2xl z-40"><i
+          class="fa-solid fa-plus"></i></button><!-- Bottom Tab Bar -->
+      <nav
+        class="fixed bottom-0 w-full max-w-[480px] bg-brand-bg/95 backdrop-blur-md border-t border-brand-border/20 px-6 py-3 flex justify-between items-center z-50">
+        <button class="flex flex-col items-center gap-1 text-brand-gold"><i
+            class="fa-solid fa-house text-xl"></i><span
+            class="text-[10px] font-medium">Home</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-solid fa-play text-xl"></i><span
+            class="text-[10px] font-medium">Media</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-solid fa-medal text-xl"></i><span
+            class="text-[10px] font-medium">Sponsors</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-solid fa-calendar text-xl"></i><span
+            class="text-[10px] font-medium">Events</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-regular fa-user text-xl"></i><span
+            class="text-[10px] font-medium">Profile</span></button></nav>
+    </main><!-- Screen 4: Media Home -->
+    <main id="screen-media" class="app-screen bg-brand-bg pb-24">
+      <header
+        class="sticky top-0 z-50 bg-brand-bg/95 backdrop-blur-md px-4 py-4 border-b border-brand-border/20 flex justify-between items-center">
+        <h1 class="text-2xl font-heading text-brand-gold tracking-widest">MEDIA
+        </h1><button class="text-brand-primary hover:text-brand-gold"><i
+            class="fa-solid fa-magnifying-glass text-xl"></i></button>
+      </header>
+      <div
+        class="px-4 py-3 overflow-x-auto whitespace-nowrap border-b border-brand-border/10 flex gap-2">
+        <button
+          class="px-4 py-1.5 rounded-full border border-brand-gold text-brand-gold text-sm">Latest</button><button
+          class="px-4 py-1.5 rounded-full border border-brand-border text-brand-secondary text-sm">Masterclasses</button><button
+          class="px-4 py-1.5 rounded-full border border-brand-border text-brand-secondary text-sm">Interviews</button>
+      </div>
+      <div class="p-4 space-y-6">
+        <!-- Hero Video -->
+        <div
+          class="relative w-full aspect-video rounded-xl overflow-hidden bg-brand-card">
+          <img
+            src="https://storage.googleapis.com/uxpilot-auth.appspot.com/a74982014a-077d8c30a0f205e1ef82.png"
+            alt="athlete doing high jump slow motion dark background cinematic"
+            class="w-full h-full object-cover opacity-70">
+          <div class="absolute inset-0 flex items-center justify-center"><button
+              class="w-16 h-16 rounded-full bg-brand-gold/90 text-brand-bg flex items-center justify-center text-2xl pl-1 backdrop-blur-sm"><i
+                class="fa-solid fa-play"></i></button></div>
+          <div
+            class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-brand-bg to-transparent">
+            <span
+              class="text-[10px] uppercase text-brand-gold font-bold tracking-wider mb-1 block">Masterclass</span>
+            <h2 class="font-heading text-xl">The Perfect Approach</h2>
+            <p class="text-xs text-brand-secondary">15:24 • Dalton Grant</p>
+          </div>
+        </div>
+        <div class="flex justify-between items-center mt-6 mb-4">
+          <h3
+            class="text-sm font-bold uppercase tracking-wider text-brand-secondary">
+            Recent Uploads</h3><button class="text-xs text-brand-gold">See
+            All</button>
+        </div><!-- Video Grid -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <div
+              class="relative aspect-video rounded-lg overflow-hidden bg-brand-card">
+              <img
+                src="https://storage.googleapis.com/uxpilot-auth.appspot.com/43cc37215c-6923e40edd26b17c4e72.png"
+                alt="gym weights rack dark moody lighting"
+                class="w-full h-full object-cover"><span
+                class="absolute bottom-1 right-1 bg-brand-bg/80 text-[10px] px-1.5 py-0.5 rounded">08:45</span>
+            </div>
+            <h4 class="text-sm font-medium leading-tight">Strength Training for
+              Jumpers</h4>
+            <p class="text-xs text-brand-secondary">2 days ago</p>
+          </div>
+          <div class="space-y-2">
+            <div
+              class="relative aspect-video rounded-lg overflow-hidden bg-brand-card">
+              <img
+                src="https://storage.googleapis.com/uxpilot-auth.appspot.com/ad97f6632b-f5ce8aab6da276d4f73b.png"
+                alt="running shoes on track closeup dark theme"
+                class="w-full h-full object-cover"><span
+                class="absolute bottom-1 right-1 bg-brand-bg/80 text-[10px] px-1.5 py-0.5 rounded">12:30</span>
+            </div>
+            <h4 class="text-sm font-medium leading-tight">Choosing the Right
+              Spikes</h4>
+            <p class="text-xs text-brand-secondary">5 days ago</p>
+          </div>
+          <div class="space-y-2">
+            <div
+              class="relative aspect-video rounded-lg overflow-hidden bg-brand-card">
+              <img
+                src="https://storage.googleapis.com/uxpilot-auth.appspot.com/27a96cb7d0-5addb0a4453ae42dcb35.png"
+                alt="athlete stretching dark gym"
+                class="w-full h-full object-cover"><span
+                class="absolute bottom-1 right-1 bg-brand-bg/80 text-[10px] px-1.5 py-0.5 rounded">22:15</span>
+            </div>
+            <h4 class="text-sm font-medium leading-tight">Recovery Protocols
+            </h4>
+            <p class="text-xs text-brand-secondary">1 week ago</p>
+          </div>
+          <div class="space-y-2">
+            <div
+              class="relative aspect-video rounded-lg overflow-hidden bg-brand-card">
+              <img
+                src="https://storage.googleapis.com/uxpilot-auth.appspot.com/97d50877fb-809e93ec875348636c2b.png"
+                alt="nutrition meal prep healthy food dark background"
+                class="w-full h-full object-cover"><span
+                class="absolute bottom-1 right-1 bg-brand-bg/80 text-[10px] px-1.5 py-0.5 rounded">10:05</span>
+            </div>
+            <h4 class="text-sm font-medium leading-tight">Competition Day
+              Nutrition</h4>
+            <p class="text-xs text-brand-secondary">2 weeks ago</p>
+          </div>
+        </div>
+      </div><!-- Bottom Tab Bar -->
+      <nav
+        class="fixed bottom-0 w-full max-w-[480px] bg-brand-bg/95 backdrop-blur-md border-t border-brand-border/20 px-6 py-3 flex justify-between items-center z-50">
+        <button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-solid fa-house text-xl"></i><span
+            class="text-[10px] font-medium">Home</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-gold"><i
+            class="fa-solid fa-play text-xl"></i><span
+            class="text-[10px] font-medium">Media</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-solid fa-medal text-xl"></i><span
+            class="text-[10px] font-medium">Sponsors</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-solid fa-calendar text-xl"></i><span
+            class="text-[10px] font-medium">Events</span></button><button
+          class="flex flex-col items-center gap-1 text-brand-secondary hover:text-brand-primary"><i
+            class="fa-regular fa-user text-xl"></i><span
+            class="text-[10px] font-medium">Profile</span></button></nav>
+    </main>
+    <script>
+      // Simple navigation logic for prototype
+      function navTo(screenId)
+      {
+        document.querySelectorAll('.app-screen').forEach(screen =>
+        {
+          screen.classList.remove('active');
+        });
+        document.getElementById(screenId).classList.add('active');
+        window.scrollTo(0, 0);
+      }
+    </script>
+      <script src="shared/demo-shell.js" defer></script>
+</body>
+
+</html>

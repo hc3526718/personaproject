@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+          autoReplaceSvg: 'nest'
+        };
+      </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0A0A0A',
+                        surface: '#1A1A1A',
+                        primary: '#FFD700',
+                        text: '#D4D0C8',
+                        accent: '#FF4500',
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'sans-serif'],
+                        dmsans: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="bg-background text-text font-dmsans min-h-screen w-full pb-24">
+
+    <!-- Header with Back Button -->
+    <header id="header" class="w-full px-6 py-4 flex items-center gap-4 sticky top-0 bg-background/90 backdrop-blur-md z-50">
+        <a href="18-Media Library.html" id="back-button" class="w-10 h-10 rounded-full bg-surface flex items-center justify-center hover:bg-surface/80 transition-colors no-underline">
+            <i class="fa-solid fa-arrow-left text-text"></i>
+        </a>
+        <h1 class="font-bebas text-4xl tracking-wide text-text">SEARCH</h1>
+    </header>
+
+    <!-- Main Content -->
+    <main class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-8 py-6">
+
+        <!-- Search Input -->
+        <section id="search-input" class="w-full">
+            <div class="relative">
+                <input 
+                    type="text" 
+                    id="search-field"
+                    placeholder="Search videos, training, tips..." 
+                    class="w-full bg-surface border border-white/10 rounded-2xl px-6 py-4 pr-14 text-text placeholder-text/50 focus:outline-none focus:border-primary/50 focus:bg-surface/80 transition-all"
+                    autofocus
+                />
+                <button id="clear-search" class="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-text/10 flex items-center justify-center text-text/50 hover:bg-text/20 transition-colors opacity-0">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Categories -->
+        <section id="categories" class="w-full">
+            <h3 class="text-primary font-dmsans text-sm font-bold tracking-[0.2em] uppercase mb-5 px-2">BROWSE CATEGORIES</h3>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <button class="bg-surface border border-white/5 rounded-2xl p-6 text-center hover:bg-surface/80 hover:border-primary/30 transition-all group">
+                    <i class="fa-solid fa-play text-primary text-2xl mb-3"></i>
+                    <h4 class="font-medium text-text text-base">All Media</h4>
+                </button>
+                <button class="bg-surface border border-white/5 rounded-2xl p-6 text-center hover:bg-surface/80 hover:border-primary/30 transition-all group">
+                    <i class="fa-solid fa-dumbbell text-primary text-2xl mb-3"></i>
+                    <h4 class="font-medium text-text text-base">Training</h4>
+                </button>
+                <button class="bg-surface border border-white/5 rounded-2xl p-6 text-center hover:bg-surface/80 hover:border-primary/30 transition-all group">
+                    <i class="fa-solid fa-brain text-primary text-2xl mb-3"></i>
+                    <h4 class="font-medium text-text text-base">Mindset</h4>
+                </button>
+                <button class="bg-surface border border-white/5 rounded-2xl p-6 text-center hover:bg-surface/80 hover:border-primary/30 transition-all group">
+                    <i class="fa-solid fa-apple-whole text-primary text-2xl mb-3"></i>
+                    <h4 class="font-medium text-text text-base">Nutrition</h4>
+                </button>
+                <button class="bg-surface border border-white/5 rounded-2xl p-6 text-center hover:bg-surface/80 hover:border-primary/30 transition-all group">
+                    <i class="fa-solid fa-bed text-primary text-2xl mb-3"></i>
+                    <h4 class="font-medium text-text text-base">Recovery</h4>
+                </button>
+                <button class="bg-surface border border-white/5 rounded-2xl p-6 text-center hover:bg-surface/80 hover:border-primary/30 transition-all group">
+                    <i class="fa-solid fa-briefcase text-primary text-2xl mb-3"></i>
+                    <h4 class="font-medium text-text text-base">Career</h4>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-[#141414] backdrop-blur-lg border-t border-white/5 pb-safe z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div class="flex justify-between items-center px-6 py-4 pb-8 max-w-md mx-auto">
+            <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Community</span>
+            </a>
+            <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-primary transition-colors no-underline">
+                <i class="fa-solid fa-play text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Media</span>
+            </a>
+            <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Sponsors</span>
+            </a>
+            <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Events</span>
+            </a>
+            <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-regular fa-user text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </a>
+        </div>
+    </nav>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchField = document.getElementById('search-field');
+            const clearButton = document.getElementById('clear-search');
+            const backButton = document.getElementById('back-button');
+
+            searchField.addEventListener('input', function() {
+                if (this.value.length > 0) {
+                    clearButton.classList.remove('opacity-0');
+                    clearButton.classList.add('opacity-100');
+                } else {
+                    clearButton.classList.add('opacity-0');
+                    clearButton.classList.remove('opacity-100');
+                }
+            });
+
+            clearButton.addEventListener('click', function() {
+                searchField.value = '';
+                clearButton.classList.add('opacity-0');
+                clearButton.classList.remove('opacity-100');
+                searchField.focus();
+            });
+
+            searchField.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    window.location.href = '19-Media Player - Media Search Re.html';
+                }
+            });
+        });
+    </script>
+
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

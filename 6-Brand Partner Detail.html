@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brand Partner Detail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap" rel="stylesheet">
+    <script> window.FontAwesomeConfig = { autoReplaceSvg: 'nest'};</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0A0A0A',
+                        card: '#1C1C1C',
+                        gold: '#C8A84B',
+                        textPrimary: '#D4D0C8',
+                        textSecondary: '#9A9690',
+                        accentOrange: '#F95A1E',
+                    },
+                    fontFamily: {
+                        sans: ['"DM Sans"', 'sans-serif'],
+                        bebas: ['"Bebas Neue"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            -webkit-font-smoothing: antialiased;
+        }
+        ::-webkit-scrollbar { display: none; }
+        .glass-panel {
+            background: rgba(28, 28, 28, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 208, 200, 0.05);
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="w-full min-h-screen m-0 p-0 overflow-x-hidden font-sans">
+
+    <!-- App Container -->
+    <div class="max-w-md mx-auto min-h-screen flex flex-col relative md:border-x md:border-[#1C1C1C] bg-dark shadow-2xl">
+
+        <!-- Top Navigation -->
+        <header id="top-nav" class="sticky top-0 z-50 glass-panel px-4 py-4 flex items-center justify-between border-b border-[#1C1C1C]">
+            <a href="7-Community Feed.html" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#1C1C1C] transition-colors focus:outline-none focus:ring-2 focus:ring-gold/50">
+                <i class="fa-solid fa-chevron-left text-textSecondary text-lg"></i>
+            </a>
+            <h1 class="text-[14px] font-medium text-textPrimary uppercase tracking-wider">Partner</h1>
+            <div class="w-10 h-10"></div> <!-- Spacer for centering -->
+        </header>
+
+        <!-- Main Content Scrollable Area -->
+        <main id="main-content" class="flex-1 overflow-y-auto pb-24">
+            
+            <!-- Hero / Logo Section -->
+            <section id="brand-hero" class="px-4 pt-6 pb-8 flex flex-col items-center relative overflow-hidden">
+                <!-- Decorative background elements inspired by Edunex glow -->
+                <div class="absolute top-0 right-0 w-64 h-64 bg-accentOrange/10 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
+                <div class="absolute bottom-0 left-0 w-48 h-48 bg-gold/5 rounded-full blur-[60px] -z-10 pointer-events-none"></div>
+
+                <div class="w-full bg-card rounded-[10px] p-8 flex items-center justify-center mb-6 shadow-lg border border-white/5 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <img class="h-[60px] w-auto object-contain z-10 filter drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/30eb1ae956-135cf7749062f48906b3.png" alt="Minimalist bold athletic brand logo, white on dark background, geometric, modern sports brand" />
+                </div>
+                
+                <h2 class="font-bebas text-[36px] text-textPrimary tracking-wide mb-2 text-center">ATHLETIC X</h2>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="flex h-2 w-2 rounded-full bg-green-500"></span>
+                    <span class="text-xs text-textSecondary uppercase tracking-wider font-medium">Active Partner</span>
+                </div>
+            </section>
+
+            <!-- Dalton Endorsement Section -->
+            <section id="endorsement" class="px-4 py-6 border-t border-b border-[#1C1C1C] bg-gradient-to-r from-transparent via-[#1C1C1C]/30 to-transparent">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0 mt-1">
+                        <i class="fa-solid fa-quote-left text-gold text-xl opacity-50"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-sans font-medium text-[11px] text-gold uppercase tracking-[1.5px] mb-2">DALTON SAYS</h3>
+                        <p class="font-sans font-light italic text-[14px] text-textSecondary leading-relaxed">
+                            "These guys provide the best recovery gear I've ever used. It's fundamentally changed how I approach my post-training routine."
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Promo Code Section -->
+            <section id="promo-code" class="px-4 py-8 flex flex-col items-center">
+                <h3 class="font-sans font-medium text-[12px] text-gold uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-star text-[10px]"></i> Member Exclusive
+                </h3>
+                
+                <div class="w-full max-w-[280px] relative group cursor-pointer">
+                    <div class="absolute -inset-0.5 bg-gradient-to-r from-gold to-accentOrange rounded-[9px] blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                    <div class="relative w-full border border-gold rounded-[8px] bg-dark/80 p-4 flex items-center justify-between backdrop-blur-sm">
+                        <span class="font-mono text-[16px] text-gold tracking-widest flex-1 text-center font-bold">PRO-LEVEL-20</span>
+                        <button class="w-8 h-8 flex items-center justify-center rounded bg-gold/10 hover:bg-gold/20 text-gold transition-colors focus:outline-none focus:ring-1 focus:ring-gold">
+                            <i class="fa-regular fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <p class="text-[11px] text-textSecondary mt-3 text-center">Tap to copy your exclusive 20% off discount code</p>
+            </section>
+
+            <!-- Brand Description -->
+            <section id="brand-desc" class="px-4 py-6">
+                <h3 class="text-sm font-medium text-textPrimary mb-3 uppercase tracking-wider">About Athletic X</h3>
+                <p class="font-sans text-[14px] text-textSecondary leading-relaxed mb-4">
+                    Athletic X engineers premium recovery tools designed for elite performers. By combining cutting-edge material science with biomechanical insights, they deliver solutions that accelerate recovery and optimize peak physical performance.
+                </p>
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <span class="px-3 py-1 bg-[#1C1C1C] rounded-full text-[11px] text-textSecondary uppercase tracking-wider">Recovery</span>
+                    <span class="px-3 py-1 bg-[#1C1C1C] rounded-full text-[11px] text-textSecondary uppercase tracking-wider">Gear</span>
+                    <span class="px-3 py-1 bg-[#1C1C1C] rounded-full text-[11px] text-textSecondary uppercase tracking-wider">Performance</span>
+                </div>
+            </section>
+
+            <!-- Featured Video/Media -->
+            <section id="featured-media" class="px-4 py-6">
+                <div class="w-full aspect-video bg-card rounded-[10px] relative overflow-hidden group cursor-pointer border border-[#1C1C1C]">
+                    <img class="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity duration-500" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/91bf71e10a-f9bb386c642433b2804a.png" alt="Dark moody athletic training facility, high contrast, professional sports equipment" />
+                    <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors duration-500"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="w-14 h-14 rounded-full bg-dark/80 backdrop-blur-md border border-gold/50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_rgba(200,168,75,0.2)]">
+                            <i class="fa-solid fa-play text-gold text-xl ml-1"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-3 left-3 flex items-center gap-2">
+                        <span class="bg-dark/80 backdrop-blur text-[10px] text-textPrimary px-2 py-1 rounded font-mono">02:45</span>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Products Showcase (Additional Section for Completeness) -->
+            <section id="featured-products" class="px-4 py-6">
+                <div class="flex justify-between items-end mb-4">
+                    <h3 class="text-sm font-medium text-textPrimary uppercase tracking-wider">Featured Gear</h3>
+                    <a href="#" class="text-[11px] text-gold uppercase tracking-wider hover:text-accentOrange transition-colors">View All</a>
+                </div>
+                <div class="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x">
+                    <!-- Product Card 1 -->
+                    <div class="min-w-[140px] flex-shrink-0 snap-start">
+                        <div class="w-full aspect-square bg-card rounded-lg mb-3 p-4 flex items-center justify-center border border-[#1C1C1C]">
+                            <img class="w-full h-full object-contain" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/13a32f8919-e32e3b4c0c51f38c043e.png" alt="High tech black massage gun, sleek design, dark background" />
+                        </div>
+                        <h4 class="text-[13px] text-textPrimary font-medium truncate">Pro Percussion V2</h4>
+                        <p class="text-[12px] text-textSecondary mt-1">$299.00</p>
+                    </div>
+                    <!-- Product Card 2 -->
+                    <div class="min-w-[140px] flex-shrink-0 snap-start">
+                        <div class="w-full aspect-square bg-card rounded-lg mb-3 p-4 flex items-center justify-center border border-[#1C1C1C]">
+                            <img class="w-full h-full object-contain" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/a6dc2597c3-e8765beb7b2c7040a874.png" alt="Black compression recovery boots, premium sports gear" />
+                        </div>
+                        <h4 class="text-[13px] text-textPrimary font-medium truncate">Recovery Boots</h4>
+                        <p class="text-[12px] text-textSecondary mt-1">$899.00</p>
+                    </div>
+                    <!-- Product Card 3 -->
+                    <div class="min-w-[140px] flex-shrink-0 snap-start">
+                        <div class="w-full aspect-square bg-card rounded-lg mb-3 p-4 flex items-center justify-center border border-[#1C1C1C]">
+                            <img class="w-full h-full object-contain" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/32a6819a9b-b47ac4c88b9be5998210.png" alt="Textured black foam roller, dense foam, premium athletic equipment" />
+                        </div>
+                        <h4 class="text-[13px] text-textPrimary font-medium truncate">Density Roller</h4>
+                        <p class="text-[12px] text-textSecondary mt-1">$45.00</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Sticky Bottom CTA -->
+        <footer id="bottom-cta" class="absolute bottom-0 left-0 w-full p-4 glass-panel border-t border-[#1C1C1C]">
+            <button class="w-full py-4 border border-gold bg-dark/50 hover:bg-gold/10 transition-colors duration-300 flex items-center justify-center gap-3 group focus:outline-none focus:ring-2 focus:ring-gold/50 rounded-sm">
+                <span class="font-bebas text-[14px] text-gold tracking-[2px] mt-0.5">VISIT WEBSITE</span>
+                <i class="fa-solid fa-arrow-up-right-from-square text-gold text-sm group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform"></i>
+            </button>
+        </footer>
+
+    </div>
+
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

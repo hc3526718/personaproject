@@ -1,0 +1,4 @@
+web-deploy/
+node_modules/
+.env
+.env*.local

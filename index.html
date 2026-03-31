@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DaltonProject — Demo flows</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0A0A0A',
+            gold: '#C8A84B',
+            mist: '#D4D0C8',
+            dim: '#9A9690',
+          },
+          fontFamily: {
+            bebas: ['"Bebas Neue"', 'sans-serif'],
+            sans: ['"DM Sans"', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-family: 'DM Sans', sans-serif; background: var(--demo-bg); color: var(--demo-text); }
+  </style>
+</head>
+<body class="min-h-screen antialiased pb-16">
+  <header class="sticky top-0 z-10 border-b border-white/10 bg-ink/95 backdrop-blur-md px-5 py-6">
+    <p class="font-bebas text-gold text-sm tracking-[0.2em] mb-1">DALTON PROJECT</p>
+    <h1 class="font-bebas text-3xl text-mist tracking-wide">Mobile demo flows</h1>
+    <p class="text-dim text-sm mt-2 max-w-xl">Tap a path to walk static mockups end-to-end. Use the <strong class="text-gold">Flows</strong> chip on any screen to return here.</p>
+  </header>
+
+  <main class="max-w-lg mx-auto px-5 py-8 space-y-6">
+    <section class="rounded-2xl border border-gold/30 bg-gold/[0.06] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Interactive app (React Native web)</h2>
+      <p class="text-dim text-sm">Same bottom tabs and stacks as the Expo shell in the browser. On Vercel this is served under <strong class="text-mist">/app</strong>; for a local static server, run <strong class="text-mist">npm run build:web</strong> first so <strong class="text-mist">app/</strong> exists.</p>
+      <a href="app/index.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Open interactive app</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path A — Auth &amp; community</h2>
+      <p class="text-dim text-sm">Log in → welcome hub → feed → brand detail.</p>
+      <a href="1-Onboarding Flow - Log In.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Log In</a>
+      <a href="4-Onboarding Flow - Welcome &amp; Ac.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or open Welcome hub</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path B — Events</h2>
+      <p class="text-dim text-sm">List → details → confirm → confirmation → my bookings.</p>
+      <a href="13-Upcoming Events.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Upcoming Events</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path C — Media</h2>
+      <p class="text-dim text-sm">Library → player; search → results.</p>
+      <a href="18-Media Library.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Media Library</a>
+      <a href="23-Media Player - Media Search.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or Media Search</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path D — Social</h2>
+      <p class="text-dim text-sm">Feed → notifications → messages → thread.</p>
+      <a href="7-Community Feed.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Community Feed</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path E — Profile &amp; sponsors</h2>
+      <p class="text-dim text-sm">Profile → settings → sponsors → grant access.</p>
+      <a href="22-Athlete Profile.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Athlete Profile</a>
+      <a href="31-Sponsor Listings.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or Sponsor Listings</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <h2 class="font-bebas text-lg text-mist tracking-wide mb-3">All screens</h2>
+      <ul class="text-sm text-dim space-y-2 columns-1 sm:columns-2 gap-4">
+        <li><a class="text-gold/90 hover:underline" href="1-Onboarding Flow - Log In.html">1 Log In</a></li>
+        <li><a class="text-gold/90 hover:underline" href="2-Onboarding Flow - Verify Reset.html">2 Verify reset</a></li>
+        <li><a class="text-gold/90 hover:underline" href="3-Onboarding Flow - Forgot Passw.html">3 Forgot password</a></li>
+        <li><a class="text-gold/90 hover:underline" href="4-Onboarding Flow - Welcome &amp; Ac.html">4 Welcome</a></li>
+        <li><a class="text-gold/90 hover:underline" href="5-Onboarding Flow - Create New P.html">5 New password</a></li>
+        <li><a class="text-gold/90 hover:underline" href="6-Brand Partner Detail.html">6 Brand partner</a></li>
+        <li><a class="text-gold/90 hover:underline" href="7-Community Feed.html">7 Community feed</a></li>
+        <li><a class="text-gold/90 hover:underline" href="8-Event Booking - Event Details.html">8 Event details</a></li>
+        <li><a class="text-gold/90 hover:underline" href="9-Event Booking - Confirm Attend.html">9 Confirm attend</a></li>
+        <li><a class="text-gold/90 hover:underline" href="10-Event Booking - Booking Confir.html">10 Booking confirm</a></li>
+        <li><a class="text-gold/90 hover:underline" href="11-Event Booking - Saved Events.html">11 Saved events</a></li>
+        <li><a class="text-gold/90 hover:underline" href="12-Event Booking - My Bookings.html">12 My bookings</a></li>
+        <li><a class="text-gold/90 hover:underline" href="13-Upcoming Events.html">13 Upcoming events</a></li>
+        <li><a class="text-gold/90 hover:underline" href="14-Profile Settings - Settings.html">14 Settings</a></li>
+        <li><a class="text-gold/90 hover:underline" href="15-Profile Settings - Edit Basic.html">15 Edit basic</a></li>
+        <li><a class="text-gold/90 hover:underline" href="16-Profile Settings - Edit Profil.html">16 Edit photo</a></li>
+        <li><a class="text-gold/90 hover:underline" href="17-Profile Settings - Edit Athlet.html">17 Edit athlete</a></li>
+        <li><a class="text-gold/90 hover:underline" href="18-Media Library.html">18 Media library</a></li>
+        <li><a class="text-gold/90 hover:underline" href="19-Media Player - Media Search Re.html">19 Search results</a></li>
+        <li><a class="text-gold/90 hover:underline" href="20-Media Player - Media Player.html">20 Media player</a></li>
+        <li><a class="text-gold/90 hover:underline" href="21-Media Player - Saved Media.html">21 Saved media</a></li>
+        <li><a class="text-gold/90 hover:underline" href="22-Athlete Profile.html">22 Athlete profile</a></li>
+        <li><a class="text-gold/90 hover:underline" href="23-Media Player - Media Search.html">23 Media search</a></li>
+        <li><a class="text-gold/90 hover:underline" href="24-Media Player - Community Feed.html">24 Community (media)</a></li>
+        <li><a class="text-gold/90 hover:underline" href="25-Community Flow - Community Sea.html">25 Search results</a></li>
+        <li><a class="text-gold/90 hover:underline" href="26-Community Flow - Notifications.html">26 Notifications</a></li>
+        <li><a class="text-gold/90 hover:underline" href="27-Community Flow - Messages Inbo.html">27 Messages</a></li>
+        <li><a class="text-gold/90 hover:underline" href="28-Community Flow - Message Threa.html">28 Message thread</a></li>
+        <li><a class="text-gold/90 hover:underline" href="29-Community Flow - Community Sea.html">29 Community search</a></li>
+        <li><a class="text-gold/90 hover:underline" href="30-Profile Settings - Edit Profil.html">30 Edit sections</a></li>
+        <li><a class="text-gold/90 hover:underline" href="31-Sponsor Listings.html">31 Sponsors</a></li>
+        <li><a class="text-gold/90 hover:underline" href="32-Grant Access.html">32 Grant access</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <p class="text-center text-dim text-xs px-6 pb-8">Serve this folder over HTTP and open on your phone — see <a href="README.md" class="text-gold underline">README.md</a>.</p>
+</body>
+</html>

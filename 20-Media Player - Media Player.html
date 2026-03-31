@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+          autoReplaceSvg: 'nest'
+        };
+      </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0A0A0A',
+                        surface: '#1A1A1A',
+                        primary: '#FFD700',
+                        text: '#D4D0C8',
+                        accent: '#FF4500',
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'sans-serif'],
+                        dmsans: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="bg-background text-text font-dmsans min-h-screen w-full pb-24">
+
+    <!-- Top Bar -->
+    <header id="header" class="w-full px-4 py-3 flex items-center justify-between sticky top-0 bg-background/90 backdrop-blur-md z-50">
+        <a href="18-Media Library.html" id="back-button" class="w-10 h-10 rounded-full bg-surface/80 flex items-center justify-center hover:bg-surface transition-colors no-underline">
+            <i class="fa-solid fa-arrow-left text-text"></i>
+        </a>
+        <button id="options-button" class="w-10 h-10 rounded-full bg-surface/80 flex items-center justify-center hover:bg-surface transition-colors">
+            <i class="fa-solid fa-ellipsis text-text"></i>
+        </button>
+    </header>
+
+    <!-- Video Player -->
+    <section id="video-player" class="w-full relative">
+        <div class="w-full h-[280px] sm:h-[320px] md:h-[400px] relative bg-black overflow-hidden">
+            <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/93d0cf48f4-ce5f5c9499d653769bad.png" alt="professional boxer training punching bag in gym, dynamic action shot, cinematic lighting" />
+            
+            <!-- Video Controls Overlay -->
+            <div id="controls-overlay" class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-100 transition-opacity">
+                <button id="play-pause" class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary/90 flex items-center justify-center hover:bg-primary transition-colors">
+                    <i class="fa-solid fa-pause text-background text-2xl sm:text-3xl"></i>
+                </button>
+            </div>
+
+            <!-- Bottom Controls Bar -->
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                <!-- Progress Bar -->
+                <div class="mb-3">
+                    <div class="w-full h-1 bg-white/20 rounded-full relative">
+                        <div class="h-1 bg-primary rounded-full w-[35%] relative">
+                            <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls Row -->
+                <div class="flex items-center justify-between text-white">
+                    <div class="flex items-center gap-4">
+                        <button class="hover:text-primary transition-colors">
+                            <i class="fa-solid fa-backward-step text-lg"></i>
+                        </button>
+                        <span class="text-sm">4:23 / 12:34</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button class="hover:text-primary transition-colors">
+                            <i class="fa-solid fa-volume-high text-lg"></i>
+                        </button>
+                        <button class="hover:text-primary transition-colors">
+                            <i class="fa-solid fa-expand text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Video Info -->
+    <section id="video-info" class="w-full px-4 py-6">
+        <div class="mb-4">
+            <div class="flex items-start gap-3 mb-3">
+                <div class="px-3 py-1 bg-primary/20 backdrop-blur-sm rounded-full text-primary text-xs border border-primary/30">Training</div>
+                <span class="text-text/50 text-sm">12:34</span>
+            </div>
+            <h1 class="text-text text-xl sm:text-2xl font-bold mb-2">Advanced Boxing Combinations for Power</h1>
+            <p class="text-text/70 text-sm mb-4 leading-relaxed">Master the art of powerful boxing combinations with this comprehensive training session. Learn proper form, timing, and technique to maximize your striking power.</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-3 mb-6">
+            <button id="continue-watching" class="flex items-center gap-2 px-4 py-2 bg-primary/20 border border-primary/30 rounded-xl text-primary text-sm hover:bg-primary hover:text-background transition-all">
+                <i class="fa-solid fa-clock text-xs"></i>
+                <span>Add to Continue Watching</span>
+            </button>
+            <button id="save-video" class="flex items-center gap-2 px-4 py-2 bg-surface border border-white/10 rounded-xl text-text text-sm hover:bg-text hover:text-background transition-all">
+                <i class="fa-regular fa-bookmark text-xs"></i>
+                <span>Save</span>
+            </button>
+            <button id="share-video" class="flex items-center gap-2 px-4 py-2 bg-surface border border-white/10 rounded-xl text-text text-sm hover:bg-text hover:text-background transition-all">
+                <i class="fa-solid fa-share text-xs"></i>
+                <span>Share</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- Up Next Section -->
+    <section id="up-next" class="w-full px-4 mb-8">
+        <h2 class="text-text text-lg font-bold mb-4">Up Next</h2>
+        <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+            <div class="flex-shrink-0 w-48 bg-surface rounded-xl overflow-hidden border border-white/5 hover:border-primary/30 transition-all cursor-pointer" data-video-id="2">
+                <div class="relative">
+                    <div class="w-full h-28 bg-gradient-to-br from-surface to-background overflow-hidden">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/38b2a2e045-566bd50dd7ade8850f92.png" alt="boxing footwork training in professional gym" />
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-white text-xs">8:45</div>
+                </div>
+                <div class="p-3">
+                    <h3 class="font-medium text-text text-sm line-clamp-2 mb-1">Footwork Fundamentals</h3>
+                    <p class="text-text/50 text-xs">Elite Boxing</p>
+                </div>
+            </div>
+
+            <div class="flex-shrink-0 w-48 bg-surface rounded-xl overflow-hidden border border-white/5 hover:border-primary/30 transition-all cursor-pointer" data-video-id="3">
+                <div class="relative">
+                    <div class="w-full h-28 bg-gradient-to-br from-surface to-background overflow-hidden">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/99b51df8b7-817bb84e9fd20a41ab2c.png" alt="boxing defense techniques training session" />
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-white text-xs">15:22</div>
+                </div>
+                <div class="p-3">
+                    <h3 class="font-medium text-text text-sm line-clamp-2 mb-1">Defensive Boxing</h3>
+                    <p class="text-text/50 text-xs">Boxing Academy</p>
+                </div>
+            </div>
+
+            <div class="flex-shrink-0 w-48 bg-surface rounded-xl overflow-hidden border border-white/5 hover:border-primary/30 transition-all cursor-pointer" data-video-id="4">
+                <div class="relative">
+                    <div class="w-full h-28 bg-gradient-to-br from-surface to-background overflow-hidden">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/a6bf06ab69-e4b020b342fade24340e.png" alt="boxing sparring session professional athletes" />
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-white text-xs">22:18</div>
+                </div>
+                <div class="p-3">
+                    <h3 class="font-medium text-text text-sm line-clamp-2 mb-1">Sparring Strategies</h3>
+                    <p class="text-text/50 text-xs">Pro Boxing</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Related Videos -->
+    <section id="related-videos" class="w-full px-4 mb-8">
+        <h2 class="text-text text-lg font-bold mb-4">Related Videos</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            <div class="media-card bg-surface rounded-xl overflow-hidden border border-white/5 hover:border-primary/30 transition-all group cursor-pointer" data-video-id="5">
+                <div class="relative">
+                    <div class="w-full h-36 bg-gradient-to-br from-surface to-background overflow-hidden">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/7489c70a33-f137e7f5db66644a0808.png" alt="boxing conditioning workout heavy bag training" />
+                    </div>
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-background text-sm ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-white text-xs">18:07</div>
+                    <div class="absolute top-2 left-2 bg-primary/20 backdrop-blur-sm px-2 py-0.5 rounded-full text-primary text-xs border border-primary/30">Training</div>
+                </div>
+                <div class="p-3">
+                    <h3 class="font-medium text-text text-sm line-clamp-2 mb-1">Boxing Conditioning</h3>
+                    <p class="text-text/50 text-xs mb-2">Fitness Boxing • 2.5M views</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button class="text-text/40 hover:text-primary transition-colors">
+                                <i class="fa-regular fa-heart text-xs"></i>
+                            </button>
+                            <button class="text-text/40 hover:text-primary transition-colors">
+                                <i class="fa-regular fa-bookmark text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1 text-primary text-xs">
+                            <i class="fa-solid fa-star text-xs"></i>
+                            <span>4.8</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="media-card bg-surface rounded-xl overflow-hidden border border-white/5 hover:border-primary/30 transition-all group cursor-pointer" data-video-id="6">
+                <div class="relative">
+                    <div class="w-full h-36 bg-gradient-to-br from-surface to-background overflow-hidden">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/2572604e70-24280542fbd1badb649c.png" alt="boxing mental preparation visualization techniques" />
+                    </div>
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-background text-sm ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-white text-xs">9:33</div>
+                    <div class="absolute top-2 left-2 bg-accent/20 backdrop-blur-sm px-2 py-0.5 rounded-full text-accent text-xs border border-accent/30">Mindset</div>
+                </div>
+                <div class="p-3">
+                    <h3 class="font-medium text-text text-sm line-clamp-2 mb-1">Mental Boxing</h3>
+                    <p class="text-text/50 text-xs mb-2">Mind Sports • 780K views</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button class="text-text/40 hover:text-primary transition-colors">
+                                <i class="fa-regular fa-heart text-xs"></i>
+                            </button>
+                            <button class="text-text/40 hover:text-primary transition-colors">
+                                <i class="fa-regular fa-bookmark text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1 text-primary text-xs">
+                            <i class="fa-solid fa-star text-xs"></i>
+                            <span>4.9</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="media-card bg-surface rounded-xl overflow-hidden border border-white/5 hover:border-primary/30 transition-all group cursor-pointer" data-video-id="7">
+                <div class="relative">
+                    <div class="w-full h-36 bg-gradient-to-br from-surface to-background overflow-hidden">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/e9a57029f3-29a7dd4a80e69c1a405a.png" alt="boxing speed training workout session" />
+                    </div>
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div class="w-10 h-10 rounded-full bg-primary/90 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-background text-sm ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-1.5 py-0.5 rounded text-white text-xs">14:55</div>
+                    <div class="absolute top-2 left-2 bg-primary/20 backdrop-blur-sm px-2 py-0.5 rounded-full text-primary text-xs border border-primary/30">Training</div>
+                </div>
+                <div class="p-3">
+                    <h3 class="font-medium text-text text-sm line-clamp-2 mb-1">Speed Training</h3>
+                    <p class="text-text/50 text-xs mb-2">Quick Boxing • 1.2M views</p>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button class="text-text/40 hover:text-primary transition-colors">
+                                <i class="fa-regular fa-heart text-xs"></i>
+                            </button>
+                            <button class="text-text/40 hover:text-primary transition-colors">
+                                <i class="fa-regular fa-bookmark text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1 text-primary text-xs">
+                            <i class="fa-solid fa-star text-xs"></i>
+                            <span>4.7</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-[#141414] backdrop-blur-lg border-t border-white/5 pb-safe z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div class="flex justify-between items-center px-6 py-4 pb-8 max-w-md mx-auto">
+            <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Community</span>
+            </a>
+            <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-primary transition-colors no-underline">
+                <i class="fa-solid fa-play text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Media</span>
+            </a>
+            <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Sponsors</span>
+            </a>
+            <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Events</span>
+            </a>
+            <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-regular fa-user text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </a>
+        </div>
+    </nav>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const playPauseBtn = document.getElementById('play-pause');
+            const controlsOverlay = document.getElementById('controls-overlay');
+            const videoPlayer = document.getElementById('video-player');
+            const backButton = document.getElementById('back-button');
+            const mediaCards = document.querySelectorAll('.media-card');
+            const upNextCards = document.querySelectorAll('#up-next .cursor-pointer');
+            
+            let isPlaying = true;
+            let controlsTimeout;
+
+            // Play/Pause functionality
+            playPauseBtn.addEventListener('click', function() {
+                isPlaying = !isPlaying;
+                const icon = this.querySelector('i');
+                if (isPlaying) {
+                    icon.classList.remove('fa-play');
+                    icon.classList.add('fa-pause');
+                } else {
+                    icon.classList.remove('fa-pause');
+                    icon.classList.add('fa-play');
+                }
+            });
+
+            // Hide/show controls on video interaction
+            videoPlayer.addEventListener('click', function() {
+                if (controlsOverlay.classList.contains('opacity-0')) {
+                    controlsOverlay.classList.remove('opacity-0');
+                    controlsOverlay.classList.add('opacity-100');
+                } else {
+                    controlsOverlay.classList.remove('opacity-100');
+                    controlsOverlay.classList.add('opacity-0');
+                }
+                
+                clearTimeout(controlsTimeout);
+                controlsTimeout = setTimeout(() => {
+                    controlsOverlay.classList.remove('opacity-100');
+                    controlsOverlay.classList.add('opacity-0');
+                }, 3000);
+            });
+
+            // Back button functionality
+            backButton.addEventListener('click', function() {
+                console.log('Navigate back to previous screen');
+            });
+
+            // Options menu
+            document.getElementById('options-button').addEventListener('click', function() {
+                console.log('Show options menu (Save/Share)');
+            });
+
+            // Action buttons
+            document.getElementById('continue-watching').addEventListener('click', function() {
+                console.log('Added to Continue Watching');
+                this.innerHTML = '<i class="fa-solid fa-check text-xs"></i><span>Added</span>';
+                this.classList.add('bg-green-500/20', 'border-green-500/30', 'text-green-400');
+            });
+
+            document.getElementById('save-video').addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                if (icon.classList.contains('fa-regular')) {
+                    icon.classList.remove('fa-regular');
+                    icon.classList.add('fa-solid');
+                    this.querySelector('span').textContent = 'Saved';
+                } else {
+                    icon.classList.remove('fa-solid');
+                    icon.classList.add('fa-regular');
+                    this.querySelector('span').textContent = 'Save';
+                }
+            });
+
+            document.getElementById('share-video').addEventListener('click', function() {
+                console.log('Share video');
+            });
+
+            // Video card clicks - restart playback with new selection
+            mediaCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const videoId = this.dataset.videoId;
+                    console.log('Loading new video:', videoId);
+                    // Restart playback with new video
+                });
+            });
+
+            upNextCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const videoId = this.dataset.videoId;
+                    console.log('Loading next video:', videoId);
+                    // Restart playback with new video
+                });
+            });
+
+            // Auto-hide controls after 3 seconds
+            controlsTimeout = setTimeout(() => {
+                controlsOverlay.classList.remove('opacity-100');
+                controlsOverlay.classList.add('opacity-0');
+            }, 3000);
+        });
+    </script>
+
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

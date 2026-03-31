@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+          autoReplaceSvg: 'nest'
+        };
+      </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Profile Photo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0A0A0A',
+                        gold: '#D4AF37',
+                        gray: {
+                            800: '#1F1F1F',
+                            900: '#121212'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        bebas: ['"Bebas Neue"', 'cursive']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            background-color: #0A0A0A;
+            color: white;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .gold-gradient-text {
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gold-gradient-ring {
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            padding: 4px;
+            border-radius: 50%;
+        }
+        .crop-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            border: 2px dashed #D4AF37;
+            pointer-events: none;
+        }
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .photo-action-btn {
+            transition: all 0.3s ease;
+        }
+        .photo-action-btn:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="font-sans antialiased w-full min-h-screen m-0 pb-20">
+    <div id="toast" class="toast bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 max-w-xs">
+        <i class="fa-solid fa-check-circle"></i>
+        <span class="text-sm font-medium">Profile photo updated!</span>
+    </div>
+
+    <header id="header" class="w-full px-6 py-4 flex justify-between items-center sticky top-0 bg-dark/90 backdrop-blur-md z-50">
+        <button id="back-btn" class="text-gray-400 hover:text-white transition-colors h-11 w-11 flex items-center justify-center rounded-full hover:bg-gray-800">
+            <i class="fa-solid fa-arrow-left text-xl"></i>
+        </button>
+        <h1 class="font-bebas text-xl tracking-wide gold-gradient-text">EDIT PROFILE PHOTO</h1>
+        <div class="w-11"></div>
+    </header>
+
+    <main id="main" class="w-full max-w-md mx-auto px-4">
+        <div id="photo-preview-section" class="mt-8 flex flex-col items-center">
+            <div id="photo-container" class="relative mb-8">
+                <div class="gold-gradient-ring">
+                    <div id="current-photo" class="w-32 h-32 rounded-full bg-gray-800 overflow-hidden relative">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/df8a5c75f5-a5ff671efc349b235853.png" alt="Professional headshot of a young athletic person with a confident smile" />
+                        <div id="crop-overlay" class="crop-overlay hidden"></div>
+                    </div>
+                </div>
+                <button id="camera-btn" class="absolute -bottom-1 -right-1 w-10 h-10 bg-gold hover:bg-gold/90 rounded-full flex items-center justify-center shadow-lg transition-all">
+                    <i class="fa-solid fa-camera text-dark text-sm"></i>
+                </button>
+            </div>
+
+            <div id="photo-info" class="text-center mb-8">
+                <p class="text-gray-400 text-sm mb-2">Current profile photo</p>
+                <p class="text-xs text-gray-500">Recommended: Square image, at least 400x400px</p>
+            </div>
+        </div>
+
+        <div id="photo-actions" class="space-y-4 mb-8">
+            <button id="upload-btn" class="photo-action-btn w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-4 rounded-lg transition-all border border-gray-700 flex items-center justify-center gap-3">
+                <i class="fa-solid fa-upload text-gold"></i>
+                Upload New Photo
+            </button>
+
+            <button id="choose-btn" class="photo-action-btn w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-4 rounded-lg transition-all border border-gray-700 flex items-center justify-center gap-3">
+                <i class="fa-solid fa-images text-gold"></i>
+                Choose from Gallery
+            </button>
+
+            <button id="crop-btn" class="photo-action-btn w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-4 rounded-lg transition-all border border-gray-700 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-crop-simple text-gold"></i>
+                Crop Photo
+            </button>
+
+            <button id="remove-btn" class="photo-action-btn w-full bg-red-600/10 hover:bg-red-600/20 text-red-400 font-medium py-4 rounded-lg transition-all border border-red-600/30 flex items-center justify-center gap-3">
+                <i class="fa-solid fa-trash text-red-400"></i>
+                Remove Photo
+            </button>
+        </div>
+
+        <div id="form-actions" class="pt-4 space-y-3">
+            <button 
+                type="button" 
+                id="save-btn"
+                class="w-full bg-gold hover:bg-gold/90 text-dark font-semibold py-3.5 rounded-lg transition-all shadow-lg shadow-gold/20 hover:shadow-gold/40"
+            >
+                Save Changes
+            </button>
+            <button 
+                type="button" 
+                id="cancel-btn"
+                class="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-3.5 rounded-lg transition-colors border border-gray-700"
+            >
+                Cancel
+            </button>
+        </div>
+
+        <input type="file" id="file-input" accept="image/*" />
+    </main>
+
+    <nav id="footer" class="fixed bottom-0 w-full bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-user-group text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Community</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-play text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Media</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-handshake text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Sponsors</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Events</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gold">
+            <i class="fa-regular fa-user text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Profile</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-cog text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Settings</span>
+        </button>
+    </nav>
+
+    <script>
+        window.addEventListener('load', function() {
+            const fileInput = document.getElementById('file-input');
+            const uploadBtn = document.getElementById('upload-btn');
+            const chooseBtn = document.getElementById('choose-btn');
+            const cropBtn = document.getElementById('crop-btn');
+            const removeBtn = document.getElementById('remove-btn');
+            const saveBtn = document.getElementById('save-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            const backBtn = document.getElementById('back-btn');
+            const toast = document.getElementById('toast');
+            const currentPhoto = document.getElementById('current-photo');
+            const cropOverlay = document.getElementById('crop-overlay');
+            const cameraBtn = document.getElementById('camera-btn');
+
+            let hasPhoto = true;
+            let isInCropMode = false;
+
+            function showToast(message) {
+                const toastMessage = toast.querySelector('span');
+                toastMessage.textContent = message;
+                toast.classList.add('show');
+                setTimeout(function() {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            function toggleCropMode() {
+                isInCropMode = !isInCropMode;
+                if (isInCropMode) {
+                    cropOverlay.classList.remove('hidden');
+                    cropBtn.innerHTML = '<i class="fa-solid fa-check text-gold"></i>Apply Crop';
+                    cropBtn.classList.add('bg-gold/20', 'border-gold/50');
+                } else {
+                    cropOverlay.classList.add('hidden');
+                    cropBtn.innerHTML = '<i class="fa-solid fa-crop-simple text-gold"></i>Crop Photo';
+                    cropBtn.classList.remove('bg-gold/20', 'border-gold/50');
+                }
+            }
+
+            uploadBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            chooseBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            cameraBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = currentPhoto.querySelector('img') || currentPhoto.querySelector('AI-IMAGE');
+                        if (img) {
+                            img.src = e.target.result;
+                            hasPhoto = true;
+                            cropBtn.disabled = false;
+                            cropBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            cropBtn.addEventListener('click', function() {
+                if (hasPhoto) {
+                    if (isInCropMode) {
+                        showToast('Photo cropped successfully!');
+                    }
+                    toggleCropMode();
+                }
+            });
+
+            removeBtn.addEventListener('click', function() {
+                if (hasPhoto) {
+                    const img = currentPhoto.querySelector('img') || currentPhoto.querySelector('AI-IMAGE');
+                    if (img) {
+                        img.remove();
+                    }
+                    currentPhoto.innerHTML = '<div class="w-full h-full bg-gray-700 flex items-center justify-center"><i class="fa-solid fa-user text-4xl text-gray-500"></i></div>';
+                    hasPhoto = false;
+                    cropBtn.disabled = true;
+                    cropBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    if (isInCropMode) {
+                        toggleCropMode();
+                    }
+                    showToast('Photo removed');
+                }
+            });
+
+            saveBtn.addEventListener('click', function() {
+                showToast('Profile photo updated!');
+                setTimeout(function() {
+                }, 3500);
+            });
+
+            cancelBtn.addEventListener('click', function() {
+            });
+
+            backBtn.addEventListener('click', function() {
+                window.location.href = '14-Profile Settings - Settings.html';
+            });
+        });
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+          autoReplaceSvg: 'nest'
+        };
+      </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0A0A0A',
+                        surface: '#1A1A1A',
+                        primary: '#FFD700',
+                        text: '#D4D0C8',
+                        accent: '#FF4500',
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'sans-serif'],
+                        dmsans: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="bg-background text-text font-dmsans min-h-screen w-full pb-24">
+
+    <header id="header" class="w-full px-4 py-6 flex items-center justify-between sticky top-0 bg-background/90 backdrop-blur-md z-50">
+        <h1 class="text-text text-2xl font-bold">Community</h1>
+        <div class="flex items-center gap-3">
+            <a href="26-Community Flow - Notifications.html" id="notifications-btn" class="w-10 h-10 rounded-full bg-surface/80 flex items-center justify-center hover:bg-surface transition-colors relative no-underline">
+                <i class="fa-solid fa-bell text-text"></i>
+                <span class="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full"></span>
+            </a>
+        </div>
+    </header>
+
+    <section id="create-post-section" class="w-full px-4 mb-6">
+        <button id="create-post-btn" class="w-full bg-surface border border-white/10 rounded-xl p-4 flex items-center gap-3 hover:border-primary/30 transition-all">
+            <img class="w-10 h-10 rounded-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg" alt="User avatar">
+            <span class="text-text/50 text-sm flex-1 text-left">Share your training update...</span>
+            <i class="fa-solid fa-image text-text/50"></i>
+        </button>
+    </section>
+
+    <section id="filter-tabs" class="w-full px-4 mb-6">
+        <div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+            <button class="filter-tab active flex-shrink-0 px-4 py-2 bg-primary/20 border border-primary/30 rounded-xl text-primary text-sm font-medium hover:bg-primary hover:text-background transition-all">
+                All Posts
+            </button>
+            <button class="filter-tab flex-shrink-0 px-4 py-2 bg-surface border border-white/10 rounded-xl text-text text-sm font-medium hover:bg-primary hover:text-background transition-all">
+                Athletes
+            </button>
+            <button class="filter-tab flex-shrink-0 px-4 py-2 bg-surface border border-white/10 rounded-xl text-text text-sm font-medium hover:bg-primary hover:text-background transition-all">
+                Coaches
+            </button>
+            <button class="filter-tab flex-shrink-0 px-4 py-2 bg-surface border border-white/10 rounded-xl text-text text-sm font-medium hover:bg-primary hover:text-background transition-all">
+                Discussions
+            </button>
+        </div>
+    </section>
+
+    <section id="posts-feed" class="w-full px-4 mb-8 space-y-4">
+        
+        <article class="post-card bg-surface rounded-xl border border-white/5 overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center gap-3 mb-3">
+                    <img class="w-10 h-10 rounded-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-3.jpg" alt="Marcus Johnson">
+                    <div class="flex-1">
+                        <h3 class="text-text text-sm font-medium">Marcus Johnson</h3>
+                        <p class="text-text/50 text-xs">Pro Athlete • 2 hours ago</p>
+                    </div>
+                    <button class="text-text/50 hover:text-text transition-colors">
+                        <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+                </div>
+                
+                <p class="text-text text-sm mb-3 leading-relaxed">
+                    Just wrapped up an intense sparring session! The key to improving is staying consistent and pushing your limits. Remember, champions are made in training. 💪🥊
+                </p>
+                
+                <div class="relative rounded-xl overflow-hidden mb-3 cursor-pointer media-thumb" data-media-id="1">
+                    <div class="w-full h-48 bg-gradient-to-br from-surface to-background">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/93d0cf48f4-b07ec3effab34b8b4823.png" alt="boxer training in gym">
+                    </div>
+                    <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-background ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-2 py-1 rounded text-white text-xs">8:32</div>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t border-white/5">
+                    <button class="flex items-center gap-2 text-text/50 hover:text-accent transition-colors">
+                        <i class="fa-regular fa-heart"></i>
+                        <span class="text-xs">342</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-comment"></i>
+                        <span class="text-xs">28</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-solid fa-share-nodes"></i>
+                        <span class="text-xs">15</span>
+                    </button>
+                    <button class="text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-bookmark"></i>
+                    </button>
+                </div>
+            </div>
+        </article>
+
+        <article class="post-card bg-surface rounded-xl border border-white/5 overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center gap-3 mb-3">
+                    <img class="w-10 h-10 rounded-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="Sarah Martinez">
+                    <div class="flex-1">
+                        <h3 class="text-text text-sm font-medium">Sarah Martinez</h3>
+                        <p class="text-text/50 text-xs">Elite Coach • 5 hours ago</p>
+                    </div>
+                    <button class="text-text/50 hover:text-text transition-colors">
+                        <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+                </div>
+                
+                <p class="text-text text-sm mb-3 leading-relaxed">
+                    Today's coaching tip: Footwork is the foundation of everything in boxing. Master your movement and the rest will follow. Check out my latest technique breakdown! 👇
+                </p>
+                
+                <div class="relative rounded-xl overflow-hidden mb-3 cursor-pointer media-thumb" data-media-id="2">
+                    <div class="w-full h-48 bg-gradient-to-br from-surface to-background">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/38b2a2e045-c26783c963eb5075007d.png" alt="boxing footwork training">
+                    </div>
+                    <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-background ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-2 py-1 rounded text-white text-xs">12:15</div>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t border-white/5">
+                    <button class="flex items-center gap-2 text-text/50 hover:text-accent transition-colors">
+                        <i class="fa-regular fa-heart"></i>
+                        <span class="text-xs">521</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-comment"></i>
+                        <span class="text-xs">47</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-solid fa-share-nodes"></i>
+                        <span class="text-xs">32</span>
+                    </button>
+                    <button class="text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-bookmark"></i>
+                    </button>
+                </div>
+            </div>
+        </article>
+
+        <article class="post-card bg-surface rounded-xl border border-white/5 overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center gap-3 mb-3">
+                    <img class="w-10 h-10 rounded-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="David Chen">
+                    <div class="flex-1">
+                        <h3 class="text-text text-sm font-medium">David Chen</h3>
+                        <p class="text-text/50 text-xs">Amateur Boxer • 8 hours ago</p>
+                    </div>
+                    <button class="text-text/50 hover:text-text transition-colors">
+                        <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+                </div>
+                
+                <p class="text-text text-sm mb-3 leading-relaxed">
+                    Question for the community: What's your go-to pre-fight meal? Looking for some nutrition advice before my upcoming match next week. Any tips appreciated! 🍽️🥊
+                </p>
+
+                <div class="flex items-center justify-between pt-3 border-t border-white/5">
+                    <button class="flex items-center gap-2 text-text/50 hover:text-accent transition-colors">
+                        <i class="fa-regular fa-heart"></i>
+                        <span class="text-xs">89</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-comment"></i>
+                        <span class="text-xs">63</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-solid fa-share-nodes"></i>
+                        <span class="text-xs">8</span>
+                    </button>
+                    <button class="text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-bookmark"></i>
+                    </button>
+                </div>
+            </div>
+        </article>
+
+        <article class="post-card bg-surface rounded-xl border border-white/5 overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center gap-3 mb-3">
+                    <img class="w-10 h-10 rounded-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-1.jpg" alt="Jessica Lee">
+                    <div class="flex-1">
+                        <h3 class="text-text text-sm font-medium">Jessica Lee</h3>
+                        <p class="text-text/50 text-xs">Pro Athlete • 12 hours ago</p>
+                    </div>
+                    <button class="text-text/50 hover:text-text transition-colors">
+                        <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+                </div>
+                
+                <p class="text-text text-sm mb-3 leading-relaxed">
+                    Mental preparation is just as important as physical training. Visualization techniques have been game-changing for my performance. Here's my morning routine breakdown 🧠✨
+                </p>
+                
+                <div class="relative rounded-xl overflow-hidden mb-3 cursor-pointer media-thumb" data-media-id="3">
+                    <div class="w-full h-48 bg-gradient-to-br from-surface to-background">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/2572604e70-b3accbebf8e9f8c3e982.png" alt="mental preparation visualization">
+                    </div>
+                    <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-background ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-2 py-1 rounded text-white text-xs">6:45</div>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t border-white/5">
+                    <button class="flex items-center gap-2 text-text/50 hover:text-accent transition-colors">
+                        <i class="fa-regular fa-heart"></i>
+                        <span class="text-xs">412</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-comment"></i>
+                        <span class="text-xs">35</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-solid fa-share-nodes"></i>
+                        <span class="text-xs">24</span>
+                    </button>
+                    <button class="text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-bookmark"></i>
+                    </button>
+                </div>
+            </div>
+        </article>
+
+        <article class="post-card bg-surface rounded-xl border border-white/5 overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center gap-3 mb-3">
+                    <img class="w-10 h-10 rounded-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-4.jpg" alt="Mike Torres">
+                    <div class="flex-1">
+                        <h3 class="text-text text-sm font-medium">Mike Torres</h3>
+                        <p class="text-text/50 text-xs">Strength Coach • 1 day ago</p>
+                    </div>
+                    <button class="text-text/50 hover:text-text transition-colors">
+                        <i class="fa-solid fa-ellipsis"></i>
+                    </button>
+                </div>
+                
+                <p class="text-text text-sm mb-3 leading-relaxed">
+                    New conditioning circuit dropping today! This 20-minute workout will boost your stamina and explosiveness. Perfect for fight prep. Let's get it! 💥
+                </p>
+                
+                <div class="relative rounded-xl overflow-hidden mb-3 cursor-pointer media-thumb" data-media-id="4">
+                    <div class="w-full h-48 bg-gradient-to-br from-surface to-background">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/7489c70a33-7d4015e50e92f0416ddf.png" alt="boxing conditioning workout">
+                    </div>
+                    <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-full bg-primary/90 flex items-center justify-center">
+                            <i class="fa-solid fa-play text-background ml-0.5"></i>
+                        </div>
+                    </div>
+                    <div class="absolute bottom-2 right-2 bg-black/80 px-2 py-1 rounded text-white text-xs">20:18</div>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t border-white/5">
+                    <button class="flex items-center gap-2 text-text/50 hover:text-accent transition-colors">
+                        <i class="fa-regular fa-heart"></i>
+                        <span class="text-xs">678</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-comment"></i>
+                        <span class="text-xs">52</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-solid fa-share-nodes"></i>
+                        <span class="text-xs">41</span>
+                    </button>
+                    <button class="text-text/50 hover:text-primary transition-colors">
+                        <i class="fa-regular fa-bookmark"></i>
+                    </button>
+                </div>
+            </div>
+        </article>
+
+    </section>
+
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 w-full bg-[#141414] backdrop-blur-lg border-t border-white/5 pb-safe z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div class="flex justify-between items-center px-6 py-4 pb-8 max-w-md mx-auto">
+            <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-primary transition-colors no-underline">
+                <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Community</span>
+            </a>
+            <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-play text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Media</span>
+            </a>
+            <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Sponsors</span>
+            </a>
+            <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Events</span>
+            </a>
+            <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-text transition-colors no-underline">
+                <i class="fa-regular fa-user text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </a>
+        </div>
+    </nav>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterTabs = document.querySelectorAll('.filter-tab');
+            const mediaThumbs = document.querySelectorAll('.media-thumb');
+            const createPostBtn = document.getElementById('create-post-btn');
+            
+            filterTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    filterTabs.forEach(t => {
+                        t.classList.remove('active', 'bg-primary/20', 'border-primary/30', 'text-primary');
+                        t.classList.add('bg-surface', 'border-white/10', 'text-text');
+                    });
+                    
+                    this.classList.add('active', 'bg-primary/20', 'border-primary/30', 'text-primary');
+                    this.classList.remove('bg-surface', 'border-white/10', 'text-text');
+                });
+            });
+
+            mediaThumbs.forEach(thumb => {
+                thumb.addEventListener('click', function() {
+                    window.location.href = '20-Media Player - Media Player.html';
+                });
+            });
+
+            createPostBtn.addEventListener('click', function() {
+                console.log('Opening create post modal');
+            });
+
+            const likeButtons = document.querySelectorAll('.fa-heart');
+            likeButtons.forEach(btn => {
+                btn.parentElement.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const icon = this.querySelector('i');
+                    const count = this.querySelector('span');
+                    let currentCount = parseInt(count.textContent);
+                    
+                    if (icon.classList.contains('fa-regular')) {
+                        icon.classList.remove('fa-regular');
+                        icon.classList.add('fa-solid');
+                        this.classList.remove('text-text/50');
+                        this.classList.add('text-accent');
+                        count.textContent = currentCount + 1;
+                    } else {
+                        icon.classList.remove('fa-solid');
+                        icon.classList.add('fa-regular');
+                        this.classList.remove('text-accent');
+                        this.classList.add('text-text/50');
+                        count.textContent = currentCount - 1;
+                    }
+                });
+            });
+
+            const bookmarkButtons = document.querySelectorAll('.fa-bookmark');
+            bookmarkButtons.forEach(btn => {
+                btn.parentElement.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const icon = this.querySelector('i');
+                    
+                    if (icon.classList.contains('fa-regular')) {
+                        icon.classList.remove('fa-regular');
+                        icon.classList.add('fa-solid');
+                        this.classList.remove('text-text/50');
+                        this.classList.add('text-primary');
+                    } else {
+                        icon.classList.remove('fa-solid');
+                        icon.classList.add('fa-regular');
+                        this.classList.remove('text-primary');
+                        this.classList.add('text-text/50');
+                    }
+                });
+            });
+        });
+    </script>
+
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

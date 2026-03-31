@@ -1,0 +1,8 @@
+{
+  "name": "daltonproject",
+  "private": true,
+  "scripts": {
+    "build:web": "node scripts/vercel-build.mjs",
+    "vercel-build": "node scripts/vercel-build.mjs"
+  }
+}

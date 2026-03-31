@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = { autoReplaceSvg: 'nest' };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: '#0A0A0A',
+                            card: '#1C1C1C',
+                            input: '#2A2A2A',
+                            gold: '#C8A84B',
+                            primary: '#D4D0C8',
+                            secondary: '#9A9690',
+                            border: '#787570',
+                            error: '#E8533A'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['"Bebas Neue"', 'sans-serif'],
+                        body: ['"DM Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, h5, h6, .font-heading {
+            font-family: 'Bebas Neue', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        ::-webkit-scrollbar { display: none; }
+
+        .card-border {
+            border: 0.5px solid rgba(200, 168, 75, 0.3);
+            border-radius: 10px;
+        }
+
+        .input-focus:focus-within {
+            border-color: #C8A84B;
+        }
+
+        .ghost-btn {
+            border: 1px solid #787570;
+            background: transparent;
+            transition: all 0.2s;
+        }
+
+        .ghost-btn:active {
+            border-color: #C8A84B;
+            color: #C8A84B;
+        }
+
+        .app-screen {
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            position: relative;
+            background: #0A0A0A;
+            display: none;
+            flex-direction: column;
+        }
+
+        .app-screen.active {
+            display: flex;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+
+<body class="w-full min-h-screen bg-brand-bg text-brand-primary m-0 p-0 overflow-x-hidden">
+    <!-- Screen 1: Welcome & Access Choice -->
+    <main id="welcome-screen" class="app-screen active px-6 py-12">
+        <div class="flex-1 flex flex-col items-center justify-center w-full">
+            <div class="text-center mb-16">
+                <h1 class="text-6xl sm:text-7xl font-heading text-brand-gold mb-4">DG</h1>
+                <p class="text-brand-secondary text-center text-sm tracking-widest uppercase mb-8">Grant Access</p>
+                <div class="space-y-4 max-w-xs mx-auto">
+                    <p class="text-brand-primary text-lg font-medium">Elite Athletic Mentorship</p>
+                    <p class="text-brand-secondary text-sm leading-relaxed">Connect with world-class coaches and athletes. Access exclusive training content and community insights.</p>
+                </div>
+            </div>
+            <p class="text-center mt-8">
+                <a href="7-Community Feed.html" class="text-brand-gold text-sm font-medium hover:underline">Continue to community (demo)</a>
+            </p>
+        </div>
+        
+        <div class="w-full space-y-4 mt-auto">
+            <button onclick="navTo('signup-screen')" class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all">
+                Sign Up
+            </button>
+            <button onclick="navTo('login-screen')" class="w-full py-4 ghost-btn rounded-lg font-heading text-xl tracking-wider hover:border-brand-gold hover:text-brand-gold transition-colors">
+                Log In
+            </button>
+            
+            <div class="flex items-center gap-4 my-6">
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+                <span class="text-brand-secondary text-sm">OR</span>
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+            </div>
+            
+            <div class="space-y-3">
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-apple text-xl"></i>
+                    <span class="font-medium">Continue with Apple</span>
+                </button>
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-google text-xl"></i>
+                    <span class="font-medium">Continue with Google</span>
+                </button>
+            </div>
+            
+            <div class="text-center mt-8 space-y-2">
+                <p class="text-xs text-brand-secondary">
+                    By continuing, you agree to our 
+                    <button class="text-brand-gold hover:underline">Terms of Service</button> 
+                    and 
+                    <button class="text-brand-gold hover:underline">Privacy Policy</button>
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Screen 2: Log In -->
+    <main id="login-screen" class="app-screen px-6 py-12">
+        <div class="flex items-center mb-12 pt-4">
+            <button onclick="navTo('welcome-screen')" class="text-brand-primary hover:text-brand-gold">
+                <i class="fa-solid fa-arrow-left text-xl"></i>
+            </button>
+            <h1 class="text-3xl font-heading mx-auto pr-6">Log In</h1>
+        </div>
+        
+        <div class="space-y-6 flex-1">
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Email</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors">
+                    <input type="email" placeholder="athlete@example.com" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Password</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors flex justify-between items-center">
+                    <input type="password" placeholder="••••••••" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                    <button class="text-brand-secondary">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="text-right">
+                <button onclick="navTo('forgot-screen')" class="text-brand-gold text-sm hover:underline">Forgot Password?</button>
+            </div>
+            
+            <button type="button" onclick="window.location.href='7-Community Feed.html'" class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all mt-8">
+                Log In
+            </button>
+            
+            <div class="flex items-center gap-4 my-8">
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+                <span class="text-brand-secondary text-sm">OR</span>
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+            </div>
+            
+            <div class="space-y-4">
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-apple text-xl"></i>
+                    <span>Continue with Apple</span>
+                </button>
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-google text-xl"></i>
+                    <span>Continue with Google</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="text-center mt-auto pt-8">
+            <p class="text-brand-secondary">Don't have an account? 
+                <button onclick="navTo('signup-screen')" class="text-brand-gold hover:underline">Sign Up</button>
+            </p>
+        </div>
+    </main>
+
+    <!-- Screen 3: Forgot Password -->
+    <main id="forgot-screen" class="app-screen px-6 py-12">
+        <div class="flex items-center mb-12 pt-4">
+            <button onclick="navTo('login-screen')" class="text-brand-primary hover:text-brand-gold">
+                <i class="fa-solid fa-arrow-left text-xl"></i>
+            </button>
+            <h1 class="text-3xl font-heading mx-auto pr-6">Forgot Password</h1>
+        </div>
+        
+        <div class="space-y-6 flex-1">
+            <div class="text-center mb-8">
+                <p class="text-brand-secondary leading-relaxed">Enter your email address and we'll send you a verification code to reset your password.</p>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Email</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors">
+                    <input type="email" placeholder="athlete@example.com" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                </div>
+            </div>
+            
+            <button onclick="navTo('verify-screen')" class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all mt-8">
+                Send Code
+            </button>
+        </div>
+        
+        <div class="text-center mt-auto pt-8">
+            <p class="text-brand-secondary">Remember your password? 
+                <button onclick="navTo('login-screen')" class="text-brand-gold hover:underline">Log In</button>
+            </p>
+        </div>
+    </main>
+
+    <!-- Screen 4: Verify Reset Code -->
+    <main id="verify-screen" class="app-screen px-6 py-12">
+        <div class="flex items-center mb-12 pt-4">
+            <button onclick="navTo('forgot-screen')" class="text-brand-primary hover:text-brand-gold">
+                <i class="fa-solid fa-arrow-left text-xl"></i>
+            </button>
+            <h1 class="text-3xl font-heading mx-auto pr-6">Verify Code</h1>
+        </div>
+        
+        <div class="space-y-6 flex-1">
+            <div class="text-center mb-8">
+                <p class="text-brand-secondary leading-relaxed">We've sent a 6-digit verification code to</p>
+                <p class="text-brand-primary font-medium mt-2">athlete@example.com</p>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Verification Code</label>
+                <div class="flex gap-3 justify-center">
+                    <input type="text" maxlength="1" class="w-12 h-12 bg-brand-input rounded-lg text-center text-xl font-mono outline-none border border-transparent focus:border-brand-gold transition-colors">
+                    <input type="text" maxlength="1" class="w-12 h-12 bg-brand-input rounded-lg text-center text-xl font-mono outline-none border border-transparent focus:border-brand-gold transition-colors">
+                    <input type="text" maxlength="1" class="w-12 h-12 bg-brand-input rounded-lg text-center text-xl font-mono outline-none border border-transparent focus:border-brand-gold transition-colors">
+                    <input type="text" maxlength="1" class="w-12 h-12 bg-brand-input rounded-lg text-center text-xl font-mono outline-none border border-transparent focus:border-brand-gold transition-colors">
+                    <input type="text" maxlength="1" class="w-12 h-12 bg-brand-input rounded-lg text-center text-xl font-mono outline-none border border-transparent focus:border-brand-gold transition-colors">
+                    <input type="text" maxlength="1" class="w-12 h-12 bg-brand-input rounded-lg text-center text-xl font-mono outline-none border border-transparent focus:border-brand-gold transition-colors">
+                </div>
+            </div>
+            
+            <button onclick="navTo('newpassword-screen')" class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all mt-8">
+                Verify Code
+            </button>
+            
+            <div class="text-center mt-6">
+                <p class="text-brand-secondary text-sm">Didn't receive the code?</p>
+                <button class="text-brand-gold hover:underline text-sm mt-1">Resend Code</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Screen 5: Create New Password -->
+    <main id="newpassword-screen" class="app-screen px-6 py-12">
+        <div class="flex items-center mb-12 pt-4">
+            <button onclick="navTo('verify-screen')" class="text-brand-primary hover:text-brand-gold">
+                <i class="fa-solid fa-arrow-left text-xl"></i>
+            </button>
+            <h1 class="text-3xl font-heading mx-auto pr-6">New Password</h1>
+        </div>
+        
+        <div class="space-y-6 flex-1">
+            <div class="text-center mb-8">
+                <p class="text-brand-secondary leading-relaxed">Create a new secure password for your account.</p>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">New Password</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors flex justify-between items-center">
+                    <input type="password" placeholder="••••••••" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                    <button class="text-brand-secondary">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Confirm Password</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors flex justify-between items-center">
+                    <input type="password" placeholder="••••••••" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                    <button class="text-brand-secondary">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="bg-brand-card rounded-lg p-4 mt-6">
+                <p class="text-xs text-brand-secondary mb-2">Password must contain:</p>
+                <ul class="space-y-1 text-xs">
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-brand-gold text-[10px]"></i>
+                        <span class="text-brand-secondary">At least 8 characters</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-xmark text-brand-error text-[10px]"></i>
+                        <span class="text-brand-secondary">One uppercase letter</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-xmark text-brand-error text-[10px]"></i>
+                        <span class="text-brand-secondary">One number</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <button onclick="navTo('login-screen')" class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all mt-8">
+                Reset Password
+            </button>
+        </div>
+    </main>
+
+    <!-- Screen 6: Sign Up -->
+    <main id="signup-screen" class="app-screen px-6 py-12">
+        <div class="flex items-center mb-12 pt-4">
+            <button onclick="navTo('welcome-screen')" class="text-brand-primary hover:text-brand-gold">
+                <i class="fa-solid fa-arrow-left text-xl"></i>
+            </button>
+            <h1 class="text-3xl font-heading mx-auto pr-6">Create Account</h1>
+        </div>
+        
+        <div class="space-y-6 flex-1">
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Email</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors">
+                    <input type="email" placeholder="athlete@example.com" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Password</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors flex justify-between items-center">
+                    <input type="password" placeholder="••••••••" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                    <button class="text-brand-secondary">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <button class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all mt-8">
+                Continue
+            </button>
+            
+            <div class="flex items-center gap-4 my-8">
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+                <span class="text-brand-secondary text-sm">OR</span>
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+            </div>
+            
+            <div class="space-y-4">
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-apple text-xl"></i>
+                    <span>Continue with Apple</span>
+                </button>
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-google text-xl"></i>
+                    <span>Continue with Google</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="text-center mt-auto pt-8">
+            <p class="text-brand-secondary">Already have an account? 
+                <button onclick="navTo('login-screen')" class="text-brand-gold hover:underline">Log In</button>
+            </p>
+        </div>
+    </main>
+
+    <script>
+        function navTo(screenId) {
+            document.querySelectorAll('.app-screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        // Auto-focus next input for verification code
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('#verify-screen input[type="text"]');
+            inputs.forEach((input, index) => {
+                input.addEventListener('input', function() {
+                    if (this.value.length === 1 && index < inputs.length - 1) {
+                        inputs[index + 1].focus();
+                    }
+                });
+                
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace' && this.value === '' && index > 0) {
+                        inputs[index - 1].focus();
+                    }
+                });
+            });
+        });
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

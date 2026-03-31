@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = { autoReplaceSvg: 'nest' };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log In</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            bg: '#0A0A0A',
+                            card: '#1C1C1C',
+                            input: '#2A2A2A',
+                            gold: '#C8A84B',
+                            primary: '#D4D0C8',
+                            secondary: '#9A9690',
+                            border: '#787570',
+                            error: '#E8533A'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['"Bebas Neue"', 'sans-serif'],
+                        body: ['"DM Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4, h5, h6, .font-heading {
+            font-family: 'Bebas Neue', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        ::-webkit-scrollbar { display: none; }
+
+        .input-focus:focus-within {
+            border-color: #C8A84B;
+        }
+
+        .checkbox-custom {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 1px solid #787570;
+            border-radius: 4px;
+            background-color: transparent;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .checkbox-custom:checked {
+            background-color: #C8A84B;
+            border-color: #C8A84B;
+        }
+
+        .checkbox-custom:checked::after {
+            content: '\f00c';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0A0A0A;
+            font-size: 12px;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+
+<body class="w-full min-h-screen bg-brand-bg text-brand-primary m-0 p-0 overflow-x-hidden">
+    <main id="login-screen" class="w-full max-w-[480px] mx-auto min-h-screen flex flex-col px-6 py-12">
+        <div class="flex items-center mb-12 pt-4">
+            <a href="index.html" class="text-brand-primary hover:text-brand-gold transition-colors">
+                <i class="fa-solid fa-arrow-left text-xl"></i>
+            </a>
+            <h1 class="text-3xl font-heading mx-auto pr-6">Log In</h1>
+        </div>
+        
+        <div class="space-y-6 flex-1">
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Email</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors">
+                    <input type="email" id="email-input" placeholder="athlete@example.com" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <label class="text-[11px] uppercase text-brand-gold font-bold tracking-wider">Password</label>
+                <div class="bg-brand-input rounded-lg p-4 input-focus border border-transparent transition-colors flex justify-between items-center">
+                    <input type="password" id="password-input" placeholder="••••••••" class="bg-transparent w-full outline-none text-brand-primary placeholder-brand-secondary">
+                    <button onclick="togglePassword()" class="text-brand-secondary hover:text-brand-gold transition-colors ml-3">
+                        <i id="eye-icon" class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-2">
+                <label class="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" class="checkbox-custom">
+                    <span class="text-sm text-brand-primary">Remember me</span>
+                </label>
+                
+                <button onclick="navToForgot()" class="text-brand-gold text-sm hover:underline transition-all">Forgot Password?</button>
+            </div>
+            
+            <button onclick="handleLogin()" class="w-full py-4 bg-brand-gold text-brand-bg rounded-lg font-heading text-xl tracking-wider hover:bg-opacity-90 transition-all mt-8">
+                Log In
+            </button>
+            
+            <div class="flex items-center gap-4 my-8">
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+                <span class="text-brand-secondary text-sm">OR</span>
+                <div class="flex-1 h-px bg-brand-border opacity-30"></div>
+            </div>
+            
+            <div class="space-y-4">
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-apple text-xl"></i>
+                    <span class="font-medium">Continue with Apple</span>
+                </button>
+                <button class="w-full py-4 bg-brand-card rounded-lg flex items-center justify-center gap-3 border border-transparent hover:border-brand-border transition-colors">
+                    <i class="fa-brands fa-google text-xl"></i>
+                    <span class="font-medium">Continue with Google</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="text-center mt-auto pt-8">
+            <p class="text-brand-secondary">Don't have an account? 
+                <button onclick="navToSignup()" class="text-brand-gold hover:underline transition-all">Create Account</button>
+            </p>
+        </div>
+    </main>
+
+    <script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password-input');
+            const eyeIcon = document.getElementById('eye-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        function handleLogin() {
+            window.location.href = '4-Onboarding Flow - Welcome & Ac.html';
+        }
+
+        function navToForgot() {
+            window.location.href = '3-Onboarding Flow - Forgot Passw.html';
+        }
+
+        function navToSignup() {
+            window.location.href = '4-Onboarding Flow - Welcome & Ac.html';
+        }
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

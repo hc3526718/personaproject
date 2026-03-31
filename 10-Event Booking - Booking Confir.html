@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script> window.FontAwesomeConfig = { autoReplaceSvg: 'nest'};</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0A0A0A',
+                        text: '#D4D0C8',
+                        gold: '#D4AF37',
+                        card: '#1A1A1A',
+                        cardHover: '#2A2A2A',
+                        accent: '#7F52FC',
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'sans-serif'],
+                        dm: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { display: none; }
+        body {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+        }
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-fadeInUp {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+        @keyframes checkmark {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .animate-checkmark {
+            animation: checkmark 0.5s ease-out 0.3s forwards;
+            opacity: 0;
+        }
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.4);
+                opacity: 0;
+            }
+        }
+        .pulse-ring {
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="w-full min-h-screen bg-background text-text flex justify-center pb-24">
+    <div id="mobile-app-container" class="w-full max-w-[480px] min-h-screen bg-background relative flex flex-col shadow-2xl">
+        
+        <header id="header" class="px-6 pt-12 pb-4 sticky top-0 bg-background/95 backdrop-blur-md z-40 border-b border-white/5">
+            <div class="flex items-center justify-between">
+                <a href="13-Upcoming Events.html" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors no-underline">
+                    <i class="fa-solid fa-xmark text-text/80 text-lg"></i>
+                </a>
+                <h1 class="font-dm font-medium text-[16px] text-white">Booking Confirmed</h1>
+                <div class="w-10"></div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto">
+            <div class="px-6 py-8 space-y-6">
+                
+                <section id="success-animation" class="flex flex-col items-center justify-center py-8 animate-fadeInUp">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-gold/20 rounded-full pulse-ring"></div>
+                        <div class="w-24 h-24 bg-gradient-to-br from-gold to-gold/80 rounded-full flex items-center justify-center relative z-10">
+                            <i class="fa-solid fa-check text-black text-4xl animate-checkmark"></i>
+                        </div>
+                    </div>
+                    <h2 class="font-bebas text-[32px] text-white mt-6 leading-none animate-fadeInUp" style="animation-delay: 0.2s;">YOU'RE ALL SET!</h2>
+                    <p class="font-dm text-[14px] text-text/70 mt-2 text-center animate-fadeInUp" style="animation-delay: 0.3s;">Your spot has been reserved</p>
+                </section>
+
+                <section id="booking-reference" class="bg-gradient-to-br from-gold/10 to-gold/5 rounded-[16px] p-6 border border-gold/20 animate-fadeInUp" style="animation-delay: 0.4s;">
+                    <div class="text-center">
+                        <p class="font-dm text-[11px] text-gold uppercase tracking-[3px] mb-3">BOOKING REFERENCE</p>
+                        <div class="font-bebas text-[28px] text-white tracking-wider mb-4">SC-2024-1015</div>
+                        <div class="bg-white rounded-[12px] p-4 inline-block">
+                            <div class="w-32 h-32 bg-black/10 rounded-[8px] flex items-center justify-center">
+                                <i class="fa-solid fa-qrcode text-black text-6xl"></i>
+                            </div>
+                        </div>
+                        <p class="font-dm text-[11px] text-text/60 mt-4">Show this QR code at check-in</p>
+                    </div>
+                </section>
+
+                <section id="event-recap-confirmation" class="animate-fadeInUp" style="animation-delay: 0.5s;">
+                    <h2 class="font-dm font-medium text-[11px] text-gold uppercase tracking-[3px] mb-4">EVENT DETAILS</h2>
+                    <div class="bg-card rounded-[12px] p-4 border border-white/5">
+                        <div class="flex space-x-4">
+                            <div class="w-20 h-20 rounded-[8px] overflow-hidden flex-shrink-0">
+                                <div class="w-full h-full bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600&auto=format&fit=crop')"></div>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bebas text-[20px] text-white leading-none mb-2">STRENGTH CAMP</h3>
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fa-solid fa-calendar text-gold text-[10px]"></i>
+                                        <span class="font-dm text-[11px] text-text/80">October 15, 2024</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fa-solid fa-clock text-gold text-[10px]"></i>
+                                        <span class="font-dm text-[11px] text-text/80">10:00 AM - 12:00 PM</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fa-solid fa-location-dot text-gold text-[10px]"></i>
+                                        <span class="font-dm text-[11px] text-text/80">Elite Fitness Center</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="attendee-info" class="bg-white/5 rounded-[12px] p-4 border border-white/5 animate-fadeInUp" style="animation-delay: 0.6s;">
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="font-dm text-[12px] text-text/60">Attendee</span>
+                            <span class="font-dm text-[13px] text-white font-medium">Alex Johnson</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-dm text-[12px] text-text/60">Email</span>
+                            <span class="font-dm text-[13px] text-white">alex.johnson@email.com</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-dm text-[12px] text-text/60">Fitness Level</span>
+                            <span class="font-dm text-[13px] text-white">Intermediate</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="confirmation-sent" class="bg-card rounded-[12px] p-4 border border-white/5 animate-fadeInUp" style="animation-delay: 0.7s;">
+                    <div class="flex items-start space-x-3">
+                        <i class="fa-solid fa-envelope-circle-check text-gold text-lg mt-0.5 flex-shrink-0"></i>
+                        <div>
+                            <h3 class="font-dm font-medium text-[13px] text-white mb-1">Confirmation Email Sent</h3>
+                            <p class="font-dm text-[11px] text-text/60 leading-relaxed">
+                                We've sent a confirmation email with all event details and your QR code to <span class="text-gold">alex.johnson@email.com</span>
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="next-actions" class="space-y-3 pt-2 animate-fadeInUp" style="animation-delay: 0.8s;">
+                    <h2 class="font-dm font-medium text-[11px] text-gold uppercase tracking-[3px] mb-4">NEXT STEPS</h2>
+                    
+                    <button class="w-full bg-white/5 border border-white/10 rounded-[12px] px-4 py-4 flex items-center justify-between hover:bg-white/10 transition-colors group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold/20 rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-calendar-plus text-gold text-sm"></i>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-dm font-medium text-[13px] text-white">Add to Calendar</p>
+                                <p class="font-dm text-[11px] text-text/60">Never miss this event</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-text/40 group-hover:text-text/60 transition-colors"></i>
+                    </button>
+
+                    <button class="w-full bg-white/5 border border-white/10 rounded-[12px] px-4 py-4 flex items-center justify-between hover:bg-white/10 transition-colors group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold/20 rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-location-arrow text-gold text-sm"></i>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-dm font-medium text-[13px] text-white">Get Directions</p>
+                                <p class="font-dm text-[11px] text-text/60">Navigate to venue</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-text/40 group-hover:text-text/60 transition-colors"></i>
+                    </button>
+
+                    <a href="12-Event Booking - My Bookings.html" class="w-full bg-white/5 border border-white/10 rounded-[12px] px-4 py-4 flex items-center justify-between hover:bg-white/10 transition-colors group no-underline text-inherit">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold/20 rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-ticket text-gold text-sm"></i>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-dm font-medium text-[13px] text-white">View My Bookings</p>
+                                <p class="font-dm text-[11px] text-text/60">See all your events</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-text/40 group-hover:text-text/60 transition-colors"></i>
+                    </a>
+
+                    <button class="w-full bg-white/5 border border-white/10 rounded-[12px] px-4 py-4 flex items-center justify-between hover:bg-white/10 transition-colors group">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-gold/20 rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-user-plus text-gold text-sm"></i>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-dm font-medium text-[13px] text-white">Invite a Friend</p>
+                                <p class="font-dm text-[11px] text-text/60">Share this event</p>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-text/40 group-hover:text-text/60 transition-colors"></i>
+                    </button>
+                </section>
+
+                <section id="primary-action" class="pt-4 pb-8 animate-fadeInUp" style="animation-delay: 0.9s;">
+                    <a href="13-Upcoming Events.html" class="w-full block text-center bg-gold text-black font-bebas text-[16px] tracking-wide py-4 rounded-[12px] hover:bg-gold/90 transition-colors no-underline">
+                        DONE
+                    </a>
+                </section>
+            </div>
+        </main>
+
+        <nav id="bottom-nav" class="fixed bottom-0 w-full max-w-[480px] bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            <div class="flex justify-between items-center">
+                <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Community</span>
+                </a>
+                <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-solid fa-play text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Media</span>
+                </a>
+                <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Sponsors</span>
+                </a>
+                <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-gold relative group no-underline">
+                    <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Events</span>
+                </a>
+                <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-text/50 hover:text-white transition-colors no-underline">
+                    <i class="fa-regular fa-user text-xl mb-1"></i>
+                    <span class="text-[10px] font-medium">Profile</span>
+                </a>
+            </div>
+        </nav>
+
+        <div id="toast-notification" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-gold/90 to-gold/80 text-black px-6 py-3 rounded-full shadow-2xl flex items-center space-x-3 z-50 opacity-0 transition-opacity duration-300" style="max-width: calc(100% - 48px);">
+            <i class="fa-solid fa-circle-check text-lg"></i>
+            <span class="font-dm font-medium text-[13px]">Booking confirmed successfully!</span>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('load', function() {
+            const toast = document.getElementById('toast-notification');
+            setTimeout(() => {
+                toast.style.opacity = '1';
+            }, 1000);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 4000);
+        });
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

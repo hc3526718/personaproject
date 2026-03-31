@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+          autoReplaceSvg: 'nest'
+        };
+      </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Athlete Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0A0A0A',
+                        gold: '#D4AF37',
+                        gray: {
+                            800: '#1F1F1F',
+                            900: '#121212'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        bebas: ['"Bebas Neue"', 'cursive']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            background-color: #0A0A0A;
+            color: white;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .gold-gradient-text {
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .tag-input {
+            background: #1F1F1F;
+            border: 1px solid #374151;
+            transition: all 0.3s ease;
+        }
+        .tag-input:focus {
+            border-color: #D4AF37;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+        .badge-item {
+            transition: all 0.3s ease;
+        }
+        .badge-item:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="font-sans antialiased w-full min-h-screen m-0 pb-20">
+    <div id="toast" class="toast bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 max-w-xs">
+        <i class="fa-solid fa-check-circle"></i>
+        <span class="text-sm font-medium">Athlete details saved!</span>
+    </div>
+
+    <header id="header" class="w-full px-6 py-4 flex justify-between items-center sticky top-0 bg-dark/90 backdrop-blur-md z-50">
+        <button id="back-btn" class="text-gray-400 hover:text-white transition-colors h-11 w-11 flex items-center justify-center rounded-full hover:bg-gray-800">
+            <i class="fa-solid fa-arrow-left text-xl"></i>
+        </button>
+        <h1 class="font-bebas text-xl tracking-wide gold-gradient-text">EDIT ATHLETE DETAILS</h1>
+        <div class="w-11"></div>
+    </header>
+
+    <main id="main" class="w-full max-w-md mx-auto px-4">
+        <div id="athlete-form" class="mt-8 space-y-6">
+            <div id="discipline-section">
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Discipline <span class="text-gold">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="discipline-input"
+                    placeholder="e.g., Sprinter, Marathon Runner, Swimmer"
+                    class="tag-input w-full px-4 py-3 rounded-lg text-white placeholder-gray-500 focus:outline-none"
+                    value="Sprinter"
+                />
+                <p class="text-xs text-gray-500 mt-1">Your primary athletic discipline</p>
+            </div>
+
+            <div id="level-section">
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Competition Level <span class="text-gold">*</span>
+                </label>
+                <select id="level-select" class="tag-input w-full px-4 py-3 rounded-lg text-white focus:outline-none">
+                    <option value="beginner" class="bg-gray-800">Beginner</option>
+                    <option value="amateur" class="bg-gray-800">Amateur</option>
+                    <option value="semi-pro" class="bg-gray-800">Semi-Professional</option>
+                    <option value="pro" class="bg-gray-800" selected>Professional</option>
+                    <option value="elite" class="bg-gray-800">Elite</option>
+                    <option value="olympic" class="bg-gray-800">Olympic</option>
+                </select>
+            </div>
+
+            <div id="team-section">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Team/Club</label>
+                <input 
+                    type="text" 
+                    id="team-input"
+                    placeholder="Enter your team or club name"
+                    class="tag-input w-full px-4 py-3 rounded-lg text-white placeholder-gray-500 focus:outline-none"
+                    value="Elite Track Club"
+                />
+                <p class="text-xs text-gray-500 mt-1">Current team or athletic club affiliation</p>
+            </div>
+
+            <div id="coach-section">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Coach (Optional)</label>
+                <input 
+                    type="text" 
+                    id="coach-input"
+                    placeholder="Enter your coach's name"
+                    class="tag-input w-full px-4 py-3 rounded-lg text-white placeholder-gray-500 focus:outline-none"
+                    value="Sarah Mitchell"
+                />
+                <p class="text-xs text-gray-500 mt-1">Your primary coach or trainer</p>
+            </div>
+
+            <div id="badges-section">
+                <label class="block text-sm font-medium text-gray-300 mb-3">Headline Badges</label>
+                <p class="text-xs text-gray-500 mb-4">Select badges to highlight your achievements</p>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="badge-item bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-gold transition-all" data-badge="national-record">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-trophy text-gold text-sm"></i>
+                            <span class="text-sm font-medium">National Record</span>
+                        </div>
+                    </div>
+                    
+                    <div class="badge-item bg-gray-800 border border-gold rounded-lg p-3 cursor-pointer" data-badge="olympic-qualifier">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-medal text-gold text-sm"></i>
+                            <span class="text-sm font-medium">Olympic Qualifier</span>
+                        </div>
+                    </div>
+                    
+                    <div class="badge-item bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-gold transition-all" data-badge="world-champion">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-crown text-gold text-sm"></i>
+                            <span class="text-sm font-medium">World Champion</span>
+                        </div>
+                    </div>
+                    
+                    <div class="badge-item bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-gold transition-all" data-badge="rising-star">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-star text-gold text-sm"></i>
+                            <span class="text-sm font-medium">Rising Star</span>
+                        </div>
+                    </div>
+                    
+                    <div class="badge-item bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-gold transition-all" data-badge="veteran">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-shield text-gold text-sm"></i>
+                            <span class="text-sm font-medium">Veteran</span>
+                        </div>
+                    </div>
+                    
+                    <div class="badge-item bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-pointer hover:border-gold transition-all" data-badge="team-captain">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-users text-gold text-sm"></i>
+                            <span class="text-sm font-medium">Team Captain</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="form-actions" class="pt-8 space-y-3 mb-8">
+            <button 
+                type="button" 
+                id="save-btn"
+                class="w-full bg-gold hover:bg-gold/90 text-dark font-semibold py-3.5 rounded-lg transition-all shadow-lg shadow-gold/20 hover:shadow-gold/40"
+            >
+                Save Changes
+            </button>
+            <button 
+                type="button" 
+                id="cancel-btn"
+                class="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-3.5 rounded-lg transition-colors border border-gray-700"
+            >
+                Cancel
+            </button>
+        </div>
+    </main>
+
+    <nav id="footer" class="fixed bottom-0 w-full bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-user-group text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Community</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-play text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Media</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-handshake text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Sponsors</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Events</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gold">
+            <i class="fa-regular fa-user text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Profile</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-cog text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Settings</span>
+        </button>
+    </nav>
+
+    <script>
+        window.addEventListener('load', function() {
+            const saveBtn = document.getElementById('save-btn');
+            const cancelBtn = document.getElementById('cancel-btn');
+            const backBtn = document.getElementById('back-btn');
+            const toast = document.getElementById('toast');
+            const badgeItems = document.querySelectorAll('.badge-item');
+            const disciplineInput = document.getElementById('discipline-input');
+            const levelSelect = document.getElementById('level-select');
+            const teamInput = document.getElementById('team-input');
+            const coachInput = document.getElementById('coach-input');
+
+            let selectedBadges = ['olympic-qualifier'];
+
+            function showToast(message) {
+                const toastMessage = toast.querySelector('span');
+                toastMessage.textContent = message;
+                toast.classList.add('show');
+                setTimeout(function() {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            function toggleBadge(badgeElement, badgeId) {
+                const isSelected = selectedBadges.includes(badgeId);
+                
+                if (isSelected) {
+                    selectedBadges = selectedBadges.filter(id => id !== badgeId);
+                    badgeElement.classList.remove('border-gold');
+                    badgeElement.classList.add('border-gray-700');
+                } else {
+                    if (selectedBadges.length < 3) {
+                        selectedBadges.push(badgeId);
+                        badgeElement.classList.remove('border-gray-700');
+                        badgeElement.classList.add('border-gold');
+                    } else {
+                        showToast('Maximum 3 badges allowed');
+                    }
+                }
+            }
+
+            badgeItems.forEach(function(badge) {
+                badge.addEventListener('click', function() {
+                    const badgeId = this.getAttribute('data-badge');
+                    toggleBadge(this, badgeId);
+                });
+            });
+
+            disciplineInput.addEventListener('input', function() {
+                this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);
+            });
+
+            teamInput.addEventListener('input', function() {
+                this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);
+            });
+
+            coachInput.addEventListener('input', function() {
+                this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);
+            });
+
+            saveBtn.addEventListener('click', function() {
+                const discipline = disciplineInput.value.trim();
+                const level = levelSelect.value;
+                
+                if (!discipline) {
+                    showToast('Please enter your discipline');
+                    disciplineInput.focus();
+                    return;
+                }
+
+                showToast('Athlete details saved!');
+                setTimeout(function() {
+                }, 3500);
+            });
+
+            cancelBtn.addEventListener('click', function() {
+            });
+
+            backBtn.addEventListener('click', function() {
+                window.location.href = '14-Profile Settings - Settings.html';
+            });
+        });
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

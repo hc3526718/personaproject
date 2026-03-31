@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+            autoReplaceSvg: 'nest'
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Search Results</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            gold: '#C8A84B',
+                            dark: '#0A0A0A',
+                            surface: '#1C1C1C',
+                            text: '#D4D0C8',
+                            muted: '#9A9690',
+                            border: '#787570',
+                        }
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'cursive'],
+                        sans: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="w-full min-h-screen m-0 flex justify-center bg-brand-dark">
+    <div id="app-container" class="w-full max-w-[428px] h-screen bg-brand-dark relative flex flex-col overflow-hidden shadow-2xl shadow-black/50">
+        
+        <header id="search-header" class="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur-md pt-12 pb-4 px-4 border-b border-white/5">
+            <div class="flex items-center gap-4 mb-4">
+                <button id="back-btn" class="text-brand-gold hover:text-white transition-colors">
+                    <i class="fa-solid fa-arrow-left text-xl"></i>
+                </button>
+                <div class="flex-1 relative">
+                    <input 
+                        type="text" 
+                        placeholder="Search posts, people, tags"
+                        value="sprint technique"
+                        class="w-full bg-brand-surface border border-brand-border rounded-lg px-4 py-3 pl-11 pr-10 text-brand-text placeholder-brand-muted focus:border-brand-gold focus:outline-none text-sm"
+                        id="search-input"
+                    >
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 text-brand-muted"></i>
+                    <button id="clear-search" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-brand-muted hover:text-white transition-colors">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+                <button id="notification-btn" class="text-brand-muted hover:text-brand-gold transition-colors relative">
+                    <i class="fa-solid fa-bell text-xl"></i>
+                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-brand-gold rounded-full"></div>
+                </button>
+                <button id="messages-btn" class="text-brand-muted hover:text-brand-gold transition-colors">
+                    <i class="fa-solid fa-paper-plane text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-3 mb-3">
+                <div class="flex items-center gap-2 text-sm text-brand-muted">
+                    <span>Sort:</span>
+                    <select class="bg-brand-surface border border-brand-border rounded px-2 py-1 text-brand-text text-sm focus:outline-none focus:border-brand-gold">
+                        <option value="recent">Recent</option>
+                        <option value="top">Top</option>
+                        <option value="relevant">Most Relevant</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex gap-2 overflow-x-auto hide-scrollbar">
+                <button class="px-3 py-1.5 rounded-full border border-brand-gold text-brand-gold text-xs font-medium bg-brand-gold/10 whitespace-nowrap">
+                    All
+                </button>
+                <button class="px-3 py-1.5 rounded-full border border-brand-border text-brand-muted text-xs font-medium hover:border-brand-gold/50 hover:text-brand-text transition-colors whitespace-nowrap">
+                    Posts
+                </button>
+                <button class="px-3 py-1.5 rounded-full border border-brand-border text-brand-muted text-xs font-medium hover:border-brand-gold/50 hover:text-brand-text transition-colors whitespace-nowrap">
+                    People
+                </button>
+                <button class="px-3 py-1.5 rounded-full border border-brand-border text-brand-muted text-xs font-medium hover:border-brand-gold/50 hover:text-brand-text transition-colors whitespace-nowrap">
+                    Videos
+                </button>
+            </div>
+        </header>
+
+        <div id="search-results" class="flex-1 overflow-y-auto hide-scrollbar px-4 pt-4 pb-24">
+            <div class="flex items-center justify-between mb-4">
+                <p class="text-sm text-brand-muted">147 results for "sprint technique"</p>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-brand-surface rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors cursor-pointer" data-post-id="1">
+                    <div class="flex items-start gap-3 mb-3">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-10 h-10 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-medium text-brand-text text-sm">Coach Williams</h4>
+                                <span class="text-xs text-brand-muted">• 2h</span>
+                            </div>
+                            <p class="text-sm text-brand-text leading-relaxed">Perfecting your <span class="text-brand-gold font-medium">sprint technique</span> starts with proper block positioning. Here's what I teach my athletes...</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 text-brand-muted text-sm">
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-regular fa-heart"></i>
+                            <span>24</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-regular fa-comment"></i>
+                            <span>8</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-solid fa-share"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-brand-surface rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors cursor-pointer" data-post-id="2">
+                    <div class="flex items-start gap-3 mb-3">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="Sarah Chen" class="w-10 h-10 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-medium text-brand-text text-sm">Sarah Chen</h4>
+                                <span class="text-xs text-brand-muted">• 4h</span>
+                            </div>
+                            <p class="text-sm text-brand-text leading-relaxed">Finally nailed my <span class="text-brand-gold font-medium">sprint technique</span> after months of practice! The key was focusing on arm drive and foot placement 🏃‍♀️</p>
+                        </div>
+                    </div>
+                    <div class="w-full h-48 bg-brand-dark rounded-lg mb-3 overflow-hidden">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/c68706f822-23f485ad5a9b054c3c84.png" alt="female athlete sprinting on track with perfect form, action shot" />
+                    </div>
+                    <div class="flex items-center gap-4 text-brand-muted text-sm">
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-solid fa-heart text-red-500"></i>
+                            <span>156</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-regular fa-comment"></i>
+                            <span>32</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-solid fa-share"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-brand-surface rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors cursor-pointer" data-post-id="3">
+                    <div class="flex items-start gap-3 mb-3">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg" alt="Marcus Johnson" class="w-10 h-10 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-medium text-brand-text text-sm">Marcus Johnson</h4>
+                                <span class="text-xs text-brand-muted">• 1d</span>
+                            </div>
+                            <p class="text-sm text-brand-text leading-relaxed">Common mistakes in <span class="text-brand-gold font-medium">sprint technique</span> that slow you down. Thread 🧵</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 text-brand-muted text-sm">
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-regular fa-heart"></i>
+                            <span>89</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-regular fa-comment"></i>
+                            <span>45</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-solid fa-share"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-brand-surface rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors cursor-pointer" data-post-id="4">
+                    <div class="flex items-start gap-3 mb-3">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-7.jpg" alt="Emma Rodriguez" class="w-10 h-10 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-medium text-brand-text text-sm">Emma Rodriguez</h4>
+                                <span class="text-xs text-brand-muted">• 2d</span>
+                            </div>
+                            <p class="text-sm text-brand-text leading-relaxed">Video analysis of my <span class="text-brand-gold font-medium">sprint technique</span> from yesterday's training. Any feedback?</p>
+                        </div>
+                    </div>
+                    <div class="w-full h-48 bg-brand-dark rounded-lg mb-3 overflow-hidden relative">
+                        <img class="w-full h-full object-cover" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/14700d91c4-a780d1c2476327e59dd9.png" alt="sprint training video analysis with athlete running on track" />
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center">
+                                <i class="fa-solid fa-play text-white text-lg"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 text-brand-muted text-sm">
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-regular fa-heart"></i>
+                            <span>67</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-regular fa-comment"></i>
+                            <span>23</span>
+                        </button>
+                        <button class="flex items-center gap-1 hover:text-brand-gold transition-colors">
+                            <i class="fa-solid fa-share"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="notifications-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden">
+            <div class="absolute top-0 right-0 w-full max-w-[380px] h-full bg-brand-dark border-l border-white/10">
+                <div class="sticky top-0 bg-brand-dark border-b border-white/10 p-4 flex items-center justify-between">
+                    <h2 class="font-bebas text-2xl text-brand-text tracking-wider">Notifications</h2>
+                    <button id="close-notifications" class="text-brand-muted hover:text-white transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="overflow-y-auto hide-scrollbar h-full pb-20">
+                    <div class="p-4 space-y-4">
+                        <div class="flex items-start gap-3 p-3 bg-brand-surface/50 rounded-lg">
+                            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="Sarah Chen" class="w-8 h-8 rounded-full object-cover">
+                            <div class="flex-1">
+                                <p class="text-sm text-brand-text"><span class="font-medium">Sarah Chen</span> liked your post</p>
+                                <p class="text-xs text-brand-muted mt-1">2 minutes ago</p>
+                            </div>
+                            <div class="w-2 h-2 bg-brand-gold rounded-full"></div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-brand-surface/50 rounded-lg">
+                            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-8 h-8 rounded-full object-cover">
+                            <div class="flex-1">
+                                <p class="text-sm text-brand-text"><span class="font-medium">Coach Williams</span> commented on your sprint technique video</p>
+                                <p class="text-xs text-brand-muted mt-1">1 hour ago</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-brand-surface/50 rounded-lg">
+                            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg" alt="Marcus Johnson" class="w-8 h-8 rounded-full object-cover">
+                            <div class="flex-1">
+                                <p class="text-sm text-brand-text"><span class="font-medium">Marcus Johnson</span> started following you</p>
+                                <p class="text-xs text-brand-muted mt-1">3 hours ago</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="messages-screen" class="absolute inset-0 bg-brand-dark z-[90] hidden">
+            <div class="sticky top-0 bg-brand-dark border-b border-white/10 pt-12 pb-4 px-4">
+                <div class="flex items-center gap-4">
+                    <button id="close-messages" class="text-brand-gold hover:text-white transition-colors">
+                        <i class="fa-solid fa-arrow-left text-xl"></i>
+                    </button>
+                    <h2 class="font-bebas text-2xl text-brand-text tracking-wider">Messages</h2>
+                </div>
+            </div>
+            <div class="overflow-y-auto hide-scrollbar h-full pb-24">
+                <div class="px-4 py-4 space-y-3">
+                    <div class="flex items-center gap-3 p-3 bg-brand-surface rounded-lg hover:bg-brand-surface/80 transition-colors cursor-pointer" data-chat-id="1">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-12 h-12 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-medium text-brand-text text-sm">Coach Williams</h4>
+                                <span class="text-xs text-brand-muted">2m</span>
+                            </div>
+                            <p class="text-sm text-brand-muted truncate">Great progress on your form today...</p>
+                        </div>
+                        <div class="w-2 h-2 bg-brand-gold rounded-full"></div>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-brand-surface rounded-lg hover:bg-brand-surface/80 transition-colors cursor-pointer" data-chat-id="2">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="Sarah Chen" class="w-12 h-12 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-medium text-brand-text text-sm">Sarah Chen</h4>
+                                <span class="text-xs text-brand-muted">1h</span>
+                            </div>
+                            <p class="text-sm text-brand-muted truncate">Thanks for the training tips!</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-brand-surface rounded-lg hover:bg-brand-surface/80 transition-colors cursor-pointer" data-chat-id="3">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg" alt="Marcus Johnson" class="w-12 h-12 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-medium text-brand-text text-sm">Marcus Johnson</h4>
+                                <span class="text-xs text-brand-muted">3h</span>
+                            </div>
+                            <p class="text-sm text-brand-muted truncate">Want to train together tomorrow?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="message-thread" class="absolute inset-0 bg-brand-dark z-[95] hidden">
+            <div class="sticky top-0 bg-brand-dark border-b border-white/10 pt-12 pb-4 px-4">
+                <div class="flex items-center gap-4">
+                    <button id="back-to-messages" class="text-brand-gold hover:text-white transition-colors">
+                        <i class="fa-solid fa-arrow-left text-xl"></i>
+                    </button>
+                    <img id="thread-avatar" src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="" class="w-8 h-8 rounded-full object-cover">
+                    <h2 id="thread-name" class="font-bebas text-xl text-brand-text tracking-wider">Coach Williams</h2>
+                </div>
+            </div>
+            <div id="message-list" class="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 pb-24 space-y-4">
+                <div class="flex gap-3">
+                    <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-8 h-8 rounded-full object-cover">
+                    <div class="flex-1">
+                        <div class="bg-brand-surface rounded-lg p-3 max-w-[280px]">
+                            <p class="text-sm text-brand-text">Hey! I saw your sprint form video from yesterday. Really good improvement on your block start!</p>
+                        </div>
+                        <span class="text-xs text-brand-muted mt-1 block">2:34 PM</span>
+                    </div>
+                </div>
+                <div class="flex gap-3 justify-end">
+                    <div class="flex-1 flex justify-end">
+                        <div class="bg-brand-gold rounded-lg p-3 max-w-[280px]">
+                            <p class="text-sm text-brand-dark">Thank you! I've been working on the positioning you taught me. Any other areas I should focus on?</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-8 h-8 rounded-full object-cover">
+                    <div class="flex-1">
+                        <div class="bg-brand-surface rounded-lg p-3 max-w-[280px]">
+                            <p class="text-sm text-brand-text">Great progress on your form today. Keep working on that arm drive we discussed.</p>
+                        </div>
+                        <span class="text-xs text-brand-muted mt-1 block">Just now</span>
+                    </div>
+                </div>
+            </div>
+            <div class="absolute bottom-0 w-full bg-brand-dark border-t border-white/10 p-4 pb-8">
+                <div class="flex items-center gap-3">
+                    <div class="flex-1 relative">
+                        <input 
+                            type="text" 
+                            placeholder="Type a message..."
+                            class="w-full bg-brand-surface border border-brand-border rounded-lg px-4 py-3 pr-12 text-brand-text placeholder-brand-muted focus:border-brand-gold focus:outline-none text-sm"
+                            id="message-input"
+                        >
+                        <button class="absolute right-3 top-1/2 transform -translate-y-1/2 text-brand-gold hover:text-white transition-colors">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav id="bottom-nav" class="absolute bottom-0 w-full bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-brand-gold relative group no-underline">
+                <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Community</span>
+            </a>
+            <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-play text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Media</span>
+            </a>
+            <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Sponsors</span>
+            </a>
+            <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Events</span>
+            </a>
+            <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-regular fa-user text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </a>
+        </nav>
+    </div>
+
+    <script>
+        document.getElementById('back-btn').addEventListener('click', function() {
+            window.location.href = '29-Community Flow - Community Sea.html';
+        });
+
+        document.getElementById('clear-search').addEventListener('click', function() {
+            document.getElementById('search-input').value = '';
+        });
+
+        const notificationBtn = document.getElementById('notification-btn');
+        const notificationsModal = document.getElementById('notifications-modal');
+        const closeNotifications = document.getElementById('close-notifications');
+
+        notificationBtn.addEventListener('click', function() {
+            notificationsModal.classList.remove('hidden');
+        });
+
+        closeNotifications.addEventListener('click', function() {
+            notificationsModal.classList.add('hidden');
+        });
+
+        const messagesBtn = document.getElementById('messages-btn');
+        const messagesScreen = document.getElementById('messages-screen');
+        const closeMessages = document.getElementById('close-messages');
+
+        messagesBtn.addEventListener('click', function() {
+            messagesScreen.classList.remove('hidden');
+        });
+
+        closeMessages.addEventListener('click', function() {
+            messagesScreen.classList.add('hidden');
+        });
+
+        const messageThread = document.getElementById('message-thread');
+        const backToMessages = document.getElementById('back-to-messages');
+
+        document.querySelectorAll('[data-chat-id]').forEach(chat => {
+            chat.addEventListener('click', function() {
+                const avatar = this.querySelector('img').src;
+                const name = this.querySelector('h4').textContent;
+                
+                document.getElementById('thread-avatar').src = avatar;
+                document.getElementById('thread-name').textContent = name;
+                
+                messagesScreen.classList.add('hidden');
+                messageThread.classList.remove('hidden');
+            });
+        });
+
+        backToMessages.addEventListener('click', function() {
+            messageThread.classList.add('hidden');
+            messagesScreen.classList.remove('hidden');
+        });
+
+        notificationsModal.addEventListener('click', function(e) {
+            if (e.target === notificationsModal) {
+                notificationsModal.classList.add('hidden');
+            }
+        });
+
+        document.querySelectorAll('[data-post-id]').forEach(post => {
+            post.addEventListener('click', function() {
+                console.log('Navigate to post:', this.dataset.postId);
+            });
+        });
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

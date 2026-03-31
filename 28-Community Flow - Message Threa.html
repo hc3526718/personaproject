@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+            autoReplaceSvg: 'nest'
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Thread</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            gold: '#C8A84B',
+                            dark: '#0A0A0A',
+                            surface: '#1C1C1C',
+                            text: '#D4D0C8',
+                            muted: '#9A9690',
+                            border: '#787570',
+                        }
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'cursive'],
+                        sans: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="w-full min-h-screen m-0 flex justify-center bg-brand-dark">
+    <div id="app-container" class="w-full max-w-[428px] h-screen bg-brand-dark relative flex flex-col overflow-hidden shadow-2xl shadow-black/50">
+        
+        <header id="header" class="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur-md pt-12 pb-4 px-4 border-b border-white/5">
+            <div class="flex items-center gap-4">
+                <button id="back-btn" class="text-brand-gold hover:text-white transition-colors">
+                    <i class="fa-solid fa-arrow-left text-xl"></i>
+                </button>
+                <div class="flex items-center gap-3 flex-1">
+                    <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-10 h-10 rounded-full object-cover">
+                    <div class="flex-1">
+                        <h1 class="font-bebas text-xl text-brand-text tracking-wider">Coach Williams</h1>
+                        <span class="text-xs text-green-500">Online</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="profile-btn" class="text-brand-gold hover:text-white transition-colors p-2">
+                        <i class="fa-solid fa-user text-lg"></i>
+                    </button>
+                    <button id="mute-btn" class="text-brand-gold hover:text-white transition-colors p-2">
+                        <i class="fa-solid fa-bell-slash text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div id="messages-container" class="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 space-y-4">
+            <div class="text-center">
+                <span class="text-xs text-brand-muted bg-brand-surface px-3 py-1 rounded-full">Today</span>
+            </div>
+
+            <div class="flex justify-start">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-surface rounded-2xl rounded-bl-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-text">Hey! How did your morning run go? I saw you posted about trying the new route.</p>
+                    </div>
+                    <span class="text-xs text-brand-muted ml-2">9:15 AM</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-gold rounded-2xl rounded-br-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-dark">It was amazing! The hill sections were challenging but I felt strong. Thanks for suggesting it 🏃‍♂️</p>
+                    </div>
+                    <div class="flex items-center justify-end gap-1">
+                        <span class="text-xs text-brand-muted">9:18 AM</span>
+                        <i class="fa-solid fa-check-double text-xs text-brand-gold"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-start">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-surface rounded-2xl rounded-bl-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-text">That's what I like to hear! Your endurance has really improved over the past month.</p>
+                    </div>
+                    <span class="text-xs text-brand-muted ml-2">9:20 AM</span>
+                </div>
+            </div>
+
+            <div class="flex justify-start">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-surface rounded-2xl rounded-bl-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-text">Great progress on your technique today! Keep it up 💪</p>
+                    </div>
+                    <span class="text-xs text-brand-muted ml-2">2:45 PM</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-gold rounded-2xl rounded-br-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-dark">Thank you coach! I really felt the difference in my form today. The breathing exercises are helping a lot.</p>
+                    </div>
+                    <div class="flex items-center justify-end gap-1">
+                        <span class="text-xs text-brand-muted">2:47 PM</span>
+                        <i class="fa-solid fa-check-double text-xs text-brand-gold"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-start">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-surface rounded-2xl rounded-bl-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-text">Excellent! For tomorrow's session, let's focus on interval training. Are you ready for a challenge?</p>
+                    </div>
+                    <span class="text-xs text-brand-muted ml-2">2:50 PM</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-gold rounded-2xl rounded-br-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-dark">Absolutely! I'm excited to push my limits. What time should I be there?</p>
+                    </div>
+                    <div class="flex items-center justify-end gap-1">
+                        <span class="text-xs text-brand-muted">2:52 PM</span>
+                        <i class="fa-solid fa-check text-xs text-brand-muted"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-start">
+                <div class="max-w-[280px]">
+                    <div class="bg-brand-surface rounded-2xl rounded-bl-md px-4 py-3 mb-1">
+                        <p class="text-sm text-brand-text">6 AM sharp! And don't forget to bring your water bottle and towel.</p>
+                    </div>
+                    <span class="text-xs text-brand-muted ml-2">Now</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="action-sheet" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm">
+            <div class="absolute bottom-0 w-full bg-brand-surface rounded-t-2xl p-6 space-y-4">
+                <div class="w-12 h-1 bg-brand-border rounded-full mx-auto mb-4"></div>
+                <button class="w-full flex items-center gap-3 p-3 hover:bg-brand-dark/50 rounded-lg transition-colors">
+                    <i class="fa-solid fa-copy text-brand-gold"></i>
+                    <span class="text-brand-text">Copy Message</span>
+                </button>
+                <button class="w-full flex items-center gap-3 p-3 hover:bg-brand-dark/50 rounded-lg transition-colors">
+                    <i class="fa-solid fa-trash text-red-500"></i>
+                    <span class="text-brand-text">Delete Message</span>
+                </button>
+                <button class="w-full flex items-center gap-3 p-3 hover:bg-brand-dark/50 rounded-lg transition-colors">
+                    <i class="fa-solid fa-flag text-orange-500"></i>
+                    <span class="text-brand-text">Report Message</span>
+                </button>
+                <button id="cancel-action" class="w-full bg-brand-gold text-brand-dark py-3 rounded-lg font-medium mt-4">
+                    Cancel
+                </button>
+            </div>
+        </div>
+
+        <div id="message-composer" class="sticky bottom-0 bg-brand-dark/95 backdrop-blur-md p-4 border-t border-white/5 pb-24">
+            <div class="flex items-end gap-3">
+                <button id="attachment-btn" class="text-brand-gold hover:text-white transition-colors p-2 mb-1">
+                    <i class="fa-solid fa-plus text-xl"></i>
+                </button>
+                <div class="flex-1 bg-brand-surface border border-brand-border rounded-2xl px-4 py-3 min-h-[44px] max-h-32 overflow-y-auto">
+                    <textarea id="message-input" placeholder="Type a message..." class="w-full bg-transparent text-brand-text placeholder-brand-muted resize-none outline-none text-sm leading-relaxed" rows="1"></textarea>
+                </div>
+                <button id="send-btn" class="bg-brand-gold text-brand-dark p-3 rounded-full hover:bg-brand-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fa-solid fa-paper-plane text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <nav id="bottom-nav" class="absolute bottom-0 w-full bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-brand-gold no-underline">
+                <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Community</span>
+            </a>
+            <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-play text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Media</span>
+            </a>
+            <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Sponsors</span>
+            </a>
+            <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Events</span>
+            </a>
+            <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-regular fa-user text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </a>
+        </nav>
+    </div>
+
+    <script>
+        document.getElementById('back-btn').addEventListener('click', function() {
+            window.location.href = '27-Community Flow - Messages Inbo.html';
+        });
+
+        document.getElementById('profile-btn').addEventListener('click', function() {
+            console.log('View profile');
+        });
+
+        document.getElementById('mute-btn').addEventListener('click', function() {
+            console.log('Toggle mute');
+        });
+
+        document.getElementById('attachment-btn').addEventListener('click', function() {
+            console.log('Open attachment options');
+        });
+
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+            
+            if (this.value.trim()) {
+                sendBtn.disabled = false;
+            } else {
+                sendBtn.disabled = true;
+            }
+        });
+
+        sendBtn.addEventListener('click', function() {
+            const message = messageInput.value.trim();
+            if (message) {
+                console.log('Send message:', message);
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                sendBtn.disabled = true;
+            }
+        });
+
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!sendBtn.disabled) {
+                    sendBtn.click();
+                }
+            }
+        });
+
+        const actionSheet = document.getElementById('action-sheet');
+        const cancelAction = document.getElementById('cancel-action');
+
+        document.querySelectorAll('#messages-container .bg-brand-surface, #messages-container .bg-brand-gold').forEach(bubble => {
+            let pressTimer;
+            
+            bubble.addEventListener('touchstart', function(e) {
+                pressTimer = setTimeout(() => {
+                    actionSheet.classList.remove('hidden');
+                }, 500);
+            });
+            
+            bubble.addEventListener('touchend', function() {
+                clearTimeout(pressTimer);
+            });
+            
+            bubble.addEventListener('touchmove', function() {
+                clearTimeout(pressTimer);
+            });
+        });
+
+        cancelAction.addEventListener('click', function() {
+            actionSheet.classList.add('hidden');
+        });
+
+        actionSheet.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+
+        document.querySelectorAll('nav button').forEach(button => {
+            button.addEventListener('click', function() {
+                const label = this.querySelector('span').textContent;
+                console.log('Navigate to:', label);
+            });
+        });
+
+        const messagesContainer = document.getElementById('messages-container');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

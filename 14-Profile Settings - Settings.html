@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+          autoReplaceSvg: 'nest'
+        };
+      </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0A0A0A',
+                        gold: '#D4AF37',
+                        gray: {
+                            800: '#1F1F1F',
+                            900: '#121212'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        bebas: ['"Bebas Neue"', 'cursive']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            background-color: #0A0A0A;
+            color: white;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .gold-gradient-text {
+            background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="font-sans antialiased w-full min-h-screen m-0 pb-20">
+    <!-- Header -->
+    <header id="header" class="w-full px-6 py-4 flex justify-between items-center sticky top-0 bg-dark/90 backdrop-blur-md z-50">
+        <a href="22-Athlete Profile.html" class="text-gray-400 hover:text-white transition-colors h-11 w-11 flex items-center justify-center rounded-full hover:bg-gray-800 no-underline">
+            <i class="fa-solid fa-arrow-left text-xl"></i>
+        </a>
+        <h1 class="font-bebas text-xl tracking-wide gold-gradient-text">SETTINGS</h1>
+        <div class="w-11"></div>
+    </header>
+
+    <main id="main" class="w-full max-w-md mx-auto px-4">
+        <!-- Settings Menu -->
+        <section id="settings-menu" class="mt-6 space-y-3">
+            <!-- Account & Security -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <a href="15-Profile Settings - Edit Basic.html" class="w-full p-4 flex items-center justify-between text-left no-underline text-inherit">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-shield-halved text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-sm">Account & Security</h3>
+                            <p class="text-xs text-gray-400 mt-1">Password, 2FA, login methods</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </a>
+            </div>
+
+            <!-- Edit Profile Sections -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <a href="30-Profile Settings - Edit Profil.html" class="w-full p-4 flex items-center justify-between text-left no-underline text-inherit">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-user-pen text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-sm">Edit Profile Sections</h3>
+                            <p class="text-xs text-gray-400 mt-1">Personal info, athlete details, photos</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </a>
+            </div>
+
+            <!-- Privacy & Visibility -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-eye text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-sm">Privacy & Visibility</h3>
+                            <p class="text-xs text-gray-400 mt-1">Profile visibility, data sharing</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Notifications -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-bell text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-sm">Notifications</h3>
+                            <p class="text-xs text-gray-400 mt-1">Push, email, in-app preferences</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Support -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-headset text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-sm">Support</h3>
+                            <p class="text-xs text-gray-400 mt-1">Help center, contact us, FAQs</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Legal -->
+            <div class="bg-gray-900 rounded-xl border border-gray-800 hover:border-gold/30 transition-colors">
+                <button class="w-full p-4 flex items-center justify-between text-left">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-scale-balanced text-gold text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-sm">Legal</h3>
+                            <p class="text-xs text-gray-400 mt-1">Terms, privacy policy, licenses</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-500 text-sm"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Account Actions -->
+        <section id="account-actions" class="mt-10 space-y-4 mb-8">
+            <!-- Log Out -->
+            <button class="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl p-4 flex items-center justify-center gap-3 transition-colors">
+                <i class="fa-solid fa-arrow-right-from-bracket text-gray-300"></i>
+                <span class="font-medium text-gray-300">Log Out</span>
+            </button>
+
+            <!-- Delete Account -->
+            <button class="w-full bg-red-900/20 hover:bg-red-900/30 border border-red-800/50 rounded-xl p-4 flex items-center justify-center gap-3 transition-colors">
+                <i class="fa-solid fa-trash text-red-400"></i>
+                <span class="font-medium text-red-400">Delete Account</span>
+            </button>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav id="footer" class="fixed bottom-0 w-full bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-user-group text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Community</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-play text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Media</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-handshake text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Sponsors</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors">
+            <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Events</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-gold">
+            <i class="fa-regular fa-user text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Profile</span>
+        </button>
+    </nav>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>

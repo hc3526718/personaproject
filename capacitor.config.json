@@ -1,0 +1,8 @@
+{
+  "appId": "com.daltonproject.demo",
+  "appName": "Dalton Demo",
+  "webDir": ".",
+  "server": {
+    "androidScheme": "https"
+  }
+}

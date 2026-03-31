@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        window.FontAwesomeConfig = {
+            autoReplaceSvg: 'nest'
+        };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            gold: '#C8A84B',
+                            dark: '#0A0A0A',
+                            surface: '#1C1C1C',
+                            text: '#D4D0C8',
+                            muted: '#9A9690',
+                            border: '#787570',
+                        }
+                    },
+                    fontFamily: {
+                        bebas: ['"Bebas Neue"', 'cursive'],
+                        sans: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0A0A;
+            color: #D4D0C8;
+            font-family: 'DM Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <link rel="stylesheet" href="shared/theme.css">
+</head>
+<body class="w-full min-h-screen m-0 flex justify-center bg-brand-dark">
+    <div id="app-container" class="w-full max-w-[428px] h-screen bg-brand-dark relative flex flex-col overflow-hidden shadow-2xl shadow-black/50">
+        
+        <header id="search-header" class="sticky top-0 z-50 bg-brand-dark/95 backdrop-blur-md pt-12 pb-4 px-4 border-b border-white/5">
+            <div class="flex items-center gap-4 mb-4">
+                <button id="back-btn" class="text-brand-gold hover:text-white transition-colors">
+                    <i class="fa-solid fa-arrow-left text-xl"></i>
+                </button>
+                <div class="flex-1 relative">
+                    <input 
+                        type="text" 
+                        placeholder="Search posts, people, tags"
+                        class="w-full bg-brand-surface border border-brand-border rounded-lg px-4 py-3 pl-11 text-brand-text placeholder-brand-muted focus:border-brand-gold focus:outline-none text-sm"
+                        id="search-input"
+                    >
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 text-brand-muted"></i>
+                </div>
+            </div>
+        </header>
+
+        <div id="search-content" class="flex-1 overflow-y-auto hide-scrollbar px-4 pt-4 pb-24">
+            
+            <section id="recent-searches" class="mb-6">
+                <h3 class="text-sm font-medium text-brand-text mb-3">Recent Searches</h3>
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-clock-rotate-left text-brand-muted text-sm"></i>
+                            <span class="text-brand-text text-sm">sprint technique</span>
+                        </div>
+                        <button class="text-brand-muted hover:text-white">
+                            <i class="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-clock-rotate-left text-brand-muted text-sm"></i>
+                            <span class="text-brand-text text-sm">Coach Williams</span>
+                        </div>
+                        <button class="text-brand-muted hover:text-white">
+                            <i class="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-clock-rotate-left text-brand-muted text-sm"></i>
+                            <span class="text-brand-text text-sm">high jump</span>
+                        </div>
+                        <button class="text-brand-muted hover:text-white">
+                            <i class="fa-solid fa-xmark text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="suggested-tags" class="mb-6">
+                <h3 class="text-sm font-medium text-brand-text mb-3">Suggested Tags</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button class="px-4 py-2 rounded-[20px] border border-brand-gold text-brand-gold text-sm font-medium bg-brand-gold/10 hover:bg-brand-gold/20 transition-colors">
+                        All
+                    </button>
+                    <button class="px-4 py-2 rounded-[20px] border border-brand-border text-brand-muted text-sm font-medium hover:border-brand-gold/50 hover:text-brand-text transition-colors">
+                        Sprints
+                    </button>
+                    <button class="px-4 py-2 rounded-[20px] border border-brand-border text-brand-muted text-sm font-medium hover:border-brand-gold/50 hover:text-brand-text transition-colors">
+                        Jumps
+                    </button>
+                    <button class="px-4 py-2 rounded-[20px] border border-brand-border text-brand-muted text-sm font-medium hover:border-brand-gold/50 hover:text-brand-text transition-colors">
+                        Youth
+                    </button>
+                    <button class="px-4 py-2 rounded-[20px] border border-brand-border text-brand-muted text-sm font-medium hover:border-brand-gold/50 hover:text-brand-text transition-colors">
+                        Academy
+                    </button>
+                </div>
+            </section>
+
+            <section id="trending-searches" class="mb-6">
+                <h3 class="text-sm font-medium text-brand-text mb-3">Trending</h3>
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center gap-3 py-2">
+                        <i class="fa-solid fa-fire text-orange-500 text-sm"></i>
+                        <div class="flex-1">
+                            <div class="text-brand-text text-sm font-medium">nutrition tips</div>
+                            <div class="text-brand-muted text-xs">142 posts this week</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 py-2">
+                        <i class="fa-solid fa-fire text-orange-500 text-sm"></i>
+                        <div class="flex-1">
+                            <div class="text-brand-text text-sm font-medium">recovery methods</div>
+                            <div class="text-brand-muted text-xs">89 posts this week</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 py-2">
+                        <i class="fa-solid fa-fire text-orange-500 text-sm"></i>
+                        <div class="flex-1">
+                            <div class="text-brand-text text-sm font-medium">block start</div>
+                            <div class="text-brand-muted text-xs">67 posts this week</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="result-tabs" class="hidden">
+                <div class="flex border-b border-white/10 mb-4">
+                    <button class="flex-1 py-3 text-sm font-medium text-brand-gold border-b-2 border-brand-gold">
+                        Posts
+                    </button>
+                    <button class="flex-1 py-3 text-sm font-medium text-brand-muted hover:text-brand-text transition-colors">
+                        People
+                    </button>
+                    <button class="flex-1 py-3 text-sm font-medium text-brand-muted hover:text-brand-text transition-colors">
+                        Tags
+                    </button>
+                </div>
+                <div id="search-results" class="flex flex-col gap-4">
+                </div>
+            </section>
+        </div>
+
+        <div id="notifications-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] hidden">
+            <div class="absolute top-0 right-0 w-full max-w-[380px] h-full bg-brand-dark border-l border-white/10">
+                <div class="sticky top-0 bg-brand-dark border-b border-white/10 p-4 flex items-center justify-between">
+                    <h2 class="font-bebas text-2xl text-brand-text tracking-wider">Notifications</h2>
+                    <button id="close-notifications" class="text-brand-muted hover:text-white transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="overflow-y-auto hide-scrollbar h-full pb-20">
+                    <div class="p-4 space-y-4">
+                        <div class="flex items-start gap-3 p-3 bg-brand-surface/50 rounded-lg">
+                            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="Sarah Chen" class="w-8 h-8 rounded-full object-cover">
+                            <div class="flex-1">
+                                <p class="text-sm text-brand-text"><span class="font-medium">Sarah Chen</span> liked your post</p>
+                                <p class="text-xs text-brand-muted mt-1">2 minutes ago</p>
+                            </div>
+                            <div class="w-2 h-2 bg-brand-gold rounded-full"></div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-brand-surface/50 rounded-lg">
+                            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-8 h-8 rounded-full object-cover">
+                            <div class="flex-1">
+                                <p class="text-sm text-brand-text"><span class="font-medium">Coach Williams</span> commented on your sprint technique video</p>
+                                <p class="text-xs text-brand-muted mt-1">1 hour ago</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-brand-surface/50 rounded-lg">
+                            <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg" alt="Marcus Johnson" class="w-8 h-8 rounded-full object-cover">
+                            <div class="flex-1">
+                                <p class="text-sm text-brand-text"><span class="font-medium">Marcus Johnson</span> started following you</p>
+                                <p class="text-xs text-brand-muted mt-1">3 hours ago</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="messages-screen" class="absolute inset-0 bg-brand-dark z-[90] hidden">
+            <div class="sticky top-0 bg-brand-dark border-b border-white/10 pt-12 pb-4 px-4">
+                <div class="flex items-center gap-4">
+                    <button id="close-messages" class="text-brand-gold hover:text-white transition-colors">
+                        <i class="fa-solid fa-arrow-left text-xl"></i>
+                    </button>
+                    <h2 class="font-bebas text-2xl text-brand-text tracking-wider">Messages</h2>
+                </div>
+            </div>
+            <div class="overflow-y-auto hide-scrollbar h-full pb-24">
+                <div class="px-4 py-4 space-y-3">
+                    <div class="flex items-center gap-3 p-3 bg-brand-surface rounded-lg hover:bg-brand-surface/80 transition-colors">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg" alt="Coach Williams" class="w-12 h-12 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-medium text-brand-text text-sm">Coach Williams</h4>
+                                <span class="text-xs text-brand-muted">2m</span>
+                            </div>
+                            <p class="text-sm text-brand-muted truncate">Great progress on your form today...</p>
+                        </div>
+                        <div class="w-2 h-2 bg-brand-gold rounded-full"></div>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-brand-surface rounded-lg hover:bg-brand-surface/80 transition-colors">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg" alt="Sarah Chen" class="w-12 h-12 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-medium text-brand-text text-sm">Sarah Chen</h4>
+                                <span class="text-xs text-brand-muted">1h</span>
+                            </div>
+                            <p class="text-sm text-brand-muted truncate">Thanks for the training tips!</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-brand-surface rounded-lg hover:bg-brand-surface/80 transition-colors">
+                        <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg" alt="Marcus Johnson" class="w-12 h-12 rounded-full object-cover">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-medium text-brand-text text-sm">Marcus Johnson</h4>
+                                <span class="text-xs text-brand-muted">3h</span>
+                            </div>
+                            <p class="text-sm text-brand-muted truncate">Want to train together tomorrow?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <nav id="bottom-nav" class="absolute bottom-0 w-full bg-[#141414] border-t border-white/5 px-6 py-4 pb-8 flex justify-between items-center z-50 rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            <a href="7-Community Feed.html" class="flex flex-col items-center gap-1 text-brand-gold relative group no-underline">
+                <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Community</span>
+            </a>
+            <a href="18-Media Library.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-play text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Media</span>
+            </a>
+            <a href="31-Sponsor Listings.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-handshake text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Sponsors</span>
+            </a>
+            <a href="13-Upcoming Events.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-solid fa-calendar-days text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Events</span>
+            </a>
+            <a href="22-Athlete Profile.html" class="flex flex-col items-center gap-1 text-brand-muted hover:text-white transition-colors no-underline">
+                <i class="fa-regular fa-user text-xl mb-1"></i>
+                <span class="text-[10px] font-medium">Profile</span>
+            </a>
+        </nav>
+    </div>
+
+    <script>
+        document.getElementById('back-btn').addEventListener('click', function() {
+            window.location.href = '7-Community Feed.html';
+        });
+
+        document.getElementById('search-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                window.location.href = '25-Community Flow - Community Sea.html';
+            }
+        });
+
+        document.getElementById('search-input').addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+            const resultTabs = document.getElementById('result-tabs');
+            const searchContent = document.getElementById('search-content');
+            
+            if (query.length > 0) {
+                resultTabs.classList.remove('hidden');
+                searchContent.children[0].style.display = 'none';
+                searchContent.children[1].style.display = 'none';
+                searchContent.children[2].style.display = 'none';
+            } else {
+                resultTabs.classList.add('hidden');
+                searchContent.children[0].style.display = 'block';
+                searchContent.children[1].style.display = 'block';
+                searchContent.children[2].style.display = 'block';
+            }
+        });
+
+        const notificationBtn = document.querySelector('.fa-bell').parentElement;
+        const notificationsModal = document.getElementById('notifications-modal');
+        const closeNotifications = document.getElementById('close-notifications');
+
+        notificationBtn.addEventListener('click', function() {
+            notificationsModal.classList.remove('hidden');
+        });
+
+        closeNotifications.addEventListener('click', function() {
+            notificationsModal.classList.add('hidden');
+        });
+
+        const messageBtn = document.querySelector('.fa-paper-plane').parentElement;
+        const messagesScreen = document.getElementById('messages-screen');
+        const closeMessages = document.getElementById('close-messages');
+
+        messageBtn.addEventListener('click', function() {
+            messagesScreen.classList.remove('hidden');
+        });
+
+        closeMessages.addEventListener('click', function() {
+            messagesScreen.classList.add('hidden');
+        });
+
+        notificationsModal.addEventListener('click', function(e) {
+            if (e.target === notificationsModal) {
+                notificationsModal.classList.add('hidden');
+            }
+        });
+    </script>
+    <script src="shared/demo-shell.js" defer></script>
+</body>
+</html>
