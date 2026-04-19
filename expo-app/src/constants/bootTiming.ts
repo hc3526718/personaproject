@@ -22,7 +22,7 @@ export const RIVE_EMBED_LOAD_TIMEOUT_MS = 15000;
  * Increase for slow networks, OAuth-heavy regions, or first launch after install. Still capped so
  * a dead endpoint cannot block the app forever.
  */
-export const AUTH_GET_SESSION_TIMEOUT_MS = 60000;
+export const AUTH_GET_SESSION_TIMEOUT_MS = 15000;
 
 /** Fade from boot overlay into app after `MIN_BOOT_OVERLAY_MS` + readiness. */
 export const BOOT_OVERLAY_FADE_MS = 520;
