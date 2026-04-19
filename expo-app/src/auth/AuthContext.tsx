@@ -111,25 +111,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     let cancelled = false;
-    let sessionTimedOut = false;
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
-      sessionTimedOut = true;
       captureAuthSessionTimeout();
-      setUser(null);
+      /** Unblock cold start; a slow `getSession()` may still resolve afterward and update `user`. */
       setReady(true);
     }, AUTH_GET_SESSION_TIMEOUT_MS);
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        if (cancelled || sessionTimedOut) return;
+        if (cancelled) return;
         clearTimeout(timeoutId);
         const s = data.session;
         if (s?.user) {
           await ensureDefaultDaltonVerifiedMetadata(supabase);
-          if (cancelled || sessionTimedOut) return;
+          if (cancelled) return;
           const { data: fresh } = await supabase.auth.getSession();
-          if (cancelled || sessionTimedOut) return;
+          if (cancelled) return;
           if (fresh.session?.user) {
             setUser(appUserFromSupabaseUser(fresh.session.user));
           } else {
@@ -140,23 +138,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setReady(true);
       } catch {
-        if (cancelled || sessionTimedOut) return;
+        if (cancelled) return;
         clearTimeout(timeoutId);
         setUser(null);
         setReady(true);
       }
     })();
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        await ensureDefaultDaltonVerifiedMetadata(supabase);
-        const { data: fresh } = await supabase.auth.getSession();
-        if (fresh.session?.user) {
-          setUser(appUserFromSupabaseUser(fresh.session.user));
+      try {
+        if (cancelled) return;
+        if (session?.user) {
+          await ensureDefaultDaltonVerifiedMetadata(supabase);
+          if (cancelled) return;
+          const { data: fresh } = await supabase.auth.getSession();
+          if (cancelled) return;
+          if (fresh.session?.user) {
+            setUser(appUserFromSupabaseUser(fresh.session.user));
+          } else {
+            setUser(null);
+          }
         } else {
           setUser(null);
         }
-      } else {
-        setUser(null);
+      } finally {
+        if (!cancelled) {
+          /** `INITIAL_SESSION` / OAuth can arrive before `getSession()` finishes; never strand `ready`. */
+          setReady(true);
+        }
       }
     });
     return () => {

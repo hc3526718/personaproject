@@ -21,4 +21,4 @@ Aligned this project with common themes from that ecosystem **without** vendorin
 
 ## Rive “ready right after splash”
 
-The boot WebView (Rive Cloud embed) is **opt-in** on dev/EAS builds (`EXPO_PUBLIC_RIVE_USE_CLOUD_EMBED=1`); default is **bundled** `dalton_animated_logo.riv` via `rive-react-native` in `src/constants/riveBoot.ts`. Expo Go still uses the embed unless `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1`. Native splash is dismissed in a **layout** effect so the dark shell appears immediately.
+The boot WebView (Rive Cloud embed) is the **default** in `src/constants/riveBoot.ts` (share URL or `EXPO_PUBLIC_RIVE_EMBED_URL`). Set `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1` to use bundled `dalton_animated_logo.riv` via `rive-react-native` on dev/EAS, or bounce-only in Expo Go. Native splash is dismissed in a **layout** effect so the dark shell appears immediately.

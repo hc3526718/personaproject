@@ -4,12 +4,10 @@ import { DS } from '../designSystem';
 /**
  * Boot / onboarding Rive — display modes:
  *
- * 1. **Bundled (default on dev client / EAS)** — `dalton_animated_logo.riv` via `rive-react-native`.
- *    Most reliable; avoids WebView + rive.app network/cookie issues that could stall the boot UI.
- * 2. **Native URL** — `EXPO_PUBLIC_RIVE_URL` = direct HTTPS URL to a `.riv` file (hosted file).
- * 3. **Cloud embed (opt-in)** — WebView loading `EXPO_PUBLIC_RIVE_EMBED_URL` or the default share embed.
- *    Set **`EXPO_PUBLIC_RIVE_USE_CLOUD_EMBED=1`** to enable on real builds. **Expo Go** still uses embed
- *    by default (no native Rive module), unless `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1` (bounce only).
+ * 1. **Cloud embed (default)** — WebView loading `EXPO_PUBLIC_RIVE_EMBED_URL` or {@link DALTON_RIVE_EMBED_DEFAULT}.
+ *    Same behavior as the original implementation: dev client, EAS, and Expo Go use the hosted embed unless disabled.
+ * 2. **Native URL** — `EXPO_PUBLIC_RIVE_URL` = direct HTTPS URL to a `.riv` file (`rive-react-native`, no WebView).
+ * 3. **Bundled** — `dalton_animated_logo.riv` when `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1` (Expo Go bounce path / no embed).
  *
  * Optional: `EXPO_PUBLIC_RIVE_ARTBOARD`, `EXPO_PUBLIC_RIVE_STATE_MACHINE`, `EXPO_PUBLIC_RIVE_ANIMATION`
  * `EXPO_PUBLIC_BOOT_USE_RIVE=0` → bouncing PNG only.
@@ -58,11 +56,8 @@ export const DALTON_BOOT_RIVE_EMBED_URL = envTrim('EXPO_PUBLIC_RIVE_EMBED_URL');
 /** `EXPO_PUBLIC_BOOT_USE_RIVE=0` → use bouncing PNG instead of Rive. */
 export const BOOT_USE_RIVE = process.env.EXPO_PUBLIC_BOOT_USE_RIVE !== '0';
 
-/** Skip WebView embed (Expo Go falls back to bounce-only when native Rive is unavailable). */
+/** Skip WebView embed (bundled native `.riv` on dev/EAS; Expo Go uses bounce-only when native Rive is unavailable). */
 export const RIVE_EMBED_DISABLED = process.env.EXPO_PUBLIC_RIVE_DISABLE_EMBED === '1';
-
-/** Opt in to Rive Cloud **WebView** embed on dev client / store builds (default is off — use bundled `.riv`). */
-export const RIVE_USE_CLOUD_EMBED = process.env.EXPO_PUBLIC_RIVE_USE_CLOUD_EMBED === '1';
 
 export function daltonRiveLayoutProps() {
   return {
@@ -85,8 +80,8 @@ export type DaltonBootRiveDisplayMode = 'native-url' | 'embed' | 'bundled';
 
 /**
  * **native-url** — hosted `.riv` for `rive-react-native`.
- * **embed** — Rive Cloud share embed in WebView (Expo Go default, or when `EXPO_PUBLIC_RIVE_USE_CLOUD_EMBED=1`).
- * **bundled** — local `require` asset (default on dev client / EAS when no hosted `.riv` URL).
+ * **embed** — Rive Cloud share embed in WebView (default when embed is not disabled).
+ * **bundled** — local `require` asset (when `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1` or bounce fallback).
  */
 export function getDaltonBootRiveDisplayMode(): DaltonBootRiveDisplayMode {
   if (!BOOT_USE_RIVE) return 'bundled';
@@ -99,11 +94,10 @@ export function getDaltonBootRiveDisplayMode(): DaltonBootRiveDisplayMode {
   if (riv && /^https:\/\//i.test(riv) && /\.riv($|\?)/i.test(riv)) {
     return 'native-url';
   }
-  /** Real builds: bundled `.riv` by default so boot is not tied to rive.app WebView reliability. */
-  if (RIVE_USE_CLOUD_EMBED && !RIVE_EMBED_DISABLED) {
-    return 'embed';
+  if (RIVE_EMBED_DISABLED) {
+    return 'bundled';
   }
-  return 'bundled';
+  return 'embed';
 }
 
 /**

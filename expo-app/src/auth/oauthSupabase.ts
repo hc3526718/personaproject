@@ -25,6 +25,24 @@ export function isOAuthReturnUrlTrusted(returnUrl: string, redirectTo: string): 
   }
 }
 
+/** PKCE `code` is usually in the query string; some stacks surface it in the URL hash. */
+function parseOAuthCodeFromReturnUrl(returnUrl: string): string | null {
+  const parsed = Linking.parse(returnUrl);
+  const codeRaw = parsed.queryParams?.code;
+  const fromQuery = Array.isArray(codeRaw) ? codeRaw[0] : codeRaw;
+  if (typeof fromQuery === 'string' && fromQuery.length > 0) {
+    return fromQuery;
+  }
+  const frag = typeof parsed.fragment === 'string' ? parsed.fragment : '';
+  if (!frag) return null;
+  const qs = frag.startsWith('?') ? frag.slice(1) : frag;
+  try {
+    return new URLSearchParams(qs).get('code');
+  } catch {
+    return null;
+  }
+}
+
 export async function signInWithGoogleOAuth(
   supabase: SupabaseClient,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
@@ -48,15 +66,14 @@ export async function signInWithGoogleOAuth(
     return { ok: false, message: 'Unexpected sign-in redirect' };
   }
 
-  const parsed = Linking.parse(result.url);
-  const codeRaw = parsed.queryParams?.code;
-  const code = Array.isArray(codeRaw) ? codeRaw[0] : codeRaw;
+  const code = parseOAuthCodeFromReturnUrl(result.url);
   if (code) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) return { ok: false, message: exchangeError.message };
     return { ok: true };
   }
 
+  const parsed = Linking.parse(result.url);
   const errDesc = parsed.queryParams?.error_description;
   const err = parsed.queryParams?.error;
   if (err || errDesc) {

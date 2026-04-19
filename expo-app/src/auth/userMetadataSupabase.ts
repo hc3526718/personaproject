@@ -5,18 +5,22 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * (defaults to false). Server-side, prefer `backend/auth_default_dalton_verified.sql` on auth.users.
  */
 export async function ensureDefaultDaltonVerifiedMetadata(supabase: SupabaseClient): Promise<void> {
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabase.auth.getUser();
-  if (userErr || !user?.id) return;
-  const meta = user.user_metadata as Record<string, unknown> | undefined;
-  if (meta && Object.prototype.hasOwnProperty.call(meta, 'dalton_verified')) {
-    return;
+  try {
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+    if (userErr || !user?.id) return;
+    const meta = user.user_metadata as Record<string, unknown> | undefined;
+    if (meta && Object.prototype.hasOwnProperty.call(meta, 'dalton_verified')) {
+      return;
+    }
+    await supabase.auth.updateUser({
+      data: { dalton_verified: false },
+    });
+  } catch {
+    /* Session stays valid; metadata default is optional. */
   }
-  await supabase.auth.updateUser({
-    data: { dalton_verified: false },
-  });
 }
 
 /**
