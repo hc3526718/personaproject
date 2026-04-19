@@ -33,6 +33,6 @@ Use this when moving from demo to production. **Roadmap:** `docs/NEXT_STEPS.md` 
 
 ## Optional analytics
 
-- [ ] Sentry / Amplitude keys as EAS secrets if you add SDKs
+- [ ] **`EXPO_PUBLIC_SENTRY_DSN`** in `.env` + EAS (see `MONITORING_AND_ANALYTICS.md`); optional `SENTRY_AUTH_TOKEN` / org / project for upload maps
 
 If you tell me which provider you enabled first (Supabase vs Stripe vs RevenueCat), we can wire the smallest vertical slice end-to-end in a follow-up session.

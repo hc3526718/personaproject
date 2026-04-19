@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppleHeroButton } from '../components/AppleHeroButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
@@ -29,12 +30,12 @@ export function PaywallScreen({ navigation }: Props) {
                 Status: {isPro ? 'Premium active' : 'Free plan'}
               </Text>
             </View>
-            <Pressable style={styles.btn} onPress={() => void refresh()}>
-              <Text style={styles.btnTxt}>Refresh entitlements</Text>
-            </Pressable>
-            <Pressable style={styles.btnOutline} onPress={() => void restore()}>
-              <Text style={styles.btnOutlineTxt}>Restore purchases</Text>
-            </Pressable>
+            <AppleHeroButton onPress={() => void refresh()} style={styles.btnSpaced}>
+              Refresh entitlements
+            </AppleHeroButton>
+            <AppleHeroButton variant="secondary" onPress={() => void restore()}>
+              Restore purchases
+            </AppleHeroButton>
             <Text style={styles.hint}>
               In Expo Go, store billing is unavailable — use an EAS development build with RevenueCat
               keys set in .env
@@ -65,22 +66,7 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.lg,
   },
   status: { fontFamily: DS.font.bodyMedium, fontSize: 16, color: DS.color.text },
-  btn: {
-    backgroundColor: DS.color.gold,
-    paddingVertical: DS.space.base,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: DS.space.md,
-  },
-  btnTxt: { fontFamily: DS.font.bodyBold, color: DS.color.background, fontSize: 15 },
-  btnOutline: {
-    borderWidth: 1,
-    borderColor: DS.color.gold,
-    paddingVertical: DS.space.base,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  btnOutlineTxt: { fontFamily: DS.font.bodyMedium, color: DS.color.gold, fontSize: 15 },
+  btnSpaced: { marginBottom: DS.space.md },
   hint: {
     marginTop: DS.space.xl,
     fontFamily: DS.font.body,

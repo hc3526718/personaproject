@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -12,14 +12,20 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { syncDaltonVerifiedFromProfileIfPremium } from '../auth/userMetadataSupabase';
+import { AppleHeroButton } from '../components/AppleHeroButton';
+import { BrandLogo } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
+import { isSupabaseConfigured } from '../lib/env';
+import { getSupabase } from '../lib/supabase';
 import type { ProfileStackParamList } from '../navigation/types';
+import { useSubscription } from '../subscriptions/SubscriptionContext';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 type SectionDetailRoute = RouteProp<ProfileStackParamList, 'EditProfileSectionDetail'>;
@@ -141,6 +147,17 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
 
 export function SettingsScreen({ navigation }: PProps<'Settings'>) {
   const { logout, user } = useAuth();
+  const { isPro } = useSubscription();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSupabaseConfigured()) return;
+      const s = getSupabase();
+      if (!s) return;
+      void syncDaltonVerifiedFromProfileIfPremium(s, isPro);
+    }, [isPro]),
+  );
+
   const premiumRow = {
     title: 'Premium',
     sub: 'Subscriptions, restore purchases, entitlements',
@@ -202,6 +219,29 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     <View style={styles.root}>
       <ScreenHeader title="Settings" onBack={() => navigation.goBack()} largeTitle />
       <ScrollView contentContainerStyle={styles.padded}>
+        <View style={styles.settingsLogoRow}>
+          <BrandLogo width={72} height={72} />
+        </View>
+        {user ? (
+          <View style={styles.accountStatusCard}>
+            <Text style={styles.accountStatusLabel}>Account</Text>
+            <Text style={styles.accountStatusEmail}>{user.email || 'Signed in'}</Text>
+            <Text
+              style={[
+                styles.accountVerifyBadge,
+                user.daltonVerified ? styles.accountVerifyOn : styles.accountVerifyOff,
+              ]}
+            >
+              {user.daltonVerified ? 'Dalton verified' : 'Not Dalton verified'}
+            </Text>
+            {!user.daltonVerified ? (
+              <Text style={styles.accountStatusHint}>
+                After Dalton approves your account and Premium is active, this switches to Dalton
+                verified automatically.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         {rows.map((r) => (
           <Pressable key={r.title} style={styles.settingsCard} onPress={r.onPress}>
             <View style={styles.settingsIcon}>
@@ -377,9 +417,9 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
             <FontAwesome name="chevron-down" size={14} color={DS.color.textMuted} />
           </Pressable>
 
-          <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={onSave}>
-            <Text style={styles.primaryBtnText}>Save Changes</Text>
-          </Pressable>
+          <AppleHeroButton style={styles.saveBtnSpaced} onPress={onSave}>
+            Save changes
+          </AppleHeroButton>
           <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </Pressable>
@@ -494,9 +534,9 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
           <Text style={styles.photoRemoveLabel}>Remove Photo</Text>
         </Pressable>
 
-        <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={() => setToast(true)}>
-          <Text style={styles.primaryBtnText}>Save Changes</Text>
-        </Pressable>
+        <AppleHeroButton style={styles.saveBtnSpaced} onPress={() => setToast(true)}>
+          Save changes
+        </AppleHeroButton>
         <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </Pressable>
@@ -607,9 +647,9 @@ export function EditAthleteScreen({ navigation }: PProps<'EditAthlete'>) {
           ))}
         </View>
 
-        <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={onSave}>
-          <Text style={styles.primaryBtnText}>Save Changes</Text>
-        </Pressable>
+        <AppleHeroButton style={styles.saveBtnSpaced} onPress={onSave}>
+          Save changes
+        </AppleHeroButton>
         <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </Pressable>
@@ -893,9 +933,9 @@ export function EditProfileSectionDetailScreen({
           </>
         ) : null}
 
-        <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={() => setToast(true)}>
-          <Text style={styles.primaryBtnText}>Save</Text>
-        </Pressable>
+        <AppleHeroButton style={styles.saveBtnSpaced} onPress={() => setToast(true)}>
+          Save
+        </AppleHeroButton>
       </ScrollView>
     </View>
   );
@@ -1143,6 +1183,51 @@ const styles = StyleSheet.create({
   padded: {
     padding: DS.space.lg,
   },
+  settingsLogoRow: {
+    alignItems: 'center',
+    marginBottom: DS.space.lg,
+  },
+  accountStatusCard: {
+    backgroundColor: DS.color.surfaceAlt,
+    borderRadius: DS.radius.xl,
+    padding: DS.space.lg,
+    marginBottom: DS.space.lg,
+    borderWidth: 1,
+    borderColor: DS.color.borderHairline,
+  },
+  accountStatusLabel: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 12,
+    fontWeight: '700',
+    color: DS.color.gold,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    marginBottom: DS.space.sm,
+  },
+  accountStatusEmail: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    color: DS.color.text,
+    marginBottom: DS.space.md,
+  },
+  accountVerifyBadge: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  accountVerifyOn: {
+    color: DS.color.gold,
+  },
+  accountVerifyOff: {
+    color: DS.color.textMuted,
+  },
+  accountStatusHint: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    marginTop: DS.space.md,
+    lineHeight: 19,
+  },
   settingsCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1381,25 +1466,6 @@ const styles = StyleSheet.create({
     color: DS.color.text,
     borderWidth: 1,
     borderColor: DS.color.borderHairline,
-  },
-  primaryBtn: {
-    backgroundColor: DS.color.gold,
-    paddingVertical: 14,
-    borderRadius: DS.radius.lg,
-    alignItems: 'center',
-    marginTop: DS.space.xl,
-    shadowColor: DS.color.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryBtnText: {
-    color: DS.color.background,
-    fontWeight: '700',
-    fontSize: 16,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   largeAvatar: {
     width: 160,

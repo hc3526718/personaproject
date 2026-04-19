@@ -4,17 +4,31 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "node": "20.19.4",
+      "env": {
+        "EAS_NO_FROZEN_LOCKFILE": "1",
+        "EAS_BUILD_DISABLE_NPM_CACHE": "1",
+        "TMPDIR": "/tmp",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": false
       },
       "android": {
         "buildType": "apk"
+      },
+      "cache": {
+        "disabled": true
       }
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
       "ios": {
         "simulator": false
@@ -24,6 +38,7 @@
       }
     },
     "production": {
+      "extends": "base",
       "autoIncrement": true
     }
   },

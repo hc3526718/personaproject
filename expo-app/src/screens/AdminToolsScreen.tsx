@@ -1,13 +1,12 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NavigationProp } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { can } from '../admin/capabilities';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
-import { showComingSoon } from '../lib/comingSoon';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, ProfileStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'AdminTools'>;
@@ -37,21 +36,54 @@ export function AdminToolsScreen({ navigation }: Props) {
           Role: <Text style={styles.roleGold}>{role}</Text>
         </Text>
         <Text style={styles.sub}>
-          Capabilities are enforced on the server (RLS / API). This screen is the hub for moderator
-          workflows once wired to your backend.
+          Capabilities are enforced on the server (RLS / API). Dalton-verified hosts use the flows
+          below; wire Supabase for live data.
         </Text>
 
         {can(role, 'moderate_posts') ? (
-          <Pressable style={styles.row} onPress={() => showComingSoon('Content moderation queue')}>
+          <Pressable
+            style={styles.row}
+            onPress={() =>
+              Alert.alert(
+                'Moderation queue',
+                'Reported posts and messages will load from Supabase with moderator RLS.',
+              )
+            }
+          >
             <Text style={styles.rowTitle}>Moderation queue</Text>
             <Text style={styles.rowSub}>Review reported posts & messages</Text>
           </Pressable>
         ) : null}
 
         {can(role, 'manage_events') ? (
-          <Pressable style={styles.row} onPress={() => showComingSoon('Event editor')}>
+          <Pressable
+            style={styles.row}
+            onPress={() => tabNav.navigate('Events', { screen: 'HostEventDashboard' })}
+          >
+            <Text style={styles.rowTitle}>Event host dashboard</Text>
+            <Text style={styles.rowSub}>Tickets, RSVPs, attendee list (demo data)</Text>
+          </Pressable>
+        ) : null}
+
+        {can(role, 'manage_events') ? (
+          <Pressable
+            style={styles.row}
+            onPress={() =>
+              Alert.alert(
+                'Create / edit events',
+                'Forms will insert into the `events` table once RLS allows `manage_events`.',
+              )
+            }
+          >
             <Text style={styles.rowTitle}>Create / edit events</Text>
             <Text style={styles.rowSub}>Publish sessions and capacity</Text>
+          </Pressable>
+        ) : null}
+
+        {can(role, 'manage_events') ? (
+          <Pressable style={styles.row} onPress={() => navigation.navigate('AdminMediaUpload')}>
+            <Text style={styles.rowTitle}>Upload media</Text>
+            <Text style={styles.rowSub}>Storage bucket + `media_assets` metadata</Text>
           </Pressable>
         ) : null}
 
@@ -66,21 +98,39 @@ export function AdminToolsScreen({ navigation }: Props) {
         ) : null}
 
         {can(role, 'view_analytics') ? (
-          <Pressable style={styles.row} onPress={() => showComingSoon('Analytics dashboard')}>
+          <Pressable
+            style={styles.row}
+            onPress={() =>
+              Alert.alert(
+                'Analytics',
+                'Engagement and booking charts will pull from Postgres / Metabase when connected.',
+              )
+            }
+          >
             <Text style={styles.rowTitle}>Analytics</Text>
             <Text style={styles.rowSub}>Engagement and bookings</Text>
           </Pressable>
         ) : null}
 
         {can(role, 'manage_billing') ? (
-          <Pressable style={styles.row} onPress={() => showComingSoon('Organization billing')}>
+          <Pressable
+            style={styles.row}
+            onPress={() =>
+              Alert.alert('Billing', 'Stripe Connect and payouts are configured in INTEGRATIONS.md.')
+            }
+          >
             <Text style={styles.rowTitle}>Billing & payouts</Text>
             <Text style={styles.rowSub}>Stripe Connect / invoices</Text>
           </Pressable>
         ) : null}
 
         {can(role, 'assign_roles') ? (
-          <Pressable style={styles.row} onPress={() => showComingSoon('Role assignment')}>
+          <Pressable
+            style={styles.row}
+            onPress={() =>
+              Alert.alert('Roles', 'Promote admins via `organization_memberships` + audit log.')
+            }
+          >
             <Text style={styles.rowTitle}>Members & roles</Text>
             <Text style={styles.rowSub}>Promote admins, audit log</Text>
           </Pressable>

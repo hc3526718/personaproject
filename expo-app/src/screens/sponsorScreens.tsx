@@ -9,7 +9,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DS } from '../designSystem';
+import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { SponsorsStackParamList } from '../navigation/types';
 
 type SProps<K extends keyof SponsorsStackParamList> = NativeStackScreenProps<
@@ -29,7 +29,13 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
   ];
   return (
     <View style={styles.root}>
-      <View style={[styles.sponsorHeader, { paddingTop: insets.top + DS.space.lg }]}>
+      <View
+        style={[
+          styles.sponsorHeader,
+          tabRootHeaderPadding,
+          { paddingTop: insets.top + DS.space.md },
+        ]}
+      >
         <Text style={styles.sponsorTitle}>SPONSORS</Text>
         <Pressable
           style={styles.sponsorBell}
@@ -72,23 +78,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: DS.space.lg,
-    paddingBottom: DS.space.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DS.color.borderHairline,
   },
   sponsorTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 32,
-    fontWeight: '400',
-    color: DS.color.text,
-    letterSpacing: 2,
+    ...tabRootTitleText,
   },
   sponsorBell: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: DS.color.borderWhite5,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: DS.color.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },

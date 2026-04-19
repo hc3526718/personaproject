@@ -3,7 +3,6 @@ import { useCallback, useState } from 'react';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,85 +12,68 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AppleHeroButton } from '../components/AppleHeroButton';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DEMO_EMAIL, DEMO_PASSWORD, useAuth } from '../auth/AuthContext';
-import { BRAND_LOGO } from '../constants/brandLogo';
+import { BrandLogo } from '../components/BrandLogo';
 import { DS } from '../designSystem';
+import { isSupabaseConfigured } from '../lib/env';
 import type { AuthStackParamList } from '../navigation/types';
 
-type Phase = 'splash' | 'signup';
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
 type GrantRoute = RouteProp<AuthStackParamList, 'GrantAccess'>;
 
+/** Sign-up form only. Opened from Welcome hub with `{ startAt: 'signup' }`. */
 export default function GrantAccessScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<GrantRoute>();
-  const { login } = useAuth();
-  const [phase, setPhase] = useState<Phase>('splash');
+  const { login, signUp, signInWithGoogle, signInWithApple, oAuthBusy } = useAuth();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   useFocusEffect(
     useCallback(() => {
-      const start = route.params?.startAt;
-      setPhase(start === 'signup' ? 'signup' : 'splash');
-    }, [route.params?.startAt]),
+      if (route.params?.startAt !== 'signup') {
+        navigation.replace('LogIn');
+      }
+    }, [navigation, route.params?.startAt]),
   );
 
-  const tryEnterApp = useCallback(async () => {
-    const ok = await login(email.trim(), password);
+  const tryCreateAccount = useCallback(async () => {
+    const trimmed = email.trim();
+    if (!trimmed || !password) {
+      Alert.alert('Missing fields', 'Enter email and password.');
+      return;
+    }
+    if (isSupabaseConfigured()) {
+      const result = await signUp(trimmed, password);
+      if (!result.ok) {
+        Alert.alert('Create account', result.message);
+        return;
+      }
+      if (result.needsEmailConfirmation) {
+        Alert.alert(
+          'Confirm your email',
+          'We sent a confirmation link. After you confirm, use Log In to open the app.',
+        );
+      }
+      return;
+    }
+    const ok = await login(trimmed, password);
     if (ok) return;
-    Alert.alert(
-      'Demo account',
-      `Use ${DEMO_EMAIL} and password: ${DEMO_PASSWORD}`,
-    );
-  }, [email, password, login]);
+    Alert.alert('Demo account', `Use ${DEMO_EMAIL} and password: ${DEMO_PASSWORD}`);
+  }, [email, password, login, signUp]);
 
   const goWelcome = useCallback(() => {
     navigation.navigate('WelcomeHub');
   }, [navigation]);
 
-  if (phase === 'splash') {
-    return (
-      <View style={styles.splashOuter}>
-        {navigation.canGoBack() ? (
-          <Pressable
-            style={[styles.splashClose, { top: insets.top + DS.space.sm }]}
-            onPress={() => navigation.goBack()}
-            hitSlop={16}
-          >
-            <FontAwesome name="times" size={22} color={DS.color.textMuted} />
-          </Pressable>
-        ) : null}
-        <Pressable
-          style={[
-            styles.splashRoot,
-            {
-              paddingTop: insets.top + DS.space.lg,
-              paddingBottom: Math.max(insets.bottom, DS.space.lg),
-            },
-          ]}
-          onPress={goWelcome}
-        >
-          <View style={styles.splashCenter}>
-            <View style={styles.logoOuter}>
-              <Image source={BRAND_LOGO} style={styles.splashLogo} resizeMode="contain" />
-            </View>
-            <Text style={styles.splashSubtitle}>Grant Access</Text>
-            <Text style={styles.splashBody}>
-              Elite sports mentorship from British Olympic high jumper Dalton Grant
-            </Text>
-          </View>
-          <View style={styles.splashFooter}>
-            <Text style={styles.splashHint}>Tap anywhere to continue</Text>
-          </View>
-        </Pressable>
-      </View>
-    );
+  if (route.params?.startAt !== 'signup') {
+    return <View style={styles.hold} />;
   }
 
   const signupScrollPad = {
@@ -116,6 +98,9 @@ export default function GrantAccessScreen() {
           contentContainerStyle={[styles.signupScroll, signupScrollPad]}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.logoRow}>
+            <BrandLogo width={120} height={120} />
+          </View>
           <Field label="Email">
             <View style={styles.inputShell}>
               <TextInput
@@ -149,22 +134,38 @@ export default function GrantAccessScreen() {
               </Pressable>
             </View>
           </Field>
-          <Pressable style={styles.ghostBtn} onPress={() => void tryEnterApp()}>
-            <Text style={styles.ghostBtnText}>Continue</Text>
-          </Pressable>
+          <AppleHeroButton variant="ghost" style={{ marginTop: DS.space.lg }} onPress={() => void tryCreateAccount()}>
+            Continue
+          </AppleHeroButton>
           <View style={styles.orRow}>
             <View style={styles.orLine} />
             <Text style={styles.orText}>OR</Text>
             <View style={styles.orLine} />
           </View>
-          <Pressable style={styles.socialBtn}>
-            <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
-            <Text style={styles.socialBtnText}>Continue with Apple</Text>
-          </Pressable>
-          <Pressable style={styles.socialBtn}>
-            <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
-            <Text style={styles.socialBtnText}>Continue with Google</Text>
-          </Pressable>
+          {Platform.OS === 'ios' ? (
+            <AppleHeroButton
+              variant="social"
+              loading={oAuthBusy}
+              onPress={() => void signInWithApple()}
+              style={styles.socialBtnMargin}
+            >
+              <View style={styles.socialInner}>
+                <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
+                <Text style={styles.socialLabel}>Continue with Apple</Text>
+              </View>
+            </AppleHeroButton>
+          ) : null}
+          <AppleHeroButton
+            variant="social"
+            loading={oAuthBusy}
+            onPress={() => void signInWithGoogle()}
+            style={styles.socialBtnMargin}
+          >
+            <View style={styles.socialInner}>
+              <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
+              <Text style={styles.socialLabel}>Continue with Google</Text>
+            </View>
+          </AppleHeroButton>
           <View style={styles.loginRow}>
             <Text style={styles.loginMuted}>Already have an account? </Text>
             <Pressable onPress={() => navigation.navigate('LogIn')}>
@@ -187,71 +188,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  splashOuter: {
+  hold: {
     flex: 1,
     backgroundColor: DS.color.background,
-  },
-  splashClose: {
-    position: 'absolute',
-    right: DS.space.lg,
-    zIndex: 2,
-    padding: DS.space.sm,
-  },
-  splashRoot: {
-    flex: 1,
-    backgroundColor: DS.color.background,
-    paddingHorizontal: DS.space.lg,
-  },
-  splashCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  logoOuter: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    borderWidth: 2,
-    borderColor: DS.color.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: DS.space.lg,
-    overflow: 'hidden',
-    backgroundColor: DS.color.goldTint10,
-  },
-  splashLogo: {
-    width: 120,
-    height: 120,
-  },
-  splashSubtitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 18,
-    color: DS.color.text,
-    textAlign: 'center',
-    letterSpacing: 5.4,
-    textTransform: 'uppercase',
-    marginBottom: DS.space.sm,
-  },
-  splashBody: {
-    fontFamily: DS.font.body,
-    fontSize: 14,
-    color: DS.color.textMuted,
-    textAlign: 'center',
-    maxWidth: 280,
-    marginTop: DS.space.base,
-    lineHeight: 22,
-    fontWeight: '300',
-  },
-  splashFooter: {
-    width: '100%',
-    alignItems: 'center',
-    paddingBottom: DS.space.xl,
-  },
-  splashHint: {
-    fontFamily: DS.font.body,
-    fontSize: 12,
-    color: DS.color.textMuted,
   },
   signupRoot: {
     flex: 1,
@@ -264,7 +203,7 @@ const styles = StyleSheet.create({
   signupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: DS.space.xl,
+    marginBottom: DS.space.lg,
     paddingTop: DS.space.base,
   },
   signupBack: { width: 40 },
@@ -273,13 +212,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: DS.font.heading,
     textAlign: 'center',
-    fontSize: 30,
+    fontSize: 26,
     color: DS.color.text,
     letterSpacing: DS.type.headingLetterSpacing,
     marginRight: -8,
   },
   signupScroll: {
     flexGrow: 1,
+  },
+  logoRow: {
+    alignItems: 'center',
+    marginBottom: DS.space.xl,
   },
   fieldBlock: {
     marginBottom: DS.space.lg,
@@ -320,21 +263,19 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: DS.space.sm,
   },
-  ghostBtn: {
-    width: '100%',
-    paddingVertical: DS.space.base,
-    borderRadius: DS.radius.lg,
-    borderWidth: 1,
-    borderColor: DS.color.border,
-    alignItems: 'center',
-    marginTop: DS.space.lg,
+  socialBtnMargin: {
+    marginBottom: DS.space.base,
   },
-  ghostBtnText: {
-    fontFamily: DS.font.heading,
-    fontSize: 20,
+  socialInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.md,
+  },
+  socialLabel: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    fontWeight: '600',
     color: DS.color.text,
-    letterSpacing: DS.type.headingLetterSpacing,
-    textTransform: 'uppercase',
   },
   orRow: {
     flexDirection: 'row',
@@ -351,24 +292,6 @@ const styles = StyleSheet.create({
   orText: {
     fontSize: 14,
     color: DS.color.textMuted,
-  },
-  socialBtn: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: DS.space.md,
-    paddingVertical: DS.space.base,
-    backgroundColor: DS.color.surface,
-    borderRadius: DS.radius.lg,
-    marginBottom: DS.space.base,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  socialBtnText: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 16,
-    color: DS.color.text,
   },
   loginRow: {
     flexDirection: 'row',

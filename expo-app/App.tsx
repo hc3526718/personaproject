@@ -1,29 +1,63 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import * as Sentry from '@sentry/react-native';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
-import { BrandedBootScreen } from './src/components/BrandedBootScreen';
+import { DaltonBootScreen } from './src/components/DaltonBootScreen';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
+import { BOOT_OVERLAY_FADE_MS, MIN_BOOT_OVERLAY_MS } from './src/constants/bootTiming';
 import { appFontSources } from './src/loadAppFonts';
 import WebDemoApp from './src/WebDemoApp';
 
 /** Set EXPO_PUBLIC_USE_WEBVIEW_DEMO=1 to load static HTML in WebView instead of native screens. */
 const USE_WEBVIEW_DEMO = process.env.EXPO_PUBLIC_USE_WEBVIEW_DEMO === '1';
 
-/** Minimum time the branded loading UI is shown (demo showcase). */
-const MIN_BOOT_MS = 2800;
 
-function AuthReady({ children }: { children: ReactNode }) {
-  const { ready } = useAuth();
-  if (!ready) {
-    return <BrandedBootScreen />;
-  }
-  return <>{children}</>;
+function NativeShellInner({
+  fontsReady,
+  bootElapsed,
+}: {
+  fontsReady: boolean;
+  bootElapsed: boolean;
+}) {
+  const { ready: authReady } = useAuth();
+  const coreReady = fontsReady && authReady;
+  const bootComplete = coreReady && bootElapsed; // `bootElapsed` uses MIN_BOOT_OVERLAY_MS
+  const bootOpacity = useRef(new Animated.Value(1)).current;
+  const [bootLayerGone, setBootLayerGone] = useState(false);
+
+  useEffect(() => {
+    if (!bootComplete || bootLayerGone) return;
+    Animated.timing(bootOpacity, {
+      toValue: 0,
+      duration: BOOT_OVERLAY_FADE_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setBootLayerGone(true);
+    });
+  }, [bootComplete, bootLayerGone, bootOpacity]);
+
+  return (
+    <SubscriptionProvider>
+      <View style={styles.shell}>
+        {coreReady ? <AppNavigator /> : null}
+        {!bootLayerGone ? (
+          <Animated.View
+            style={[styles.bootOverlay, { opacity: bootOpacity }]}
+            pointerEvents={bootComplete ? 'none' : 'auto'}
+          >
+            <DaltonBootScreen />
+          </Animated.View>
+        ) : null}
+      </View>
+    </SubscriptionProvider>
+  );
 }
 
 function NativeShell() {
@@ -31,7 +65,7 @@ function NativeShell() {
   const [bootElapsed, setBootElapsed] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setBootElapsed(true), MIN_BOOT_MS);
+    const t = setTimeout(() => setBootElapsed(true), MIN_BOOT_OVERLAY_MS);
     return () => clearTimeout(t);
   }, []);
 
@@ -40,24 +74,15 @@ function NativeShell() {
   }
 
   const fontsReady = fontsLoaded || !!fontError;
-  const showBoot = !fontsReady || !bootElapsed;
-
-  if (showBoot) {
-    return <BrandedBootScreen />;
-  }
 
   return (
     <AuthProvider>
-      <AuthReady>
-        <SubscriptionProvider>
-          <AppNavigator />
-        </SubscriptionProvider>
-      </AuthReady>
+      <NativeShellInner fontsReady={fontsReady} bootElapsed={bootElapsed} />
     </AuthProvider>
   );
 }
 
-export default function App() {
+function App() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
@@ -68,6 +93,14 @@ export default function App() {
   );
 }
 
+export default Sentry.wrap(App);
+
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: DS.color.background },
+  shell: { flex: 1, backgroundColor: DS.color.background },
+  bootOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: DS.color.background,
+    zIndex: 10,
+  },
 });

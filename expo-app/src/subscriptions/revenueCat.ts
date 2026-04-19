@@ -1,18 +1,36 @@
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
-import Purchases, { type CustomerInfo } from 'react-native-purchases';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import type { CustomerInfo } from 'react-native-purchases';
 
 const ENTITLEMENT_PREMIUM = 'premium';
 
 function isExpoGo(): boolean {
-  return Constants.appOwnership === 'expo';
+  return (
+    Constants.appOwnership === 'expo' ||
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+  );
+}
+
+type PurchasesModule = typeof import('react-native-purchases').default;
+
+/**
+ * Never `import` Purchases at module scope — that loads the native module and breaks **Expo Go**.
+ */
+function tryPurchases(): PurchasesModule | null {
+  if (isExpoGo()) return null;
+  try {
+    return require('react-native-purchases').default as PurchasesModule;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Safe init for Expo Go (skipped) and dev/production builds with API keys.
  */
 export async function initRevenueCat(): Promise<void> {
-  if (isExpoGo()) return;
+  const Purchases = tryPurchases();
+  if (!Purchases) return;
   const ios = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS?.trim();
   const android = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID?.trim();
   const key = Platform.OS === 'ios' ? ios : android;
@@ -25,7 +43,8 @@ export async function initRevenueCat(): Promise<void> {
 }
 
 export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
-  if (isExpoGo()) return null;
+  const Purchases = tryPurchases();
+  if (!Purchases) return null;
   try {
     return await Purchases.getCustomerInfo();
   } catch {
@@ -39,7 +58,8 @@ export function customerHasPremium(info: CustomerInfo | null): boolean {
 }
 
 export async function restorePurchases(): Promise<CustomerInfo | null> {
-  if (isExpoGo()) return null;
+  const Purchases = tryPurchases();
+  if (!Purchases) return null;
   try {
     return await Purchases.restorePurchases();
   } catch {

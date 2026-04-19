@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,11 +21,11 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { signTicketPayload } from '../booking/ticketToken';
+import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BookingQrCode } from '../components/BookingQrCode';
-import { DS } from '../designSystem';
+import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { IcsEventInput } from '../integrations/eventCalendar';
 import { shareEventAsIcs } from '../integrations/eventCalendar';
-import { showComingSoon } from '../lib/comingSoon';
 import {
   MY_BOOKINGS_PAST_FROM_HTML,
   MY_BOOKINGS_UPCOMING_FROM_HTML,
@@ -33,6 +33,14 @@ import {
 import { SAVED_EVENTS_FROM_HTML } from '../data/savedEventsFromHtml';
 import { UPCOMING_EVENTS_FROM_HTML } from '../data/upcomingEventsFromHtml';
 import type { EventsStackParamList } from '../navigation/types';
+
+const eventCtaLabelStyle = {
+  fontFamily: DS.font.bodyBold,
+  fontSize: 15,
+  color: DS.color.background,
+  letterSpacing: 1,
+  textTransform: 'uppercase' as const,
+};
 
 type EProps<K extends keyof EventsStackParamList> = NativeStackScreenProps<EventsStackParamList, K>;
 
@@ -49,16 +57,31 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.eventsHeader, { paddingTop: insets.top + DS.space.lg }]}>
+      <View
+        style={[
+          styles.eventsHeader,
+          tabRootHeaderPadding,
+          { paddingTop: insets.top + DS.space.md },
+        ]}
+      >
         <Text style={styles.eventsTitle}>EVENTS</Text>
-        <Pressable
-          style={styles.bellCircle}
-          onPress={() =>
-            navigation.getParent()?.navigate('Community', { screen: 'Notifications' })
-          }
-        >
-          <FontAwesome name="bell" size={18} color={DS.color.text} />
-        </Pressable>
+        <View style={styles.eventsHeaderActions}>
+          <Pressable
+            style={styles.eventsIconBtnSm}
+            hitSlop={8}
+            onPress={() => navigation.navigate('CreateEvent')}
+          >
+            <FontAwesome name="plus" size={15} color={DS.color.text} />
+          </Pressable>
+          <Pressable
+            style={styles.bellCircle}
+            onPress={() =>
+              navigation.getParent()?.navigate('Community', { screen: 'Notifications' })
+            }
+          >
+            <FontAwesome name="bell" size={18} color={DS.color.text} />
+          </Pressable>
+        </View>
       </View>
       <ScrollView
         style={styles.eventsScroll}
@@ -338,9 +361,9 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           <FontAwesome name="calendar-plus-o" size={16} color={DS.color.gold} />
           <Text style={styles.calOutlineText}> Add to Calendar</Text>
         </Pressable>
-        <Pressable style={styles.primaryBtn} onPress={goConfirm}>
-          <Text style={styles.primaryBtnText}>ATTEND NOW</Text>
-        </Pressable>
+        <AppleHeroButton onPress={goConfirm} style={{ marginBottom: DS.space.sm }}>
+          <Text style={eventCtaLabelStyle}>Attend now</Text>
+        </AppleHeroButton>
         <Pressable style={styles.saveLaterOutlineBtn} onPress={() => navigation.navigate('SavedEvents')}>
           <Text style={styles.saveLaterOutlineText}>SAVE FOR LATER</Text>
         </Pressable>
@@ -371,11 +394,11 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.rowHeader, { paddingTop: insets.top }]}>
+      <View style={[styles.rowHeader, { paddingTop: insets.top + DS.space.md }]}>
         <Pressable onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={22} color={DS.color.text} />
         </Pressable>
-        <Text style={styles.rowTitle}>Confirm Attendance</Text>
+        <Text style={styles.rowTitle}>CONFIRM ATTENDANCE</Text>
         <View style={{ width: 22 }} />
       </View>
       <ScrollView
@@ -483,8 +506,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           </View>
         </View>
 
-        <Pressable
-          style={[styles.primaryBtn, !consent && styles.primaryBtnDisabled]}
+        <AppleHeroButton
           disabled={!consent}
           onPress={() =>
             navigation.navigate('BookingConfirm', {
@@ -500,8 +522,8 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
             })
           }
         >
-          <Text style={styles.primaryBtnText}>CONFIRM BOOKING</Text>
-        </Pressable>
+          <Text style={eventCtaLabelStyle}>Confirm booking</Text>
+        </AppleHeroButton>
         <Pressable style={styles.cancelOutlineBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelOutlineBtnText}>CANCEL</Text>
         </Pressable>
@@ -555,7 +577,26 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
 
   const addCal = () => void shareEventCalendar(evTitle, venue, scheduleForIcs, refCode);
 
+  const walletStep =
+    Platform.OS === 'ios'
+      ? [
+          {
+            key: 'wallet',
+            title: 'Add to Apple Wallet',
+            subtitle: 'Server-signed .pkpass in production',
+            icon: <FontAwesome name="apple" size={14} color={DS.color.gold} />,
+            onPress: () =>
+              Alert.alert(
+                'Apple Wallet',
+                'Event passes must be built and signed on your backend (Pass Type ID, certificates, WWDR). The app will download a .pkpass from your Edge Function when wired.',
+                [{ text: 'OK' }],
+              ),
+          },
+        ]
+      : [];
+
   const steps = [
+    ...walletStep,
     {
       key: 'cal',
       title: 'Add to Calendar',
@@ -594,11 +635,11 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
 
   return (
     <View style={styles.root}>
-      <View style={[styles.bookingConfirmHeader, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.bookingConfirmHeader, { paddingTop: insets.top + DS.space.md }]}>
         <Pressable style={styles.headerRoundBtn} onPress={() => resetEventsToUpcoming(navigation)}>
           <FontAwesome name="times" size={22} color={DS.color.textMuted} />
         </Pressable>
-        <Text style={styles.rowTitle}>Booking Confirmed</Text>
+        <Text style={styles.rowTitle}>BOOKING CONFIRMED</Text>
         <View style={{ width: 40 }} />
       </View>
       <ScrollView
@@ -688,9 +729,9 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
           </Pressable>
         ))}
 
-        <Pressable style={[styles.primaryBtn, { marginTop: DS.space.lg }]} onPress={() => resetEventsToUpcoming(navigation)}>
-          <Text style={styles.primaryBtnText}>DONE</Text>
-        </Pressable>
+        <AppleHeroButton style={{ marginTop: DS.space.lg }} onPress={() => resetEventsToUpcoming(navigation)}>
+          <Text style={eventCtaLabelStyle}>Done</Text>
+        </AppleHeroButton>
       </ScrollView>
     </View>
   );
@@ -700,20 +741,26 @@ export function SavedEventsScreen({ navigation }: EProps<'SavedEvents'>) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [saved, setSaved] = useState(SAVED_EVENTS_FROM_HTML);
+  const [savedSearch, setSavedSearch] = useState('');
+  const filteredSaved = useMemo(() => {
+    const q = savedSearch.trim().toLowerCase();
+    if (!q) return saved;
+    return saved.filter(
+      (row) =>
+        row.title.toLowerCase().includes(q) ||
+        row.place.toLowerCase().includes(q) ||
+        row.dateLine.toLowerCase().includes(q),
+    );
+  }, [saved, savedSearch]);
 
   return (
     <View style={styles.root}>
-      <View style={[styles.rowHeader, { paddingTop: insets.top }]}>
+      <View style={[styles.rowHeader, { paddingTop: insets.top + DS.space.md }]}>
         <Pressable style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
-        <Text style={styles.rowTitle}>Saved Events</Text>
-        <Pressable
-          style={styles.headerIconBtn}
-          onPress={() => showComingSoon('Saved events search')}
-        >
-          <FontAwesome name="search" size={16} color={DS.color.text} />
-        </Pressable>
+        <Text style={styles.rowTitle}>SAVED EVENTS</Text>
+        <View style={styles.headerIconBtn} />
       </View>
       <ScrollView
         contentContainerStyle={[styles.savedScrollPad, { paddingBottom: 100 + insets.bottom }]}
@@ -734,17 +781,20 @@ export function SavedEventsScreen({ navigation }: EProps<'SavedEvents'>) {
           </Pressable>
         </View>
 
-        <Pressable
-          style={styles.savedSearchField}
-          onPress={() => showComingSoon('Saved events search')}
-        >
+        <View style={styles.savedSearchField}>
           <FontAwesome name="search" size={14} color="rgba(212,208,200,0.4)" style={styles.savedSearchIcon} />
-          <Text style={styles.savedSearchPh}>Search saved events...</Text>
-        </Pressable>
+          <TextInput
+            style={styles.savedSearchInput}
+            placeholder="Search saved events..."
+            placeholderTextColor="rgba(212,208,200,0.4)"
+            value={savedSearch}
+            onChangeText={setSavedSearch}
+          />
+        </View>
 
         {tab === 'upcoming' ? (
           <View style={styles.savedListGap}>
-            {saved.map((row) => (
+            {filteredSaved.map((row) => (
               <View key={row.id} style={styles.savedListCard}>
                 <View style={styles.savedListRow}>
                   <Image source={{ uri: row.uri }} style={styles.savedListThumb} />
@@ -816,20 +866,26 @@ export function MyBookingsScreen({ navigation }: EProps<'MyBookings'>) {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
   const [upcoming, setUpcoming] = useState(MY_BOOKINGS_UPCOMING_FROM_HTML);
+  const [bookingSearch, setBookingSearch] = useState('');
+  const filteredUpcoming = useMemo(() => {
+    const q = bookingSearch.trim().toLowerCase();
+    if (!q) return upcoming;
+    return upcoming.filter(
+      (row) =>
+        row.title.toLowerCase().includes(q) ||
+        row.place.toLowerCase().includes(q) ||
+        row.dateLine.toLowerCase().includes(q),
+    );
+  }, [upcoming, bookingSearch]);
 
   return (
     <View style={styles.root}>
-      <View style={[styles.rowHeader, { paddingTop: insets.top }]}>
+      <View style={[styles.rowHeader, { paddingTop: insets.top + DS.space.md }]}>
         <Pressable style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
-        <Text style={styles.rowTitle}>My Bookings</Text>
-        <Pressable
-          style={styles.headerIconBtn}
-          onPress={() => showComingSoon('My bookings search')}
-        >
-          <FontAwesome name="search" size={16} color={DS.color.text} />
-        </Pressable>
+        <Text style={styles.rowTitle}>MY BOOKINGS</Text>
+        <View style={styles.headerIconBtn} />
       </View>
       <ScrollView
         contentContainerStyle={[styles.savedScrollPad, { paddingBottom: 100 + insets.bottom }]}
@@ -850,9 +906,20 @@ export function MyBookingsScreen({ navigation }: EProps<'MyBookings'>) {
           </Pressable>
         </View>
 
+        <View style={styles.savedSearchField}>
+          <FontAwesome name="search" size={14} color="rgba(212,208,200,0.4)" style={styles.savedSearchIcon} />
+          <TextInput
+            style={styles.savedSearchInput}
+            placeholder="Search bookings..."
+            placeholderTextColor="rgba(212,208,200,0.4)"
+            value={bookingSearch}
+            onChangeText={setBookingSearch}
+          />
+        </View>
+
         {tab === 'upcoming' ? (
           <View style={styles.savedListGap}>
-            {upcoming.map((row) => (
+            {filteredUpcoming.map((row) => (
               <View key={row.id} style={styles.savedListCard}>
                 <View style={styles.savedListRow}>
                   <Image source={{ uri: row.uri }} style={styles.savedListThumb} />
@@ -990,23 +1057,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: DS.space.lg,
-    paddingBottom: DS.space.base,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DS.color.borderWhite5,
     backgroundColor: DS.color.background,
   },
   eventsTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 32,
-    color: DS.color.text,
-    letterSpacing: 1,
+    ...tabRootTitleText,
+  },
+  eventsHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+  },
+  eventsIconBtnSm: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: DS.color.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bellCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: DS.color.borderWhite5,
+    backgroundColor: DS.color.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1126,20 +1199,6 @@ const styles = StyleSheet.create({
     color: DS.color.text,
     marginBottom: DS.space.xl,
   },
-  primaryBtn: {
-    backgroundColor: DS.color.gold,
-    paddingVertical: DS.space.base,
-    borderRadius: DS.radius.lg,
-    alignItems: 'center',
-    marginBottom: DS.space.lg,
-  },
-  primaryBtnText: {
-    color: DS.color.background,
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
   rowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1149,9 +1208,7 @@ const styles = StyleSheet.create({
     borderBottomColor: DS.color.borderHairline,
   },
   rowTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: DS.color.text,
+    ...tabRootTitleText,
     flex: 1,
     textAlign: 'center',
   },
@@ -1612,9 +1669,6 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     lineHeight: 17,
   },
-  primaryBtnDisabled: {
-    opacity: 0.45,
-  },
   cancelOutlineBtn: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1971,6 +2025,13 @@ const styles = StyleSheet.create({
   savedSearchIcon: {
     position: 'absolute',
     left: 14,
+  },
+  savedSearchInput: {
+    flex: 1,
+    fontFamily: DS.font.body,
+    fontSize: 15,
+    color: DS.color.text,
+    paddingVertical: 0,
   },
   savedListGap: {
     gap: DS.space.base,

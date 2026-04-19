@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
+import type { AllowMessagesFrom } from '../messaging/messagingPrefs';
+import { getAllowMessagesFrom, setAllowMessagesFrom } from '../messaging/messagingPrefs';
 import type { ProfileStackParamList } from '../navigation/types';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
@@ -66,6 +68,12 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
   const [pub, setPub] = useState(true);
   const [showResults, setShowResults] = useState(true);
   const [dataShare, setDataShare] = useState(false);
+  const [dmPolicy, setDmPolicy] = useState<AllowMessagesFrom>(() => getAllowMessagesFrom());
+  const applyDm = (value: AllowMessagesFrom) => {
+    setAllowMessagesFrom(value);
+    setDmPolicy(value);
+    Alert.alert('Messages', 'Preference saved locally. Sync to `profiles.allow_messages_from` with Supabase.');
+  };
   return (
     <View style={styles.root}>
       <ScreenHeader title="Privacy & Visibility" onBack={() => navigation.goBack()} largeTitle />
@@ -76,6 +84,33 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
         <Text style={styles.bodyMuted}>
           Control who sees your profile and how your data is used in the Dalton demo.
         </Text>
+        <Text style={styles.cardKicker}>Direct messages</Text>
+        <Text style={styles.bodyMutedSm}>
+          Who can start a new conversation with you (enforced server-side when live).
+        </Text>
+        <View style={styles.card}>
+          {(
+            [
+              { key: 'everyone' as const, label: 'Everyone', sub: 'Including people you do not follow' },
+              { key: 'followers_only' as const, label: 'Followers only', sub: 'Must follow you first' },
+              { key: 'friends_only' as const, label: 'Friends only', sub: 'Mutual follows / accepted requests' },
+            ] as const
+          ).map((opt) => (
+            <Pressable
+              key={opt.key}
+              style={[styles.dmRow, dmPolicy === opt.key && styles.dmRowOn]}
+              onPress={() => applyDm(opt.key)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.dmRowTitle}>{opt.label}</Text>
+                <Text style={styles.dmRowSub}>{opt.sub}</Text>
+              </View>
+              <View style={[styles.radioOuter, dmPolicy === opt.key && styles.radioOuterOn]}>
+                {dmPolicy === opt.key ? <View style={styles.radioInner} /> : null}
+              </View>
+            </Pressable>
+          ))}
+        </View>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
@@ -317,6 +352,50 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     lineHeight: 22,
     marginBottom: DS.space.lg,
+  },
+  bodyMutedSm: {
+    fontSize: 12,
+    color: DS.color.textMuted,
+    lineHeight: 18,
+    marginBottom: DS.space.md,
+  },
+  dmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: DS.space.md,
+    paddingHorizontal: DS.space.sm,
+    borderRadius: DS.radius.md,
+  },
+  dmRowOn: {
+    backgroundColor: DS.color.goldTint10,
+  },
+  dmRowTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: DS.color.text,
+  },
+  dmRowSub: {
+    fontSize: 12,
+    color: DS.color.textMuted,
+    marginTop: 2,
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: DS.color.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioOuterOn: {
+    borderColor: DS.color.gold,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: DS.color.gold,
   },
   supportCard: {
     flexDirection: 'row',

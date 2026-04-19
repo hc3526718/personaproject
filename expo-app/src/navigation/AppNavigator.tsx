@@ -1,4 +1,5 @@
-import { StyleSheet } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -6,9 +7,12 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { DS } from '../designSystem';
+import { getSupabase } from '../lib/supabase';
+import { OnboardingNavigator } from '../onboarding/OnboardingNavigator';
 import type {
   AuthStackParamList,
   CommunityStackParamList,
@@ -45,6 +49,9 @@ import {
   SavedEventsScreen,
   UpcomingEventsScreen,
 } from '../screens/eventsScreens';
+import { HostEventDashboardScreen } from '../screens/HostEventDashboardScreen';
+import { CreateEventScreen } from '../screens/CreateEventScreen';
+import { CreateMediaContentScreen } from '../screens/CreateMediaContentScreen';
 import { StaffCheckInScreen } from '../screens/StaffCheckInScreen';
 import { SponsorListingsScreen } from '../screens/sponsorScreens';
 import {
@@ -58,6 +65,7 @@ import {
 } from '../screens/profileScreens';
 import { PaywallScreen } from '../screens/PaywallScreen';
 import { AdminToolsScreen } from '../screens/AdminToolsScreen';
+import { AdminMediaUploadScreen } from '../screens/AdminMediaUploadScreen';
 import {
   AccountSecurityScreen,
   LegalScreen,
@@ -129,6 +137,7 @@ function MediaStackNavigator() {
       <MediaStack.Screen name="MediaPlayer" component={MediaPlayerScreen} />
       <MediaStack.Screen name="SavedMedia" component={SavedMediaScreen} />
       <MediaStack.Screen name="MediaCommunityFeed" component={MediaCommunityFeedScreen} />
+      <MediaStack.Screen name="CreateMediaContent" component={CreateMediaContentScreen} />
     </MediaStack.Navigator>
   );
 }
@@ -148,6 +157,8 @@ function EventsStackNavigator() {
       <EventsStack.Screen name="SavedEvents" component={SavedEventsScreen} />
       <EventsStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <EventsStack.Screen name="StaffCheckIn" component={StaffCheckInScreen} />
+      <EventsStack.Screen name="HostEventDashboard" component={HostEventDashboardScreen} />
+      <EventsStack.Screen name="CreateEvent" component={CreateEventScreen} />
     </EventsStack.Navigator>
   );
 }
@@ -178,6 +189,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="AthleteProfile" component={AthleteProfileScreen} />
       <ProfileStack.Screen name="Paywall" component={PaywallScreen} />
       <ProfileStack.Screen name="AdminTools" component={AdminToolsScreen} />
+      <ProfileStack.Screen name="AdminMediaUpload" component={AdminMediaUploadScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
       <ProfileStack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <ProfileStack.Screen name="PrivacyVisibility" component={PrivacyVisibilityScreen} />
@@ -196,7 +208,7 @@ function ProfileStackNavigator() {
 function AuthStackNavigator() {
   return (
     <AuthStack.Navigator
-      initialRouteName="GrantAccess"
+      initialRouteName="LogIn"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: DS.color.background },
@@ -212,7 +224,7 @@ function AuthStackNavigator() {
   );
 }
 
-const mainTabBarStyle = {
+const mainTabBarBase = {
   backgroundColor: DS.color.tabBarRaised,
   borderTopColor: DS.color.borderWhite5,
   borderTopWidth: StyleSheet.hairlineWidth,
@@ -222,16 +234,87 @@ const mainTabBarStyle = {
   elevation: 20,
 };
 
+const TAB_BAR_CONTENT_MIN = 56;
+const TAB_BAR_TOP_PAD = 12;
+const TAB_BAR_EXTRA_BOTTOM = 8;
+
+function AuthenticatedShell() {
+  const { user } = useAuth();
+  const supabase = getSupabase();
+  const [gate, setGate] = useState<'loading' | 'onboarding' | 'app'>('loading');
+
+  const refreshGate = useCallback(async () => {
+    if (!user) {
+      setGate('loading');
+      return;
+    }
+    if (!supabase || user.id.startsWith('demo')) {
+      setGate('app');
+      return;
+    }
+    for (let i = 0; i < 10; i++) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('onboarding_completed_at')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data) {
+        setGate(data.onboarding_completed_at ? 'app' : 'onboarding');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    setGate('onboarding');
+  }, [user, supabase]);
+
+  useEffect(() => {
+    void refreshGate();
+  }, [refreshGate]);
+
+  if (gate === 'loading') {
+    return <View style={{ flex: 1, backgroundColor: DS.color.background }} />;
+  }
+  if (gate === 'onboarding') {
+    return (
+      <OnboardingNavigator
+        onFinished={() => {
+          setGate('loading');
+          void refreshGate();
+        }}
+      />
+    );
+  }
+  return <MainTabNavigator />;
+}
+
 function MainTabNavigator() {
+  const insets = useSafeAreaInsets();
+  const tabBarStyleVisible = useMemo(
+    () => ({
+      ...mainTabBarBase,
+      minHeight: TAB_BAR_CONTENT_MIN + insets.bottom + TAB_BAR_EXTRA_BOTTOM,
+      paddingTop: TAB_BAR_TOP_PAD,
+      paddingBottom: insets.bottom + TAB_BAR_EXTRA_BOTTOM,
+      paddingHorizontal: DS.space.xs,
+    }),
+    [insets.bottom],
+  );
+
   return (
     <Tab.Navigator
-      initialRouteName="Profile"
+      initialRouteName="Community"
       screenOptions={{
         headerShown: false,
-        tabBarStyle: mainTabBarStyle,
+        tabBarStyle: tabBarStyleVisible,
         tabBarActiveTintColor: DS.color.gold,
         tabBarInactiveTintColor: DS.color.textMuted,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+          marginTop: 2,
+          marginBottom: 2,
+        },
+        tabBarItemStyle: { paddingVertical: 4 },
       }}
     >
       <Tab.Screen
@@ -240,15 +323,25 @@ function MainTabNavigator() {
         options={{
           tabBarLabel: 'Community',
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="users" size={size - 2} color={color} solid />
+            <FontAwesome5 name="users" size={size + 2} color={color} solid />
           ),
         }}
       />
       <Tab.Screen
         name="Media"
         component={MediaStackNavigator}
-        options={{
-          tabBarIcon: ({ color, size }) => <FontAwesome name="play" size={size} color={color} />,
+        options={({ route }) => {
+          const nested = getFocusedRouteNameFromRoute(route) ?? 'MediaLibrary';
+          const hideTabBar = nested === 'CreateMediaContent';
+          return {
+            tabBarLabel: 'Media',
+            tabBarStyle: hideTabBar
+              ? { display: 'none' as const, height: 0, overflow: 'hidden' as const }
+              : tabBarStyleVisible,
+            tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+              <FontAwesome name="play" size={size + 2} color={color} />
+            ),
+          };
         }}
       />
       <Tab.Screen
@@ -256,7 +349,7 @@ function MainTabNavigator() {
         component={SponsorsStackNavigator}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="handshake" size={size - 2} color={color} solid />
+            <FontAwesome5 name="handshake" size={size + 2} color={color} solid />
           ),
         }}
       />
@@ -269,13 +362,15 @@ function MainTabNavigator() {
             nested === 'EventDetails' ||
             nested === 'ConfirmAttend' ||
             nested === 'BookingConfirm' ||
-            nested === 'StaffCheckIn';
+            nested === 'StaffCheckIn' ||
+            nested === 'HostEventDashboard' ||
+            nested === 'CreateEvent';
           return {
             tabBarStyle: hideTabBar
               ? { display: 'none' as const, height: 0, overflow: 'hidden' as const }
-              : mainTabBarStyle,
+              : tabBarStyleVisible,
             tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-              <FontAwesome name="calendar" size={size} color={color} />
+              <FontAwesome name="calendar" size={size + 2} color={color} />
             ),
           };
         }}
@@ -284,7 +379,7 @@ function MainTabNavigator() {
         name="Profile"
         component={ProfileStackNavigator}
         options={{
-          tabBarIcon: ({ color, size }) => <FontAwesome name="user-o" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <FontAwesome name="user-o" size={size + 2} color={color} />,
         }}
       />
     </Tab.Navigator>
@@ -300,7 +395,7 @@ export function AppNavigator() {
         screenOptions={{ headerShown: false }}
       >
         {isAuthenticated ? (
-          <RootStack.Screen name="Main" component={MainTabNavigator} />
+          <RootStack.Screen name="Main" component={AuthenticatedShell} />
         ) : (
           <RootStack.Screen name="Auth" component={AuthStackNavigator} />
         )}

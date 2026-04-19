@@ -14,7 +14,7 @@ import { useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DS } from '../designSystem';
+import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
 
 type MProps<K extends keyof MediaStackParamList> = NativeStackScreenProps<MediaStackParamList, K>;
@@ -188,14 +188,23 @@ export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
   const [b, setB] = useState(0);
   return (
     <View style={styles.root}>
-      <View style={[styles.mediaTop, { paddingTop: insets.top + DS.space.md }]}>
+      <View style={[styles.mediaTop, tabRootHeaderPadding, { paddingTop: insets.top + DS.space.md }]}>
         <Text style={styles.mediaTitle}>MEDIA</Text>
-        <Pressable
-          style={styles.roundIconBtn}
-          onPress={() => navigation.navigate('MediaSearch')}
-        >
-          <FontAwesome name="search" size={18} color={DS.color.text} />
-        </Pressable>
+        <View style={styles.mediaHeaderActions}>
+          <Pressable
+            style={styles.roundIconBtnSm}
+            hitSlop={8}
+            onPress={() => navigation.navigate('CreateMediaContent')}
+          >
+            <FontAwesome name="plus" size={15} color={DS.color.text} />
+          </Pressable>
+          <Pressable
+            style={styles.roundIconBtn}
+            onPress={() => navigation.navigate('MediaSearch')}
+          >
+            <FontAwesome name="search" size={18} color={DS.color.text} />
+          </Pressable>
+        </View>
       </View>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
@@ -1003,7 +1012,7 @@ export function MediaCommunityFeedScreen({ navigation }: MProps<'MediaCommunityF
         <Pressable onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={22} color={DS.color.text} />
         </Pressable>
-        <Text style={styles.rowTitle}>Community clips</Text>
+        <Text style={styles.rowTitle}>COMMUNITY CLIPS</Text>
         <View style={{ width: 22 }} />
       </View>
       <ScrollView contentContainerStyle={styles.padded}>
@@ -1029,14 +1038,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: DS.space.lg,
-    paddingBottom: DS.space.md,
   },
   mediaTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 36,
-    color: DS.color.text,
-    letterSpacing: 2,
+    ...tabRootTitleText,
+  },
+  mediaHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+  },
+  roundIconBtnSm: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: DS.color.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   roundIconBtn: {
     width: 40,
@@ -1240,10 +1257,7 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.md,
   },
   mediaSearchTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 22,
-    color: DS.color.text,
-    letterSpacing: 2,
+    ...tabRootTitleText,
   },
   mediaSearchInputFull: {
     marginHorizontal: DS.space.lg,
@@ -1306,9 +1320,7 @@ const styles = StyleSheet.create({
     borderBottomColor: DS.color.borderHairline,
   },
   rowTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: DS.color.text,
+    ...tabRootTitleText,
     flex: 1,
     textAlign: 'center',
   },
@@ -1462,10 +1474,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   resultsHeroTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 34,
-    color: DS.color.text,
-    letterSpacing: 2,
+    ...tabRootTitleText,
   },
   resultsSearchWrap: {
     position: 'relative',
@@ -1964,9 +1973,7 @@ const styles = StyleSheet.create({
     paddingBottom: DS.space.md,
   },
   savedTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: DS.color.text,
+    ...tabRootTitleText,
   },
   savedHeaderActions: {
     flexDirection: 'row',

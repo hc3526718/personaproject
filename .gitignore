@@ -3,6 +3,14 @@ node_modules/
 .env
 .env*.local
 
+# Local IDE / agent (do not publish)
+.cursor/
+.codex/
+.gemini/
+.zed/
+.mcp.json
+opencode.json
+
 # Logs
 logs
 *.log
@@ -25,3 +33,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+expo-app/app.json.json

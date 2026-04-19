@@ -1,9 +1,12 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
+  ActionSheetIOS,
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -13,7 +16,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
-import { DS } from '../designSystem';
+import { BrandLogo } from '../components/BrandLogo';
+import { DS, tabRootTitleText } from '../designSystem';
+import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
 import type { CommunityStackParamList, SponsorsStackParamList } from '../navigation/types';
 
 type CProps<K extends keyof CommunityStackParamList> = NativeStackScreenProps<
@@ -92,7 +97,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     <View style={styles.root}>
       <View style={[styles.feedHeader, { paddingTop: insets.top + DS.space.md }]}>
         <View style={styles.feedHeaderRow}>
-          <Text style={styles.communityTitle}>Community</Text>
+          <Text style={styles.communityTitle}>COMMUNITY</Text>
           <View style={styles.feedHeaderActions}>
             <Pressable onPress={() => navigation.navigate('CommunitySearch')}>
               <FontAwesome name="search" size={20} color={DS.color.gold} />
@@ -129,6 +134,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
         showsVerticalScrollIndicator={false}
       >
         <PostCard
+          postId="p1"
           avatar="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
           name="Marcus Johnson"
           time="2 hours ago"
@@ -136,9 +142,10 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           likes={24}
           heartFilled={false}
           secondary={{ kind: 'fire', count: 12 }}
-          comments="5 Comments"
+          comments={5}
         />
         <PostCard
+          postId="p2"
           avatar="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg"
           name="Sarah Chen"
           time="5 hours ago"
@@ -147,9 +154,10 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           likes={89}
           heartFilled
           secondary={{ kind: 'clap', count: 15 }}
-          comments="12 Comments"
+          comments={12}
         />
         <PostCard
+          postId="p3"
           avatar="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg"
           name="Coach Williams"
           time="Yesterday"
@@ -162,7 +170,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           likes={142}
           heartFilled={false}
           secondary={{ kind: 'lightbulb', count: 38 }}
-          comments="24 Comments"
+          comments={24}
           onPressCard={() => navigation.navigate('BrandPartner')}
         />
       </ScrollView>
@@ -173,19 +181,21 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
 type SecondaryReaction = { kind: 'fire' | 'clap' | 'lightbulb'; count: number };
 
 function PostCard({
+  postId: _postId,
   avatar,
   name,
   time,
   body,
   bodyParagraphs,
   imageUri,
-  likes,
-  heartFilled = false,
-  secondary,
-  comments,
+  likes: initialLikes,
+  heartFilled: initialLiked,
+  secondary: initialSecondary,
+  comments: initialCommentCount,
   badge,
   onPressCard,
 }: {
+  postId: string;
   avatar: string;
   name: string;
   time: string;
@@ -195,10 +205,20 @@ function PostCard({
   likes: number;
   heartFilled?: boolean;
   secondary?: SecondaryReaction;
-  comments: string;
+  comments: number;
   badge?: string;
   onPressCard?: () => void;
 }) {
+  const [liked, setLiked] = useState(!!initialLiked);
+  const [likeCount, setLikeCount] = useState(initialLikes);
+  const [secondary, setSecondary] = useState<SecondaryReaction | undefined>(initialSecondary);
+  const [commentCount, setCommentCount] = useState(initialCommentCount);
+
+  const bodyText = useMemo(
+    () => (bodyParagraphs ? bodyParagraphs.join('\n\n') : body ?? ''),
+    [body, bodyParagraphs],
+  );
+
   const bodySection =
     bodyParagraphs ? (
       <View style={styles.postBodyBlock}>
@@ -211,6 +231,102 @@ function PostCard({
     ) : (
       <Text style={styles.postBody}>{body}</Text>
     );
+
+  const toggleLike = useCallback(() => {
+    setLiked((v) => {
+      setLikeCount((c) => (v ? c - 1 : c + 1));
+      return !v;
+    });
+  }, []);
+
+  const sharePost = useCallback(async () => {
+    try {
+      await Share.share({
+        title: `${name} · Dalton`,
+        message: `${name}\n\n${bodyText}`.slice(0, 4000),
+      });
+    } catch {
+      /* dismissed */
+    }
+  }, [bodyText, name]);
+
+  const pickEmojiReaction = useCallback(() => {
+    const apply = (kind: SecondaryReaction['kind']) => {
+      setSecondary((prev) => {
+        if (prev?.kind === kind) {
+          return { kind, count: prev.count + 1 };
+        }
+        const seed = initialSecondary?.kind === kind ? initialSecondary.count : 0;
+        return { kind, count: seed + 1 };
+      });
+    };
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', '🔥 Fire', '👏 Clap', '💡 Insight'],
+          cancelButtonIndex: 0,
+        },
+        (i) => {
+          if (i === 1) apply('fire');
+          if (i === 2) apply('clap');
+          if (i === 3) apply('lightbulb');
+        },
+      );
+    } else {
+      Alert.alert('React', 'Choose a reaction', [
+        { text: '🔥', onPress: () => apply('fire') },
+        { text: '👏', onPress: () => apply('clap') },
+        { text: '💡', onPress: () => apply('lightbulb') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }, [initialSecondary]);
+
+  const openPostMenu = useCallback(() => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Report post', 'Copy link', 'Hide from feed'],
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: 1,
+        },
+        (i) => {
+          if (i === 1) {
+            Alert.alert('Report', 'Thanks — moderation syncs with Supabase when live.');
+          }
+          if (i === 2) {
+            Alert.alert('Copied', 'Post link copied to clipboard (demo).');
+          }
+          if (i === 3) {
+            Alert.alert('Hidden', 'Feed preferences will sync when the API is connected.');
+          }
+        },
+      );
+    } else {
+      Alert.alert('Post menu', undefined, [
+        {
+          text: 'Report post',
+          style: 'destructive',
+          onPress: () => Alert.alert('Report', 'Thanks — moderation syncs when live.'),
+        },
+        { text: 'Copy link', onPress: () => Alert.alert('Copied', 'Demo copy.') },
+        { text: 'Hide from feed', onPress: () => {} },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }, []);
+
+  const openComments = useCallback(() => {
+    setCommentCount((c) => c);
+    Alert.alert(
+      'Comments',
+      'Thread view will load from Supabase (`post_comments`) when the backend is wired. You can still demo the counter locally.',
+      [
+        { text: 'Add demo comment', onPress: () => setCommentCount((c) => c + 1) },
+        { text: 'OK', style: 'cancel' },
+      ],
+    );
+  }, []);
 
   return (
     <View style={styles.postCard}>
@@ -225,7 +341,7 @@ function PostCard({
             <Text style={styles.badgeText}>{badge}</Text>
           </View>
         ) : null}
-        <Pressable style={styles.postMore} hitSlop={8}>
+        <Pressable style={styles.postMore} hitSlop={8} onPress={openPostMenu}>
           <FontAwesome name="ellipsis-h" size={16} color={DS.color.textMuted} />
         </Pressable>
       </View>
@@ -245,16 +361,16 @@ function PostCard({
       )}
       <View style={styles.postActions}>
         <View style={styles.postActionsLeft}>
-          <Pressable style={styles.actionPill}>
+          <Pressable style={styles.actionPill} onPress={toggleLike}>
             <FontAwesome
-              name={heartFilled ? 'heart' : 'heart-o'}
+              name={liked ? 'heart' : 'heart-o'}
               size={14}
-              color={heartFilled ? DS.color.gold : DS.color.textMuted}
+              color={liked ? DS.color.gold : DS.color.textMuted}
             />
-            <Text style={styles.actionTxt}> {likes}</Text>
+            <Text style={styles.actionTxt}> {likeCount}</Text>
           </Pressable>
           {secondary ? (
-            <Pressable style={styles.actionPill}>
+            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
               {secondary.kind === 'fire' ? (
                 <FontAwesome5 name="fire" size={13} color="#f97316" solid />
               ) : null}
@@ -266,13 +382,20 @@ function PostCard({
               ) : null}
               <Text style={styles.actionTxt}> {secondary.count}</Text>
             </Pressable>
-          ) : null}
-          <Pressable style={styles.actionPill}>
+          ) : (
+            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
+              <Text style={styles.actionTxt}>＋ 😊</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
+            <FontAwesome name="smile-o" size={14} color={DS.color.textMuted} />
+          </Pressable>
+          <Pressable style={styles.actionPill} onPress={() => void sharePost()}>
             <FontAwesome name="share-alt" size={14} color={DS.color.textMuted} />
           </Pressable>
         </View>
-        <Pressable style={styles.actionPill}>
-          <Text style={styles.actionTxt}>{comments} </Text>
+        <Pressable style={styles.actionPill} onPress={openComments}>
+          <Text style={styles.actionTxt}>{commentCount} </Text>
           <FontAwesome name="comment-o" size={14} color={DS.color.textMuted} />
         </Pressable>
       </View>
@@ -717,7 +840,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
             <FontAwesome name="arrow-left" size={20} color={DS.color.gold} />
           </Pressable>
-          <Text style={styles.notifTitle}>Notifications</Text>
+          <Text style={styles.notifTitle}>NOTIFICATIONS</Text>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.notifClose}>
             <FontAwesome name="times" size={20} color={DS.color.textMuted} />
           </Pressable>
@@ -862,6 +985,43 @@ const INBOX_THREADS: InboxThread[] = [
 export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState('');
+  const newMessageDemo = useCallback(() => {
+    Alert.alert(
+      'New message',
+      'Try a recipient who limits DMs vs one you follow. Server-side RLS will mirror this with Supabase.',
+      [
+        {
+          text: 'Marcus (not following)',
+          onPress: () => {
+            const gate = assertCanMessageRecipient({
+              recipientPref: 'followers_only',
+              isFollowingRecipient: false,
+            });
+            if (!gate.ok) {
+              Alert.alert(
+                'Cannot send',
+                'This user does not accept messages from people they do not follow. Follow them first.',
+              );
+              return;
+            }
+            navigation.navigate('MessageThread', { name: 'Marcus Johnson' });
+          },
+        },
+        {
+          text: 'Coach (you follow)',
+          onPress: () => {
+            const gate = assertCanMessageRecipient({
+              recipientPref: 'followers_only',
+              isFollowingRecipient: true,
+            });
+            if (!gate.ok) return;
+            navigation.navigate('MessageThread', { name: 'Coach Williams' });
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  }, [navigation]);
   const threads = useMemo(() => {
     const f = filter.trim().toLowerCase();
     if (!f) return INBOX_THREADS;
@@ -877,8 +1037,8 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
             <FontAwesome name="arrow-left" size={20} color={DS.color.gold} />
           </Pressable>
-          <Text style={styles.inboxTitle}>Messages</Text>
-          <Pressable hitSlop={8}>
+          <Text style={styles.inboxTitle}>MESSAGES</Text>
+          <Pressable hitSlop={8} onPress={newMessageDemo}>
             <FontAwesome5 name="pen-square" size={18} color={DS.color.gold} solid />
           </Pressable>
         </View>
@@ -1079,8 +1239,6 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
   );
 }
 
-const BRAND_LOGO =
-  'https://storage.googleapis.com/uxpilot-auth.appspot.com/30eb1ae956-135cf7749062f48906b3.png';
 const BRAND_VIDEO_THUMB =
   'https://storage.googleapis.com/uxpilot-auth.appspot.com/91bf71e10a-f9bb386c642433b2804a.png';
 const BRAND_PRODUCTS: { uri: string; title: string; price: string }[] = [
@@ -1121,7 +1279,7 @@ export function BrandPartnerScreen({ navigation }: BrandPartnerScreenProps) {
       >
         <View style={styles.brandHero}>
           <View style={styles.brandLogoCard}>
-            <Image source={{ uri: BRAND_LOGO }} style={styles.brandLogoImg} resizeMode="contain" />
+            <BrandLogo width={240} height={72} />
           </View>
           <Text style={styles.brandHeroTitle}>ATHLETIC X</Text>
           <View style={styles.brandActiveRow}>
@@ -1224,7 +1382,7 @@ export function DemoHubScreen({ navigation }: CProps<'DemoHub'>) {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.hubPad}>
       <Text style={styles.hubKicker}>DALTON PROJECT</Text>
-      <Text style={styles.hubTitle}>Mobile demo flows</Text>
+      <Text style={styles.hubTitle}>MOBILE DEMO FLOWS</Text>
       <Text style={styles.hubBody}>
         Jump into the same paths as index.html — native React Native screens.
       </Text>
@@ -1265,11 +1423,7 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.md,
   },
   communityTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 30,
-    color: DS.color.textMuted,
-    letterSpacing: 2,
-    textTransform: 'none',
+    ...tabRootTitleText,
   },
   feedHeaderActions: {
     flexDirection: 'row',
@@ -1750,10 +1904,7 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.md,
   },
   notifTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 24,
-    color: DS.color.text,
-    letterSpacing: 2,
+    ...tabRootTitleText,
     flex: 1,
     textAlign: 'center',
   },
@@ -1829,10 +1980,7 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.md,
   },
   inboxTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 24,
-    color: DS.color.text,
-    letterSpacing: 2,
+    ...tabRootTitleText,
     flex: 1,
     textAlign: 'center',
   },
@@ -2072,11 +2220,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   brandNavTitle: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 14,
-    color: DS.color.text,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
+    ...tabRootTitleText,
+    flex: 1,
+    textAlign: 'center',
   },
   brandScroll: {
     paddingHorizontal: DS.space.base,
@@ -2096,10 +2242,6 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: DS.color.borderWhite5,
-  },
-  brandLogoImg: {
-    height: 60,
-    width: '80%',
   },
   brandHeroTitle: {
     fontFamily: DS.font.heading,
@@ -2542,10 +2684,7 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.sm,
   },
   hubTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: DS.color.text,
-    letterSpacing: 1,
+    ...tabRootTitleText,
     marginBottom: DS.space.md,
   },
   hubBody: {

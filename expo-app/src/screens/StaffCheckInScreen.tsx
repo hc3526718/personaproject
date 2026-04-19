@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verifyTicketToken } from '../booking/ticketToken';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { EventsStackParamList } from '../navigation/types';
@@ -41,12 +42,7 @@ export function StaffCheckInScreen({ navigation }: Props) {
 
   return (
     <View style={styles.root}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable style={styles.back} onPress={() => navigation.goBack()}>
-          <Text style={styles.backTxt}>← Back</Text>
-        </Pressable>
-        <Text style={styles.title}>Staff check-in</Text>
-      </View>
+      <ScreenHeader title="Staff check-in" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
         <Text style={styles.help}>
           Paste the string encoded in the attendee QR. On site you can replace this with a camera
@@ -71,15 +67,6 @@ export function StaffCheckInScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: DS.color.background },
-  header: {
-    paddingHorizontal: DS.space.lg,
-    paddingBottom: DS.space.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DS.color.borderWhite5,
-  },
-  back: { marginBottom: 8 },
-  backTxt: { color: DS.color.gold, fontFamily: DS.font.bodyMedium, fontSize: 16 },
-  title: { fontFamily: DS.font.heading, fontSize: 28, color: DS.color.text, letterSpacing: 1 },
   body: { padding: DS.space.lg },
   help: {
     fontFamily: DS.font.body,
