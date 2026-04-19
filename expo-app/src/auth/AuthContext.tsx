@@ -7,11 +7,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { Alert } from 'react-native';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { signInWithAppleNative, signInWithGoogleOAuth } from './oauthSupabase';
 import { AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/bootTiming';
+import { GUEST_APP_USER_ID, SKIP_AUTH_TO_COMMUNITY } from '../constants/appAccess';
 import { captureAuthSessionTimeout } from '../monitoring/sentryBoot';
 import { ensureDefaultDaltonVerifiedMetadata } from './userMetadataSupabase';
 import {
@@ -79,6 +81,13 @@ function appUserFromSupabaseUser(u: {
   };
 }
 
+const GUEST_APP_USER: AppUser = {
+  id: GUEST_APP_USER_ID,
+  email: '',
+  role: 'member',
+  daltonVerified: false,
+};
+
 function demoRoleForEmail(email: string): AppUser['role'] {
   const e = email.trim().toLowerCase();
   if (e === DEMO_EMAIL.toLowerCase()) return 'super_admin';
@@ -101,16 +110,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const supabase = getSupabase();
-  const [ready, setReady] = useState(!supabase);
-  const [user, setUser] = useState<AppUser | null>(null);
+  const [ready, setReady] = useState(SKIP_AUTH_TO_COMMUNITY ? true : !supabase);
+  const [user, setUser] = useState<AppUser | null>(SKIP_AUTH_TO_COMMUNITY ? GUEST_APP_USER : null);
   const [oAuthBusy, setOAuthBusy] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
-      setReady(true);
+      if (!SKIP_AUTH_TO_COMMUNITY) setReady(true);
       return;
     }
+
     let cancelled = false;
+
+    const applySessionUser = async (session: Session | null) => {
+      if (session?.user) {
+        await ensureDefaultDaltonVerifiedMetadata(supabase);
+        if (cancelled) return;
+        const { data: fresh } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (fresh.session?.user) {
+          setUser(appUserFromSupabaseUser(fresh.session.user));
+        } else if (SKIP_AUTH_TO_COMMUNITY) {
+          setUser(GUEST_APP_USER);
+        } else {
+          setUser(null);
+        }
+      } else if (SKIP_AUTH_TO_COMMUNITY) {
+        setUser(GUEST_APP_USER);
+      } else {
+        setUser(null);
+      }
+    };
+
+    if (SKIP_AUTH_TO_COMMUNITY) {
+      const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        try {
+          if (cancelled) return;
+          await applySessionUser(session);
+        } finally {
+          if (!cancelled) setReady(true);
+        }
+      });
+      return () => {
+        cancelled = true;
+        sub.subscription.unsubscribe();
+      };
+    }
+
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
       captureAuthSessionTimeout();
@@ -147,19 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
         if (cancelled) return;
-        if (session?.user) {
-          await ensureDefaultDaltonVerifiedMetadata(supabase);
-          if (cancelled) return;
-          const { data: fresh } = await supabase.auth.getSession();
-          if (cancelled) return;
-          if (fresh.session?.user) {
-            setUser(appUserFromSupabaseUser(fresh.session.user));
-          } else {
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
+        await applySessionUser(session);
       } finally {
         if (!cancelled) {
           /** `INITIAL_SESSION` / OAuth can arrive before `getSession()` finishes; never strand `ready`. */
@@ -229,7 +263,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     if (supabase) await supabase.auth.signOut();
-    setUser(null);
+    if (SKIP_AUTH_TO_COMMUNITY) {
+      setUser(GUEST_APP_USER);
+    } else {
+      setUser(null);
+    }
   }, [supabase]);
 
   const signInWithGoogle = useCallback(async () => {

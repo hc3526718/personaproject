@@ -44,7 +44,7 @@ Short comparison of platforms teams commonly use with **Expo / React Native** to
 3. **Root:** `App.tsx` is wrapped with **`Sentry.wrap`**.  
 4. **Metro:** `metro.config.js` uses **`getSentryExpoConfig`** (debug IDs / source maps) while keeping the **SVG + `.riv`** resolver setup.  
 5. **Expo config:** `app.config.js` includes the **`@sentry/react-native/expo`** plugin. **`eas.json`** sets **`SENTRY_DISABLE_AUTO_UPLOAD=true`** on all build profiles so **EAS iOS/Android builds succeed** without Sentry org secrets (runtime crash reporting via **`EXPO_PUBLIC_SENTRY_DSN`** still works). To **turn on** automatic source map uploads: remove that env var (or set it to `false`) on the profile and add EAS secrets **`SENTRY_AUTH_TOKEN`**, **`SENTRY_ORG`**, **`SENTRY_PROJECT`** (see [Sentry Expo source maps](https://docs.sentry.io/platforms/react-native/sourcemaps/uploading/expo/)). Alternatively keep uploads off and upload maps manually from CI.  
-6. **Boot / Rive:** `DaltonBootRiveDisplay` reports **`rive_embed_load_timeout`**, **`rive_embed_webview_error`**, and **`rive_embed_http_error`** as Sentry messages (with URI / status when available). **`AuthContext`** reports **`supabase_get_session_timeout`** if `getSession` hangs.
+6. **Boot / Rive:** Native Rive errors surface via the player callback; optional Sentry wiring can use `captureBootRiveIssue` from `sentryBoot.ts`. **`AuthContext`** reports **`supabase_get_session_timeout`** if `getSession` hangs (when full auth bootstrap is enabled).
 
 After changing native config, run a **new EAS build** (not only OTA). Copy **`EXPO_PUBLIC_SENTRY_DSN`** from [Sentry](https://sentry.io/) → Project → Client Keys (DSN).
 

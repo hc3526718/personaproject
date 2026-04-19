@@ -33,7 +33,8 @@ function parseOAuthCodeFromReturnUrl(returnUrl: string): string | null {
   if (typeof fromQuery === 'string' && fromQuery.length > 0) {
     return fromQuery;
   }
-  const frag = typeof parsed.fragment === 'string' ? parsed.fragment : '';
+  const hashIdx = returnUrl.indexOf('#');
+  const frag = hashIdx >= 0 ? returnUrl.slice(hashIdx + 1) : '';
   if (!frag) return null;
   const qs = frag.startsWith('?') ? frag.slice(1) : frag;
   try {

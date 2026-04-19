@@ -108,7 +108,7 @@ Follow **[OAUTH_APPLE_GOOGLE.md](./OAUTH_APPLE_GOOGLE.md)** completely: Supabase
 
 ## Step 6 — Native modules (Rive, image picker)
 
-1. **Rive** — requires **dev client / EAS build** ([NEXT_STEPS.md](./NEXT_STEPS.md)); embed vs native `.riv` per `docs/VOLTAGENT_AWESOME_AGENT_SKILLS.md` / env `EXPO_PUBLIC_RIVE_*`.
+1. **Rive** — requires **dev client / EAS build** ([NEXT_STEPS.md](./NEXT_STEPS.md)); native bundled `.riv` or hosted `.riv` per `docs/VOLTAGENT_AWESOME_AGENT_SKILLS.md` / env `EXPO_PUBLIC_RIVE_*`.
 2. **Image picker** — permissions already in config; validate on **physical device**.
 
 ---

@@ -5,17 +5,13 @@ import type { DaltonBootRiveError } from './DaltonBootRivePlayer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hideNativeSplashWhenBootVisualReady } from '../boot/nativeSplashGate';
 import { MAX_NATIVE_SPLASH_WAIT_MS } from '../constants/bootTiming';
-import {
-  BOOT_RIVE_EMBED_LOGO_SCALE,
-  BOOT_USE_RIVE,
-  getDaltonBootRiveDisplayMode,
-} from '../constants/riveBoot';
+import { BOOT_USE_RIVE, getDaltonBootRiveDisplayMode } from '../constants/riveBoot';
 import { DS } from '../designSystem';
 import { BootCircleLoader } from './BootCircleLoader';
 import { BouncingBrandLogo } from './BouncingBrandLogo';
 import { DaltonBootRiveDisplay } from './DaltonBootRiveDisplay';
 
-/** Rive / embed boot — native splash hides when embed loads, Rive plays, or bounce paints (see `nativeSplashGate`). */
+/** Rive boot — native splash hides when Rive paints or bounce fallback (see `nativeSplashGate`). */
 export function DaltonBootScreenRive() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -24,19 +20,13 @@ export function DaltonBootScreenRive() {
   const mode = getDaltonBootRiveDisplayMode();
 
   const riveStyle = useMemo(() => {
-    const base = Math.min(320, Math.round(width * 0.78));
-    if (mode === 'embed') {
-      const target = Math.round(base * Math.max(BOOT_RIVE_EMBED_LOGO_SCALE, 2.8));
-      const outer = Math.min(target, Math.round(width * 0.98));
-      return { width: outer, height: outer, maxWidth: '98%' as const };
-    }
     const box = Math.min(380, Math.round(width * 0.88));
     return { width: box, height: box, maxWidth: '92%' as const };
-  }, [width, mode]);
+  }, [width]);
 
   const bounceSize = Math.min(200, Math.round(width * 0.5));
   const useRive = BOOT_USE_RIVE && !riveFailed;
-  /** Expo Go + embed disabled → no native Rive; bounce only. */
+  /** Expo Go has no native Rive → bounce only. */
   const bounceOnlyExpoGo = expoGo && mode === 'bundled';
 
   const onNativeError = useCallback((_e: DaltonBootRiveError) => setRiveFailed(true), []);
@@ -47,7 +37,7 @@ export function DaltonBootScreenRive() {
     return () => clearTimeout(t);
   }, []);
 
-  /** Dismiss native splash as soon as this boot layer is mounted (same #0A0A0A as splash) — do not wait for remote embed `onLoadEnd`. */
+  /** Dismiss native splash as soon as this boot layer is mounted (same #0A0A0A as splash). */
   useLayoutEffect(() => {
     if (!useRive || bounceOnlyExpoGo) return;
     const id = requestAnimationFrame(() => hideNativeSplashWhenBootVisualReady());
