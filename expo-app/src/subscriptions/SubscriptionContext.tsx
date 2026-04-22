@@ -34,6 +34,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     setBusy(true);
+    if (!sessionEmail?.trim()) {
+      setIsPro(false);
+      setBusy(false);
+      return;
+    }
     if (isPremiumDemoEmail(sessionEmail)) {
       setIsPro(true);
       setBusy(false);
@@ -54,6 +59,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const restore = useCallback(async () => {
     setBusy(true);
+    if (!sessionEmail?.trim()) {
+      setIsPro(false);
+      setBusy(false);
+      return;
+    }
     if (isPremiumDemoEmail(sessionEmail)) {
       setIsPro(true);
       setBusy(false);

@@ -60,7 +60,7 @@ function useOnboardingCtx() {
   return v;
 }
 
-/** Expo Go skips native Rive; use bounce when bundled mode has no player. */
+/** Expo Go uses WebView embed when display mode is `embed`; otherwise bounce. */
 function OnboardingCompleteRive({
   riveFailed,
   onRiveFailed,
@@ -72,13 +72,14 @@ function OnboardingCompleteRive({
   if (riveFailed || !BOOT_USE_RIVE) {
     return <BouncingBrandLogo width={180} height={180} />;
   }
-  if (isExpoGo && getDaltonBootRiveDisplayMode() === 'bundled') {
+  if (isExpoGo && getDaltonBootRiveDisplayMode() !== 'embed') {
     return <BouncingBrandLogo width={180} height={180} />;
   }
   return (
     <DaltonBootRiveDisplay
       style={{ width: 220, height: 220, maxWidth: '90%' }}
       onNativeError={() => onRiveFailed()}
+      onEmbedError={() => onRiveFailed()}
     />
   );
 }

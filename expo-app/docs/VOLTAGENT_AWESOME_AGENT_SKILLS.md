@@ -8,8 +8,8 @@ Aligned this project with common themes from that ecosystem **without** vendorin
 
 | Theme | Change in `expo-app` |
 |--------|----------------------|
-| **Transport / Rive** | Boot uses **native** `rive-react-native` (bundled `.riv` or `EXPO_PUBLIC_RIVE_URL`); no Rive Cloud WebView embed. |
-| **WebView boot** | *(Removed — boot no longer uses a Rive embed WebView.)* |
+| **Transport / Rive** | `NSAppTransportSecurity` for `rive.app` so the **boot embed WebView** can load Rive Cloud; native `.riv` optional via `EXPO_PUBLIC_RIVE_URL` / `EXPO_PUBLIC_RIVE_DISABLE_EMBED`. |
+| **WebView boot** | `onShouldStartLoadWithRequest` allows `https:`, `blob:`, `data:`, `wss:`; blocks `javascript:` / `file:`. |
 | **OAuth** | `isOAuthReturnUrlTrusted()` checks return URL **scheme** matches expected redirect before `exchangeCodeForSession`. |
 | **Icons** | `ios.icon` uses **Icon-76@2x** (152px); root `icon` stays **Icon-1024** for store / tooling. **#0A0A0A** is already Android adaptive background; iOS icon “fill” is still the **PNG pixels** (bake background in design if needed). |
 
@@ -21,4 +21,4 @@ Aligned this project with common themes from that ecosystem **without** vendorin
 
 ## Rive “ready right after splash”
 
-Boot Rive is configured in `src/constants/riveBoot.ts`: **native** bundled `dalton_animated_logo.riv` or hosted `.riv` via `EXPO_PUBLIC_RIVE_URL`. Expo Go uses the bounce fallback (no native module). Native splash is dismissed in a **layout** effect so the dark shell appears immediately.
+Boot Rive in `src/constants/riveBoot.ts`: **Rive Cloud embed** (WebView) is the default for Expo Go and dev builds; set `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1` for native bundled `.riv`, or `EXPO_PUBLIC_RIVE_URL` for a hosted `.riv` file. Native splash is dismissed in a **layout** effect so the dark shell appears immediately.

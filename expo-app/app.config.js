@@ -57,6 +57,14 @@ const baseExpo = {
       ITSAppUsesNonExemptEncryption: false,
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: false,
+        NSExceptionDomains: {
+          'rive.app': {
+            NSIncludesSubdomains: true,
+            NSExceptionAllowsInsecureHTTPLoads: false,
+            NSExceptionRequiresForwardSecrecy: true,
+            NSExceptionMinimumTLSVersion: 'TLSv1.2',
+          },
+        },
       },
     },
   },
@@ -169,6 +177,9 @@ module.exports = () => {
     supabaseAnonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim(),
     /** Direct HTTPS `.riv` URL for native Rive; same as `EXPO_PUBLIC_RIVE_URL`. */
     riveAnimationUrl: (process.env.EXPO_PUBLIC_RIVE_URL || '').trim(),
+    riveEmbedUrl:
+      (process.env.EXPO_PUBLIC_RIVE_EMBED_URL || '').trim() ||
+      'https://rive.app/s/2b5r5odTC0qRPicJRWg9Kw/embed?runtime=rive-renderer',
   };
 
   return { expo };

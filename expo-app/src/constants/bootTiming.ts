@@ -9,7 +9,10 @@
  * storyboard + Lottie/Rive at the native layer), outside the JS bundle.
  */
 /** Minimum time the in-app boot overlay stays visible (boot visual + ring). Lower = snappier handoff to app. */
-export const MIN_BOOT_OVERLAY_MS = 2400;
+export const MIN_BOOT_OVERLAY_MS = 1000;
+
+/** Rive Cloud embed: if `onLoadEnd` never fires (WebView/cache/network), fall back to bounce + Sentry. */
+export const RIVE_EMBED_LOAD_TIMEOUT_MS = 15000;
 
 /** Hard cap: never block `SplashScreen.hideAsync` past this (boot visual hang). */
 export const MAX_NATIVE_SPLASH_WAIT_MS = 8000;

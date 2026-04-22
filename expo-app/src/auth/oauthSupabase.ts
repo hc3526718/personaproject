@@ -25,23 +25,58 @@ export function isOAuthReturnUrlTrusted(returnUrl: string, redirectTo: string): 
   }
 }
 
-/** PKCE `code` is usually in the query string; some stacks surface it in the URL hash. */
+/**
+ * PKCE `code` — query string, hash, or `Linking.parse` quirks on custom schemes.
+ * Prefer regex on decoded URL so we never miss `?code=` / `#code=` / `&code=`.
+ */
 function parseOAuthCodeFromReturnUrl(returnUrl: string): string | null {
+  let decoded = returnUrl;
+  try {
+    decoded = decodeURIComponent(returnUrl);
+  } catch {
+    decoded = returnUrl;
+  }
+  const m = decoded.match(/(?:^|[?#&])code=([^&#]+)/);
+  if (m?.[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return m[1];
+    }
+  }
   const parsed = Linking.parse(returnUrl);
   const codeRaw = parsed.queryParams?.code;
   const fromQuery = Array.isArray(codeRaw) ? codeRaw[0] : codeRaw;
   if (typeof fromQuery === 'string' && fromQuery.length > 0) {
     return fromQuery;
   }
+  return null;
+}
+
+/** Some mobile OAuth flows return tokens in the fragment instead of a PKCE `code`. */
+async function tryImplicitSessionFromReturnUrl(
+  supabase: SupabaseClient,
+  returnUrl: string,
+): Promise<boolean> {
   const hashIdx = returnUrl.indexOf('#');
   const frag = hashIdx >= 0 ? returnUrl.slice(hashIdx + 1) : '';
-  if (!frag) return null;
+  if (!frag) return false;
   const qs = frag.startsWith('?') ? frag.slice(1) : frag;
+  let accessToken: string | null = null;
+  let refreshToken: string | null = null;
   try {
-    return new URLSearchParams(qs).get('code');
+    const params = new URLSearchParams(qs);
+    accessToken = params.get('access_token');
+    refreshToken = params.get('refresh_token');
   } catch {
-    return null;
+    return false;
   }
+  if (!accessToken || !refreshToken) return false;
+  const { error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  return !error;
 }
 
 export async function signInWithGoogleOAuth(
@@ -71,6 +106,11 @@ export async function signInWithGoogleOAuth(
   if (code) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
     if (exchangeError) return { ok: false, message: exchangeError.message };
+    return { ok: true };
+  }
+
+  const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, result.url);
+  if (implicitOk) {
     return { ok: true };
   }
 

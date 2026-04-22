@@ -10,7 +10,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
-import { GUEST_APP_USER_ID } from '../constants/appAccess';
 import { DS } from '../designSystem';
 import { getSupabase } from '../lib/supabase';
 import { OnboardingNavigator } from '../onboarding/OnboardingNavigator';
@@ -249,7 +248,7 @@ function AuthenticatedShell() {
       setGate('loading');
       return;
     }
-    if (!supabase || user.id.startsWith('demo') || user.id === GUEST_APP_USER_ID) {
+    if (!supabase || user.id.startsWith('demo')) {
       setGate('app');
       return;
     }
