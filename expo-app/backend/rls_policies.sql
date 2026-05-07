@@ -82,17 +82,58 @@ create policy "post_comments_update_own"
   with check (auth.uid() = author_id);
 
 -- ---------------------------------------------------------------------------
--- messages (MVP — tighten to conversation_participants once DM RLS is added)
+-- conversations + participants (pair with rpc_get_or_create_dm.sql)
+-- ---------------------------------------------------------------------------
+alter table public.conversations enable row level security;
+alter table public.conversation_participants enable row level security;
+
+drop policy if exists "conv_select_member" on public.conversations;
+create policy "conv_select_member"
+  on public.conversations for select
+  using (
+    exists (
+      select 1 from public.conversation_participants cp
+      where cp.conversation_id = id and cp.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "cp_select_member" on public.conversation_participants;
+create policy "cp_select_member"
+  on public.conversation_participants for select
+  using (
+    exists (
+      select 1 from public.conversation_participants me
+      where me.conversation_id = conversation_participants.conversation_id
+      and me.user_id = auth.uid()
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- messages (only members of the conversation)
 -- ---------------------------------------------------------------------------
 drop policy if exists "messages_select_authenticated" on public.messages;
-create policy "messages_select_authenticated"
+drop policy if exists "messages_select_member" on public.messages;
+create policy "messages_select_member"
   on public.messages for select
-  using (auth.role() = 'authenticated');
+  using (
+    exists (
+      select 1 from public.conversation_participants cp
+      where cp.conversation_id = messages.conversation_id
+      and cp.user_id = auth.uid()
+    )
+  );
 
 drop policy if exists "messages_insert_sender" on public.messages;
 create policy "messages_insert_sender"
   on public.messages for insert
-  with check (auth.uid() = sender_id);
+  with check (
+    auth.uid() = sender_id
+    and exists (
+      select 1 from public.conversation_participants cp
+      where cp.conversation_id = messages.conversation_id
+      and cp.user_id = auth.uid()
+    )
+  );
 
 -- ---------------------------------------------------------------------------
 -- media_assets, bookings — owner / self patterns
@@ -108,3 +149,78 @@ create policy "bookings_self_all"
   on public.bookings for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- events (browse all; any signed-in user may create — tighten to hosts later)
+-- ---------------------------------------------------------------------------
+alter table public.events enable row level security;
+
+drop policy if exists "events_select_all" on public.events;
+create policy "events_select_all"
+  on public.events for select
+  using (true);
+
+drop policy if exists "events_insert_authenticated" on public.events;
+create policy "events_insert_authenticated"
+  on public.events for insert
+  with check (auth.role() = 'authenticated');
+
+-- Optional hardening (run AFTER adding `events.created_by`):
+-- drop policy if exists "events_insert_authenticated" on public.events;
+-- create policy "events_insert_authenticated"
+--   on public.events for insert
+--   with check (auth.role() = 'authenticated' and created_by = auth.uid());
+
+-- ---------------------------------------------------------------------------
+-- in_app_notifications (requires `roadmap_extensions.sql` table)
+-- ---------------------------------------------------------------------------
+alter table public.in_app_notifications enable row level security;
+
+drop policy if exists "in_app_notif_select_own" on public.in_app_notifications;
+create policy "in_app_notif_select_own"
+  on public.in_app_notifications for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "in_app_notif_update_own" on public.in_app_notifications;
+create policy "in_app_notif_update_own"
+  on public.in_app_notifications for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "in_app_notif_delete_own" on public.in_app_notifications;
+create policy "in_app_notif_delete_own"
+  on public.in_app_notifications for delete
+  using (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- follows + follow_requests (requires tables from roadmap_extensions.sql)
+-- ---------------------------------------------------------------------------
+alter table public.follows enable row level security;
+alter table public.follow_requests enable row level security;
+
+drop policy if exists "follows_select_related" on public.follows;
+create policy "follows_select_related"
+  on public.follows for select
+  using (auth.uid() = follower_id or auth.uid() = followee_id);
+
+drop policy if exists "follows_insert_self" on public.follows;
+create policy "follows_insert_self"
+  on public.follows for insert
+  with check (auth.uid() = follower_id);
+
+drop policy if exists "follows_delete_self" on public.follows;
+create policy "follows_delete_self"
+  on public.follows for delete
+  using (auth.uid() = follower_id);
+
+drop policy if exists "follow_req_select_parties" on public.follow_requests;
+create policy "follow_req_select_parties"
+  on public.follow_requests for select
+  using (auth.uid() = requester_id or auth.uid() = target_id);
+
+drop policy if exists "follow_req_insert_self" on public.follow_requests;
+create policy "follow_req_insert_self"
+  on public.follow_requests for insert
+  with check (auth.uid() = requester_id and requester_id <> target_id);
+
+-- Status changes: use rpc_follow_requests.sql (accept / reject / cancel) — SECURITY DEFINER.

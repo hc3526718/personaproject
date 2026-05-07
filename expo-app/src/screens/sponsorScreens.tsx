@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   Image,
   Pressable,
@@ -9,7 +10,10 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
+import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
+import { pullRefreshControl } from '../lib/pullRefreshUi';
 import type { SponsorsStackParamList } from '../navigation/types';
 
 type SProps<K extends keyof SponsorsStackParamList> = NativeStackScreenProps<
@@ -22,6 +26,8 @@ const SP_IMG =
 
 export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>) {
   const insets = useSafeAreaInsets();
+  const noopSponsorReload = useCallback(async () => undefined, []);
+  const { refreshing, onRefresh } = useRefreshWithMinimum(noopSponsorReload, 4000);
   const items = [
     { name: 'NIKE ATHLETICS', tier: 'Official partner — equipment & camps' },
     { name: 'HYDRATE PRO', tier: 'Performance hydration systems' },
@@ -29,6 +35,7 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
   ];
   return (
     <View style={styles.root}>
+      <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
       <View
         style={[
           styles.sponsorHeader,
@@ -37,18 +44,12 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
         ]}
       >
         <Text style={styles.sponsorTitle}>SPONSORS</Text>
-        <Pressable
-          style={styles.sponsorBell}
-          onPress={() =>
-            navigation.getParent()?.navigate('Community', { screen: 'Notifications' })
-          }
-        >
-          <FontAwesome name="bell-o" size={20} color={DS.color.text} />
-        </Pressable>
+        <View style={{ width: 40 }} />
       </View>
       <ScrollView
         contentContainerStyle={[styles.padded, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={pullRefreshControl(refreshing, onRefresh)}
       >
         {items.map((s) => (
           <Pressable
@@ -81,14 +82,6 @@ const styles = StyleSheet.create({
   },
   sponsorTitle: {
     ...tabRootTitleText,
-  },
-  sponsorBell: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: DS.color.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sponsorTier: {
     fontFamily: DS.font.body,

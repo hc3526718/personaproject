@@ -28,6 +28,7 @@ export type PostRow = {
 export type EventRow = {
   id: string;
   organization_id: string | null;
+  created_by?: string | null;
   title: string;
   starts_at: string;
   ends_at: string | null;

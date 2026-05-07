@@ -61,6 +61,12 @@
       "expo-web-browser",
       "expo-apple-authentication",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Dalton to use your camera for event QR scanning."
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "Allow Dalton to access your photos and videos for uploads.",

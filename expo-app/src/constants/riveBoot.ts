@@ -2,10 +2,16 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { DS } from '../designSystem';
 
 /**
- * Boot Rive:
- * - **embed** (default): Rive Cloud WebView — works in Expo Go; uses `EXPO_PUBLIC_RIVE_EMBED_URL` or default share URL.
- * - **native-url**: `EXPO_PUBLIC_RIVE_URL` hosted `.riv` via `rive-react-native`.
- * - **bundled**: local `.riv` when `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1` on dev/EAS (Expo Go → bounce if no embed).
+ * Official Rive runtimes (same `.riv` / renderer model; RN wraps native iOS + Android):
+ * - React Native: https://rive.app/docs/runtimes/react-native/react-native
+ * - Expo setup: https://rive.app/docs/runtimes/react-native/adding-rive-to-expo
+ * - Apple (iOS): https://rive.app/docs/runtimes/apple/apple
+ * - Android: https://rive.app/docs/runtimes/android/android
+ *
+ * Boot / pull-to-refresh Rive:
+ * - **embed** (default everywhere): Rive Cloud WebView (`DALTON_RIVE_EMBED_DEFAULT` or `EXPO_PUBLIC_RIVE_EMBED_URL`).
+ * - **bundled**: set `EXPO_PUBLIC_RIVE_USE_BUNDLED=1` — native `dalton_animated_logo.riv` via `rive-react-native` (dev client / EAS only).
+ * - **native-url**: `EXPO_PUBLIC_RIVE_URL` + `EXPO_PUBLIC_RIVE_USE_NATIVE_URL=1` for HTTPS-hosted `.riv` in the native player.
  */
 export const DALTON_BOOT_RIVE = require('../../assets/dalton_animated_logo.riv');
 
@@ -40,6 +46,29 @@ export const DALTON_BOOT_RIVE_EMBED_URL = envTrim('EXPO_PUBLIC_RIVE_EMBED_URL');
 
 export const BOOT_USE_RIVE = process.env.EXPO_PUBLIC_BOOT_USE_RIVE !== '0';
 export const RIVE_EMBED_DISABLED = process.env.EXPO_PUBLIC_RIVE_DISABLE_EMBED === '1';
+const RIVE_FORCE_EMBED = process.env.EXPO_PUBLIC_RIVE_FORCE_EMBED === '1';
+
+function useBundledRiveFile(): boolean {
+  return envTrim('EXPO_PUBLIC_RIVE_USE_BUNDLED') === '1';
+}
+
+function debugLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
+  // #region agent log
+  fetch('http://127.0.0.1:7386/ingest/bab823b9-460d-4f52-948e-3e1cf5b36c4f', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6e09fa' },
+    body: JSON.stringify({
+      sessionId: '6e09fa',
+      runId: 'pre-fix',
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+}
 
 export function daltonRiveLayoutProps() {
   return {
@@ -58,25 +87,64 @@ export function getDaltonBootRiveEmbedUri(): string {
 export type DaltonBootRiveDisplayMode = 'native-url' | 'embed' | 'bundled';
 
 export function getDaltonBootRiveDisplayMode(): DaltonBootRiveDisplayMode {
-  if (!BOOT_USE_RIVE) return 'bundled';
+  if (!BOOT_USE_RIVE) return 'embed';
+  if (RIVE_FORCE_EMBED) {
+    debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=embed (forced)', {
+      executionEnvironment: Constants.executionEnvironment,
+      riveEmbedDisabled: RIVE_EMBED_DISABLED,
+      useBundled: useBundledRiveFile(),
+      riveUrl: DALTON_BOOT_RIVE_URL,
+      embedUrl: getDaltonBootRiveEmbedUri(),
+    });
+    return 'embed';
+  }
   const expoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
   if (expoGo) {
     return RIVE_EMBED_DISABLED ? 'bundled' : 'embed';
   }
   const riv = DALTON_BOOT_RIVE_URL;
-  if (riv && /^https:\/\//i.test(riv) && /\.riv($|\?)/i.test(riv)) {
+  if (
+    riv &&
+    /^https:\/\//i.test(riv) &&
+    /\.riv($|\?)/i.test(riv) &&
+    envTrim('EXPO_PUBLIC_RIVE_USE_NATIVE_URL') === '1'
+  ) {
+    debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=native-url', {
+      executionEnvironment: Constants.executionEnvironment,
+      riveEmbedDisabled: RIVE_EMBED_DISABLED,
+      useBundled: useBundledRiveFile(),
+      riveUrl: riv,
+    });
     return 'native-url';
   }
-  if (RIVE_EMBED_DISABLED) {
+  if (RIVE_EMBED_DISABLED || useBundledRiveFile()) {
+    debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=bundled', {
+      executionEnvironment: Constants.executionEnvironment,
+      riveEmbedDisabled: RIVE_EMBED_DISABLED,
+      useBundled: useBundledRiveFile(),
+      riveUrl: riv,
+      bundledModuleId: DALTON_BOOT_RIVE,
+    });
     return 'bundled';
   }
+  debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=embed', {
+    executionEnvironment: Constants.executionEnvironment,
+    riveEmbedDisabled: RIVE_EMBED_DISABLED,
+    useBundled: useBundledRiveFile(),
+    riveUrl: riv,
+    embedUrl: getDaltonBootRiveEmbedUri(),
+  });
   return 'embed';
 }
 
 export function getDaltonBootRiveAsset(): { url: string } | { source: number } {
   const u = DALTON_BOOT_RIVE_URL;
   if (u && /^https:\/\//i.test(u) && /\.riv($|\?)/i.test(u)) {
+    debugLog('H2', 'src/constants/riveBoot.ts:getDaltonBootRiveAsset', 'asset=url', { url: u });
     return { url: u };
   }
+  debugLog('H2', 'src/constants/riveBoot.ts:getDaltonBootRiveAsset', 'asset=source(module)', {
+    bundledModuleId: DALTON_BOOT_RIVE,
+  });
   return { source: DALTON_BOOT_RIVE };
 }

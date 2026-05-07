@@ -6,7 +6,9 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { ActionBannerProvider } from './src/actionBanner/ActionBannerContext';
 import { DaltonBootScreen } from './src/components/DaltonBootScreen';
+import { DaltonVerifiedWelcomeOverlay } from './src/components/DaltonVerifiedWelcomeOverlay';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
@@ -45,8 +47,9 @@ function NativeShellInner({
 
   return (
     <SubscriptionProvider>
-      <View style={styles.shell}>
-        {coreReady ? <AppNavigator /> : null}
+      <ActionBannerProvider>
+        <View style={styles.shell}>
+          {coreReady ? <AppNavigator /> : null}
         {!bootLayerGone ? (
           <Animated.View
             style={[styles.bootOverlay, { opacity: bootOpacity }]}
@@ -55,7 +58,9 @@ function NativeShellInner({
             <DaltonBootScreen />
           </Animated.View>
         ) : null}
-      </View>
+        <DaltonVerifiedWelcomeOverlay deferVisible={Boolean(coreReady && bootLayerGone)} />
+        </View>
+      </ActionBannerProvider>
     </SubscriptionProvider>
   );
 }

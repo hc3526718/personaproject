@@ -17,10 +17,10 @@ import { useAuth } from '../auth/AuthContext';
 import { AppButton } from '../components/ui/AppButton';
 import { FormField } from '../components/ui/FormField';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { canCreateVerifiedContent } from '../creator/creatorAccess';
 import { DS } from '../designSystem';
 import type { EventsStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
+import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
 
 type Props = NativeStackScreenProps<EventsStackParamList, 'CreateEvent'>;
 
@@ -33,7 +33,8 @@ export function CreateEventScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isPro } = useSubscription();
-  const allowed = canCreateVerifiedContent(isPro, user);
+  const tierOk = hasPremiumOrAdminTier(isPro, user?.role);
+  const verified = !!user?.daltonVerified;
 
   const [assets, setAssets] = useState<AssetItem[]>([]);
   const [eventTitle, setEventTitle] = useState('');
@@ -123,16 +124,34 @@ export function CreateEventScreen({ navigation }: Props) {
     );
   }, [eventTitle, description, dateStr, timeStr, costFree, price, agenda, navigation]);
 
-  if (!allowed) {
+  if (!tierOk) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <ScreenHeader title="Create event" onBack={() => navigation.goBack()} />
+        <View style={styles.gateBody}>
+          <FontAwesome name="star" size={40} color={DS.color.gold} />
+          <Text style={styles.gateTitle}>Premium</Text>
+          <Text style={styles.gateTxt}>
+            Creating events is a Premium host tool here. Preview the paywall below — real pricing arrives with
+            RevenueCat.
+          </Text>
+          <AppButton label="Preview Premium" onPress={() => navigateToPremiumPaywall(navigation)} />
+          <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!verified) {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <ScreenHeader title="Create event" onBack={() => navigation.goBack()} />
         <View style={styles.gateBody}>
           <FontAwesome name="lock" size={40} color={DS.color.textMuted} />
-          <Text style={styles.gateTitle}>Host access</Text>
+          <Text style={styles.gateTitle}>Dalton verified</Text>
           <Text style={styles.gateTxt}>
-            Premium and Dalton verification are required to create events. Complete setup in
-            WHAT_NEXT.md for production.
+            Your account needs Dalton verification before publishing events. Complete verification in Settings
+            when your profile is approved.
           </Text>
           <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
         </View>

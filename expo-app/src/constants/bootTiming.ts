@@ -19,10 +19,12 @@ export const MAX_NATIVE_SPLASH_WAIT_MS = 8000;
 
 /**
  * Supabase cold start: max wait for `auth.getSession()` (reads SecureStore + may refresh tokens).
- * Increase for slow networks, OAuth-heavy regions, or first launch after install. Still capped so
- * a dead endpoint cannot block the app forever.
+ * Used only to **report** slow session restore to Sentry — UI unlocks earlier via `AUTH_BOOT_UNLOCK_MS`.
  */
-export const AUTH_GET_SESSION_TIMEOUT_MS = 60000;
+export const AUTH_GET_SESSION_TIMEOUT_MS = 22000;
+
+/** After this, `AuthProvider` sets `ready` so the navigator can mount even if `getSession()` is slow. */
+export const AUTH_BOOT_UNLOCK_MS = 4500;
 
 /** Fade from boot overlay into app after `MIN_BOOT_OVERLAY_MS` + readiness. */
 export const BOOT_OVERLAY_FADE_MS = 520;

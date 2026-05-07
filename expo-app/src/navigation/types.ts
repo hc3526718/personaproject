@@ -2,11 +2,18 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type CommunityStackParamList = {
   CommunityFeed: undefined;
+  /** Composer: caption, optional linked event, media preview — single screen. */
+  CreateCommunityPost: undefined;
   CommunitySearch: undefined;
   CommunitySearchResults: { query?: string };
   Notifications: undefined;
   MessagesInbox: undefined;
-  MessageThread: { name?: string };
+  MessageThread: {
+    name?: string;
+    conversationId?: string;
+    peerUserId?: string;
+    avatarUrl?: string;
+  };
   BrandPartner: undefined;
   DemoHub: undefined;
 };
@@ -23,6 +30,7 @@ export type MediaStackParamList = {
 
 export type BookingConfirmParams = {
   reference?: string;
+  eventId?: string;
   title?: string;
   imageUri?: string;
   recapDate?: string;
@@ -33,16 +41,29 @@ export type BookingConfirmParams = {
   fitnessLevel?: string;
 };
 
+export type EventsBrowseFilterChip = 'all' | 'booked' | 'saved' | 'past' | 'my_events';
+
 export type EventsStackParamList = {
-  UpcomingEvents: undefined;
-  EventDetails: { title?: string; imageUri?: string; dateShort?: string; sub?: string };
+  UpcomingEvents: { initialFilter?: EventsBrowseFilterChip } | undefined;
+  EventsSearch: undefined;
+  EventDetails: {
+    title?: string;
+    imageUri?: string;
+    dateShort?: string;
+    sub?: string;
+    /** `db:{uuid}` or `html:title:dateHint` — used for Saved filter + bookmark persistence */
+    eventStorageKey?: string;
+    /** Real Supabase `events.id` when applicable */
+    supabaseEventId?: string;
+  };
   ConfirmAttend: { title?: string; imageUri?: string; scheduleLine?: string };
   BookingConfirm: BookingConfirmParams | undefined;
-  SavedEvents: undefined;
-  MyBookings: undefined;
   StaffCheckIn: undefined;
   HostEventDashboard: undefined;
   CreateEvent: undefined;
+  /** Lists events created by current user → opens scan with mandatory selection. */
+  HostScanPickEvent: undefined;
+  HostAttendeeScan: { selectedEventId: string };
 };
 
 export type SponsorsStackParamList = {
@@ -55,10 +76,13 @@ export type ProfileStackParamList = {
   Paywall: undefined;
   AdminTools: undefined;
   AdminMediaUpload: undefined;
+  QrTestLab: undefined;
   Settings: undefined;
+  Accessibility: undefined;
   AccountSecurity: undefined;
   PrivacyVisibility: undefined;
   NotificationPrefs: undefined;
+  FollowRequests: undefined;
   Support: undefined;
   Legal: undefined;
   EditBasic: undefined;

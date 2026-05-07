@@ -21,4 +21,7 @@ const config = getSentryExpoConfig(__dirname, {
   },
 });
 
+/** Reduce jest-worker serialization load on large bundles (helps "Data cannot be cloned" / OOM on some setups). */
+config.maxWorkers = Math.min(4, Math.max(1, require('os').cpus()?.length ?? 2));
+
 module.exports = config;

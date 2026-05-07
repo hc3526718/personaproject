@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DaltonProject — Demo flows</title>
+  <meta name="description" content="Clickable prototype flows for the Grant Access mobile app: onboarding, community, media, events, sponsors, profile." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0A0A0A',
+            gold: '#C8A84B',
+            mist: '#D4D0C8',
+            dim: '#9A9690',
+          },
+          fontFamily: {
+            bebas: ['"Bebas Neue"', 'sans-serif'],
+            sans: ['"DM Sans"', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-family: 'DM Sans', sans-serif; background: var(--demo-bg); color: var(--demo-text); }
+  </style>
+</head>
+<body class="min-h-screen antialiased pb-16">
+  <header class="sticky top-0 z-10 border-b border-white/10 bg-ink/95 backdrop-blur-md px-5 py-6">
+    <div class="max-w-lg mx-auto">
+      <p class="font-bebas text-gold text-sm tracking-[0.2em] mb-1">GRANT ACCESS</p>
+      <h1 class="font-bebas text-3xl text-mist tracking-wide">Demo flows</h1>
+      <p class="text-dim text-sm mt-2 max-w-xl">
+        Walk the product end-to-end as static mockups, or open the interactive web build under
+        <strong class="text-mist">/app</strong>.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-4">
+        <a href="index.html" class="px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Website</a>
+        <a href="privacy.html" class="px-4 py-2 rounded-xl border border-white/10 text-dim text-sm hover:text-mist">Privacy</a>
+        <a href="terms.html" class="px-4 py-2 rounded-xl border border-white/10 text-dim text-sm hover:text-mist">Terms</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-lg mx-auto px-5 py-8 space-y-6">
+    <section class="rounded-2xl border border-gold/30 bg-gold/[0.06] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Interactive app (React Native web)</h2>
+      <p class="text-dim text-sm">Same bottom tabs and stacks as the Expo shell in the browser. On Vercel this is served under <strong class="text-mist">/app</strong>.</p>
+      <a href="app/index.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Open interactive app</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path A — Auth &amp; community</h2>
+      <p class="text-dim text-sm">Log in → welcome hub → feed → brand detail.</p>
+      <a href="1-Onboarding Flow - Log In.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Log In</a>
+      <a href="4-Onboarding Flow - Welcome &amp; Ac.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or open Welcome hub</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path B — Events</h2>
+      <p class="text-dim text-sm">List → details → confirm → confirmation → my bookings.</p>
+      <a href="13-Upcoming Events.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Upcoming Events</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path C — Media</h2>
+      <p class="text-dim text-sm">Library → player; search → results.</p>
+      <a href="18-Media Library.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Media Library</a>
+      <a href="23-Media Player - Media Search.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or Media Search</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path D — Social</h2>
+      <p class="text-dim text-sm">Feed → notifications → messages → thread.</p>
+      <a href="7-Community Feed.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Community Feed</a>
+    </section>
+
+    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+      <h2 class="font-bebas text-xl text-gold tracking-wide">Path E — Profile &amp; sponsors</h2>
+      <p class="text-dim text-sm">Profile → settings → sponsors → grant access.</p>
+      <a href="22-Athlete Profile.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Athlete Profile</a>
+      <a href="31-Sponsor Listings.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or Sponsor Listings</a>
+    </section>
+  </main>
+
+  <p class="text-center text-dim text-xs px-6 pb-8">
+    For local serving instructions, see <a href="README.md" class="text-gold underline">README.md</a>.
+  </p>
+</body>
+</html>
+

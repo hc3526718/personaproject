@@ -8,7 +8,7 @@ Aligned this project with common themes from that ecosystem **without** vendorin
 
 | Theme | Change in `expo-app` |
 |--------|----------------------|
-| **Transport / Rive** | `NSAppTransportSecurity` for `rive.app` so the **boot embed WebView** can load Rive Cloud; native `.riv` optional via `EXPO_PUBLIC_RIVE_URL` / `EXPO_PUBLIC_RIVE_DISABLE_EMBED`. |
+| **Transport / Rive** | `NSAppTransportSecurity` for `rive.app` when using **boot embed** WebView; dev/EAS default is **bundled** `dalton_animated_logo.riv`; optional `EXPO_PUBLIC_RIVE_URL` / `EXPO_PUBLIC_RIVE_USE_EMBED=1`. |
 | **WebView boot** | `onShouldStartLoadWithRequest` allows `https:`, `blob:`, `data:`, `wss:`; blocks `javascript:` / `file:`. |
 | **OAuth** | `isOAuthReturnUrlTrusted()` checks return URL **scheme** matches expected redirect before `exchangeCodeForSession`. |
 | **Icons** | `ios.icon` uses **Icon-76@2x** (152px); root `icon` stays **Icon-1024** for store / tooling. **#0A0A0A** is already Android adaptive background; iOS icon “fill” is still the **PNG pixels** (bake background in design if needed). |
@@ -21,4 +21,4 @@ Aligned this project with common themes from that ecosystem **without** vendorin
 
 ## Rive “ready right after splash”
 
-Boot Rive in `src/constants/riveBoot.ts`: **Rive Cloud embed** (WebView) is the default for Expo Go and dev builds; set `EXPO_PUBLIC_RIVE_DISABLE_EMBED=1` for native bundled `.riv`, or `EXPO_PUBLIC_RIVE_URL` for a hosted `.riv` file. Native splash is dismissed in a **layout** effect so the dark shell appears immediately.
+Boot Rive in `src/constants/riveBoot.ts`: **Expo Go** defaults to Rive Cloud **embed** (WebView); **dev client / EAS** defaults to **native bundled** `assets/dalton_animated_logo.riv`. Set `EXPO_PUBLIC_RIVE_USE_EMBED=1` to use embed on native builds, or `EXPO_PUBLIC_RIVE_URL` for a hosted `.riv`. Native splash is dismissed in a **layout** effect so the dark shell appears immediately.

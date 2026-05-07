@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -14,8 +14,15 @@ import { useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
+import { useAuth } from '../auth/AuthContext';
+import { canCreateVerifiedContent } from '../creator/creatorAccess';
+import { useSubscription } from '../subscriptions/SubscriptionContext';
+import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
+import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
+import { pullRefreshControl } from '../lib/pullRefreshUi';
 
 type MProps<K extends keyof MediaStackParamList> = NativeStackScreenProps<MediaStackParamList, K>;
 type MediaResultsRoute = RouteProp<MediaStackParamList, 'MediaSearchResults'>;
@@ -185,16 +192,33 @@ const BROWSE = ['All Media', 'Training', 'Mindset', 'Nutrition', 'Recovery', 'Ca
 
 export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const { isPro } = useSubscription();
+  const tierOk = hasPremiumOrAdminTier(isPro, user?.role);
+  const canCreate = canCreateVerifiedContent(isPro, user);
   const [b, setB] = useState(0);
+  const noopMediaReload = useCallback(async () => undefined, []);
+  const { refreshing, onRefresh } = useRefreshWithMinimum(noopMediaReload, 4000);
   return (
     <View style={styles.root}>
+      <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
       <View style={[styles.mediaTop, tabRootHeaderPadding, { paddingTop: insets.top + DS.space.md }]}>
         <Text style={styles.mediaTitle}>MEDIA</Text>
         <View style={styles.mediaHeaderActions}>
           <Pressable
             style={styles.roundIconBtnSm}
             hitSlop={8}
-            onPress={() => navigation.navigate('CreateMediaContent')}
+            onPress={() => {
+              if (!tierOk) {
+                navigateToPremiumPaywall(navigation);
+                return;
+              }
+              if (!canCreate) {
+                Alert.alert('Creator access', 'Dalton verification is required to upload media.');
+                return;
+              }
+              navigation.navigate('CreateMediaContent');
+            }}
           >
             <FontAwesome name="plus" size={15} color={DS.color.text} />
           </Pressable>
@@ -209,6 +233,7 @@ export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
         showsVerticalScrollIndicator={false}
+        refreshControl={pullRefreshControl(refreshing, onRefresh)}
       >
         <Pressable
           style={styles.hero}

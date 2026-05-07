@@ -12,7 +12,8 @@ import { Alert } from 'react-native';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { signInWithAppleNative, signInWithGoogleOAuth } from './oauthSupabase';
-import { AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/bootTiming';
+import { AUTH_BOOT_UNLOCK_MS, AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/bootTiming';
+import { ensureProfileRow } from '../roadmap/profileService';
 import { captureAuthSessionTimeout } from '../monitoring/sentryBoot';
 import { ensureDefaultDaltonVerifiedMetadata } from './userMetadataSupabase';
 import {
@@ -114,16 +115,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
 
+    const syncVerifiedFromProfile = async (userId: string) => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('dalton_verified')
+          .eq('id', userId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (profile?.dalton_verified) {
+          setUser((prev) => (prev?.id === userId ? { ...prev, daltonVerified: true } : prev));
+        }
+      } catch {
+        /* non-fatal */
+      }
+    };
+
     const applySessionUser = async (session: Session | null) => {
       if (session?.user) {
         setUser(appUserFromSupabaseUser(session.user));
+        void ensureProfileRow(session.user.id, session.user.email ?? null);
+        void syncVerifiedFromProfile(session.user.id);
         void (async () => {
           try {
             await ensureDefaultDaltonVerifiedMetadata(supabase);
-            if (cancelled) return;
-            const { data: fresh } = await supabase.auth.getSession();
-            if (cancelled || !fresh.session?.user) return;
-            setUser(appUserFromSupabaseUser(fresh.session.user));
           } catch {
             /* metadata refresh is best-effort */
           }
@@ -133,22 +148,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      if (cancelled) return;
-      captureAuthSessionTimeout();
-      /** Unblock cold start; a slow `getSession()` may still resolve afterward and update `user`. */
+    let sessionResolved = false;
+    const unlockId = setTimeout(() => {
+      if (cancelled || sessionResolved) return;
       setReady(true);
+    }, AUTH_BOOT_UNLOCK_MS);
+
+    const slowSessionId = setTimeout(() => {
+      if (cancelled || sessionResolved) return;
+      captureAuthSessionTimeout();
     }, AUTH_GET_SESSION_TIMEOUT_MS);
+
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
         if (cancelled) return;
-        clearTimeout(timeoutId);
+        sessionResolved = true;
+        clearTimeout(unlockId);
+        clearTimeout(slowSessionId);
         await applySessionUser(data.session ?? null);
         setReady(true);
       } catch {
         if (cancelled) return;
-        clearTimeout(timeoutId);
+        sessionResolved = true;
+        clearTimeout(unlockId);
+        clearTimeout(slowSessionId);
         setUser(null);
         setReady(true);
       }
@@ -163,7 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => {
       cancelled = true;
-      clearTimeout(timeoutId);
+      clearTimeout(unlockId);
+      clearTimeout(slowSessionId);
       sub.subscription.unsubscribe();
     };
   }, [supabase]);
@@ -178,6 +203,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (error || !data.session?.user) return false;
         setUser(appUserFromSupabaseUser(data.session.user));
+        void ensureProfileRow(data.session.user.id, data.session.user.email ?? null);
+        void (async () => {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('dalton_verified')
+              .eq('id', data.session!.user.id)
+              .maybeSingle();
+            if (profile?.dalton_verified) {
+              setUser((prev) =>
+                prev?.id === data.session!.user.id ? { ...prev, daltonVerified: true } : prev,
+              );
+            }
+          } catch {
+            /* non-fatal */
+          }
+        })();
         return true;
       }
       const demoLegacy =
@@ -247,6 +289,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       setUser(appUserFromSupabaseUser(data.session.user));
+      void (async () => {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('dalton_verified')
+            .eq('id', data.session!.user.id)
+            .maybeSingle();
+          if (profile?.dalton_verified) {
+            setUser((prev) =>
+              prev?.id === data.session!.user.id ? { ...prev, daltonVerified: true } : prev,
+            );
+          }
+        } catch {
+          /* non-fatal */
+        }
+      })();
     }
     return true;
   }, [supabase]);
@@ -271,6 +329,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       setUser(appUserFromSupabaseUser(data.session.user));
+      void (async () => {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('dalton_verified')
+            .eq('id', data.session!.user.id)
+            .maybeSingle();
+          if (profile?.dalton_verified) {
+            setUser((prev) =>
+              prev?.id === data.session!.user.id ? { ...prev, daltonVerified: true } : prev,
+            );
+          }
+        } catch {
+          /* non-fatal */
+        }
+      })();
     }
     return true;
   }, [supabase]);

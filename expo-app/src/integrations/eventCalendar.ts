@@ -64,3 +64,29 @@ export async function shareEventAsIcs(input: IcsEventInput): Promise<void> {
     dialogTitle: 'Add to calendar',
   });
 }
+
+/** Simple “Add to Google Calendar” link (opens a pre-filled event). */
+export function buildGoogleCalendarLink(input: IcsEventInput): string {
+  const toCompact = (d: Date) => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return (
+      d.getUTCFullYear() +
+      pad(d.getUTCMonth() + 1) +
+      pad(d.getUTCDate()) +
+      'T' +
+      pad(d.getUTCHours()) +
+      pad(d.getUTCMinutes()) +
+      pad(d.getUTCSeconds()) +
+      'Z'
+    );
+  };
+  const dates = `${toCompact(input.start)}/${toCompact(input.end)}`;
+  const q = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: input.title,
+    dates,
+    ...(input.location ? { location: input.location } : {}),
+    ...(input.description ? { details: input.description } : {}),
+  });
+  return `https://calendar.google.com/calendar/render?${q.toString()}`;
+}

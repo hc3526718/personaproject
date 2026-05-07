@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,27 +12,49 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { CommonActions, useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
 import { signTicketPayload } from '../booking/ticketToken';
+import {
+  addRecentEventSearch,
+  addSavedEventKey,
+  getRecentEventSearches,
+  getSavedEventKeys,
+  isEventKeySaved,
+  removeSavedEventKey,
+  unifiedEventSlug,
+} from '../lib/eventsStorage';
+import { isSupabaseConfigured } from '../lib/env';
+import { getSupabase } from '../lib/supabase';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BookingQrCode } from '../components/BookingQrCode';
+import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { IcsEventInput } from '../integrations/eventCalendar';
-import { shareEventAsIcs } from '../integrations/eventCalendar';
-import {
-  MY_BOOKINGS_PAST_FROM_HTML,
-  MY_BOOKINGS_UPCOMING_FROM_HTML,
-} from '../data/myBookingsFromHtml';
-import { SAVED_EVENTS_FROM_HTML } from '../data/savedEventsFromHtml';
+import { buildGoogleCalendarLink, shareEventAsIcs } from '../integrations/eventCalendar';
+import type { HtmlEventCard } from '../data/upcomingEventsFromHtml';
 import { UPCOMING_EVENTS_FROM_HTML } from '../data/upcomingEventsFromHtml';
-import type { EventsStackParamList } from '../navigation/types';
+import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
+import { pullRefreshControl } from '../lib/pullRefreshUi';
+import type { EventsBrowseFilterChip, EventsStackParamList } from '../navigation/types';
+import {
+  createEventAndBooking,
+  getEventById,
+  listAllEvents,
+  listBookingsWithEventsForUser,
+  type BookingWithEvent,
+} from '../roadmap/liveDataService';
+import { useSubscription } from '../subscriptions/SubscriptionContext';
+import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
+import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
+import type { EventRow } from '../roadmap/types';
+import { canCreateVerifiedContent } from '../creator/creatorAccess';
 
 const eventCtaLabelStyle = {
   fontFamily: DS.font.bodyBold,
@@ -43,20 +65,354 @@ const eventCtaLabelStyle = {
 };
 
 type EProps<K extends keyof EventsStackParamList> = NativeStackScreenProps<EventsStackParamList, K>;
+type EventsNavigation = NativeStackNavigationProp<EventsStackParamList>;
 
 const DEFAULT_HERO =
   'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600&auto=format&fit=crop';
 
+type EventBrowseFilter = EventsBrowseFilterChip;
+
+/** Gold label for the active filter chip (ALL EVENTS, BOOKED, …). */
+const FILTER_HEADING_LABEL: Record<EventBrowseFilter, string> = {
+  all: 'ALL EVENTS',
+  booked: 'BOOKINGS',
+  saved: 'SAVED',
+  past: 'PAST',
+  my_events: 'My Events',
+};
+
+type BrowseEventRow = { kind: 'db'; row: EventRow } | { kind: 'html'; card: HtmlEventCard };
+
+const HTML_MONTH: Record<string, number> = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+};
+
+function htmlCardApproxTs(card: HtmlEventCard): number {
+  const head = card.date.split('•')[0]?.trim() ?? '';
+  const [monRaw, dayRaw] = head.split(/\s+/);
+  const mon = HTML_MONTH[monRaw?.slice(0, 3).toLowerCase() ?? ''];
+  const day = Number.parseInt(dayRaw ?? '15', 10) || 15;
+  if (mon === undefined) return Date.now() + 86400000;
+  let y = new Date().getFullYear();
+  let t = new Date(y, mon, day, 12, 0, 0, 0).getTime();
+  while (t < Date.now() - 86400000 * 14) {
+    y += 1;
+    t = new Date(y, mon, day, 12, 0, 0, 0).getTime();
+  }
+  return t;
+}
+
+function formatDbScheduleLine(row: EventRow): string {
+  const start = new Date(row.starts_at);
+  if (Number.isNaN(start.getTime())) return row.title;
+  const datePart = start.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const t0 = start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const end = row.ends_at ? new Date(row.ends_at) : null;
+  const t1 =
+    end && !Number.isNaN(end.getTime())
+      ? end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      : '';
+  return t1 ? `${datePart} • ${t0} - ${t1}` : `${datePart} • ${t0}`;
+}
+
+function browseRowStartsAt(row: BrowseEventRow): number {
+  if (row.kind === 'db') return new Date(row.row.starts_at).getTime();
+  return htmlCardApproxTs(row.card);
+}
+
+function browseRowStorageKey(row: BrowseEventRow): string {
+  if (row.kind === 'db') {
+    return unifiedEventSlug({ source: 'db', id: row.row.id, title: row.row.title });
+  }
+  return unifiedEventSlug({ source: 'html', title: row.card.title, dateHint: row.card.date });
+}
+
+function mergeBrowseRows(db: EventRow[], html: HtmlEventCard[]): BrowseEventRow[] {
+  const out: BrowseEventRow[] = [];
+  const seen = new Set<string>();
+  for (const row of db) {
+    out.push({ kind: 'db', row });
+    seen.add(row.title.trim().toLowerCase());
+  }
+  for (const card of html) {
+    if (seen.has(card.title.trim().toLowerCase())) continue;
+    out.push({ kind: 'html', card });
+  }
+  out.sort((a, b) => browseRowStartsAt(a) - browseRowStartsAt(b));
+  return out;
+}
+
+function rowMatchesBrowseFilter(
+  row: BrowseEventRow,
+  filter: EventBrowseFilter,
+  ctx: {
+    now: number;
+    savedKeys: Set<string>;
+    bookedEventIds: Set<string>;
+    user: { id: string } | null | undefined;
+  },
+): boolean {
+  const startTs = browseRowStartsAt(row);
+  const key = browseRowStorageKey(row);
+  switch (filter) {
+    case 'booked':
+      return row.kind === 'db' && ctx.bookedEventIds.has(row.row.id);
+    case 'saved':
+      return ctx.savedKeys.has(key);
+    case 'past':
+      return startTs < ctx.now;
+    case 'my_events':
+      if (!ctx.user || row.kind !== 'db') return false;
+      return (row.row.created_by ?? '').trim() === ctx.user.id;
+    case 'all':
+    default:
+      return true;
+  }
+}
+
+function splitUpcomingAndPast(
+  rows: BrowseEventRow[],
+  now: number,
+): { upcoming: BrowseEventRow[]; past: BrowseEventRow[] } {
+  const upcoming = rows.filter((r) => browseRowStartsAt(r) >= now);
+  const past = rows.filter((r) => browseRowStartsAt(r) < now);
+  upcoming.sort((a, b) => browseRowStartsAt(a) - browseRowStartsAt(b));
+  past.sort((a, b) => browseRowStartsAt(b) - browseRowStartsAt(a));
+  return { upcoming, past };
+}
+
+function openBrowseRow(navigation: EventsNavigation, row: BrowseEventRow) {
+  if (row.kind === 'db') {
+    const r = row.row;
+    navigation.navigate('EventDetails', {
+      title: r.title,
+      imageUri: r.hero_image_url?.trim() || DEFAULT_HERO,
+      dateShort: formatDbScheduleLine(r),
+      sub: r.venue?.trim() || 'Dalton Sports',
+      eventStorageKey: browseRowStorageKey(row),
+      supabaseEventId: r.id,
+    });
+    return;
+  }
+  const c = row.card;
+  navigation.navigate('EventDetails', {
+    title: c.title,
+    imageUri: c.uri,
+    dateShort: c.date,
+    sub: c.sub,
+    eventStorageKey: browseRowStorageKey(row),
+  });
+}
+
+function bookingToConfirmParams(b: BookingWithEvent) {
+  const ev = b.event;
+  const title = ev?.title ?? 'Your event';
+  const imageUri = ev?.hero_image_url?.trim() || DEFAULT_HERO;
+  const venue = ev?.venue?.trim() || 'Venue TBA';
+  let recapDate = '';
+  let recapTime = '';
+  if (ev?.starts_at) {
+    const start = new Date(ev.starts_at);
+    if (!Number.isNaN(start.getTime())) {
+      recapDate = start.toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      const end = ev.ends_at ? new Date(ev.ends_at) : null;
+      const t0 = start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      const t1 =
+        end && !Number.isNaN(end.getTime())
+          ? end.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+          : '';
+      recapTime = t1 ? `${t0} - ${t1}` : t0;
+    }
+  }
+  return {
+    reference: b.reference,
+    eventId: b.eventId,
+    title,
+    imageUri,
+    recapDate: recapDate || undefined,
+    recapTime: recapTime || undefined,
+    venue,
+  };
+}
+
+function BrowseEventRowCell({
+  row,
+  onPress,
+  ribbon,
+}: {
+  row: BrowseEventRow;
+  onPress: () => void;
+  ribbon?: string;
+}) {
+  const title = row.kind === 'db' ? row.row.title : row.card.title;
+  const img = row.kind === 'db' ? row.row.hero_image_url?.trim() || DEFAULT_HERO : row.card.uri;
+  const meta = row.kind === 'db' ? formatDbScheduleLine(row.row) : row.card.date;
+  const sub = row.kind === 'db' ? row.row.venue?.trim() || '' : row.card.sub;
+  return (
+    <Pressable style={styles.evListCell} onPress={onPress}>
+      <Image source={{ uri: img }} style={styles.evListThumb} />
+      <View style={styles.evListTextCol}>
+        <Text style={styles.evListTitle} numberOfLines={2}>
+          {title.toUpperCase()}
+        </Text>
+        <Text style={styles.evListMeta} numberOfLines={2}>
+          {meta}
+        </Text>
+        <Text style={styles.evListVenue} numberOfLines={2}>
+          {sub.trim() ? sub : ' '}
+        </Text>
+        {ribbon ? <Text style={styles.evListRibbon}>{ribbon}</Text> : null}
+      </View>
+      <View style={styles.evListChevronCol}>
+        <FontAwesome name="chevron-right" size={14} color={DS.color.textMuted} />
+      </View>
+    </Pressable>
+  );
+}
+
+function BrowseEventRowsList({
+  rows,
+  navigation,
+  browseFilter,
+}: {
+  rows: BrowseEventRow[];
+  navigation: EventsNavigation;
+  browseFilter?: EventBrowseFilter;
+}) {
+  const now = Date.now();
+  return (
+    <View style={styles.evListGap}>
+      {rows.map((row) => {
+        const ribbon =
+          browseFilter === 'my_events' && row.kind === 'db'
+            ? browseRowStartsAt(row) < now
+              ? 'Your event · Past'
+              : 'Your event · Current / upcoming'
+            : undefined;
+        return (
+          <BrowseEventRowCell
+            key={browseRowStorageKey(row)}
+            row={row}
+            ribbon={ribbon}
+            onPress={() => openBrowseRow(navigation, row)}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
-  const gridHPad = DS.space.lg;
-  const gridGap = DS.space.base;
-  const gridInner = windowWidth - gridHPad * 2;
-  const cellW = Math.max(0, Math.floor((gridInner - gridGap) / 2));
+  const route = useRoute<RouteProp<EventsStackParamList, 'UpcomingEvents'>>();
+  const { user } = useAuth();
+  const { isPro } = useSubscription();
+  const premiumEventTools = hasPremiumOrAdminTier(isPro, user?.role);
+  const canCreate = canCreateVerifiedContent(isPro, user);
+  const demoSession = !user || user.id.startsWith('demo-');
+
+  const [filter, setFilter] = useState<EventBrowseFilter>('all');
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [dbEvents, setDbEvents] = useState<EventRow[]>([]);
+  const [bookings, setBookings] = useState<BookingWithEvent[]>([]);
+
+  const refreshSavedKeys = useCallback(async () => {
+    setSavedKeys(await getSavedEventKeys());
+  }, []);
+
+  const reloadData = useCallback(async () => {
+    await refreshSavedKeys();
+    if (demoSession || !isSupabaseConfigured() || !user) {
+      setDbEvents([]);
+      setBookings([]);
+      return;
+    }
+    const [evs, bks] = await Promise.all([
+      listAllEvents(100),
+      listBookingsWithEventsForUser(user.id),
+    ]);
+    setDbEvents(evs);
+    setBookings(bks);
+  }, [demoSession, user, refreshSavedKeys]);
+
+  const { refreshing, onRefresh } = useRefreshWithMinimum(reloadData, 4000);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reloadData();
+    }, [reloadData]),
+  );
+
+  useEffect(() => {
+    const f = route.params?.initialFilter;
+    if (f) setFilter(f);
+  }, [route.params?.initialFilter]);
+
+  const mergedRows = useMemo(
+    () => mergeBrowseRows(dbEvents, UPCOMING_EVENTS_FROM_HTML),
+    [dbEvents],
+  );
+
+  const bookedEventIds = useMemo(() => new Set(bookings.map((b) => b.eventId)), [bookings]);
+
+  const upcomingBookingsAnchored = useMemo(() => {
+    const now = Date.now();
+    return bookings
+      .filter((b) => b.event && new Date(b.event.starts_at).getTime() >= now - 60000)
+      .sort((a, b) => new Date(a.event!.starts_at).getTime() - new Date(b.event!.starts_at).getTime());
+  }, [bookings]);
+
+  const filterChips: { key: EventBrowseFilter }[] = useMemo(() => {
+    const base: { key: EventBrowseFilter }[] = [
+      { key: 'all' },
+      { key: 'booked' },
+      { key: 'saved' },
+      { key: 'past' },
+    ];
+    if (isPro) base.push({ key: 'my_events' });
+    return base;
+  }, [isPro]);
+
+  const { upcoming: upcomingRows, past: pastRows } = useMemo(() => {
+    const now = Date.now();
+    const ctx = {
+      now,
+      savedKeys,
+      bookedEventIds,
+      user,
+    };
+    const qualified = mergedRows.filter((row) => rowMatchesBrowseFilter(row, filter, ctx));
+    return splitUpcomingAndPast(qualified, now);
+  }, [mergedRows, filter, savedKeys, bookedEventIds, user]);
+
+  const listsEmpty = upcomingRows.length === 0 && pastRows.length === 0;
+  const showUpcomingHeading = upcomingRows.length > 0 && filter !== 'past';
+  const showPastHeading = pastRows.length > 0 && filter !== 'past';
+
+  const firstAnchor = upcomingBookingsAnchored[0];
 
   return (
     <View style={styles.root}>
+      <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
       <View
         style={[
           styles.eventsHeader,
@@ -69,17 +425,38 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
           <Pressable
             style={styles.eventsIconBtnSm}
             hitSlop={8}
-            onPress={() => navigation.navigate('CreateEvent')}
+            onPress={() => {
+              if (!canCreate) {
+                navigateToPremiumPaywall(navigation);
+                return;
+              }
+              navigation.navigate('CreateEvent');
+            }}
           >
             <FontAwesome name="plus" size={15} color={DS.color.text} />
           </Pressable>
+          {premiumEventTools ? (
+            <Pressable
+              style={styles.eventsIconBtnSm}
+              hitSlop={8}
+              onPress={() => navigation.navigate('HostScanPickEvent')}
+            >
+              <Image
+                source={QR_SCAN_ICON}
+                style={{ width: 22, height: 22 }}
+                resizeMode="contain"
+                tintColor={DS.color.text}
+              />
+            </Pressable>
+          ) : null}
           <Pressable
-            style={styles.bellCircle}
-            onPress={() =>
-              navigation.getParent()?.navigate('Community', { screen: 'Notifications' })
-            }
+            style={styles.eventsIconBtnSm}
+            hitSlop={8}
+            onPress={() => navigation.navigate('EventsSearch')}
+            accessibilityRole="button"
+            accessibilityLabel="Search events"
           >
-            <FontAwesome name="bell" size={18} color={DS.color.text} />
+            <FontAwesome name="search" size={17} color={DS.color.text} />
           </Pressable>
         </View>
       </View>
@@ -87,45 +464,257 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
         style={styles.eventsScroll}
         contentContainerStyle={[styles.eventsBody, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={pullRefreshControl(refreshing, onRefresh)}
       >
-        <Text style={styles.sectionKicker}>UPCOMING</Text>
-        <View style={styles.eventGrid}>
-          {UPCOMING_EVENTS_FROM_HTML.map((c) => (
+        {firstAnchor ? (
+          <View style={styles.evAnchorBlock}>
+            <View style={styles.evAnchorHeadRow}>
+              <Text style={styles.evAnchorKicker}>UPCOMING</Text>
+              {upcomingBookingsAnchored.length > 1 ? (
+                <Pressable
+                  onPress={() => navigation.navigate('UpcomingEvents', { initialFilter: 'booked' })}
+                  hitSlop={8}
+                >
+                  <Text style={styles.evSeeAll}>See all</Text>
+                </Pressable>
+              ) : (
+                <View style={{ width: 8 }} />
+              )}
+            </View>
             <Pressable
-              key={`${c.title}-${c.date}`}
-              style={[
-                styles.eventCell,
-                cellW > 0 && { width: cellW, height: cellW },
-              ]}
+              style={styles.evListCell}
               onPress={() =>
-                navigation.navigate('EventDetails', {
-                  title: c.title,
-                  imageUri: c.uri,
-                  dateShort: c.date,
-                  sub: c.sub,
-                })
+                navigation.navigate('BookingConfirm', bookingToConfirmParams(firstAnchor))
               }
             >
-              <Image source={{ uri: c.uri }} style={styles.eventImg} resizeMode="cover" />
-              <View style={styles.eventGrad} />
-              <View style={styles.eventCopy}>
-                <Text style={styles.eventDate}>{c.date}</Text>
-                <Text style={styles.eventName}>{c.title}</Text>
-                <Text style={styles.eventSub} numberOfLines={1}>
-                  {c.sub}
+              <Image
+                source={{ uri: firstAnchor.event?.hero_image_url?.trim() || DEFAULT_HERO }}
+                style={styles.evListThumb}
+              />
+              <View style={styles.evListTextCol}>
+                <Text style={styles.evListTitle} numberOfLines={2}>
+                  {(firstAnchor.event?.title ?? 'Booking').toUpperCase()}
+                </Text>
+                <Text style={styles.evListMeta} numberOfLines={2}>
+                  {firstAnchor.event ? formatDbScheduleLine(firstAnchor.event) : 'Tap for ticket & QR'}
+                </Text>
+                <Text style={styles.evListVenue} numberOfLines={2}>
+                  Ref {firstAnchor.reference}
+                  {firstAnchor.checkedInAt ? ' · Checked in' : ''}
                 </Text>
               </View>
+              <View style={styles.evListChevronCol}>
+                <FontAwesome name="chevron-right" size={14} color={DS.color.textMuted} />
+              </View>
             </Pressable>
-          ))}
+          </View>
+        ) : null}
+
+        <Text style={styles.evDiscoverKicker}>DISCOVER</Text>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.evFilterRow}
+        >
+          {filterChips.map((c) => {
+            const on = filter === c.key;
+            return (
+              <Pressable
+                key={c.key}
+                style={[styles.evFilterChip, on && styles.evFilterChipOn]}
+                onPress={() => setFilter(c.key)}
+              >
+                <Text style={[styles.evFilterChipTxt, on && styles.evFilterChipTxtOn]}>
+                  {FILTER_HEADING_LABEL[c.key]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        {listsEmpty ? (
+          <Text style={styles.evEmpty}>No events match this filter.</Text>
+        ) : filter === 'past' ? (
+          <>
+            <Text style={styles.evSectionGold}>PAST</Text>
+            <BrowseEventRowsList rows={pastRows} navigation={navigation} browseFilter={filter} />
+          </>
+        ) : (
+          <>
+            {showUpcomingHeading ? (
+              <View style={styles.evSectionBlock}>
+                <Text style={styles.evSectionGold}>UPCOMING</Text>
+                <BrowseEventRowsList rows={upcomingRows} navigation={navigation} browseFilter={filter} />
+              </View>
+            ) : null}
+            {showPastHeading ? (
+              <View style={[styles.evSectionBlock, showUpcomingHeading && styles.evSectionBlockSpaced]}>
+                <Text style={styles.evSectionGold}>PAST</Text>
+                <BrowseEventRowsList rows={pastRows} navigation={navigation} browseFilter={filter} />
+              </View>
+            ) : null}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+export function EventsSearchScreen({ navigation }: EProps<'EventsSearch'>) {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const demoSession = !user || user.id.startsWith('demo-');
+
+  const [draft, setDraft] = useState('');
+  const [applied, setApplied] = useState('');
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [dbEvents, setDbEvents] = useState<EventRow[]>([]);
+
+  const reloadRecent = useCallback(async () => {
+    setRecentSearches(await getRecentEventSearches());
+  }, []);
+
+  const reloadSearchData = useCallback(async () => {
+    await reloadRecent();
+    if (demoSession || !isSupabaseConfigured() || !user) {
+      setDbEvents([]);
+      return;
+    }
+    const evs = await listAllEvents(120);
+    setDbEvents(evs);
+  }, [demoSession, user, reloadRecent]);
+
+  const { refreshing, onRefresh } = useRefreshWithMinimum(reloadSearchData, 4000);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reloadSearchData();
+    }, [reloadSearchData]),
+  );
+
+  const mergedRows = useMemo(
+    () => mergeBrowseRows(dbEvents, UPCOMING_EVENTS_FROM_HTML),
+    [dbEvents],
+  );
+
+  const searchResults = useMemo(() => {
+    const q = applied.trim().toLowerCase();
+    if (q.length < 2) return [];
+    return mergedRows.filter((row) => {
+      if (row.kind === 'db') {
+        const r = row.row;
+        return `${r.title} ${r.venue ?? ''}`.toLowerCase().includes(q);
+      }
+      const c = row.card;
+      return `${c.title} ${c.sub}`.toLowerCase().includes(q);
+    });
+  }, [mergedRows, applied]);
+
+  const { upcoming: searchUpcoming, past: searchPast } = useMemo(() => {
+    const now = Date.now();
+    return splitUpcomingAndPast(searchResults, now);
+  }, [searchResults]);
+
+  const commitSearch = useCallback(() => {
+    const t = draft.trim();
+    setApplied(t);
+    if (t.length >= 2) void addRecentEventSearch(t).then(() => reloadRecent());
+    else void reloadRecent();
+  }, [draft, reloadRecent]);
+
+  return (
+    <View style={styles.root}>
+      <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
+      <View style={[styles.rowHeader, { paddingTop: insets.top + DS.space.md }]}>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
+          <FontAwesome name="arrow-left" size={22} color={DS.color.text} />
+        </Pressable>
+        <Text style={styles.rowTitle}>SEARCH EVENTS</Text>
+        <View style={{ width: 22 }} />
+      </View>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.eventsBody, { paddingBottom: 100 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={pullRefreshControl(refreshing, onRefresh)}
+      >
+        <View style={styles.evSearchWrap}>
+          <FontAwesome name="search" size={14} color={DS.color.textMuted} style={styles.evSearchIcon} />
+          <TextInput
+            style={styles.evSearchInput}
+            placeholder="Search events…"
+            placeholderTextColor={DS.color.textMuted}
+            value={draft}
+            onChangeText={setDraft}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            onSubmitEditing={() => commitSearch()}
+          />
+          {draft.length > 0 ? (
+            <Pressable
+              onPress={() => {
+                setDraft('');
+                setApplied('');
+              }}
+              hitSlop={8}
+            >
+              <FontAwesome name="times-circle" size={16} color={DS.color.textMuted} />
+            </Pressable>
+          ) : null}
         </View>
-        <View style={styles.eventsFlowLinks}>
-          <Pressable onPress={() => navigation.navigate('SavedEvents')}>
-            <Text style={styles.eventsFlowLink}>Saved events →</Text>
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate('MyBookings')}>
-            <Text style={styles.eventsFlowLink}>My bookings →</Text>
-          </Pressable>
-        </View>
+
+        <Text style={styles.evRecentHeadingGold}>RECENT SEARCHES</Text>
+        {recentSearches.length === 0 ? (
+          <Text style={styles.evMutedHint}>Your recent event searches appear here.</Text>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.evRecentRow}
+          >
+            {recentSearches.map((r) => (
+              <Pressable
+                key={r}
+                style={styles.evRecentChip}
+                onPress={() => {
+                  setDraft(r);
+                  setApplied(r);
+                  void addRecentEventSearch(r).then(() => reloadRecent());
+                }}
+              >
+                <Text style={styles.evRecentChipTxt}>{r}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+
+        {applied.trim().length >= 2 ? (
+          searchResults.length === 0 ? (
+            <Text style={styles.evEmpty}>{`No matches for "${applied.trim()}".`}</Text>
+          ) : (
+            <>
+              {searchUpcoming.length > 0 ? (
+                <View style={styles.evSectionBlock}>
+                  <Text style={styles.evSectionGold}>UPCOMING</Text>
+                  <BrowseEventRowsList rows={searchUpcoming} navigation={navigation} />
+                </View>
+              ) : null}
+              {searchPast.length > 0 ? (
+                <View
+                  style={[styles.evSectionBlock, searchUpcoming.length > 0 && styles.evSectionBlockSpaced]}
+                >
+                  <Text style={styles.evSectionGold}>PAST</Text>
+                  <BrowseEventRowsList rows={searchPast} navigation={navigation} />
+                </View>
+              ) : null}
+            </>
+          )
+        ) : (
+          <Text style={styles.evMutedHint}>Enter at least 2 characters to search the event catalog.</Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -208,14 +797,68 @@ async function shareEventCalendar(
   }
 }
 
+function openGoogleCalendarLink(
+  title: string,
+  venue: string,
+  scheduleLine: string,
+  refHint: string,
+) {
+  try {
+    const input = icsInputFromSchedule(title, venue, scheduleLine, refHint);
+    const url = buildGoogleCalendarLink(input);
+    void Linking.openURL(url);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>) {
   const insets = useSafeAreaInsets();
+  const showBanner = useActionBanner();
   const [saved, setSaved] = useState(false);
   const title = route.params?.title ?? 'STRENGTH CAMP';
   const heroUri = route.params?.imageUri ?? DEFAULT_HERO;
   const dateShort = route.params?.dateShort;
   const heroScheduleLine =
     dateShort ?? 'October 15, 2024 • 10:00 AM - 12:00 PM';
+  const sub = route.params?.sub;
+
+  const storageKey = useMemo(
+    () =>
+      route.params?.eventStorageKey ??
+      unifiedEventSlug({
+        source: route.params?.supabaseEventId ? 'db' : 'html',
+        id: route.params?.supabaseEventId,
+        title,
+        dateHint: dateShort ?? '',
+      }),
+    [route.params?.eventStorageKey, route.params?.supabaseEventId, title, dateShort],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        const on = await isEventKeySaved(storageKey);
+        if (alive) setSaved(on);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [storageKey]),
+  );
+
+  const toggleSaved = useCallback(async () => {
+    const next = !saved;
+    setSaved(next);
+    try {
+      if (next) await addSavedEventKey(storageKey);
+      else await removeSavedEventKey(storageKey);
+      showBanner(next ? 'Event saved' : 'Removed from saved');
+    } catch {
+      setSaved(!next);
+    }
+  }, [saved, storageKey, showBanner]);
 
   const goConfirm = () =>
     navigation.navigate('ConfirmAttend', {
@@ -224,7 +867,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
       scheduleLine: heroScheduleLine,
     });
 
-  const venueName = 'Elite Fitness Center';
+  const venueName = sub?.trim() || 'Elite Fitness Center';
   const addCal = () => void shareEventCalendar(title, venueName, heroScheduleLine, title);
 
   return (
@@ -233,25 +876,16 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         <Pressable style={styles.headerRoundBtn} onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <Pressable
-            style={styles.headerRoundBtn}
-            onPress={() =>
-              Share.share({
-                message: `${title} — Dalton Grant Sports`,
-              }).catch(() => undefined)
-            }
-          >
-            <FontAwesome name="share-alt" size={16} color={DS.color.text} />
-          </Pressable>
-          <Pressable style={styles.headerRoundBtn} onPress={() => setSaved((s) => !s)}>
-            <FontAwesome
-              name={saved ? 'bookmark' : 'bookmark-o'}
-              size={16}
-              color={saved ? DS.color.gold : DS.color.text}
-            />
-          </Pressable>
-        </View>
+        <Pressable
+          style={styles.headerRoundBtn}
+          onPress={() =>
+            Share.share({
+              message: `${title} — Dalton Grant Sports`,
+            }).catch(() => undefined)
+          }
+        >
+          <FontAwesome name="share-alt" size={16} color={DS.color.text} />
+        </Pressable>
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -269,7 +903,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
             <View style={styles.detailHeroMetaRowSpread}>
               <View style={styles.detailHeroMetaGroup}>
                 <FontAwesome name="map-marker" size={12} color={DS.color.gold} />
-                <Text style={styles.detailHeroMeta}>Elite Fitness Center</Text>
+                <Text style={styles.detailHeroMeta}>{venueName}</Text>
               </View>
               <View style={styles.detailHeroMetaGroup}>
                 <FontAwesome name="users" size={12} color={DS.color.gold} />
@@ -350,22 +984,17 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
               <Text style={styles.faqA}>{f.a}</Text>
             </View>
           ))}
-          <Pressable style={styles.calInlineBtn} onPress={addCal}>
-            <FontAwesome name="calendar-plus-o" size={18} color={DS.color.gold} />
-            <Text style={styles.calInlineBtnText}>Add to Calendar</Text>
-          </Pressable>
         </View>
       </ScrollView>
       <View style={[styles.eventStickyFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Pressable style={styles.calOutlineBtn} onPress={addCal}>
-          <FontAwesome name="calendar-plus-o" size={16} color={DS.color.gold} />
-          <Text style={styles.calOutlineText}> Add to Calendar</Text>
-        </Pressable>
         <AppleHeroButton onPress={goConfirm} style={{ marginBottom: DS.space.sm }}>
           <Text style={eventCtaLabelStyle}>Attend now</Text>
         </AppleHeroButton>
-        <Pressable style={styles.saveLaterOutlineBtn} onPress={() => navigation.navigate('SavedEvents')}>
-          <Text style={styles.saveLaterOutlineText}>SAVE FOR LATER</Text>
+        <Pressable
+          style={[styles.saveLaterOutlineBtn, saved && styles.saveLaterOutlineBtnSaved]}
+          onPress={() => void toggleSaved()}
+        >
+          <Text style={[styles.saveLaterOutlineText, saved && styles.saveLaterOutlineTextSaved]}>{saved ? 'SAVED' : 'SAVE FOR LATER'}</Text>
         </Pressable>
       </View>
     </View>
@@ -376,7 +1005,8 @@ const FITNESS_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Expert/Athlete'
 
 export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend'>) {
   const insets = useSafeAreaInsets();
-  const { sessionEmail } = useAuth();
+  const showBanner = useActionBanner();
+  const { sessionEmail, user } = useAuth();
   const title = route.params?.title ?? 'STRENGTH CAMP';
   const heroUri = route.params?.imageUri ?? DEFAULT_HERO;
   const scheduleLine = route.params?.scheduleLine ?? 'October 15, 2024 • 10:00 AM - 12:00 PM';
@@ -388,6 +1018,60 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
   const [level, setLevel] = useState<(typeof FITNESS_LEVELS)[number]>('Intermediate');
   const [notes, setNotes] = useState('');
   const [consent, setConsent] = useState(false);
+  const [bookingBusy, setBookingBusy] = useState(false);
+
+  const goBookingConfirm = useCallback(async () => {
+    const demoSession = !user || user.id.startsWith('demo-');
+    let reference = `SC-${Date.now().toString(36).toUpperCase().slice(-10)}`;
+    let eventId: string | undefined;
+    if (!demoSession && isSupabaseConfigured()) {
+      setBookingBusy(true);
+      try {
+        const created = await createEventAndBooking(user.id, {
+          title,
+          scheduleLine,
+          heroImageUrl: heroUri,
+          venue: 'Elite Fitness Center',
+        });
+        if (!created) {
+          Alert.alert(
+            'Booking failed',
+            'Could not save your booking. Check Supabase (events RLS + profile row) and try again.',
+          );
+          return;
+        }
+        reference = created.reference;
+        eventId = created.eventId;
+      } finally {
+        setBookingBusy(false);
+      }
+    }
+    showBanner(`Signed up · ${title}`, `Reference ${reference}`);
+    navigation.navigate('BookingConfirm', {
+      reference,
+      eventId,
+      title,
+      imageUri: heroUri,
+      recapDate: datePart,
+      recapTime: timePart || '10:00 AM - 12:00 PM',
+      venue: 'Elite Fitness Center',
+      attendeeName: fullName,
+      attendeeEmail: email,
+      fitnessLevel: level,
+    });
+  }, [
+    user,
+    title,
+    scheduleLine,
+    heroUri,
+    navigation,
+    datePart,
+    timePart,
+    fullName,
+    email,
+    level,
+    showBanner,
+  ]);
 
   return (
     <KeyboardAvoidingView
@@ -506,23 +1190,8 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           </View>
         </View>
 
-        <AppleHeroButton
-          disabled={!consent}
-          onPress={() =>
-            navigation.navigate('BookingConfirm', {
-              reference: 'SC-2024-1015',
-              title,
-              imageUri: heroUri,
-              recapDate: datePart,
-              recapTime: timePart || '10:00 AM - 12:00 PM',
-              venue: 'Elite Fitness Center',
-              attendeeName: fullName,
-              attendeeEmail: email,
-              fitnessLevel: level,
-            })
-          }
-        >
-          <Text style={eventCtaLabelStyle}>Confirm booking</Text>
+        <AppleHeroButton disabled={!consent || bookingBusy} onPress={() => void goBookingConfirm()}>
+          <Text style={eventCtaLabelStyle}>{bookingBusy ? 'Saving…' : 'Confirm booking'}</Text>
         </AppleHeroButton>
         <Pressable style={styles.cancelOutlineBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelOutlineBtnText}>CANCEL</Text>
@@ -546,6 +1215,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const { user } = useAuth();
   const p = route.params;
   const refCode = p?.reference ?? 'SC-2024-1015';
+  const eventId = p?.eventId;
   const evTitle = p?.title ?? 'STRENGTH CAMP';
   const evImg = p?.imageUri ?? DEFAULT_HERO;
   const recapDate = p?.recapDate ?? 'October 15, 2024';
@@ -557,6 +1227,64 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const scheduleForIcs = `${recapDate} • ${recapTime}`;
 
   const [qrToken, setQrToken] = useState<string | null>(null);
+  const [checkedInAt, setCheckedInAt] = useState<string | null>(null);
+  const [eventEndTs, setEventEndTs] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const [reviewStars, setReviewStars] = useState(0);
+  const [reviewNote, setReviewNote] = useState('');
+  /** Stable pick so copy does not flicker each render */
+  const [motivateIx] = useState(() => (refCode.charCodeAt(0) ?? 0) % 2);
+  const motivateLine =
+    motivateIx === 0 ? 'Enjoy the event.' : 'Work hard and win — make every rep count.';
+
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!eventId || !isSupabaseConfigured()) return;
+    void getEventById(eventId).then((ev) => {
+      if (!ev) return;
+      const startMs = new Date(ev.starts_at).getTime();
+      const endParsed = ev.ends_at ? new Date(ev.ends_at).getTime() : NaN;
+      const endMs = Number.isFinite(endParsed)
+        ? endParsed
+        : Number.isFinite(startMs)
+          ? startMs + 3 * 60 * 60 * 1000
+          : null;
+      if (endMs !== null && Number.isFinite(endMs)) setEventEndTs(endMs);
+    });
+  }, [eventId]);
+
+  const eventHasEnded =
+    eventEndTs !== null && Number.isFinite(eventEndTs) && nowTick >= eventEndTs;
+  const hideInteractionRail = Boolean(checkedInAt) || eventHasEnded;
+  const hideQr = Boolean(checkedInAt);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isSupabaseConfigured() || !user || user.id.startsWith('demo-')) {
+        setCheckedInAt(null);
+        return undefined;
+      }
+      let alive = true;
+      void (async () => {
+        const s = getSupabase();
+        if (!s) return;
+        const { data } = await s
+          .from('bookings')
+          .select('checked_in_at')
+          .eq('reference', refCode)
+          .maybeSingle();
+        const v = (data as { checked_in_at?: string | null } | null)?.checked_in_at ?? null;
+        if (alive) setCheckedInAt(v);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [refCode, user]),
+  );
 
   useEffect(() => {
     let alive = true;
@@ -565,6 +1293,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         v: 1 as const,
         ref: refCode,
         uid: user?.id ?? attendeeEmail,
+        ...(eventId ? { eventId } : {}),
         exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
       };
       const t = await signTicketPayload(payload);
@@ -573,7 +1302,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
     return () => {
       alive = false;
     };
-  }, [refCode, user?.id, attendeeEmail]);
+  }, [refCode, user?.id, attendeeEmail, eventId]);
 
   const addCal = () => void shareEventCalendar(evTitle, venue, scheduleForIcs, refCode);
 
@@ -599,10 +1328,17 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
     ...walletStep,
     {
       key: 'cal',
-      title: 'Add to Calendar',
-      subtitle: 'Never miss this event',
+      title: 'Add to Calendar (ICS)',
+      subtitle: 'Works on Apple Calendar + others',
       icon: <FontAwesome name="calendar-plus-o" size={14} color={DS.color.gold} />,
       onPress: addCal,
+    },
+    {
+      key: 'gcal',
+      title: 'Add to Google Calendar',
+      subtitle: 'One-click calendar link',
+      icon: <FontAwesome name="google" size={14} color={DS.color.gold} />,
+      onPress: () => openGoogleCalendarLink(evTitle, venue, scheduleForIcs, refCode),
     },
     {
       key: 'dir',
@@ -619,7 +1355,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
       title: 'View My Bookings',
       subtitle: 'See all your events',
       icon: <FontAwesome name="ticket" size={14} color={DS.color.gold} />,
-      onPress: () => navigation.navigate('MyBookings'),
+      onPress: () => navigation.navigate('UpcomingEvents', { initialFilter: 'booked' }),
     },
     {
       key: 'inv',
@@ -639,7 +1375,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         <Pressable style={styles.headerRoundBtn} onPress={() => resetEventsToUpcoming(navigation)}>
           <FontAwesome name="times" size={22} color={DS.color.textMuted} />
         </Pressable>
-        <Text style={styles.rowTitle}>BOOKING CONFIRMED</Text>
+        <Text style={styles.rowTitle}>{checkedInAt ? 'ATTENDANCE CONFIRMED' : 'BOOKING CONFIRMED'}</Text>
         <View style={{ width: 40 }} />
       </View>
       <ScrollView
@@ -647,26 +1383,42 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         contentContainerStyle={[styles.bookingConfirmBody, { paddingBottom: insets.bottom + 32 }]}
       >
         <View style={styles.successHero}>
-          <View style={styles.successCircleLg}>
+          <View
+            style={[
+              styles.successCircleLg,
+              checkedInAt ? { backgroundColor: DS.color.onlineGreen } : null,
+            ]}
+          >
             <FontAwesome name="check" size={32} color={DS.color.background} />
           </View>
-          <Text style={styles.successHeadLg}>YOU&apos;RE ALL SET!</Text>
-          <Text style={styles.bodyCenterTight}>Your spot has been reserved</Text>
+          <Text style={styles.successHeadLg}>{checkedInAt ? 'YOU’RE CHECKED IN!' : "YOU'RE ALL SET!"}</Text>
+          <Text style={styles.bodyCenterTight}>
+            {checkedInAt ? 'Your attendance has been confirmed' : 'Your spot has been reserved'}
+          </Text>
         </View>
 
         <View style={styles.refGradientCard}>
           <Text style={styles.refLabel}>BOOKING REFERENCE</Text>
           <Text style={styles.refCodeLg}>{refCode}</Text>
-          <View style={styles.qrWhiteWrap}>
-            {qrToken ? (
-              <BookingQrCode value={qrToken} />
-            ) : (
-              <View style={styles.qrInner}>
-                <ActivityIndicator color={DS.color.gold} size="large" />
+          {hideQr ? (
+            <>
+              <Text style={styles.checkedInQrBlurb}>{motivateLine}</Text>
+              <Text style={styles.qrHintDim}>Reservation code stays on file for organisers.</Text>
+            </>
+          ) : (
+            <>
+              <View style={styles.qrWhiteWrap}>
+                {qrToken ? (
+                  <BookingQrCode value={qrToken} />
+                ) : (
+                  <View style={styles.qrInner}>
+                    <ActivityIndicator color={DS.color.gold} size="large" />
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-          <Text style={styles.qrHint}>Show this QR code at check-in</Text>
+              <Text style={styles.qrHint}>Show this QR code at check-in</Text>
+            </>
+          )}
         </View>
 
         <Text style={styles.detailSectionKicker}>EVENT DETAILS</Text>
@@ -717,332 +1469,66 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
           </View>
         </View>
 
-        <Text style={styles.detailSectionKicker}>NEXT STEPS</Text>
-        {steps.map((s) => (
-          <Pressable key={s.key} style={styles.nextStepRich} onPress={s.onPress}>
-            <View style={styles.nextStepIconCircle}>{s.icon}</View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.nextStepTitle}>{s.title}</Text>
-              <Text style={styles.nextStepSub}>{s.subtitle}</Text>
+        {hideInteractionRail ? null : (
+          <>
+            <Text style={styles.detailSectionKicker}>NEXT STEPS</Text>
+            {steps.map((s) => (
+              <Pressable key={s.key} style={styles.nextStepRich} onPress={s.onPress}>
+                <View style={styles.nextStepIconCircle}>{s.icon}</View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.nextStepTitle}>{s.title}</Text>
+                  <Text style={styles.nextStepSub}>{s.subtitle}</Text>
+                </View>
+                <FontAwesome name="chevron-right" size={12} color="rgba(212,208,200,0.35)" />
+              </Pressable>
+            ))}
+          </>
+        )}
+
+        {eventHasEnded ? (
+          <View style={styles.eventReviewCard}>
+            <Text style={styles.detailSectionKicker}>HOW WAS IT?</Text>
+            <Text style={styles.reviewHint}>
+              This event window has ended. Share a quick rating — it helps organisers and athletes.
+            </Text>
+            <View style={styles.starRow}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Pressable key={s} onPress={() => setReviewStars(s)} hitSlop={6}>
+                  <FontAwesome
+                    name={s <= reviewStars ? 'star' : 'star-o'}
+                    size={26}
+                    color={s <= reviewStars ? DS.color.gold : DS.color.textMuted}
+                  />
+                </Pressable>
+              ))}
             </View>
-            <FontAwesome name="chevron-right" size={12} color="rgba(212,208,200,0.35)" />
-          </Pressable>
-        ))}
+            <TextInput
+              value={reviewNote}
+              onChangeText={setReviewNote}
+              placeholder="Optional notes (privacy-respecting summaries may be shown to hosts)"
+              placeholderTextColor={DS.color.textMuted}
+              multiline
+              style={styles.reviewNotes}
+            />
+            <AppleHeroButton
+              style={{ marginTop: DS.space.md }}
+              onPress={() =>
+                Alert.alert(
+                  reviewStars > 0 ? 'Thanks' : 'Rating',
+                  reviewStars > 0
+                    ? 'Feedback recorded locally for this prototype build.'
+                    : 'Tap a star rating above if you would like to share feedback.',
+                )
+              }
+            >
+              <Text style={eventCtaLabelStyle}>Submit review</Text>
+            </AppleHeroButton>
+          </View>
+        ) : null}
 
         <AppleHeroButton style={{ marginTop: DS.space.lg }} onPress={() => resetEventsToUpcoming(navigation)}>
           <Text style={eventCtaLabelStyle}>Done</Text>
         </AppleHeroButton>
-      </ScrollView>
-    </View>
-  );
-}
-
-export function SavedEventsScreen({ navigation }: EProps<'SavedEvents'>) {
-  const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [saved, setSaved] = useState(SAVED_EVENTS_FROM_HTML);
-  const [savedSearch, setSavedSearch] = useState('');
-  const filteredSaved = useMemo(() => {
-    const q = savedSearch.trim().toLowerCase();
-    if (!q) return saved;
-    return saved.filter(
-      (row) =>
-        row.title.toLowerCase().includes(q) ||
-        row.place.toLowerCase().includes(q) ||
-        row.dateLine.toLowerCase().includes(q),
-    );
-  }, [saved, savedSearch]);
-
-  return (
-    <View style={styles.root}>
-      <View style={[styles.rowHeader, { paddingTop: insets.top + DS.space.md }]}>
-        <Pressable style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
-          <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
-        </Pressable>
-        <Text style={styles.rowTitle}>SAVED EVENTS</Text>
-        <View style={styles.headerIconBtn} />
-      </View>
-      <ScrollView
-        contentContainerStyle={[styles.savedScrollPad, { paddingBottom: 100 + insets.bottom }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.segmentWrap}>
-          <Pressable
-            style={[styles.segmentBtn, tab === 'upcoming' && styles.segmentBtnOn]}
-            onPress={() => setTab('upcoming')}
-          >
-            <Text style={[styles.segmentTxt, tab === 'upcoming' && styles.segmentTxtOn]}>Upcoming</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segmentBtn, tab === 'past' && styles.segmentBtnOn]}
-            onPress={() => setTab('past')}
-          >
-            <Text style={[styles.segmentTxt, tab === 'past' && styles.segmentTxtOn]}>Past</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.savedSearchField}>
-          <FontAwesome name="search" size={14} color="rgba(212,208,200,0.4)" style={styles.savedSearchIcon} />
-          <TextInput
-            style={styles.savedSearchInput}
-            placeholder="Search saved events..."
-            placeholderTextColor="rgba(212,208,200,0.4)"
-            value={savedSearch}
-            onChangeText={setSavedSearch}
-          />
-        </View>
-
-        {tab === 'upcoming' ? (
-          <View style={styles.savedListGap}>
-            {filteredSaved.map((row) => (
-              <View key={row.id} style={styles.savedListCard}>
-                <View style={styles.savedListRow}>
-                  <Image source={{ uri: row.uri }} style={styles.savedListThumb} />
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.savedListTop}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.savedListDateGold}>{row.dateLine}</Text>
-                        <Text style={styles.savedListTitle}>{row.title}</Text>
-                      </View>
-                      <Pressable style={styles.savedBookmarkMini}>
-                        <FontAwesome name="bookmark" size={14} color={DS.color.gold} />
-                      </Pressable>
-                    </View>
-                    <View style={styles.savedListMeta}>
-                      <View style={styles.savedMetaItem}>
-                        <FontAwesome name="clock-o" size={9} color={DS.color.textMuted} />
-                        <Text style={styles.savedMetaTxt}>{row.time}</Text>
-                      </View>
-                      <View style={styles.savedMetaItem}>
-                        <FontAwesome name="map-marker" size={9} color={DS.color.textMuted} />
-                        <Text style={styles.savedMetaTxt}>{row.place}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.savedListActions}>
-                      <Pressable
-                        style={styles.savedAttendSm}
-                        onPress={() =>
-                          navigation.navigate('ConfirmAttend', {
-                            title: row.title,
-                            imageUri: row.uri,
-                            scheduleLine: row.scheduleLine,
-                          })
-                        }
-                      >
-                        <Text style={styles.savedAttendSmTxt}>Attend</Text>
-                      </Pressable>
-                      <Pressable
-                        style={styles.savedUnsaveBtn}
-                        onPress={() => setSaved((prev) => prev.filter((x) => x.id !== row.id))}
-                      >
-                        <Text style={styles.savedUnsaveTxt}>Unsave</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyStateWrap}>
-            <View style={styles.emptyStateCircle}>
-              <FontAwesome name="bookmark" size={28} color="rgba(212,208,200,0.25)" />
-            </View>
-            <Text style={styles.emptyStateTitle}>NO SAVED EVENTS</Text>
-            <Text style={styles.emptyStateBody}>
-              Start exploring events and save the ones you&apos;re interested in attending later.
-            </Text>
-            <Pressable style={styles.emptyStateCta} onPress={() => navigation.navigate('UpcomingEvents')}>
-              <Text style={styles.emptyStateCtaTxt}>Explore Events</Text>
-            </Pressable>
-          </View>
-        )}
-      </ScrollView>
-    </View>
-  );
-}
-
-export function MyBookingsScreen({ navigation }: EProps<'MyBookings'>) {
-  const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [upcoming, setUpcoming] = useState(MY_BOOKINGS_UPCOMING_FROM_HTML);
-  const [bookingSearch, setBookingSearch] = useState('');
-  const filteredUpcoming = useMemo(() => {
-    const q = bookingSearch.trim().toLowerCase();
-    if (!q) return upcoming;
-    return upcoming.filter(
-      (row) =>
-        row.title.toLowerCase().includes(q) ||
-        row.place.toLowerCase().includes(q) ||
-        row.dateLine.toLowerCase().includes(q),
-    );
-  }, [upcoming, bookingSearch]);
-
-  return (
-    <View style={styles.root}>
-      <View style={[styles.rowHeader, { paddingTop: insets.top + DS.space.md }]}>
-        <Pressable style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
-          <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
-        </Pressable>
-        <Text style={styles.rowTitle}>MY BOOKINGS</Text>
-        <View style={styles.headerIconBtn} />
-      </View>
-      <ScrollView
-        contentContainerStyle={[styles.savedScrollPad, { paddingBottom: 100 + insets.bottom }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.segmentWrap}>
-          <Pressable
-            style={[styles.segmentBtn, tab === 'upcoming' && styles.segmentBtnOn]}
-            onPress={() => setTab('upcoming')}
-          >
-            <Text style={[styles.segmentTxt, tab === 'upcoming' && styles.segmentTxtOn]}>Upcoming</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segmentBtn, tab === 'past' && styles.segmentBtnOn]}
-            onPress={() => setTab('past')}
-          >
-            <Text style={[styles.segmentTxt, tab === 'past' && styles.segmentTxtOn]}>Past</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.savedSearchField}>
-          <FontAwesome name="search" size={14} color="rgba(212,208,200,0.4)" style={styles.savedSearchIcon} />
-          <TextInput
-            style={styles.savedSearchInput}
-            placeholder="Search bookings..."
-            placeholderTextColor="rgba(212,208,200,0.4)"
-            value={bookingSearch}
-            onChangeText={setBookingSearch}
-          />
-        </View>
-
-        {tab === 'upcoming' ? (
-          <View style={styles.savedListGap}>
-            {filteredUpcoming.map((row) => (
-              <View key={row.id} style={styles.savedListCard}>
-                <View style={styles.savedListRow}>
-                  <Image source={{ uri: row.uri }} style={styles.savedListThumb} />
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.bookingBadgeRow}>
-                      {row.status === 'booked' ? (
-                        <View style={styles.badgeBooked}>
-                          <Text style={styles.badgeBookedTxt}>BOOKED</Text>
-                        </View>
-                      ) : (
-                        <View style={styles.badgeWait}>
-                          <Text style={styles.badgeWaitTxt}>WAITLISTED</Text>
-                        </View>
-                      )}
-                      {row.status === 'booked' ? (
-                        <Pressable style={styles.qrMini}>
-                          <FontAwesome name="qrcode" size={10} color={DS.color.gold} />
-                        </Pressable>
-                      ) : null}
-                    </View>
-                    <Text style={styles.savedListDateGold}>{row.dateLine}</Text>
-                    <Text style={styles.savedListTitle}>{row.title}</Text>
-                    <View style={styles.savedListMeta}>
-                      <View style={styles.savedMetaItem}>
-                        <FontAwesome name="clock-o" size={9} color={DS.color.textMuted} />
-                        <Text style={styles.savedMetaTxt}>{row.time}</Text>
-                      </View>
-                      <View style={styles.savedMetaItem}>
-                        <FontAwesome name="map-marker" size={9} color={DS.color.textMuted} />
-                        <Text style={styles.savedMetaTxt}>{row.place}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.savedListActions}>
-                      <Pressable
-                        style={styles.bookingGhostBtn}
-                        onPress={() =>
-                          navigation.navigate('EventDetails', {
-                            title: row.title,
-                            imageUri: row.uri,
-                            dateShort: `${row.dateLine} • ${row.time}`,
-                          })
-                        }
-                      >
-                        <Text style={styles.bookingGhostBtnTxt}>View Details</Text>
-                      </Pressable>
-                      {row.status === 'booked' ? (
-                        <Pressable
-                          style={styles.bookingCancelBtn}
-                          onPress={() => setUpcoming((u) => u.filter((x) => x.id !== row.id))}
-                        >
-                          <Text style={styles.bookingCancelTxt}>Cancel</Text>
-                        </Pressable>
-                      ) : (
-                        <Pressable
-                          style={styles.bookingWaitlistBtn}
-                          onPress={() => setUpcoming((u) => u.filter((x) => x.id !== row.id))}
-                        >
-                          <Text style={styles.bookingWaitlistTxt}>Leave Waitlist</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.savedListGap}>
-            {MY_BOOKINGS_PAST_FROM_HTML.map((row) => (
-              <View key={row.id} style={[styles.savedListCard, row.status === 'cancelled' && styles.pastCardMuted]}>
-                <View style={styles.savedListRow}>
-                  <Image
-                    source={{ uri: row.uri }}
-                    style={[styles.savedListThumb, styles.pastThumbDim]}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.bookingBadgeRow}>
-                      {row.status === 'completed' ? (
-                        <View style={styles.badgeCompleted}>
-                          <Text style={styles.badgeCompletedTxt}>COMPLETED</Text>
-                        </View>
-                      ) : (
-                        <View style={styles.badgeCancelled}>
-                          <Text style={styles.badgeCancelledTxt}>CANCELLED</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.savedListDateDim}>{row.dateLine}</Text>
-                    <Text style={styles.savedListTitleDim}>{row.title}</Text>
-                    <View style={styles.savedListMeta}>
-                      <View style={styles.savedMetaItem}>
-                        <FontAwesome name="clock-o" size={9} color={DS.color.textMuted} />
-                        <Text style={styles.savedMetaTxtDim}>{row.time}</Text>
-                      </View>
-                      <View style={styles.savedMetaItem}>
-                        <FontAwesome name="map-marker" size={9} color={DS.color.textMuted} />
-                        <Text style={styles.savedMetaTxtDim}>{row.place}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.savedListActions}>
-                      <Pressable
-                        style={styles.bookingGhostBtn}
-                        onPress={() =>
-                          navigation.navigate('EventDetails', {
-                            title: row.title,
-                            imageUri: row.uri,
-                            dateShort: row.dateLine,
-                          })
-                        }
-                      >
-                        <Text style={styles.bookingGhostBtnTxtDim}>View Details</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <Pressable style={styles.browseMoreWrap} onPress={() => navigation.navigate('UpcomingEvents')}>
-          <Text style={styles.gold}>Browse more events</Text>
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -1076,6 +1562,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bellCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: DS.color.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sponsorBell: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -1156,6 +1650,214 @@ const styles = StyleSheet.create({
     fontFamily: DS.font.bodyMedium,
     fontSize: 14,
     color: DS.color.gold,
+  },
+  evAnchorBlock: {
+    marginBottom: DS.space.lg,
+  },
+  evAnchorHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: DS.space.sm,
+  },
+  evAnchorKicker: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    fontWeight: '600',
+    color: DS.color.gold,
+    letterSpacing: 2,
+  },
+  evSeeAll: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 13,
+    fontWeight: '600',
+    color: DS.color.gold,
+  },
+  evSearchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#121212',
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    paddingLeft: 36,
+    paddingRight: DS.space.md,
+    minHeight: 48,
+    marginBottom: DS.space.md,
+    position: 'relative',
+  },
+  evSearchIcon: {
+    position: 'absolute',
+    left: DS.space.base,
+  },
+  evSearchInput: {
+    flex: 1,
+    fontFamily: DS.font.body,
+    fontSize: 15,
+    color: DS.color.text,
+    paddingVertical: DS.space.md,
+  },
+  evRecentBlock: {
+    marginBottom: DS.space.md,
+  },
+  evRecentLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: DS.color.textMuted,
+    letterSpacing: 1,
+    marginBottom: DS.space.sm,
+  },
+  evRecentHeadingGold: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    fontWeight: '600',
+    color: DS.color.gold,
+    letterSpacing: 2,
+    marginBottom: DS.space.sm,
+  },
+  evMutedHint: {
+    fontSize: 14,
+    color: DS.color.textMuted,
+    lineHeight: 20,
+    marginBottom: DS.space.lg,
+  },
+  evRecentRow: {
+    gap: DS.space.sm,
+    paddingRight: DS.space.lg,
+  },
+  evRecentChip: {
+    paddingHorizontal: DS.space.md,
+    paddingVertical: DS.space.sm,
+    borderRadius: DS.radius.pill,
+    backgroundColor: DS.color.surface,
+    borderWidth: 1,
+    borderColor: DS.color.borderWhite5,
+  },
+  evRecentChipTxt: {
+    fontSize: 13,
+    color: DS.color.text,
+  },
+  evFilterRow: {
+    gap: DS.space.sm,
+    paddingBottom: DS.space.md,
+    flexDirection: 'row',
+  },
+  evFilterChip: {
+    height: 44,
+    minWidth: 110,
+    paddingHorizontal: DS.space.base,
+    borderRadius: DS.radius.pill,
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  evFilterChipOn: {
+    borderColor: DS.color.gold,
+    backgroundColor: DS.color.goldTint10,
+    borderWidth: 1,
+  },
+  evFilterChipTxt: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: DS.color.textMuted,
+    letterSpacing: 0.5,
+  },
+  evFilterChipTxtOn: {
+    color: DS.color.gold,
+  },
+  evDiscoverKicker: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    fontWeight: '600',
+    color: DS.color.gold,
+    letterSpacing: 2,
+    marginBottom: DS.space.sm,
+    marginTop: DS.space.sm,
+  },
+  evSectionGold: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    fontWeight: '600',
+    color: DS.color.gold,
+    letterSpacing: 2,
+    marginBottom: DS.space.sm,
+  },
+  evSectionBlock: {
+    width: '100%',
+  },
+  evSectionBlockSpaced: {
+    marginTop: DS.space.xl,
+  },
+  evEmpty: {
+    fontSize: 14,
+    color: DS.color.textMuted,
+    paddingVertical: DS.space.xl,
+    textAlign: 'center',
+  },
+  evListGap: {
+    gap: DS.space.md,
+  },
+  evListCell: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: DS.space.md,
+    paddingVertical: DS.space.md,
+    paddingHorizontal: DS.space.base,
+    minHeight: 108,
+    borderRadius: DS.radius.xl,
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  evListTextCol: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    minHeight: 72,
+    paddingVertical: 2,
+  },
+  evListThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: DS.color.surface,
+    alignSelf: 'center',
+  },
+  evListTitle: {
+    fontFamily: DS.font.heading,
+    fontSize: 21,
+    fontWeight: '600',
+    color: DS.color.text,
+    letterSpacing: 0.4,
+    lineHeight: 26,
+  },
+  evListMeta: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: DS.color.gold,
+    marginTop: 4,
+    fontFamily: DS.font.bodyMedium,
+  },
+  evListVenue: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: DS.color.textMuted,
+    marginTop: 4,
+    fontFamily: DS.font.body,
+  },
+  evListRibbon: {
+    marginTop: 6,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    color: DS.color.gold,
+    fontFamily: DS.font.bodyMedium,
+    textTransform: 'uppercase',
+  },
+  evListChevronCol: {
+    justifyContent: 'center',
+    paddingLeft: 2,
   },
   linkText: {
     fontFamily: DS.font.bodyMedium,
@@ -1283,10 +1985,10 @@ const styles = StyleSheet.create({
   },
   detailHeroTitle: {
     fontFamily: DS.font.heading,
-    fontSize: 36,
+    fontSize: 42,
     color: DS.color.white,
     letterSpacing: 1,
-    lineHeight: 38,
+    lineHeight: 44,
   },
   detailHeroTitleGold: {
     color: DS.color.gold,
@@ -1464,24 +2166,6 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     lineHeight: 18,
   },
-  calInlineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: DS.space.md,
-    backgroundColor: DS.color.borderWhite5,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    paddingVertical: DS.space.base,
-    marginTop: DS.space.lg,
-    marginBottom: DS.space.xl,
-  },
-  calInlineBtnText: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 14,
-    color: DS.color.white,
-  },
   bringText: {
     fontFamily: DS.font.body,
     fontSize: 14,
@@ -1498,21 +2182,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: DS.color.borderWhite5,
   },
-  calOutlineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: DS.space.md,
-    borderRadius: DS.radius.lg,
-    borderWidth: 1,
-    borderColor: DS.color.gold,
-    marginBottom: DS.space.sm,
-  },
-  calOutlineText: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 14,
-    color: DS.color.gold,
-  },
   saveLaterOutlineBtn: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1527,6 +2196,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: DS.color.gold,
     letterSpacing: 1,
+  },
+  saveLaterOutlineBtnSaved: {
+    backgroundColor: 'rgba(200,169,126,0.18)',
+    borderWidth: 2,
+  },
+  saveLaterOutlineTextSaved: {
+    opacity: 0.95,
   },
   confirmSummary: {
     flexDirection: 'row',
@@ -1887,6 +2563,57 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     marginTop: DS.space.md,
     textAlign: 'center',
+  },
+  qrHintDim: {
+    fontFamily: DS.font.body,
+    fontSize: 11,
+    color: DS.color.textMuted,
+    marginTop: DS.space.sm,
+    textAlign: 'center',
+    opacity: 0.85,
+  },
+  checkedInQrBlurb: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 15,
+    color: DS.color.text,
+    textAlign: 'center',
+    marginTop: DS.space.md,
+    lineHeight: 22,
+    paddingHorizontal: DS.space.sm,
+  },
+  eventReviewCard: {
+    marginTop: DS.space.xl,
+    padding: DS.space.base,
+    borderRadius: DS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderHairline,
+    backgroundColor: DS.color.surface,
+  },
+  reviewHint: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    lineHeight: 20,
+    marginBottom: DS.space.md,
+  },
+  starRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    maxWidth: 220,
+    marginBottom: DS.space.md,
+    gap: DS.space.sm,
+  },
+  reviewNotes: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderHairline,
+    borderRadius: DS.radius.md,
+    padding: DS.space.sm,
+    minHeight: 88,
+    color: DS.color.text,
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    textAlignVertical: 'top',
   },
   attendeeCard: {
     backgroundColor: DS.color.borderWhite5,

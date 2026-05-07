@@ -17,10 +17,10 @@ import { useAuth } from '../auth/AuthContext';
 import { AppButton } from '../components/ui/AppButton';
 import { FormField } from '../components/ui/FormField';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { canCreateVerifiedContent } from '../creator/creatorAccess';
 import { DS } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
+import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
 
 type Props = NativeStackScreenProps<MediaStackParamList, 'CreateMediaContent'>;
 
@@ -30,7 +30,8 @@ export function CreateMediaContentScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isPro } = useSubscription();
-  const allowed = canCreateVerifiedContent(isPro, user);
+  const tierOk = hasPremiumOrAdminTier(isPro, user?.role);
+  const verified = !!user?.daltonVerified;
 
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -76,16 +77,34 @@ export function CreateMediaContentScreen({ navigation }: Props) {
     );
   }, [videoUri, title, description, navigation]);
 
-  if (!allowed) {
+  if (!tierOk) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <ScreenHeader title="Upload video" onBack={() => navigation.goBack()} />
+        <View style={styles.gateBody}>
+          <FontAwesome name="star" size={40} color={DS.color.gold} />
+          <Text style={styles.gateTitle}>Premium</Text>
+          <Text style={styles.gateTxt}>
+            Uploading media is included with Premium. This is a preview paywall until RevenueCat pricing is
+            wired up.
+          </Text>
+          <AppButton label="Preview Premium" onPress={() => navigateToPremiumPaywall(navigation)} />
+          <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!verified) {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <ScreenHeader title="Upload video" onBack={() => navigation.goBack()} />
         <View style={styles.gateBody}>
           <FontAwesome name="lock" size={40} color={DS.color.textMuted} />
-          <Text style={styles.gateTitle}>Creator access</Text>
+          <Text style={styles.gateTitle}>Dalton verified</Text>
           <Text style={styles.gateTxt}>
-            Premium membership and Dalton verification are required to publish media. Upgrade or
-            complete verification in your profile when the backend is connected.
+            Dalton verification is required to publish uploads. Finish verification from your profile when
+            your account is approved.
           </Text>
           <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
         </View>

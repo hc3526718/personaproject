@@ -119,6 +119,7 @@ create index if not exists messages_conv_idx on public.messages (conversation_id
 create table if not exists public.events (
   id uuid primary key default uuid_generate_v4(),
   organization_id uuid references public.organizations (id) on delete set null,
+  created_by uuid references public.profiles (id) on delete set null,
   title text not null,
   starts_at timestamptz not null,
   ends_at timestamptz,

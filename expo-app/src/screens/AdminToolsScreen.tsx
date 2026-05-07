@@ -97,6 +97,13 @@ export function AdminToolsScreen({ navigation }: Props) {
           </Pressable>
         ) : null}
 
+        {can(role, 'check_in_attendees') ? (
+          <Pressable style={styles.row} onPress={() => navigation.navigate('QrTestLab')}>
+            <Text style={styles.rowTitle}>QR test lab</Text>
+            <Text style={styles.rowSub}>Generate a token + scan it on-device</Text>
+          </Pressable>
+        ) : null}
+
         {can(role, 'view_analytics') ? (
           <Pressable
             style={styles.row}

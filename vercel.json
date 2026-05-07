@@ -3,5 +3,11 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "web-deploy",
   "installCommand": "cd expo-app && npm install",
-  "framework": null
+  "framework": null,
+  "redirects": [
+    { "source": "/privacy", "destination": "/privacy.html", "permanent": true },
+    { "source": "/terms", "destination": "/terms.html", "permanent": true },
+    { "source": "/demo", "destination": "/demo.html", "permanent": true },
+    { "source": "/app", "destination": "/app/index.html", "permanent": true }
+  ]
 }

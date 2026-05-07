@@ -12,6 +12,7 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { DS } from '../designSystem';
 import { getSupabase } from '../lib/supabase';
+import { ensureProfileRow } from '../roadmap/profileService';
 import { OnboardingNavigator } from '../onboarding/OnboardingNavigator';
 import type {
   AuthStackParamList,
@@ -28,6 +29,7 @@ import {
   CommunityFeedScreen,
   CommunitySearchResultsScreen,
   CommunitySearchScreen,
+  CreateCommunityPostScreen,
   DemoHubScreen,
   MessageThreadScreen,
   MessagesInboxScreen,
@@ -45,10 +47,11 @@ import {
   BookingConfirmScreen,
   ConfirmAttendScreen,
   EventDetailsScreen,
-  MyBookingsScreen,
-  SavedEventsScreen,
+  EventsSearchScreen,
   UpcomingEventsScreen,
 } from '../screens/eventsScreens';
+import { HostAttendeeScanScreen } from '../screens/HostAttendeeScanScreen';
+import { HostScanPickEventScreen } from '../screens/HostScanPickEventScreen';
 import { HostEventDashboardScreen } from '../screens/HostEventDashboardScreen';
 import { CreateEventScreen } from '../screens/CreateEventScreen';
 import { CreateMediaContentScreen } from '../screens/CreateMediaContentScreen';
@@ -63,11 +66,14 @@ import {
   EditProfileSectionsScreen,
   SettingsScreen,
 } from '../screens/profileScreens';
+import { FollowRequestsScreen } from '../screens/FollowRequestsScreen';
+import { QrTestLabScreen } from '../screens/QrTestLabScreen';
 import { PaywallScreen } from '../screens/PaywallScreen';
 import { AdminToolsScreen } from '../screens/AdminToolsScreen';
 import { AdminMediaUploadScreen } from '../screens/AdminMediaUploadScreen';
 import {
   AccountSecurityScreen,
+  AccessibilityScreen,
   LegalScreen,
   NotificationPrefsScreen,
   PrivacyVisibilityScreen,
@@ -112,6 +118,7 @@ function CommunityStackNavigator() {
       }}
     >
       <CommunityStack.Screen name="CommunityFeed" component={CommunityFeedScreen} />
+      <CommunityStack.Screen name="CreateCommunityPost" component={CreateCommunityPostScreen} />
       <CommunityStack.Screen name="CommunitySearch" component={CommunitySearchScreen} />
       <CommunityStack.Screen name="CommunitySearchResults" component={CommunitySearchResultsScreen} />
       <CommunityStack.Screen name="Notifications" component={NotificationsScreen} />
@@ -151,14 +158,15 @@ function EventsStackNavigator() {
       }}
     >
       <EventsStack.Screen name="UpcomingEvents" component={UpcomingEventsScreen} />
+      <EventsStack.Screen name="EventsSearch" component={EventsSearchScreen} />
       <EventsStack.Screen name="EventDetails" component={EventDetailsScreen} />
       <EventsStack.Screen name="ConfirmAttend" component={ConfirmAttendScreen} />
       <EventsStack.Screen name="BookingConfirm" component={BookingConfirmScreen} />
-      <EventsStack.Screen name="SavedEvents" component={SavedEventsScreen} />
-      <EventsStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <EventsStack.Screen name="StaffCheckIn" component={StaffCheckInScreen} />
       <EventsStack.Screen name="HostEventDashboard" component={HostEventDashboardScreen} />
       <EventsStack.Screen name="CreateEvent" component={CreateEventScreen} />
+      <EventsStack.Screen name="HostScanPickEvent" component={HostScanPickEventScreen} />
+      <EventsStack.Screen name="HostAttendeeScan" component={HostAttendeeScanScreen} />
     </EventsStack.Navigator>
   );
 }
@@ -190,10 +198,13 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Paywall" component={PaywallScreen} />
       <ProfileStack.Screen name="AdminTools" component={AdminToolsScreen} />
       <ProfileStack.Screen name="AdminMediaUpload" component={AdminMediaUploadScreen} />
+      <ProfileStack.Screen name="QrTestLab" component={QrTestLabScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+      <ProfileStack.Screen name="Accessibility" component={AccessibilityScreen} />
       <ProfileStack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <ProfileStack.Screen name="PrivacyVisibility" component={PrivacyVisibilityScreen} />
       <ProfileStack.Screen name="NotificationPrefs" component={NotificationPrefsScreen} />
+      <ProfileStack.Screen name="FollowRequests" component={FollowRequestsScreen} />
       <ProfileStack.Screen name="Support" component={SupportScreen} />
       <ProfileStack.Screen name="Legal" component={LegalScreen} />
       <ProfileStack.Screen name="EditBasic" component={EditBasicScreen} />
@@ -252,19 +263,21 @@ function AuthenticatedShell() {
       setGate('app');
       return;
     }
-    for (let i = 0; i < 10; i++) {
-      const { data } = await supabase
+    const row = await Promise.race([
+      supabase
         .from('profiles')
         .select('onboarding_completed_at')
         .eq('id', user.id)
-        .maybeSingle();
-      if (data) {
-        setGate(data.onboarding_completed_at ? 'app' : 'onboarding');
-        return;
-      }
-      await new Promise((r) => setTimeout(r, 300));
+        .maybeSingle()
+        .then((r) => r.data as { onboarding_completed_at: string | null } | null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+    ]);
+    if (row) {
+      setGate(row.onboarding_completed_at ? 'app' : 'onboarding');
+      return;
     }
-    setGate('onboarding');
+    void ensureProfileRow(user.id, user.email ?? null);
+    setGate('app');
   }, [user, supabase]);
 
   useEffect(() => {
@@ -320,11 +333,18 @@ function MainTabNavigator() {
       <Tab.Screen
         name="Community"
         component={CommunityStackNavigator}
-        options={{
-          tabBarLabel: 'Community',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="users" size={size + 2} color={color} solid />
-          ),
+        options={({ route }) => {
+          const nested = getFocusedRouteNameFromRoute(route) ?? 'CommunityFeed';
+          const hideTabBar = nested === 'CreateCommunityPost';
+          return {
+            tabBarLabel: 'Community',
+            tabBarStyle: hideTabBar
+              ? { display: 'none' as const, height: 0, overflow: 'hidden' as const }
+              : tabBarStyleVisible,
+            tabBarIcon: ({ color, size }) => (
+              <FontAwesome5 name="users" size={Math.max(14, size - 2)} color={color} solid />
+            ),
+          };
         }}
       />
       <Tab.Screen
@@ -339,7 +359,7 @@ function MainTabNavigator() {
               ? { display: 'none' as const, height: 0, overflow: 'hidden' as const }
               : tabBarStyleVisible,
             tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-              <FontAwesome name="play" size={size + 2} color={color} />
+              <FontAwesome name="play" size={Math.max(14, size - 2)} color={color} />
             ),
           };
         }}
@@ -349,7 +369,7 @@ function MainTabNavigator() {
         component={SponsorsStackNavigator}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome5 name="handshake" size={size + 2} color={color} solid />
+            <FontAwesome5 name="handshake" size={Math.max(14, size - 2)} color={color} solid />
           ),
         }}
       />
@@ -364,13 +384,16 @@ function MainTabNavigator() {
             nested === 'BookingConfirm' ||
             nested === 'StaffCheckIn' ||
             nested === 'HostEventDashboard' ||
-            nested === 'CreateEvent';
+            nested === 'CreateEvent' ||
+            nested === 'HostAttendeeScan' ||
+            nested === 'HostScanPickEvent' ||
+            nested === 'EventsSearch';
           return {
             tabBarStyle: hideTabBar
               ? { display: 'none' as const, height: 0, overflow: 'hidden' as const }
               : tabBarStyleVisible,
             tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-              <FontAwesome name="calendar" size={size + 2} color={color} />
+              <FontAwesome name="calendar" size={Math.max(14, size - 2)} color={color} />
             ),
           };
         }}
@@ -379,7 +402,9 @@ function MainTabNavigator() {
         name="Profile"
         component={ProfileStackNavigator}
         options={{
-          tabBarIcon: ({ color, size }) => <FontAwesome name="user-o" size={size + 2} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome name="user-o" size={Math.max(14, size - 2)} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>

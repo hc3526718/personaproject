@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -26,6 +26,7 @@ import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import type { ProfileStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
+import * as ImagePicker from 'expo-image-picker';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 type SectionDetailRoute = RouteProp<ProfileStackParamList, 'EditProfileSectionDetail'>;
@@ -44,23 +45,60 @@ const RECENT_RESULTS = [
 export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
+  const [bannerUri, setBannerUri] = useState<string | null>(null);
+  const banner = useMemo(
+    () =>
+      bannerUri ??
+      'https://images.unsplash.com/photo-1521412644187-c49fa049e84d?q=80&w=1600&auto=format&fit=crop',
+    [bannerUri],
+  );
+
+  const pickBanner = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('Not on web', 'Use iOS or Android to pick a banner image.');
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.9,
+    });
+    if (!res.canceled && res.assets[0]?.uri) setBannerUri(res.assets[0].uri);
+  }, []);
+
   return (
     <View style={styles.root}>
-      <View style={[styles.profileTop, { paddingTop: insets.top + DS.space.md }]}>
-        <Pressable
-          style={styles.iconRound}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <FontAwesome name="cog" size={20} color={DS.color.textMuted} />
-        </Pressable>
-        <View style={styles.profileTopSpacer} />
-      </View>
       <ScrollView
         contentContainerStyle={[styles.profileScroll, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable
+          style={[
+            styles.profileBannerBleed,
+            { marginTop: -insets.top, height: 228 + Math.max(insets.top, 0) },
+          ]}
+          onPress={pickBanner}
+        >
+          <Image source={{ uri: banner }} style={styles.bannerImgBleed} resizeMode="cover" />
+          <View style={styles.bannerScrim} />
+          <Pressable
+            style={[styles.bannerSettingsFAB, { top: insets.top + 10 }]}
+            hitSlop={8}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <FontAwesome name="cog" size={26} color="#FFFFFF" />
+          </Pressable>
+          <View style={styles.bannerEditPill}>
+            <FontAwesome name="camera" size={14} color={DS.color.background} />
+            <Text style={styles.bannerEditTxt}> Edit banner</Text>
+          </View>
+        </Pressable>
         <View style={styles.avatarWrap}>
           <Image source={{ uri: AV }} style={styles.avatar} />
+          <View style={styles.badgeOverlay}>
+            <FontAwesome name="star" size={14} color={DS.color.background} />
+          </View>
         </View>
         <Text style={styles.profileName}>MARCUS STROMAN</Text>
         <View style={styles.tagRow}>
@@ -71,22 +109,12 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
             <Text style={styles.tagText}>Pro Level</Text>
           </View>
         </View>
-        <View style={styles.statsCard}>
-          {[
-            ['24', 'PBs'],
-            ['120', 'EVENTS'],
-            ['89', 'ENDORSED'],
-          ].map(([b, a]) => (
-            <View key={a} style={styles.statCell}>
-              <Text style={styles.statVal}>{b}</Text>
-              <Text style={styles.statLabel}>{a}</Text>
-            </View>
-          ))}
+        <Text style={styles.sectionTitleKicker}>BIO</Text>
+        <View style={styles.bioCard}>
+          <Text style={styles.bioText}>
+            U20 sprinter focused on 100m / 200m. Training with Grant Access cohort.
+          </Text>
         </View>
-        <Pressable style={styles.endorseBanner}>
-          <FontAwesome name="certificate" size={18} color={DS.color.background} />
-          <Text style={styles.endorseBannerText}> Endorsed by Dalton</Text>
-        </Pressable>
         <View style={styles.highlightsHeader}>
           <Text style={styles.sectionTitleKicker}>HIGHLIGHTS</Text>
           <Pressable onPress={() => navigation.navigate('EditProfileSections')}>
@@ -120,21 +148,6 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
             </View>
           </View>
         ))}
-        <Text style={styles.sectionTitle}>Bio</Text>
-        <Text style={styles.muted}>
-          U20 sprinter focused on 100m / 200m. Training with Grant Access cohort.
-        </Text>
-        <Text style={styles.devSectionLabel}>Developer</Text>
-        <Pressable
-          style={styles.menuRow}
-          onPress={() =>
-            navigation.getParent()?.navigate('Community', { screen: 'DemoHub' })
-          }
-        >
-          <FontAwesome name="th-large" size={18} color={DS.color.gold} />
-          <Text style={styles.menuText}>Demo flows hub</Text>
-          <FontAwesome name="chevron-right" size={14} color={DS.color.textMuted} />
-        </Pressable>
         <Pressable style={styles.menuRow} onPress={() => void logout()}>
           <FontAwesome name="sign-out" size={18} color={DS.color.gold} />
           <Text style={styles.menuText}>Sign out (demo — returns to welcome)</Text>
@@ -179,6 +192,12 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     premiumRow,
     ...adminRow,
     {
+      title: 'Accessibility',
+      sub: 'Voice, text size, contrast, motion, captions',
+      icon: 'universal-access' as const,
+      onPress: () => navigation.navigate('Accessibility'),
+    },
+    {
       title: 'Account & Security',
       sub: 'Password, 2FA, login methods',
       icon: 'lock' as const,
@@ -202,6 +221,16 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
       icon: 'bell' as const,
       onPress: () => navigation.navigate('NotificationPrefs'),
     },
+    ...(isSupabaseConfigured() && user && !user.id.startsWith('demo-')
+      ? [
+          {
+            title: 'Follow requests',
+            sub: 'Accept or decline incoming follows',
+            icon: 'user-plus' as const,
+            onPress: () => navigation.navigate('FollowRequests'),
+          },
+        ]
+      : []),
     {
       title: 'Support',
       sub: 'Help center and contact',
@@ -217,11 +246,8 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
   ];
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} largeTitle />
-      <ScrollView contentContainerStyle={styles.padded}>
-        <View style={styles.settingsLogoRow}>
-          <BrandLogo width={72} height={72} />
-        </View>
+      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={[styles.padded, { paddingTop: DS.space.sm }]}>
         {user ? (
           <View style={styles.accountStatusCard}>
             <Text style={styles.accountStatusLabel}>Account</Text>
@@ -946,24 +972,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: DS.color.background,
   },
-  profileTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: DS.space.lg,
-    paddingBottom: DS.space.md,
-  },
-  profileTopSpacer: {
-    flex: 1,
-  },
-  iconRound: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: DS.color.surface,
-  },
   editPill: {
     borderWidth: 1,
     borderColor: DS.color.border,
@@ -977,19 +985,72 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   profileScroll: {
+    paddingBottom: 24,
+    marginTop: 0,
     paddingHorizontal: DS.space.lg,
+  },
+  profileBannerBleed: {
+    marginHorizontal: -DS.space.lg,
+    marginBottom: DS.space.sm,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  bannerImgBleed: { ...StyleSheet.absoluteFillObject },
+  bannerSettingsFAB: {
+    position: 'absolute',
+    right: DS.space.md,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  bannerScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  bannerEditPill: {
+    position: 'absolute',
+    right: DS.space.md,
+    bottom: DS.space.md,
+    backgroundColor: DS.color.gold,
+    borderRadius: 999,
+    paddingHorizontal: DS.space.md,
+    paddingVertical: DS.space.sm,
+    flexDirection: 'row',
     alignItems: 'center',
   },
+  bannerEditTxt: { fontFamily: DS.font.bodyBold, color: DS.color.background, fontSize: 12 },
   avatarWrap: {
     padding: 2,
     borderRadius: 100,
     borderWidth: 2,
     borderColor: DS.color.gold,
+    alignSelf: 'center',
+    marginTop: -48,
   },
   avatar: {
     width: 96,
     height: 96,
     borderRadius: 48,
+  },
+  badgeOverlay: {
+    position: 'absolute',
+    right: -6,
+    bottom: -6,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: DS.color.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: DS.color.background,
   },
   profileName: {
     fontFamily: DS.font.heading,
@@ -1002,8 +1063,25 @@ const styles = StyleSheet.create({
   },
   tagRow: {
     flexDirection: 'row',
+    justifyContent: 'center',
+    alignSelf: 'center',
     gap: DS.space.md,
     marginTop: DS.space.md,
+  },
+  bioCard: {
+    width: '100%',
+    backgroundColor: DS.color.surfaceAlt,
+    borderRadius: DS.radius.xl,
+    padding: DS.space.md,
+    marginTop: DS.space.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+  },
+  bioText: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: DS.color.textMuted,
   },
   tag: {
     paddingHorizontal: DS.space.base,
@@ -1016,49 +1094,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: DS.color.textMuted,
   },
-  statsCard: {
-    flexDirection: 'row',
-    width: '100%',
-    marginTop: DS.space.xl,
-    backgroundColor: DS.color.surfaceAlt,
-    borderRadius: DS.radius.xxl,
-    padding: DS.space.lg,
-    borderWidth: 1,
-    borderColor: DS.color.borderHairline,
-  },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statVal: {
-    fontFamily: DS.font.heading,
-    fontSize: 22,
-    fontWeight: '400',
-    color: DS.color.gold,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: DS.color.textMuted,
-    marginTop: 4,
-    letterSpacing: 1,
-    fontWeight: '600',
-  },
-  endorseBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    marginTop: DS.space.lg,
-    paddingVertical: DS.space.md,
-    backgroundColor: DS.color.gold,
-    borderRadius: DS.radius.lg,
-  },
-  endorseBannerText: {
-    fontFamily: DS.font.bodyBold,
-    fontSize: 14,
-    color: DS.color.background,
-    letterSpacing: 1,
-  },
+  // removed: stats + endorsed banner (per latest UX)
   highlightsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1142,15 +1178,6 @@ const styles = StyleSheet.create({
     color: DS.color.gold,
     marginTop: 2,
   },
-  devSectionLabel: {
-    alignSelf: 'flex-start',
-    marginTop: DS.space.xxl,
-    marginBottom: DS.space.sm,
-    fontSize: 11,
-    color: DS.color.textMuted,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
   sectionTitle: {
     alignSelf: 'flex-start',
     marginTop: DS.space.xl,
@@ -1181,11 +1208,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   padded: {
-    padding: DS.space.lg,
-  },
-  settingsLogoRow: {
-    alignItems: 'center',
-    marginBottom: DS.space.lg,
+    paddingHorizontal: DS.space.lg,
+    paddingBottom: DS.space.lg,
   },
   accountStatusCard: {
     backgroundColor: DS.color.surfaceAlt,

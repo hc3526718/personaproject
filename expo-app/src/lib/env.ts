@@ -87,3 +87,7 @@ export function getRevenueCatApiKey(): string | undefined {
   const android = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID?.trim();
   return ios || android;
 }
+
+export function getRevenueCatEntitlementId(): string {
+  return (process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'premium').trim() || 'premium';
+}

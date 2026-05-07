@@ -1,5 +1,5 @@
 window.DEMO_ROUTES = window.DEMO_ROUTES || {
-  index: 'index.html',
+  index: 'demo.html',
   login: '1-Onboarding Flow - Log In.html',
   verifyReset: '2-Onboarding Flow - Verify Reset.html',
   forgotPassword: '3-Onboarding Flow - Forgot Passw.html',
@@ -41,12 +41,12 @@ window.DEMO_ROUTES = window.DEMO_ROUTES || {
   }
 
   var pathFile = (window.location.pathname.split('/').pop() || '').toLowerCase();
-  var isHub = pathFile === '' || pathFile === 'index.html';
+  var isHub = pathFile === '' || pathFile === 'demo.html';
 
   if (!isHub && !document.getElementById('demo-home-chip')) {
     var chip = document.createElement('a');
     chip.id = 'demo-home-chip';
-    chip.href = href('index', 'index.html');
+    chip.href = href('index', 'demo.html');
     chip.setAttribute('aria-label', 'Demo flows home');
     chip.textContent = 'Flows';
     document.body.appendChild(chip);

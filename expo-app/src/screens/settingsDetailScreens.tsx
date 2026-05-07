@@ -1,13 +1,44 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
+import {
+  DEFAULT_NOTIFY_PREFS,
+  IN_APP_NOTIFY_LABELS,
+  loadInAppNotifyPrefs,
+  saveInAppNotifyPrefs,
+  type InAppNotifyCategory,
+  type InAppNotifyPrefs,
+} from '../lib/notificationBannerPrefs';
+
+const BANNER_TOGGLE_ORDER: InAppNotifyCategory[] = [
+  'postInteraction',
+  'messages',
+  'eventAttendance',
+  'eventBooking',
+  'eventCreation',
+  'mediaCreation',
+  'system',
+];
+
+const BANNER_TOGGLE_SUB: Partial<Record<InAppNotifyCategory, string>> = {
+  postInteraction: 'Likes, comments, follows, mentions.',
+  messages: 'Direct messages & threads.',
+  eventAttendance: 'Check-in and attendance outcomes.',
+  eventBooking: 'Reservations & booking confirmations.',
+  eventCreation: 'New events you publish for your profile.',
+  mediaCreation: 'Media uploads & publishing confirmations.',
+  system: 'Anything that does not match the categories above.',
+};
 import type { AllowMessagesFrom } from '../messaging/messagingPrefs';
 import { getAllowMessagesFrom, setAllowMessagesFrom } from '../messaging/messagingPrefs';
 import type { ProfileStackParamList } from '../navigation/types';
+import { loadAccessibilityPrefs, saveAccessibilityPrefs, type AccessibilityPrefs } from '../lib/accessibilityPrefs';
+import { useActionBanner } from '../actionBanner/ActionBannerContext';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 
@@ -147,6 +178,21 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
   const [email, setEmail] = useState(true);
   const [events, setEvents] = useState(true);
   const [community, setCommunity] = useState(false);
+  const [bannerPrefs, setBannerPrefs] = useState<InAppNotifyPrefs>(DEFAULT_NOTIFY_PREFS);
+
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        setBannerPrefs(await loadInAppNotifyPrefs());
+      })();
+    }, []),
+  );
+
+  const patchBanner = async (partial: Partial<InAppNotifyPrefs>) => {
+    await saveInAppNotifyPrefs(partial);
+    setBannerPrefs(await loadInAppNotifyPrefs());
+  };
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="Notifications" onBack={() => navigation.goBack()} largeTitle />
@@ -173,6 +219,194 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
           <View style={styles.toggleRow}>
             <Text style={styles.toggleTitle}>Community mentions</Text>
             <Switch value={community} onValueChange={setCommunity} trackColor={{ true: DS.color.goldTint30 }} />
+          </View>
+        </View>
+
+        <Text style={styles.cardKickerSpaced}>In-app banners</Text>
+        <Text style={styles.bodyMuted}>
+          Stored preferences for future in-app notification banners (Community opens the full notifications list
+          from the gold bell).
+        </Text>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Allow in-app banners</Text>
+              <Text style={styles.toggleSub}>Master switch for future in-app notification surfaces.</Text>
+            </View>
+            <Switch
+              value={bannerPrefs.enabled}
+              onValueChange={(v) => void patchBanner({ enabled: v })}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+          {BANNER_TOGGLE_ORDER.map((key) => (
+            <View key={key}>
+              <View style={styles.hairline} />
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.toggleTitle}>{IN_APP_NOTIFY_LABELS[key]}</Text>
+                  <Text style={styles.toggleSub}>{BANNER_TOGGLE_SUB[key] ?? ''}</Text>
+                </View>
+                <Switch
+                  value={bannerPrefs[key]}
+                  onValueChange={(v) => void patchBanner({ [key]: v } as Partial<InAppNotifyPrefs>)}
+                  trackColor={{ true: DS.color.goldTint30 }}
+                  disabled={!bannerPrefs.enabled}
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
+  const insets = useSafeAreaInsets();
+  const showBanner = useActionBanner();
+  const [prefs, setPrefs] = useState<AccessibilityPrefs | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        setPrefs(await loadAccessibilityPrefs());
+      })();
+    }, []),
+  );
+
+  const patch = async (partial: Partial<AccessibilityPrefs>, label: string) => {
+    await saveAccessibilityPrefs(partial);
+    const next = await loadAccessibilityPrefs();
+    setPrefs(next);
+    const on = Object.values(partial)[0] === true;
+    showBanner(label, on ? 'Enabled' : 'Disabled');
+  };
+
+  if (!prefs) {
+    return (
+      <View style={styles.root}>
+        <ScreenHeader title="Accessibility" onBack={() => navigation.goBack()} largeTitle />
+        <View style={[styles.padded, { paddingBottom: 32 + insets.bottom }]}>
+          <Text style={styles.bodyMuted}>Loading…</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.root}>
+      <ScreenHeader title="Accessibility" onBack={() => navigation.goBack()} largeTitle />
+      <ScrollView
+        contentContainerStyle={[styles.padded, { paddingBottom: 32 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.bodyMuted}>
+          These toggles store your preferences locally. Some options can be fully applied in React Native
+          (like reduced motion); others affect how Dalton renders UI and will be expanded over time.
+        </Text>
+
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>VoiceOver</Text>
+              <Text style={styles.toggleSub}>Gesture, keyboard, braille, and speech navigation.</Text>
+            </View>
+            <Switch
+              value={prefs.voiceOver}
+              onValueChange={(v) => void patch({ voiceOver: v }, 'VoiceOver')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+          <View style={styles.hairline} />
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Voice Control</Text>
+              <Text style={styles.toggleSub}>Navigate and interact using voice commands.</Text>
+            </View>
+            <Switch
+              value={prefs.voiceControl}
+              onValueChange={(v) => void patch({ voiceControl: v }, 'Voice Control')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.cardKickerSpaced}>Display</Text>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Larger Text</Text>
+              <Text style={styles.toggleSub}>Scale text up to improve readability.</Text>
+            </View>
+            <Switch
+              value={prefs.largerText}
+              onValueChange={(v) => void patch({ largerText: v }, 'Larger Text')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+          <View style={styles.hairline} />
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Light Interface</Text>
+              <Text style={styles.toggleSub}>Use a light color scheme instead of dark.</Text>
+            </View>
+            <Switch
+              value={prefs.lightInterface}
+              onValueChange={(v) => void patch({ lightInterface: v }, 'Light Interface')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+          <View style={styles.hairline} />
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Differentiate Without Color</Text>
+              <Text style={styles.toggleSub}>Use text/shapes in addition to color for emphasis.</Text>
+            </View>
+            <Switch
+              value={prefs.differentiateWithoutColor}
+              onValueChange={(v) => void patch({ differentiateWithoutColor: v }, 'Differentiate Without Color')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+          <View style={styles.hairline} />
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Sufficient Contrast</Text>
+              <Text style={styles.toggleSub}>Increase contrast between text/icons and backgrounds.</Text>
+            </View>
+            <Switch
+              value={prefs.sufficientContrast}
+              onValueChange={(v) => void patch({ sufficientContrast: v }, 'Sufficient Contrast')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+        </View>
+
+        <Text style={styles.cardKickerSpaced}>Motion & Media</Text>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Reduced Motion</Text>
+              <Text style={styles.toggleSub}>Reduce animations that may cause discomfort.</Text>
+            </View>
+            <Switch
+              value={prefs.reducedMotion}
+              onValueChange={(v) => void patch({ reducedMotion: v }, 'Reduced Motion')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
+          </View>
+          <View style={styles.hairline} />
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Captions</Text>
+              <Text style={styles.toggleSub}>Prefer captions for video/audio content.</Text>
+            </View>
+            <Switch
+              value={prefs.captions}
+              onValueChange={(v) => void patch({ captions: v }, 'Captions')}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
         </View>
       </ScrollView>

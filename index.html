@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DaltonProject — Demo flows</title>
+  <title>Grant Access — Train. Connect. Get Discovered.</title>
+  <meta name="description" content="Grant Access is a health, sports, and social networking app helping athletes train with intention, connect with the right people, and unlock opportunities—anywhere in the world." />
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/theme.css">
   <script>
     tailwind.config = {
@@ -16,6 +17,9 @@
             gold: '#C8A84B',
             mist: '#D4D0C8',
             dim: '#9A9690',
+            line: 'rgba(255,255,255,0.09)',
+            panel: 'rgba(255,255,255,0.04)',
+            panel2: 'rgba(255,255,255,0.03)',
           },
           fontFamily: {
             bebas: ['"Bebas Neue"', 'sans-serif'],
@@ -26,95 +30,223 @@
     };
   </script>
   <style>
-    body { font-family: 'DM Sans', sans-serif; background: var(--demo-bg); color: var(--demo-text); }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background:
+        radial-gradient(1200px 860px at 18% -12%, rgba(200, 168, 75, 0.22), transparent 58%),
+        radial-gradient(900px 720px at 105% 18%, rgba(212, 208, 200, 0.10), transparent 55%),
+        radial-gradient(700px 520px at 60% 110%, rgba(232, 83, 58, 0.10), transparent 58%),
+        var(--demo-bg);
+      color: var(--demo-text);
+    }
+    .grain {
+      pointer-events: none;
+      position: fixed;
+      inset: 0;
+      opacity: 0.08;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+      background-size: 260px 260px;
+    }
+    .shine {
+      position: absolute;
+      inset: -2px;
+      border-radius: 1.75rem;
+      background: linear-gradient(120deg, rgba(200,168,75,0.55), rgba(255,255,255,0.08), rgba(200,168,75,0.10));
+      opacity: 0.20;
+      filter: blur(18px);
+      pointer-events: none;
+    }
   </style>
 </head>
-<body class="min-h-screen antialiased pb-16">
-  <header class="sticky top-0 z-10 border-b border-white/10 bg-ink/95 backdrop-blur-md px-5 py-6">
-    <p class="font-bebas text-gold text-sm tracking-[0.2em] mb-1">DALTON PROJECT</p>
-    <h1 class="font-bebas text-3xl text-mist tracking-wide">Mobile demo flows</h1>
-    <p class="text-dim text-sm mt-2 max-w-xl">Tap a path to walk static mockups end-to-end. Use the <strong class="text-gold">Flows</strong> chip on any screen to return here.</p>
+<body class="min-h-screen antialiased">
+  <div class="grain"></div>
+  <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
+    <div class="mx-auto max-w-6xl px-5 py-5 flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-baseline gap-3">
+        <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
+        <span class="text-dim text-xs tracking-wide">Health · Sport · Social</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-5 text-sm">
+        <a class="text-dim hover:text-mist transition-colors" href="#how">How it works</a>
+        <a class="text-dim hover:text-mist transition-colors" href="#features">Features</a>
+        <a class="text-dim hover:text-mist transition-colors" href="#impact">Impact</a>
+        <a class="text-dim hover:text-mist transition-colors" href="privacy.html">Privacy</a>
+        <a class="text-dim hover:text-mist transition-colors" href="terms.html">Terms</a>
+      </nav>
+      <div class="flex items-center gap-3">
+        <a href="demo.html" class="hidden sm:inline-flex px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors">View demo</a>
+        <a href="app/index.html" class="inline-flex px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Open web app</a>
+      </div>
+    </div>
   </header>
 
-  <main class="max-w-lg mx-auto px-5 py-8 space-y-6">
-    <section class="rounded-2xl border border-gold/30 bg-gold/[0.06] p-5 space-y-3">
-      <h2 class="font-bebas text-xl text-gold tracking-wide">Interactive app (React Native web)</h2>
-      <p class="text-dim text-sm">Same bottom tabs and stacks as the Expo shell in the browser. On Vercel this is served under <strong class="text-mist">/app</strong>; for a local static server, run <strong class="text-mist">npm run build:web</strong> first so <strong class="text-mist">app/</strong> exists.</p>
-      <a href="app/index.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Open interactive app</a>
+  <main>
+    <section class="mx-auto max-w-6xl px-5 pt-10 md:pt-16 pb-10">
+      <div class="grid md:grid-cols-12 gap-10 items-start">
+        <div class="md:col-span-7">
+          <p class="font-bebas text-gold tracking-[0.26em] text-sm">TRAIN · CONNECT · GET DISCOVERED</p>
+          <h1 class="font-bebas text-mist tracking-wide text-5xl md:text-7xl leading-[0.92] mt-3">
+            A social sports network built to move your career forward.
+          </h1>
+          <p class="text-dim mt-5 max-w-2xl leading-relaxed">
+            Grant Access brings training, community, and opportunities into one place—so athletes can build consistency,
+            find the right people, and show up ready when it matters.
+          </p>
+
+          <div class="flex flex-col sm:flex-row gap-3 mt-7">
+            <a href="app/index.html" class="px-5 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open interactive web app</a>
+            <a href="demo.html" class="px-5 py-3 rounded-2xl border border-line bg-panel2 text-mist font-semibold text-sm text-center hover:bg-white/[0.05] transition-colors">Walk the product demo</a>
+          </div>
+
+          <div class="mt-7 grid grid-cols-3 gap-3 max-w-xl">
+            <div class="rounded-2xl border border-line bg-panel2 p-4">
+              <p class="font-bebas text-gold tracking-[0.22em] text-xs">COMMUNITY</p>
+              <p class="text-mist font-semibold mt-2">Signal & accountability</p>
+              <p class="text-dim text-xs mt-1 leading-relaxed">Feed, reactions, DMs, follow requests—built for athletes.</p>
+            </div>
+            <div class="rounded-2xl border border-line bg-panel2 p-4">
+              <p class="font-bebas text-gold tracking-[0.22em] text-xs">EVENTS</p>
+              <p class="text-mist font-semibold mt-2">Show up & compete</p>
+              <p class="text-dim text-xs mt-1 leading-relaxed">Discover sessions, book, and manage tickets + check-in.</p>
+            </div>
+            <div class="rounded-2xl border border-line bg-panel2 p-4">
+              <p class="font-bebas text-gold tracking-[0.22em] text-xs">MEDIA</p>
+              <p class="text-mist font-semibold mt-2">Proof of work</p>
+              <p class="text-dim text-xs mt-1 leading-relaxed">Upload training, share highlights, and build trust.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="md:col-span-5 relative">
+          <div class="shine"></div>
+          <div class="rounded-[1.75rem] border border-line bg-panel p-5 md:p-6">
+            <div class="flex items-center justify-between">
+              <p class="font-bebas text-gold tracking-[0.24em] text-sm">WHAT ATHLETES GET</p>
+              <span class="text-dim text-xs">Built for global access</span>
+            </div>
+            <div class="mt-4 space-y-3">
+              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p class="text-mist font-semibold">A simple daily loop</p>
+                <p class="text-dim text-sm mt-1">Train → share → get feedback → keep momentum.</p>
+              </div>
+              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p class="text-mist font-semibold">Opportunities, not noise</p>
+                <p class="text-dim text-sm mt-1">Sponsors, events, and community signals in one place.</p>
+              </div>
+              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                <p class="text-mist font-semibold">Designed for trust</p>
+                <p class="text-dim text-sm mt-1">Verified creator tools and premium gates to keep quality high.</p>
+              </div>
+            </div>
+            <div class="mt-5 flex flex-col sm:flex-row gap-3">
+              <a href="privacy.html" class="flex-1 text-center px-4 py-3 rounded-2xl border border-gold/35 text-gold text-sm font-semibold hover:bg-gold/10 transition-colors">Privacy policy</a>
+              <a href="terms.html" class="flex-1 text-center px-4 py-3 rounded-2xl border border-line text-mist text-sm font-semibold hover:bg-white/[0.05] transition-colors">Terms of service</a>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-      <h2 class="font-bebas text-xl text-gold tracking-wide">Path A — Auth &amp; community</h2>
-      <p class="text-dim text-sm">Log in → welcome hub → feed → brand detail.</p>
-      <a href="1-Onboarding Flow - Log In.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Log In</a>
-      <a href="4-Onboarding Flow - Welcome &amp; Ac.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or open Welcome hub</a>
+    <section id="how" class="mx-auto max-w-6xl px-5 py-12 md:py-16">
+      <div class="grid md:grid-cols-12 gap-10 items-start">
+        <div class="md:col-span-5">
+          <p class="font-bebas text-gold tracking-[0.26em] text-sm">HOW IT WORKS</p>
+          <h2 class="font-bebas text-mist tracking-wide text-4xl md:text-5xl mt-3">A system that compounds.</h2>
+          <p class="text-dim mt-4 leading-relaxed">
+            The app is built around a repeatable loop: plan sessions, share progress, connect with people who raise your standards,
+            and show up to events with confidence.
+          </p>
+        </div>
+        <div class="md:col-span-7 grid gap-4">
+          <div class="rounded-3xl border border-line bg-panel2 p-5 md:p-6">
+            <p class="font-bebas text-gold tracking-[0.22em] text-xs">01</p>
+            <p class="text-mist font-semibold mt-2">Discover events and sessions</p>
+            <p class="text-dim text-sm mt-1">Browse what’s happening, reserve a spot, and keep it all in one schedule.</p>
+          </div>
+          <div class="rounded-3xl border border-line bg-panel2 p-5 md:p-6">
+            <p class="font-bebas text-gold tracking-[0.22em] text-xs">02</p>
+            <p class="text-mist font-semibold mt-2">Build your network</p>
+            <p class="text-dim text-sm mt-1">Follow requests, DMs, and community feedback—without the chaos of generic social.</p>
+          </div>
+          <div class="rounded-3xl border border-line bg-panel2 p-5 md:p-6">
+            <p class="font-bebas text-gold tracking-[0.22em] text-xs">03</p>
+            <p class="text-mist font-semibold mt-2">Show your work</p>
+            <p class="text-dim text-sm mt-1">Training clips and media act as a living portfolio—progress you can point to.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-      <h2 class="font-bebas text-xl text-gold tracking-wide">Path B — Events</h2>
-      <p class="text-dim text-sm">List → details → confirm → confirmation → my bookings.</p>
-      <a href="13-Upcoming Events.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Upcoming Events</a>
+    <section id="features" class="mx-auto max-w-6xl px-5 py-12 md:py-16">
+      <div class="flex items-end justify-between gap-6 flex-wrap">
+        <div>
+          <p class="font-bebas text-gold tracking-[0.26em] text-sm">FEATURES</p>
+          <h2 class="font-bebas text-mist tracking-wide text-4xl md:text-5xl mt-3">Everything an athlete needs to stay sharp.</h2>
+        </div>
+        <a href="demo.html" class="text-gold text-sm font-semibold hover:opacity-90 transition-opacity">See it in the demo →</a>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-4 mt-8">
+        <div class="rounded-3xl border border-line bg-panel2 p-6">
+          <p class="text-mist font-semibold">Community feed</p>
+          <p class="text-dim text-sm mt-2">Post updates, react, comment, and keep the social loop athlete-first.</p>
+        </div>
+        <div class="rounded-3xl border border-line bg-panel2 p-6">
+          <p class="text-mist font-semibold">Messaging</p>
+          <p class="text-dim text-sm mt-2">DMs with secure membership-only threads for conversations that matter.</p>
+        </div>
+        <div class="rounded-3xl border border-line bg-panel2 p-6">
+          <p class="text-mist font-semibold">Events + booking</p>
+          <p class="text-dim text-sm mt-2">Reserve spots, manage tickets, and support host check-in workflows.</p>
+        </div>
+        <div class="rounded-3xl border border-line bg-panel2 p-6">
+          <p class="text-mist font-semibold">Media library</p>
+          <p class="text-dim text-sm mt-2">Curated media and athlete uploads—your highlights, your proof.</p>
+        </div>
+        <div class="rounded-3xl border border-line bg-panel2 p-6">
+          <p class="text-mist font-semibold">Premium</p>
+          <p class="text-dim text-sm mt-2">Unlock creator tools for events/media. Manage subscriptions via platform billing.</p>
+        </div>
+        <div class="rounded-3xl border border-line bg-panel2 p-6">
+          <p class="text-mist font-semibold">Privacy & policy ready</p>
+          <p class="text-dim text-sm mt-2">Dedicated Terms and Privacy pages ready for review and store listing.</p>
+        </div>
+      </div>
     </section>
 
-    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-      <h2 class="font-bebas text-xl text-gold tracking-wide">Path C — Media</h2>
-      <p class="text-dim text-sm">Library → player; search → results.</p>
-      <a href="18-Media Library.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Media Library</a>
-      <a href="23-Media Player - Media Search.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or Media Search</a>
-    </section>
-
-    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-      <h2 class="font-bebas text-xl text-gold tracking-wide">Path D — Social</h2>
-      <p class="text-dim text-sm">Feed → notifications → messages → thread.</p>
-      <a href="7-Community Feed.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Community Feed</a>
-    </section>
-
-    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
-      <h2 class="font-bebas text-xl text-gold tracking-wide">Path E — Profile &amp; sponsors</h2>
-      <p class="text-dim text-sm">Profile → settings → sponsors → grant access.</p>
-      <a href="22-Athlete Profile.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Start at Athlete Profile</a>
-      <a href="31-Sponsor Listings.html" class="block w-full text-center py-3 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Or Sponsor Listings</a>
-    </section>
-
-    <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-      <h2 class="font-bebas text-lg text-mist tracking-wide mb-3">All screens</h2>
-      <ul class="text-sm text-dim space-y-2 columns-1 sm:columns-2 gap-4">
-        <li><a class="text-gold/90 hover:underline" href="1-Onboarding Flow - Log In.html">1 Log In</a></li>
-        <li><a class="text-gold/90 hover:underline" href="2-Onboarding Flow - Verify Reset.html">2 Verify reset</a></li>
-        <li><a class="text-gold/90 hover:underline" href="3-Onboarding Flow - Forgot Passw.html">3 Forgot password</a></li>
-        <li><a class="text-gold/90 hover:underline" href="4-Onboarding Flow - Welcome &amp; Ac.html">4 Welcome</a></li>
-        <li><a class="text-gold/90 hover:underline" href="5-Onboarding Flow - Create New P.html">5 New password</a></li>
-        <li><a class="text-gold/90 hover:underline" href="6-Brand Partner Detail.html">6 Brand partner</a></li>
-        <li><a class="text-gold/90 hover:underline" href="7-Community Feed.html">7 Community feed</a></li>
-        <li><a class="text-gold/90 hover:underline" href="8-Event Booking - Event Details.html">8 Event details</a></li>
-        <li><a class="text-gold/90 hover:underline" href="9-Event Booking - Confirm Attend.html">9 Confirm attend</a></li>
-        <li><a class="text-gold/90 hover:underline" href="10-Event Booking - Booking Confir.html">10 Booking confirm</a></li>
-        <li><a class="text-gold/90 hover:underline" href="11-Event Booking - Saved Events.html">11 Saved events</a></li>
-        <li><a class="text-gold/90 hover:underline" href="12-Event Booking - My Bookings.html">12 My bookings</a></li>
-        <li><a class="text-gold/90 hover:underline" href="13-Upcoming Events.html">13 Upcoming events</a></li>
-        <li><a class="text-gold/90 hover:underline" href="14-Profile Settings - Settings.html">14 Settings</a></li>
-        <li><a class="text-gold/90 hover:underline" href="15-Profile Settings - Edit Basic.html">15 Edit basic</a></li>
-        <li><a class="text-gold/90 hover:underline" href="16-Profile Settings - Edit Profil.html">16 Edit photo</a></li>
-        <li><a class="text-gold/90 hover:underline" href="17-Profile Settings - Edit Athlet.html">17 Edit athlete</a></li>
-        <li><a class="text-gold/90 hover:underline" href="18-Media Library.html">18 Media library</a></li>
-        <li><a class="text-gold/90 hover:underline" href="19-Media Player - Media Search Re.html">19 Search results</a></li>
-        <li><a class="text-gold/90 hover:underline" href="20-Media Player - Media Player.html">20 Media player</a></li>
-        <li><a class="text-gold/90 hover:underline" href="21-Media Player - Saved Media.html">21 Saved media</a></li>
-        <li><a class="text-gold/90 hover:underline" href="22-Athlete Profile.html">22 Athlete profile</a></li>
-        <li><a class="text-gold/90 hover:underline" href="23-Media Player - Media Search.html">23 Media search</a></li>
-        <li><a class="text-gold/90 hover:underline" href="24-Media Player - Community Feed.html">24 Community (media)</a></li>
-        <li><a class="text-gold/90 hover:underline" href="25-Community Flow - Community Sea.html">25 Search results</a></li>
-        <li><a class="text-gold/90 hover:underline" href="26-Community Flow - Notifications.html">26 Notifications</a></li>
-        <li><a class="text-gold/90 hover:underline" href="27-Community Flow - Messages Inbo.html">27 Messages</a></li>
-        <li><a class="text-gold/90 hover:underline" href="28-Community Flow - Message Threa.html">28 Message thread</a></li>
-        <li><a class="text-gold/90 hover:underline" href="29-Community Flow - Community Sea.html">29 Community search</a></li>
-        <li><a class="text-gold/90 hover:underline" href="30-Profile Settings - Edit Profil.html">30 Edit sections</a></li>
-        <li><a class="text-gold/90 hover:underline" href="31-Sponsor Listings.html">31 Sponsors</a></li>
-        <li><a class="text-gold/90 hover:underline" href="32-Grant Access.html">32 Grant access</a></li>
-      </ul>
+    <section id="impact" class="mx-auto max-w-6xl px-5 py-12 md:py-16">
+      <div class="rounded-[2rem] border border-line bg-panel p-8 md:p-12 relative overflow-hidden">
+        <div class="absolute -top-24 -right-28 w-[420px] h-[420px] rounded-full bg-gold/15 blur-3xl"></div>
+        <div class="absolute -bottom-24 -left-28 w-[420px] h-[420px] rounded-full bg-white/5 blur-3xl"></div>
+        <p class="font-bebas text-gold tracking-[0.26em] text-sm relative">GLOBAL IMPACT</p>
+        <h2 class="font-bebas text-mist tracking-wide text-4xl md:text-6xl mt-3 relative">Opportunity shouldn’t be geographic.</h2>
+        <p class="text-dim mt-5 max-w-3xl leading-relaxed relative">
+          Great athletes exist everywhere—often far from coaches, clubs, and sponsors. Grant Access is built to reduce that distance:
+          your training becomes visible, your network becomes intentional, and your opportunities become reachable.
+        </p>
+        <div class="mt-8 flex flex-col sm:flex-row gap-3 relative">
+          <a href="app/index.html" class="px-6 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open web app</a>
+          <a href="mailto:hello@grantaccess.app?subject=Grant%20Access%20—%20Early%20access" class="px-6 py-3 rounded-2xl border border-gold/35 text-gold font-semibold text-sm text-center hover:bg-gold/10 transition-colors">Request early access</a>
+        </div>
+      </div>
     </section>
   </main>
 
-  <p class="text-center text-dim text-xs px-6 pb-8">Serve this folder over HTTP and open on your phone — see <a href="README.md" class="text-gold underline">README.md</a>.</p>
+  <footer class="mx-auto max-w-6xl px-5 pb-12 pt-8 text-xs text-dim">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-line pt-6">
+      <p>© <span id="y"></span> Grant Access. <span class="text-dim/80">Built for athletes.</span></p>
+      <div class="flex flex-wrap items-center gap-4">
+        <a class="hover:text-mist transition-colors" href="privacy.html">Privacy</a>
+        <a class="hover:text-mist transition-colors" href="terms.html">Terms</a>
+        <a class="hover:text-mist transition-colors" href="demo.html">Demo</a>
+        <a class="hover:text-mist transition-colors" href="app/index.html">Web app</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('y').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>

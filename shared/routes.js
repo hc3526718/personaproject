@@ -3,7 +3,7 @@
  * Use from static HTML via shared/demo-shell.js or inline hrefs.
  */
 window.DEMO_ROUTES = {
-  index: 'index.html',
+  index: 'demo.html',
   login: '1-Onboarding Flow - Log In.html',
   verifyReset: '2-Onboarding Flow - Verify Reset.html',
   forgotPassword: '3-Onboarding Flow - Forgot Passw.html',

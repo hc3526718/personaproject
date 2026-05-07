@@ -1,8 +1,9 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type { CustomerInfo } from 'react-native-purchases';
+import { getRevenueCatEntitlementId } from '../lib/env';
 
-const ENTITLEMENT_PREMIUM = 'premium';
+const ENTITLEMENT_PREMIUM = getRevenueCatEntitlementId();
 
 function isExpoGo(): boolean {
   return (

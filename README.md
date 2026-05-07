@@ -1,6 +1,18 @@
-# DaltonProject — static mobile demo
+# Grant Access — website + product demo
 
-This folder is a **clickable prototype** of a sports coaching / community app. Open **[index.html](index.html)** to launch guided demo paths, or open any numbered HTML screen directly.
+This repository contains:
+
+- **A presentable marketing website**: `index.html`
+- **Legal pages**: `privacy.html` and `terms.html`
+- **A clickable prototype hub**: `demo.html` (and the numbered mock screens)
+- **An interactive Expo web export** under `web-deploy/app/` (built from `expo-app/`)
+
+## Quick links
+
+- Website: `index.html`
+- Demo hub: `demo.html`
+- Privacy: `privacy.html`
+- Terms: `terms.html`
 
 ## Run on your computer
 
@@ -11,6 +23,20 @@ npx --yes serve -l 5173
 ```
 
 Then open **http://localhost:5173** (or the URL printed in the terminal).
+
+## Vercel deployment
+
+This repo is pre-configured for Vercel with `vercel.json`.
+
+- Build command: `npm run vercel-build`
+- Output directory: `web-deploy`
+
+After deploying, clean URLs are available:
+
+- `/privacy` → `privacy.html`
+- `/terms` → `terms.html`
+- `/demo` → `demo.html`
+- `/app` → interactive Expo web build
 
 ## Test on a phone (same Wi‑Fi)
 
@@ -27,7 +53,7 @@ Allow the port through Windows Firewall if the page does not load.
 
 ## Demo wiring
 
-- **Flows** chip (top-left) on every mockup except the hub links back to `index.html`.
+- **Flows** chip (top-left) on every mockup except the hub links back to `demo.html`.
 - **Shared tokens**: [shared/theme.css](shared/theme.css) (`:root` variables).
 - **Route map** (for reference): [shared/routes.js](shared/routes.js) — the runtime copy is inlined in [shared/demo-shell.js](shared/demo-shell.js).
 - Screens **without** a built-in tab bar get a **fallback dock** from `demo-shell.js` (Community / Media / Sponsors / Events / Profile).

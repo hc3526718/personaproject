@@ -24,9 +24,11 @@ export async function ensureDefaultDaltonVerifiedMetadata(supabase: SupabaseClie
 }
 
 /**
- * When Dalton staff has set `profiles.dalton_verified` and the user has an active Premium
- * entitlement, mirror that into `auth.users.raw_user_meta_data` so the client session shows
- * "Dalton verified" without relying on insecure self-updates to `profiles`.
+ * When a user has an active Premium entitlement, mirror that into `auth.users.raw_user_meta_data`
+ * so the client session shows "Dalton verified" (used as a gate for creator tools in this build).
+ *
+ * Note: For production security, this should be mirrored server-side (RevenueCat webhook/Edge Function)
+ * so the client cannot spoof entitlements.
  */
 export async function syncDaltonVerifiedFromProfileIfPremium(
   supabase: SupabaseClient,
@@ -42,16 +44,6 @@ export async function syncDaltonVerifiedFromProfileIfPremium(
 
   const meta = user.user_metadata as Record<string, unknown> | undefined;
   if (meta?.dalton_verified === true || meta?.daltonVerified === true) {
-    return { updated: false };
-  }
-
-  const { data: profile, error: profileErr } = await supabase
-    .from('profiles')
-    .select('dalton_verified')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (profileErr || !profile?.dalton_verified) {
     return { updated: false };
   }
 

@@ -30,18 +30,25 @@ export function isOAuthReturnUrlTrusted(returnUrl: string, redirectTo: string): 
  * Prefer regex on decoded URL so we never miss `?code=` / `#code=` / `&code=`.
  */
 function parseOAuthCodeFromReturnUrl(returnUrl: string): string | null {
-  let decoded = returnUrl;
-  try {
-    decoded = decodeURIComponent(returnUrl);
-  } catch {
-    decoded = returnUrl;
+  const chunks: string[] = [returnUrl];
+  const hash = returnUrl.indexOf('#');
+  if (hash >= 0) {
+    chunks.push(returnUrl.slice(hash + 1));
   }
-  const m = decoded.match(/(?:^|[?#&])code=([^&#]+)/);
-  if (m?.[1]) {
+  for (const chunk of chunks) {
+    let decoded = chunk;
     try {
-      return decodeURIComponent(m[1]);
+      decoded = decodeURIComponent(chunk);
     } catch {
-      return m[1];
+      decoded = chunk;
+    }
+    const m = decoded.match(/(?:^|[?#&])code=([^&#]+)/);
+    if (m?.[1]) {
+      try {
+        return decodeURIComponent(m[1]);
+      } catch {
+        return m[1];
+      }
     }
   }
   const parsed = Linking.parse(returnUrl);
@@ -122,7 +129,20 @@ export async function signInWithGoogleOAuth(
     return { ok: false, message: msg || String(err) };
   }
 
-  return { ok: false, message: 'No authorization code in redirect' };
+  if (__DEV__) {
+    console.warn(
+      '[OAuth] Google redirect had no PKCE code. redirectTo=',
+      redirectTo,
+      'returnUrl(start)=',
+      result.url.slice(0, 240),
+    );
+  }
+  return {
+    ok: false,
+    message:
+      'No authorization code in redirect. Add this exact URL to Supabase → Auth → Redirect URLs: ' +
+      redirectTo,
+  };
 }
 
 export async function signInWithAppleNative(

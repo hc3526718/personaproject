@@ -1,8 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActionSheetIOS,
+  ActivityIndicator,
   Alert,
   Image,
+  type LayoutChangeEvent,
+  FlatList,
   Platform,
   Pressable,
   ScrollView,
@@ -12,14 +15,54 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { BrandLogo } from '../components/BrandLogo';
+import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootTitleText } from '../designSystem';
 import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
+import { isSupabaseConfigured } from '../lib/env';
+import * as ImagePicker from 'expo-image-picker';
+import { Video, ResizeMode } from 'expo-av';
+import { canSubmitCommunityPost } from '../roadmap/communityPolicy';
+import { getSupabase } from '../lib/supabase';
+import {
+  getPostCommentCount,
+  getPostLikeCount,
+  getUserHasLikedPost,
+  likePost,
+  unlikePost,
+} from '../roadmap/communityInteractionsService';
+import {
+  enrichPostWithAuthor,
+  insertCommunityPost,
+  listRecentCommunityPosts,
+  listAllEvents,
+  subscribeCommunityPosts,
+  type CommunityPostFeedRow,
+} from '../roadmap/liveDataService';
+import {
+  clearInAppNotifications,
+  listInAppNotifications,
+  markAllInAppNotificationsRead,
+  markInAppNotificationRead,
+  type InAppNotification,
+} from '../roadmap/notificationsService';
+import {
+  getOrCreateConversationId,
+  listConversationSummaries,
+  listMessages,
+  sendTextMessage,
+  type ConversationSummary,
+} from '../roadmap/messagingService';
+import type { MessageRow } from '../roadmap/types';
 import type { CommunityStackParamList, SponsorsStackParamList } from '../navigation/types';
+import { useActionBanner } from '../actionBanner/ActionBannerContext';
+import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
+import { pullRefreshControl } from '../lib/pullRefreshUi';
 
 type CProps<K extends keyof CommunityStackParamList> = NativeStackScreenProps<
   CommunityStackParamList,
@@ -60,6 +103,37 @@ const notifBodyRestStyle = {
   color: DS.color.text,
 };
 
+function RichTextMentions({ text }: { text: string }) {
+  const parts = useMemo(() => {
+    const re = /([@#][A-Za-z0-9_]+)/g;
+    const out: { k: string; v: string; gold: boolean }[] = [];
+    let i = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      const start = m.index;
+      const end = start + m[0].length;
+      if (start > i) out.push({ k: `${i}-t`, v: text.slice(i, start), gold: false });
+      out.push({ k: `${start}-m`, v: m[0], gold: true });
+      i = end;
+    }
+    if (i < text.length) out.push({ k: `${i}-e`, v: text.slice(i), gold: false });
+    return out.length ? out : [{ k: '0', v: text, gold: false }];
+  }, [text]);
+  return (
+    <Text style={styles.postBody}>
+      {parts.map((p) =>
+        p.gold ? (
+          <Text key={p.k} style={styles.mentionGold}>
+            {p.v}
+          </Text>
+        ) : (
+          p.v
+        ),
+      )}
+    </Text>
+  );
+}
+
 function HighlightBody({ text, query }: { text: string; query: string }) {
   const nodes = useMemo(() => {
     const q = query.trim();
@@ -87,14 +161,140 @@ function HighlightBody({ text, query }: { text: string; query: string }) {
 }
 
 const FILTERS = ['All', 'Sprints', 'Jumps', 'Youth', 'Academy'] as const;
-const IMG_HIGH =
-  'https://images.unsplash.com/photo-1552674605-15c2145e9ca3?q=80&w=800&auto=format&fit=crop';
+
+const FEED_AVATAR_PLACEHOLDER =
+  'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=200&auto=format&fit=crop';
+
+function formatRelativePostTime(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  const diff = Math.max(0, Date.now() - t);
+  const sec = Math.floor(diff / 1000);
+  if (sec < 45) return 'Just now';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  if (hr < 48) return 'Yesterday';
+  const d = Math.floor(hr / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+type ComposerMedia = {
+  kind: 'image' | 'video';
+  uri: string;
+  durationMs?: number;
+};
+
+const MAX_IMAGES = 7;
+const MAX_VIDEOS = 2;
+const MAX_VIDEO_MS = 30_000;
+
+function clampComposerMedia(items: ComposerMedia[]): ComposerMedia[] {
+  const vids = items.filter((m) => m.kind === 'video').slice(0, MAX_VIDEOS);
+  const imgs = items.filter((m) => m.kind === 'image').slice(0, MAX_IMAGES);
+  return [...vids, ...imgs].slice(0, MAX_IMAGES + MAX_VIDEOS);
+}
+
+function pickerAssetIsVideo(a: ImagePicker.ImagePickerAsset): boolean {
+  const mt = (a.mimeType ?? '').toLowerCase();
+  if (mt.startsWith('video/')) return true;
+  const t = (a as { type?: string }).type;
+  return t === 'video';
+}
+
+/** Expo reports `duration` in seconds for videos; treat missing as unknown (not video). */
+function pickerVideoDurationMs(a: ImagePicker.ImagePickerAsset): number | undefined {
+  if (!pickerAssetIsVideo(a)) return undefined;
+  if (typeof a.duration !== 'number' || Number.isNaN(a.duration)) return MAX_VIDEO_MS;
+  return Math.round(a.duration * 1000);
+}
+
+function inferContentType(kind: ComposerMedia['kind'], uri: string): string {
+  const u = uri.toLowerCase();
+  if (kind === 'image') {
+    if (u.endsWith('.png')) return 'image/png';
+    if (u.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
+  if (u.endsWith('.mov')) return 'video/quicktime';
+  return 'video/mp4';
+}
+
+function inferExt(kind: ComposerMedia['kind'], uri: string): string {
+  const u = uri.toLowerCase();
+  const dot = u.lastIndexOf('.');
+  const ext = dot !== -1 ? u.slice(dot + 1).split('?')[0] : '';
+  if (ext && ext.length <= 5) return ext;
+  return kind === 'image' ? 'jpg' : 'mp4';
+}
 
 export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   const insets = useSafeAreaInsets();
-  const [chip, setChip] = useState(0);
+  const { user } = useAuth();
+  const [feedPosts, setFeedPosts] = useState<CommunityPostFeedRow[]>([]);
+  const [feedLoading, setFeedLoading] = useState(() => isSupabaseConfigured());
+
+  const liveMode = isSupabaseConfigured();
+  const isDemoUser = Boolean(user?.id.startsWith('demo-'));
+  const demoCommunityAudience = !liveMode || isDemoUser || (!user && liveMode);
+
+  const loadFeed = useCallback(async () => {
+    if (!liveMode) {
+      setFeedLoading(false);
+      return;
+    }
+    setFeedLoading(true);
+    const rows = await listRecentCommunityPosts(30);
+    setFeedPosts(rows);
+    setFeedLoading(false);
+  }, [liveMode]);
+
+  const reloadFeedQuiet = useCallback(async () => {
+    if (!liveMode) return;
+    const rows = await listRecentCommunityPosts(30);
+    setFeedPosts(rows);
+  }, [liveMode]);
+
+  const { refreshing, onRefresh } = useRefreshWithMinimum(reloadFeedQuiet, 4000);
+
+  useEffect(() => {
+    void loadFeed();
+  }, [loadFeed]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadFeed();
+    }, [loadFeed]),
+  );
+
+  useEffect(() => {
+    if (!liveMode) return;
+    return subscribeCommunityPosts((change) => {
+      if (change.event === 'DELETE') {
+        setFeedPosts((prev) => prev.filter((p) => p.id !== change.id));
+        return;
+      }
+      void enrichPostWithAuthor(change.row).then((full) => {
+        setFeedPosts((prev) => {
+          const i = prev.findIndex((p) => p.id === full.id);
+          if (i >= 0) {
+            const next = [...prev];
+            next[i] = full;
+            return next;
+          }
+          return [full, ...prev]
+            .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+            .slice(0, 30);
+        });
+      });
+    });
+  }, [liveMode]);
+
   return (
     <View style={styles.root}>
+      <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
       <View style={[styles.feedHeader, { paddingTop: insets.top + DS.space.md }]}>
         <View style={styles.feedHeaderRow}>
           <Text style={styles.communityTitle}>COMMUNITY</Text>
@@ -102,78 +302,357 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
             <Pressable onPress={() => navigation.navigate('CommunitySearch')}>
               <FontAwesome name="search" size={20} color={DS.color.gold} />
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('Notifications')}>
-              <View>
-                <FontAwesome name="bell-o" size={22} color={DS.color.gold} />
-                <View style={styles.notifDot} />
-              </View>
-            </Pressable>
             <Pressable onPress={() => navigation.navigate('MessagesInbox')}>
               <FontAwesome5 name="paper-plane" size={18} color={DS.color.gold} solid={false} />
             </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+              onPress={() => navigation.navigate('Notifications')}
+              hitSlop={8}
+            >
+              <FontAwesome name="bell-o" size={20} color={DS.color.gold} />
+            </Pressable>
           </View>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-        >
-          {FILTERS.map((f, i) => (
-            <Pressable
-              key={f}
-              onPress={() => setChip(i)}
-              style={[styles.chip, chip === i ? styles.chipOn : styles.chipOff]}
-            >
-              <Text style={chip === i ? styles.chipTextOn : styles.chipTextOff}>{f}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
       </View>
       <ScrollView
-        contentContainerStyle={[styles.feedList, { paddingBottom: 100 + insets.bottom }]}
+        contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
+      >
+        {demoCommunityAudience ? (
+          <>
+            {liveMode && isDemoUser && user ? (
+              <View style={styles.feedBanner}>
+                <Text style={styles.feedBannerText}>
+                  You are in offline demo sign-in. Use a real Supabase account (email or Apple/Google) to
+                  post and see live updates across devices.
+                </Text>
+              </View>
+            ) : null}
+            {!liveMode ? (
+              <Text style={styles.feedSampleKicker}>
+                Sample posts · connect Supabase for a live Community feed.
+              </Text>
+            ) : null}
+            {liveMode && !user ? (
+              <>
+                <Text style={styles.feedEmptyText}>Sign in to post to the community.</Text>
+                <Text style={styles.feedSampleKicker}>Sample posts below</Text>
+              </>
+            ) : null}
+            <CommunityDemoPostList navigation={navigation} />
+          </>
+        ) : (
+          <>
+            {feedLoading ? (
+              <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
+            ) : feedPosts.length === 0 ? (
+              <Text style={styles.feedEmptyText}>No posts yet. Yours can be the first.</Text>
+            ) : (
+              feedPosts.map((p) => (
+                <PostCard
+                  key={p.id}
+                  postId={p.id}
+                  avatar={p.author_avatar_url?.trim() ? p.author_avatar_url : FEED_AVATAR_PLACEHOLDER}
+                  name={p.author_display_name?.trim() || 'Member'}
+                  time={formatRelativePostTime(p.created_at)}
+                  body={p.body ?? ''}
+                  imageUri={p.attachments?.find((a) => a.kind === 'image')?.uri}
+                  media={p.attachments}
+                  likes={0}
+                  heartFilled={false}
+                  comments={0}
+                />
+              ))
+            )}
+          </>
+        )}
+      </ScrollView>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="New post"
+        style={[styles.communityFab, { bottom: 58 + Math.max(insets.bottom, 8) }]}
+        onPress={() => navigation.navigate('CreateCommunityPost')}
+      >
+        <FontAwesome name="plus" size={22} color={DS.color.background} />
+      </Pressable>
+    </View>
+  );
+}
+
+export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunityPost'>) {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const liveMode = isSupabaseConfigured();
+  const isDemoUser = Boolean(user?.id.startsWith('demo-'));
+
+  const [caption, setCaption] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [media, setMedia] = useState<ComposerMedia[]>([]);
+  const [events, setEvents] = useState<{ id: string; title: string; starts_at: string }[]>([]);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [eventPickerOpen, setEventPickerOpen] = useState(false);
+
+  const showBanner = useActionBanner();
+
+  useEffect(() => {
+    if (!liveMode) return;
+    void (async () => {
+      const rows = await listAllEvents(100);
+      setEvents(rows.map((e) => ({ id: e.id, title: e.title, starts_at: e.starts_at })));
+    })();
+  }, [liveMode]);
+
+  const openPicker = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('Not on web', 'Use iOS or Android to pick photos and videos.');
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: true,
+      quality: 0.92,
+      videoMaxDuration: Math.floor(MAX_VIDEO_MS / 1000),
+      selectionLimit: MAX_IMAGES + MAX_VIDEOS,
+    });
+
+    if (res.canceled) return;
+
+    const nextIncoming: ComposerMedia[] = [];
+    for (const a of res.assets) {
+      const uri = a.uri;
+      if (pickerAssetIsVideo(a)) {
+        const durMs = pickerVideoDurationMs(a) ?? MAX_VIDEO_MS;
+        if (durMs > MAX_VIDEO_MS) continue;
+        nextIncoming.push({ kind: 'video', uri, durationMs: durMs });
+      } else if (uri) {
+        nextIncoming.push({ kind: 'image', uri });
+      }
+    }
+
+    setMedia(clampComposerMedia([...media, ...nextIncoming]));
+  }, [media]);
+
+  const canPost =
+    Boolean(
+      user &&
+        !isDemoUser &&
+        liveMode &&
+        media.length > 0 &&
+        canSubmitCommunityPost(user.id, { body: caption }) &&
+        !busy,
+    );
+
+  const removeMedia = useCallback((uri: string) => {
+    setMedia((prev) => clampComposerMedia(prev.filter((m) => m.uri !== uri)));
+  }, []);
+
+  const submit = useCallback(async () => {
+    const picks = clampComposerMedia(media);
+    if (!user || isDemoUser || !liveMode) return;
+    if (picks.length === 0) {
+      Alert.alert('Add media', 'Choose at least one photo or video.');
+      return;
+    }
+    if (!canSubmitCommunityPost(user.id, { body: caption })) {
+      Alert.alert('Caption required', 'Add a caption before posting.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const eventTag = eventId ? `\n\n#event:${eventId}` : '';
+      const row = await insertCommunityPost(user.id, `${caption.trim()}${eventTag}`);
+      if (!row) {
+        Alert.alert('Could not post', 'Check your connection and try again.');
+        return;
+      }
+      const supabase = getSupabase();
+      if (supabase && picks.length > 0) {
+        for (let i = 0; i < picks.length; i++) {
+          const m = picks[i]!;
+          const blob = await (await fetch(m.uri)).blob();
+          const ext = inferExt(m.kind, m.uri);
+          const storage_path = `posts/${row.id}/${Date.now()}-${i}.${ext}`;
+          const contentType = inferContentType(m.kind, m.uri);
+          const up = await supabase.storage.from('media_assets').upload(storage_path, blob, {
+            contentType,
+            upsert: false,
+          });
+          if (up.error) continue;
+          const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
+          const public_url = pub.data.publicUrl ?? null;
+          await supabase.from('media_assets').insert({
+            owner_id: user.id,
+            kind: m.kind,
+            storage_path,
+            public_url,
+            mime_type: contentType,
+            visibility: 'public',
+            post_id: row.id,
+          });
+        }
+      }
+      showBanner('Posted', 'Your post is live in the feed.');
+      navigation.goBack();
+    } finally {
+      setBusy(false);
+    }
+  }, [user, isDemoUser, liveMode, caption, eventId, navigation, media, showBanner]);
+
+  const first = media[0];
+
+  return (
+    <View style={styles.root}>
+      <View style={[styles.createTop, { paddingTop: insets.top + DS.space.md }]}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
+          <FontAwesome name="arrow-left" size={20} color={DS.color.gold} />
+        </Pressable>
+        <Text style={styles.createTitle}>NEW POST</Text>
+        <Pressable
+          onPress={() => void submit()}
+          disabled={!canPost}
+          style={[styles.createPostBtn, !canPost && { opacity: 0.45 }]}
+        >
+          <Text style={styles.createPostBtnTxt}>{busy ? 'Posting…' : 'Post'}</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={[styles.createBody, { paddingBottom: 32 + insets.bottom }]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <PostCard
-          postId="p1"
-          avatar="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg"
-          name="Marcus Johnson"
-          time="2 hours ago"
-          body="Great session today! Shaved 0.2s off my 100m sprint time. The new block start technique from Coach Davis is really paying off. 🏃🏾‍♂️💨"
-          likes={24}
-          heartFilled={false}
-          secondary={{ kind: 'fire', count: 12 }}
-          comments={5}
-        />
-        <PostCard
-          postId="p2"
-          avatar="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg"
-          name="Sarah Chen"
-          time="5 hours ago"
-          body="Form check from this morning's high jump practice. Clearing 1.75m consistently now!"
-          imageUri={IMG_HIGH}
-          likes={89}
-          heartFilled
-          secondary={{ kind: 'clap', count: 15 }}
-          comments={12}
-        />
-        <PostCard
-          postId="p3"
-          avatar="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg"
-          name="Coach Williams"
-          time="Yesterday"
-          badge="MENTOR"
-          bodyParagraphs={[
-            'Nutrition tip for recovery days: 🥦🥩',
-            "Many young athletes underestimate the importance of protein intake on their rest days. Your muscles are rebuilding during this time, not while you're training.",
-            "Aim for 1.6-2.0g of protein per kg of body weight. Break it down into 4-5 meals throughout the day rather than one massive steak at dinner. Stay hydrated and don't skip those complex carbs!",
-          ]}
-          likes={142}
-          heartFilled={false}
-          secondary={{ kind: 'lightbulb', count: 38 }}
-          comments={24}
-          onPressCard={() => navigation.navigate('BrandPartner')}
-        />
+        <Text style={styles.composerSectionKicker}>POST PREVIEW (FIRST ATTACHMENT)</Text>
+        <View style={styles.composerHero}>
+          {first ? (
+            <>
+              {first.kind === 'image' ? (
+                <Image source={{ uri: first.uri }} style={styles.composerHeroInner} resizeMode="cover" />
+              ) : (
+                <Video
+                  source={{ uri: first.uri }}
+                  style={styles.composerHeroInner}
+                  resizeMode={ResizeMode.COVER}
+                  useNativeControls
+                  isLooping={false}
+                />
+              )}
+              <Pressable style={styles.mediaRemove} onPress={() => removeMedia(first.uri)} hitSlop={8}>
+                <FontAwesome name="times" size={14} color={DS.color.text} />
+              </Pressable>
+              <Pressable style={styles.composerAddChip} onPress={() => void openPicker()} hitSlop={8}>
+                <FontAwesome name="plus" size={12} color={DS.color.background} />
+                <Text style={styles.composerAddChipTxt}>Add</Text>
+              </Pressable>
+            </>
+          ) : (
+            <Pressable style={styles.composerHeroEmpty} onPress={() => void openPicker()}>
+              <FontAwesome name="plus-square-o" size={34} color={DS.color.gold} />
+              <Text style={styles.composerHeroEmptyTitle}>Add photos & videos</Text>
+              <Text style={styles.composerHeroEmptySub}>
+                Up to {MAX_IMAGES} images and {MAX_VIDEOS} videos · max {MAX_VIDEO_MS / 1000}s clips
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {media.length > 1 ? (
+          <>
+            <Text style={[styles.composerSectionKicker, { marginTop: DS.space.md }]}>ALL ATTACHMENTS</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.composerThumbStrip}
+            >
+              {media.map((m) => (
+                <View key={m.uri} style={styles.composerThumbWrap}>
+                  <Pressable hitSlop={6} style={styles.composerThumbRemove} onPress={() => removeMedia(m.uri)}>
+                    <FontAwesome name="times" size={10} color={DS.color.background} />
+                  </Pressable>
+                  {m.kind === 'image' ? (
+                    <Image source={{ uri: m.uri }} style={styles.composerThumb} />
+                  ) : (
+                    <>
+                      <Video
+                        source={{ uri: m.uri }}
+                        style={styles.composerThumb}
+                        resizeMode={ResizeMode.COVER}
+                      />
+                      <View style={styles.composerThumbVidBadge} pointerEvents="none">
+                        <FontAwesome name="video-camera" size={9} color={DS.color.background} />
+                      </View>
+                    </>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+          </>
+        ) : null}
+
+        <Text style={[styles.composerSectionKicker, { marginTop: DS.space.md }]}>CAPTION · MENTIONS · HASHTAGS</Text>
+        <View style={styles.captionCard}>
+          <TextInput
+            value={caption}
+            onChangeText={setCaption}
+            placeholder={"@coach and #track — say what's happening"}
+            placeholderTextColor={DS.color.textMuted}
+            multiline
+            style={styles.captionInput}
+            maxLength={4000}
+          />
+        </View>
+
+        <Text style={[styles.composerSectionKicker, { marginTop: DS.space.sm }]}>ATTACH EVENT (OPTIONAL)</Text>
+        <Pressable
+          style={styles.eventTagRow}
+          onPress={() => setEventPickerOpen(true)}
+          disabled={!events.length}
+        >
+          <FontAwesome name="calendar" size={16} color={DS.color.gold} />
+          <Text style={styles.eventTagTxt}>
+            {eventId ? `${events.find((e) => e.id === eventId)?.title ?? 'Event'}` : 'Select an upcoming event'}
+          </Text>
+          <FontAwesome name="chevron-right" size={14} color={DS.color.textMuted} />
+        </Pressable>
       </ScrollView>
+
+      {eventPickerOpen ? (
+        <View style={styles.eventPickerOverlay}>
+          <Pressable style={styles.eventPickerBackdrop} onPress={() => setEventPickerOpen(false)} />
+          <View style={[styles.eventPickerSheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+            <Text style={styles.eventPickerTitle}>Attach an event</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {events.map((e) => (
+                <Pressable
+                  key={e.id}
+                  style={styles.eventPickerRow}
+                  onPress={() => {
+                    setEventId(e.id);
+                    setEventPickerOpen(false);
+                  }}
+                >
+                  <Text style={styles.eventPickerRowTitle}>{e.title}</Text>
+                  <Text style={styles.eventPickerRowMeta}>{new Date(e.starts_at).toLocaleString()}</Text>
+                </Pressable>
+              ))}
+              <Pressable
+                style={[styles.eventPickerRow, { borderBottomWidth: 0 }]}
+                onPress={() => {
+                  setEventId(null);
+                  setEventPickerOpen(false);
+                }}
+              >
+                <Text style={[styles.eventPickerRowTitle, { color: DS.color.textMuted }]}>Clear event</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -188,6 +667,7 @@ function PostCard({
   body,
   bodyParagraphs,
   imageUri,
+  media,
   likes: initialLikes,
   heartFilled: initialLiked,
   secondary: initialSecondary,
@@ -202,6 +682,7 @@ function PostCard({
   body?: string;
   bodyParagraphs?: string[];
   imageUri?: string;
+  media?: { kind: 'image' | 'video' | 'file'; uri: string; name?: string }[];
   likes: number;
   heartFilled?: boolean;
   secondary?: SecondaryReaction;
@@ -209,10 +690,33 @@ function PostCard({
   badge?: string;
   onPressCard?: () => void;
 }) {
+  const { user } = useAuth();
+  const liveMode = isSupabaseConfigured() && user && !user.id.startsWith('demo-');
   const [liked, setLiked] = useState(!!initialLiked);
   const [likeCount, setLikeCount] = useState(initialLikes);
   const [secondary, setSecondary] = useState<SecondaryReaction | undefined>(initialSecondary);
   const [commentCount, setCommentCount] = useState(initialCommentCount);
+  const [syncing, setSyncing] = useState(false);
+  const showActionBanner = useActionBanner();
+
+  useEffect(() => {
+    if (!liveMode || !user) return;
+    let cancelled = false;
+    void (async () => {
+      const [has, cLikes, cComments] = await Promise.all([
+        getUserHasLikedPost(_postId, user.id),
+        getPostLikeCount(_postId),
+        getPostCommentCount(_postId),
+      ]);
+      if (cancelled) return;
+      setLiked(has);
+      setLikeCount(cLikes);
+      setCommentCount(cComments);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [_postId, liveMode, user]);
 
   const bodyText = useMemo(
     () => (bodyParagraphs ? bodyParagraphs.join('\n\n') : body ?? ''),
@@ -223,21 +727,95 @@ function PostCard({
     bodyParagraphs ? (
       <View style={styles.postBodyBlock}>
         {bodyParagraphs.map((p, i) => (
-          <Text key={i} style={styles.postBody}>
-            {p}
-          </Text>
+          <RichTextMentions key={i} text={p} />
         ))}
       </View>
     ) : (
-      <Text style={styles.postBody}>{body}</Text>
+      <RichTextMentions text={body ?? ''} />
     );
 
+  const mediaItems = useMemo(
+    () => (media ?? []).filter((m) => m.kind === 'image' || m.kind === 'video'),
+    [media],
+  );
+  const [carouselW, setCarouselW] = useState(0);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const onCarouselLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const w = e.nativeEvent.layout.width;
+      if (w && w !== carouselW) setCarouselW(w);
+    },
+    [carouselW],
+  );
+
+  const mediaSection =
+    mediaItems.length > 0 ? (
+      <View onLayout={onCarouselLayout} style={styles.postCarouselWrap}>
+        <ScrollView
+          ref={(r) => {
+            scrollRef.current = r;
+          }}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+        >
+          {mediaItems.map((m, idx) => (
+            <View
+              key={`${m.kind}-${m.uri}`}
+              style={[styles.postCarouselItem, carouselW ? { width: carouselW } : null]}
+            >
+              {m.kind === 'image' ? (
+                <Image source={{ uri: m.uri }} style={styles.postCarouselMedia} />
+              ) : (
+                <Video
+                  source={{ uri: m.uri }}
+                  style={styles.postCarouselMedia}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay={idx === 0}
+                  isLooping={false}
+                  onPlaybackStatusUpdate={(st) => {
+                    if (!('didJustFinish' in st)) return;
+                    if (st.didJustFinish && scrollRef.current && carouselW) {
+                      const next = Math.min(mediaItems.length - 1, idx + 1);
+                      scrollRef.current.scrollTo({ x: next * carouselW, animated: true });
+                    }
+                  }}
+                />
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    ) : imageUri ? (
+      <Image source={{ uri: imageUri }} style={styles.postImage} />
+    ) : null;
+
   const toggleLike = useCallback(() => {
-    setLiked((v) => {
-      setLikeCount((c) => (v ? c - 1 : c + 1));
-      return !v;
-    });
-  }, []);
+    if (!liveMode || !user) {
+      setLiked((v) => {
+        setLikeCount((c) => (v ? c - 1 : c + 1));
+        return !v;
+      });
+      return;
+    }
+    if (syncing) return;
+    setSyncing(true);
+    const next = !liked;
+    setLiked(next);
+    setLikeCount((c) => Math.max(0, c + (next ? 1 : -1)));
+    void (async () => {
+      const ok = next ? await likePost(_postId, user.id) : await unlikePost(_postId, user.id);
+      if (!ok) {
+        setLiked((v) => !v);
+        setLikeCount((c) => Math.max(0, c + (next ? -1 : 1)));
+      } else {
+        const cLikes = await getPostLikeCount(_postId);
+        setLikeCount(cLikes);
+        if (next) showActionBanner('Liked', `${name}'s post`);
+      }
+      setSyncing(false);
+    })();
+  }, [liveMode, user, syncing, liked, _postId, name, showActionBanner]);
 
   const sharePost = useCallback(async () => {
     try {
@@ -259,6 +837,8 @@ function PostCard({
         const seed = initialSecondary?.kind === kind ? initialSecondary.count : 0;
         return { kind, count: seed + 1 };
       });
+      const label = kind === 'fire' ? 'Fire' : kind === 'clap' ? 'Clap' : 'Insight';
+      showActionBanner('Reaction sent', label);
     };
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -280,7 +860,7 @@ function PostCard({
         { text: 'Cancel', style: 'cancel' },
       ]);
     }
-  }, [initialSecondary]);
+  }, [initialSecondary, showActionBanner]);
 
   const openPostMenu = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -320,13 +900,21 @@ function PostCard({
     setCommentCount((c) => c);
     Alert.alert(
       'Comments',
-      'Thread view will load from Supabase (`post_comments`) when the backend is wired. You can still demo the counter locally.',
+      liveMode
+        ? 'Comments are stored in Supabase (`post_comments`). Full thread UI is next; for now this shows the live count.'
+        : 'Thread view will load from Supabase (`post_comments`) when the backend is wired. You can still demo the counter locally.',
       [
-        { text: 'Add demo comment', onPress: () => setCommentCount((c) => c + 1) },
+        {
+          text: 'Add demo comment',
+          onPress: () => {
+            setCommentCount((c) => c + 1);
+            showActionBanner('Comment added', 'Full threads sync when comments API is wired.');
+          },
+        },
         { text: 'OK', style: 'cancel' },
       ],
     );
-  }, []);
+  }, [liveMode, showActionBanner]);
 
   return (
     <View style={styles.postCard}>
@@ -351,12 +939,12 @@ function PostCard({
           style={({ pressed }) => (pressed ? { opacity: 0.92 } : null)}
         >
           {bodySection}
-          {imageUri ? <Image source={{ uri: imageUri }} style={styles.postImage} /> : null}
+          {mediaSection}
         </Pressable>
       ) : (
         <>
           {bodySection}
-          {imageUri ? <Image source={{ uri: imageUri }} style={styles.postImage} /> : null}
+          {mediaSection}
         </>
       )}
       <View style={styles.postActions}>
@@ -403,6 +991,95 @@ function PostCard({
   );
 }
 
+function CommunityDemoPostList({
+  navigation,
+}: Pick<CProps<'CommunityFeed'>, 'navigation'>) {
+  return (
+    <>
+      <PostCard
+        postId="demo-pb-1"
+        avatar="https://picsum.photos/seed/dalton-ava1/200/200"
+        name="Jordan Blake"
+        time="12m ago"
+        body="Track day reps with @TaylorM and @CoachDana felt locked in. Focusing on hips through the drive phase 🚀 #DaltonAthletics #Sprinters #MondayMiles"
+        imageUri="https://picsum.photos/seed/dalton-run1/800/520"
+        likes={34}
+        heartFilled={false}
+        secondary={{ kind: 'fire', count: 18 }}
+        comments={9}
+      />
+      <PostCard
+        postId="demo-pb-2"
+        avatar="https://picsum.photos/seed/dalton-ava2/200/200"
+        name="Alex Rivera"
+        time="42m ago"
+        body="@JordanBlake that ladder session blueprint you shared 🔥 Tagged @YouthClub coaches too — shoutout #DaltonGrant #CoachNetwork"
+        media={[
+          { kind: 'image', uri: 'https://picsum.photos/seed/dalton-carousel-a/900/560' },
+          { kind: 'image', uri: 'https://picsum.photos/seed/dalton-carousel-b/900/560' },
+        ]}
+        likes={52}
+        heartFilled
+        secondary={{ kind: 'clap', count: 21 }}
+        comments={14}
+      />
+      <PostCard
+        postId="demo-pb-3"
+        avatar="https://picsum.photos/seed/dalton-ava3/200/200"
+        name="Mia Okonkwo"
+        time="2h ago"
+        badge="AMBASSADOR"
+        body="Recovery stack that’s working this block: mobility + flush ride + hydration check. Trying to stay consistent between dual meets ⚡️ #Recovery #HydrationRoutine #AthleteJournal"
+        imageUri="https://picsum.photos/seed/dalton-recovery/780/540"
+        likes={67}
+        heartFilled={false}
+        secondary={{ kind: 'lightbulb', count: 12 }}
+        comments={6}
+      />
+      <PostCard
+        postId="demo-pb-4"
+        avatar="https://picsum.photos/seed/dalton-ava4/200/200"
+        name="Sam Whitaker"
+        time="4h ago"
+        bodyParagraphs={[
+          'Meet week mindset — shorten the warmup story, lengthen the checklist. Clipboard items: spikes, bib, salts, earbuds.',
+          '@PerformanceLab posted a slick primer on aisle breathing; pairing that with tonight’s shakeout.',
+          '#MeetWeek #DaltonAthletics #HurdlesClub',
+        ]}
+        likes={41}
+        heartFilled={false}
+        comments={11}
+      />
+      <PostCard
+        postId="demo-pb-5"
+        avatar="https://picsum.photos/seed/dalton-ava5/200/200"
+        name="Chen & Ellis Training"
+        time="Yesterday"
+        body="Youth academy highlight reel is going up tonight — tagging @TaylorM @CoachDana plus #YouthDalton #SprintStarts. Slide into DMs if you want the drill PDF."
+        imageUri="https://picsum.photos/seed/dalton-coachposter/820/560"
+        likes={156}
+        heartFilled={false}
+        secondary={{ kind: 'fire', count: 44 }}
+        comments={28}
+      />
+      <PostCard
+        postId="demo-pb-6"
+        avatar="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg"
+        name="Coach Williams"
+        time="Yesterday"
+        badge="MENTOR"
+        body="Nutrition nudge — pre-comp carb window + electrolytes. Mentioning @JordanBlake and @MiaOkonkwo for keeping the locker room chatter positive. 🥦🏃‍♂️💧 #FuelRight #DaltonFam"
+        imageUri="https://picsum.photos/seed/dalton-foodtrack/760/520"
+        likes={198}
+        heartFilled={false}
+        secondary={{ kind: 'lightbulb', count: 62 }}
+        comments={36}
+        onPressCard={() => navigation.navigate('BrandPartner')}
+      />
+    </>
+  );
+}
+
 const DEFAULT_RECENT = ['sprint technique', 'Coach Williams', 'high jump'] as const;
 const TRENDING = [
   { topic: 'nutrition tips', count: '142 posts this week' },
@@ -414,7 +1091,6 @@ export function CommunitySearchScreen({ navigation }: CProps<'CommunitySearch'>)
   const insets = useSafeAreaInsets();
   const [q, setQ] = useState('');
   const [recent, setRecent] = useState<string[]>([...DEFAULT_RECENT]);
-  const [tagChip, setTagChip] = useState(0);
   const runSearch = (query: string) =>
     navigation.navigate('CommunitySearchResults', { query: query.trim() || 'sprint technique' });
   return (
@@ -475,23 +1151,6 @@ export function CommunitySearchScreen({ navigation }: CProps<'CommunitySearch'>)
             </Pressable>
           </View>
         ))}
-        <Text style={styles.commSearchSectionTitle}>Suggested Tags</Text>
-        <View style={styles.suggestedTagsWrap}>
-          {FILTERS.map((f, i) => (
-            <Pressable
-              key={f}
-              onPress={() => {
-                setTagChip(i);
-                runSearch(f === 'All' ? 'sprint technique' : f);
-              }}
-              style={[styles.suggestedTag, tagChip === i && styles.suggestedTagOn]}
-            >
-              <Text style={[styles.suggestedTagTxt, tagChip === i && styles.suggestedTagTxtOn]}>
-                {f}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
         <Text style={styles.commSearchSectionTitle}>Trending</Text>
         {TRENDING.map((t) => (
           <Pressable key={t.topic} style={styles.trendingRow} onPress={() => runSearch(t.topic)}>
@@ -502,9 +1161,6 @@ export function CommunitySearchScreen({ navigation }: CProps<'CommunitySearch'>)
             </View>
           </Pressable>
         ))}
-        <Pressable style={styles.commSearchCta} onPress={() => runSearch(q)}>
-          <Text style={styles.commSearchCtaText}>Search</Text>
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -826,13 +1482,118 @@ const NOTIFICATION_ROWS: NotifRow[] = [
   },
 ];
 
+type NotifRowUi = {
+  id: string;
+  unread: boolean;
+  time: string;
+  body: ReactNode;
+  avatar?: string;
+  icon?: 'calendar' | 'trophy';
+};
+
 export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
-  const visible = NOTIFICATION_ROWS.map((r) => ({
-    ...r,
+  const [demoDismissed, setDemoDismissed] = useState(false);
+  const [liveNotifs, setLiveNotifs] = useState<InAppNotification[] | null>(null);
+  const showBanner = useActionBanner();
+
+  const liveMode = isSupabaseConfigured();
+  const isDemoUser = Boolean(user?.id.startsWith('demo-'));
+  const useServerNotifs = liveMode && user && !isDemoUser;
+
+  useEffect(() => {
+    if (!useServerNotifs) {
+      setLiveNotifs(null);
+      return;
+    }
+    let cancelled = false;
+    void listInAppNotifications(user.id).then((rows) => {
+      if (!cancelled) setLiveNotifs(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [useServerNotifs, user]);
+
+  const demoVisible: NotifRowUi[] = (demoDismissed ? [] : NOTIFICATION_ROWS).map((r) => ({
+    id: r.id,
     unread: r.unread && !readIds.has(r.id),
+    time: r.time,
+    body: r.body,
+    avatar: r.avatar,
+    icon: r.icon,
   }));
+
+  const serverVisible: NotifRowUi[] =
+    liveNotifs?.map((n) => ({
+      id: n.id,
+      unread: !n.read_at,
+      time: formatRelativePostTime(n.created_at),
+      body: (
+        <>
+          <Text style={notifBodyStrongStyle}>{n.title}</Text>
+          <Text style={notifBodyRestStyle}>{n.body ? ` ${n.body}` : ''}</Text>
+        </>
+      ),
+      icon: 'calendar' as const,
+    })) ?? [];
+
+  const visible: NotifRowUi[] =
+    useServerNotifs && liveNotifs !== null ? serverVisible : useServerNotifs && liveNotifs === null ? [] : demoVisible;
+
+  const notificationsLoading = useServerNotifs && liveNotifs === null;
+  const showNotificationsEmpty = !notificationsLoading && visible.length === 0;
+
+  const markAllRead = useCallback(() => {
+    if (useServerNotifs && user) {
+      void markAllInAppNotificationsRead(user.id).then((ok) => {
+        if (ok) {
+          showBanner('Marked all read');
+          void listInAppNotifications(user.id).then(setLiveNotifs);
+        } else showBanner('Could not update', 'Check your connection.');
+      });
+      return;
+    }
+    setReadIds(new Set(NOTIFICATION_ROWS.map((r) => r.id)));
+    showBanner('Marked all read');
+  }, [useServerNotifs, user, showBanner]);
+
+  const clearAll = useCallback(() => {
+    if (useServerNotifs && user) {
+      void clearInAppNotifications(user.id).then((ok) => {
+        if (ok) {
+          showBanner('Notifications cleared');
+          void listInAppNotifications(user.id).then(setLiveNotifs);
+        } else showBanner('Could not clear', 'Check delete policy and connection.');
+      });
+      return;
+    }
+    setDemoDismissed(true);
+    setReadIds(new Set());
+    showBanner('Notifications cleared');
+  }, [useServerNotifs, user, showBanner]);
+
+  const onPressRow = useCallback(
+    (row: NotifRowUi) => {
+      if (useServerNotifs && user) {
+        void markInAppNotificationRead(user.id, row.id).then((ok) => {
+          if (ok) {
+            setLiveNotifs((prev) =>
+              prev
+                ? prev.map((n) => (n.id === row.id ? { ...n, read_at: new Date().toISOString() } : n))
+                : prev,
+            );
+          }
+        });
+        return;
+      }
+      setReadIds((prev) => new Set(prev).add(row.id));
+    },
+    [useServerNotifs, user],
+  );
+
   return (
     <View style={styles.root}>
       <View style={[styles.notifHeader, { paddingTop: insets.top + DS.space.md }]}>
@@ -845,17 +1606,25 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
             <FontAwesome name="times" size={20} color={DS.color.textMuted} />
           </Pressable>
         </View>
-        <Pressable
-          onPress={() => setReadIds(new Set(NOTIFICATION_ROWS.map((r) => r.id)))}
-          hitSlop={8}
-        >
-          <Text style={styles.markAllRead}>Mark all as read</Text>
-        </Pressable>
+        <View style={styles.notifHeaderActions}>
+          <Pressable onPress={markAllRead} hitSlop={8}>
+            <Text style={styles.markAllRead}>Mark all as read</Text>
+          </Pressable>
+          <Pressable onPress={clearAll} hitSlop={8}>
+            <Text style={styles.notifClear}>Clear</Text>
+          </Pressable>
+        </View>
       </View>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
         showsVerticalScrollIndicator={false}
       >
+        {notificationsLoading ? (
+          <ActivityIndicator color={DS.color.gold} style={{ marginTop: DS.space.lg }} />
+        ) : null}
+        {showNotificationsEmpty ? (
+          <Text style={styles.feedEmptyText}>No new notifications</Text>
+        ) : null}
         {visible.map((row) => (
           <Pressable
             key={row.id}
@@ -863,7 +1632,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
               styles.notifItem,
               row.unread ? styles.notifItemUnread : styles.notifItemRead,
             ]}
-            onPress={() => setReadIds((prev) => new Set(prev).add(row.id))}
+            onPress={() => onPressRow(row)}
           >
             {row.avatar ? (
               <Image source={{ uri: row.avatar }} style={styles.notifAvatar} />
@@ -877,9 +1646,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
               </View>
             )}
             <View style={styles.notifTextCol}>
-              <Text style={styles.notifBodyLine}>
-                {row.body}
-              </Text>
+              <Text style={styles.notifBodyLine}>{row.body}</Text>
               <Text style={styles.notifTime}>{row.time}</Text>
             </View>
             {row.unread ? <View style={styles.notifUnreadDot} /> : null}
@@ -982,13 +1749,50 @@ const INBOX_THREADS: InboxThread[] = [
   },
 ];
 
+type InboxRowUi = {
+  id: string;
+  name: string;
+  avatar: string;
+  time: string;
+  preview: string;
+  previewMuted?: boolean;
+  online?: boolean;
+  unread?: number;
+  selected?: boolean;
+  conversationId?: string;
+  peerUserId?: string;
+};
+
 export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const liveMsgs = Boolean(isSupabaseConfigured() && user && !user.id.startsWith('demo-'));
+  const [liveThreads, setLiveThreads] = useState<ConversationSummary[]>([]);
+
+  const reloadInboxThreads = useCallback(async () => {
+    if (!liveMsgs || !user) {
+      setLiveThreads([]);
+      return;
+    }
+    const rows = await listConversationSummaries(user.id);
+    setLiveThreads(rows);
+  }, [liveMsgs, user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reloadInboxThreads();
+    }, [reloadInboxThreads]),
+  );
+
+  const { refreshing, onRefresh } = useRefreshWithMinimum(reloadInboxThreads, 4000);
+
   const [filter, setFilter] = useState('');
   const newMessageDemo = useCallback(() => {
     Alert.alert(
       'New message',
-      'Try a recipient who limits DMs vs one you follow. Server-side RLS will mirror this with Supabase.',
+      liveMsgs
+        ? 'Demo threads below. To DM a real user: add a Supabase profile UUID (Settings → follow requests test peers), then we can wire a picker here.'
+        : 'Try a recipient who limits DMs vs one you follow. Server-side RLS will mirror this with Supabase.',
       [
         {
           text: 'Marcus (not following)',
@@ -1021,17 +1825,39 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
         { text: 'Cancel', style: 'cancel' },
       ],
     );
-  }, [navigation]);
+  }, [navigation, liveMsgs]);
   const threads = useMemo(() => {
+    const liveRows: InboxRowUi[] = liveThreads.map((t) => ({
+      id: `live-${t.conversation_id}`,
+      name: t.peer_display_name?.trim() || 'Member',
+      avatar: t.peer_avatar_url?.trim() ? t.peer_avatar_url : FEED_AVATAR_PLACEHOLDER,
+      time: t.last_at ? formatRelativePostTime(t.last_at) : '',
+      preview: t.last_body ?? 'No messages yet',
+      previewMuted: !t.last_body,
+      conversationId: t.conversation_id,
+      peerUserId: t.peer_user_id,
+    }));
+    const demoRows: InboxRowUi[] = INBOX_THREADS.map((t) => ({
+      id: t.id,
+      name: t.name,
+      avatar: t.avatar,
+      time: t.time,
+      preview: t.preview,
+      previewMuted: t.previewMuted,
+      online: t.online,
+      unread: t.unread,
+      selected: t.selected,
+    }));
+    const merged = [...liveRows, ...demoRows];
     const f = filter.trim().toLowerCase();
-    if (!f) return INBOX_THREADS;
-    return INBOX_THREADS.filter(
-      (t) =>
-        t.name.toLowerCase().includes(f) || t.preview.toLowerCase().includes(f),
+    if (!f) return merged;
+    return merged.filter(
+      (t) => t.name.toLowerCase().includes(f) || t.preview.toLowerCase().includes(f),
     );
-  }, [filter]);
+  }, [filter, liveThreads]);
   return (
     <View style={styles.root}>
+      <PullRefreshRiveOverlay visible={refreshing && liveMsgs} topInset={insets.top} />
       <View style={[styles.inboxHeader, { paddingTop: insets.top + DS.space.md }]}>
         <View style={styles.inboxHeaderRow}>
           <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
@@ -1061,6 +1887,7 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
         showsVerticalScrollIndicator={false}
+        refreshControl={liveMsgs ? pullRefreshControl(refreshing, onRefresh) : undefined}
       >
         {threads.map((t) => (
           <Pressable
@@ -1069,7 +1896,14 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
               styles.inboxRow,
               t.selected ? styles.inboxRowSelected : styles.inboxRowIdle,
             ]}
-            onPress={() => navigation.navigate('MessageThread', { name: t.name })}
+            onPress={() =>
+              navigation.navigate('MessageThread', {
+                name: t.name,
+                conversationId: t.conversationId,
+                peerUserId: t.peerUserId,
+                avatarUrl: t.avatar,
+              })
+            }
           >
             <View style={styles.inboxAvatarWrap}>
               <Image source={{ uri: t.avatar }} style={styles.inboxAvatar} />
@@ -1152,15 +1986,125 @@ const COACH_THREAD: { from: 'them' | 'me'; text: string; time: string; read?: 'd
 
 export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const showBanner = useActionBanner();
+  const conversationIdParam = route.params?.conversationId;
+  const peerUserId = route.params?.peerUserId;
   const title = route.params?.name ?? 'Coach Williams';
-  const isCoach = title === 'Coach Williams';
-  const avatar = isCoach ? COACH_AVATAR : 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg';
-  const bubbles = isCoach
+  const paramAvatar = route.params?.avatarUrl;
+  const isCoachDemo = title === 'Coach Williams' && !conversationIdParam && !peerUserId;
+  const avatar = paramAvatar?.trim()
+    ? paramAvatar
+    : isCoachDemo
+      ? COACH_AVATAR
+      : 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg';
+
+  const [liveMessages, setLiveMessages] = useState<MessageRow[]>([]);
+  const [draft, setDraft] = useState('');
+  const [loading, setLoading] = useState(Boolean(conversationIdParam || peerUserId));
+  const [activeConversationId, setActiveConversationId] = useState<string | undefined>(
+    conversationIdParam,
+  );
+
+  useEffect(() => {
+    setActiveConversationId(conversationIdParam);
+  }, [conversationIdParam]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        if (!user?.id || user.id.startsWith('demo-')) {
+          setLiveMessages([]);
+          setLoading(false);
+          return;
+        }
+        if (conversationIdParam) {
+          setLoading(true);
+          const msgs = await listMessages(conversationIdParam, 100);
+          setLiveMessages(msgs);
+          setLoading(false);
+          return;
+        }
+        if (peerUserId) {
+          setLoading(true);
+          const cid = await getOrCreateConversationId(peerUserId);
+          if (cid) {
+            setActiveConversationId(cid);
+            const msgs = await listMessages(cid, 100);
+            setLiveMessages(msgs);
+          }
+          setLoading(false);
+        } else {
+          setLiveMessages([]);
+          setLoading(false);
+        }
+      })();
+    }, [conversationIdParam, peerUserId, user]),
+  );
+
+  const cidFinal = activeConversationId ?? conversationIdParam;
+  const isLive = Boolean(cidFinal && user && !user.id.startsWith('demo-'));
+
+  useEffect(() => {
+    if (!isLive || !cidFinal || !user) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const channel = supabase
+      .channel(`messages-${cidFinal}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${cidFinal}`,
+        },
+        (payload) => {
+          const row = payload.new as MessageRow;
+          if (!row?.id || row.sender_id === user.id) return;
+          setLiveMessages((prev) => {
+            if (prev.some((x) => x.id === row.id)) return prev;
+            return [...prev, row];
+          });
+          const snippet = (row.body ?? '').trim().slice(0, 72);
+          showBanner('New message', snippet || 'Open thread to read');
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isLive, cidFinal, user, showBanner]);
+
+  const send = useCallback(async () => {
+    if (!cidFinal || !user || draft.trim().length === 0) return;
+    const m = await sendTextMessage(cidFinal, user.id, draft);
+    if (m) {
+      setDraft('');
+      setLiveMessages((prev) => [...prev, m]);
+      showBanner('Sent', 'Message delivered.');
+    } else {
+      Alert.alert('Send failed', 'Check Supabase messaging RLS and rpc_get_or_create_dm.sql.');
+    }
+  }, [cidFinal, user, draft, showBanner]);
+
+  const demoBubbles = isCoachDemo
     ? COACH_THREAD
     : [
         { from: 'them' as const, text: `Hey — chat with ${title} (demo).`, time: 'Now' },
         { from: 'me' as const, text: 'Sounds good!', time: 'Now', read: 'double' as const },
       ];
+
+  const bubbles = isLive
+    ? liveMessages.map((m) => ({
+        from: (m.sender_id === user.id ? 'me' : 'them') as 'me' | 'them',
+        text: m.body ?? '',
+        time: formatRelativePostTime(m.created_at),
+        read: (m.sender_id === user.id ? 'double' : undefined) as 'double' | 'single' | undefined,
+      }))
+    : demoBubbles;
+
   return (
     <View style={styles.root}>
       <View style={[styles.threadHeader, { paddingTop: insets.top + DS.space.md }]}>
@@ -1172,7 +2116,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           <Text style={styles.threadHeaderName} numberOfLines={1}>
             {title}
           </Text>
-          <Text style={styles.threadHeaderStatus}>Online</Text>
+          <Text style={styles.threadHeaderStatus}>{isLive ? 'Messages' : 'Online'}</Text>
         </View>
         <View style={styles.threadHeaderActions}>
           <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
@@ -1193,6 +2137,9 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         contentContainerStyle={[styles.threadBody, { paddingBottom: DS.space.lg }]}
         showsVerticalScrollIndicator={false}
       >
+        {loading && isLive ? (
+          <ActivityIndicator color={DS.color.gold} style={{ marginVertical: 16 }} />
+        ) : null}
         <View style={styles.threadDayPillWrap}>
           <Text style={styles.threadDayPill}>Today</Text>
         </View>
@@ -1230,8 +2177,15 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           placeholder="Type a message..."
           placeholderTextColor={DS.color.textMuted}
           multiline
+          value={draft}
+          onChangeText={setDraft}
+          editable={isLive}
         />
-        <Pressable style={styles.sendBtnRound}>
+        <Pressable
+          style={[styles.sendBtnRound, !isLive || !draft.trim() ? { opacity: 0.45 } : null]}
+          onPress={() => void send()}
+          disabled={!isLive || !draft.trim()}
+        >
           <FontAwesome5 name="paper-plane" size={16} color={DS.color.background} solid />
         </Pressable>
       </View>
@@ -1430,6 +2384,265 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: DS.space.lg,
   },
+  communityFab: {
+    position: 'absolute',
+    right: DS.space.base,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: DS.color.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.45)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  createTop: {
+    paddingHorizontal: DS.space.base,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DS.color.borderWhite5,
+    paddingBottom: DS.space.md,
+  },
+  createTitle: {
+    flex: 1,
+    fontFamily: DS.font.heading,
+    fontSize: 14,
+    letterSpacing: 2,
+    color: DS.color.gold,
+    textAlign: 'center',
+  },
+  createPostBtn: {
+    backgroundColor: DS.color.gold,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  createPostBtnTxt: {
+    fontFamily: DS.font.bodyMedium,
+    color: DS.color.background,
+    fontWeight: '700',
+  },
+  createBody: {
+    padding: DS.space.base,
+    gap: DS.space.base,
+  },
+  mediaActionsRow: {
+    flexDirection: 'row',
+    gap: DS.space.sm,
+  },
+  createCarousel: {
+    gap: DS.space.base,
+  },
+  createMediaCard: {
+    width: 320,
+    height: 380,
+    borderRadius: DS.radius.xl,
+    overflow: 'hidden',
+    backgroundColor: DS.color.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    marginRight: DS.space.base,
+  },
+  createMedia: {
+    width: '100%',
+    height: '100%',
+  },
+  mediaRemove: {
+    position: 'absolute',
+    zIndex: 2,
+    top: DS.space.sm,
+    right: DS.space.sm,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createEmptyMedia: {
+    borderRadius: DS.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    padding: DS.space.lg,
+    backgroundColor: DS.color.surface,
+  },
+  createEmptyMediaTxt: {
+    fontFamily: DS.font.body,
+    color: DS.color.textMuted,
+  },
+  composerSectionKicker: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    color: DS.color.textMuted,
+    marginBottom: DS.space.sm,
+  },
+  composerHero: {
+    width: '100%',
+    aspectRatio: 4 / 5,
+    borderRadius: DS.radius.xl,
+    overflow: 'hidden',
+    backgroundColor: DS.color.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    position: 'relative',
+  },
+  composerHeroInner: {
+    width: '100%',
+    height: '100%',
+  },
+  composerHeroEmpty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: DS.space.xl,
+    gap: DS.space.sm,
+  },
+  composerHeroEmptyTitle: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 17,
+    color: DS.color.text,
+    textAlign: 'center',
+  },
+  composerHeroEmptySub: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    textAlign: 'center',
+  },
+  composerAddChip: {
+    position: 'absolute',
+    bottom: DS.space.sm,
+    right: DS.space.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: DS.radius.pill,
+    backgroundColor: DS.color.gold,
+  },
+  composerAddChipTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    color: DS.color.background,
+  },
+  composerThumbStrip: {
+    flexDirection: 'row',
+    gap: DS.space.sm,
+    paddingVertical: DS.space.xs,
+  },
+  composerThumbWrap: {
+    width: 62,
+    height: 62,
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    position: 'relative',
+    backgroundColor: DS.color.surface,
+  },
+  composerThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  composerThumbRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    zIndex: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composerThumbVidBadge: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    padding: 3,
+  },
+  captionCard: {
+    backgroundColor: DS.color.surface,
+    borderRadius: DS.radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    padding: DS.space.md,
+  },
+  captionInput: {
+    fontFamily: DS.font.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: DS.color.text,
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  eventTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+    paddingVertical: DS.space.md,
+    paddingHorizontal: DS.space.md,
+    borderRadius: DS.radius.xl,
+    backgroundColor: DS.color.surfaceAlt,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+  },
+  eventTagTxt: {
+    flex: 1,
+    fontFamily: DS.font.bodyMedium,
+    color: DS.color.text,
+  },
+  eventPickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
+  eventPickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  eventPickerSheet: {
+    backgroundColor: DS.color.background,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: DS.space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DS.color.borderWhite5,
+    maxHeight: '70%',
+  },
+  eventPickerTitle: {
+    fontFamily: DS.font.heading,
+    color: DS.color.gold,
+    fontSize: 16,
+    letterSpacing: 1,
+    marginBottom: DS.space.md,
+  },
+  eventPickerRow: {
+    paddingVertical: DS.space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DS.color.borderWhite5,
+  },
+  eventPickerRowTitle: {
+    fontFamily: DS.font.bodyMedium,
+    color: DS.color.text,
+    fontSize: 15,
+  },
+  eventPickerRowMeta: {
+    fontFamily: DS.font.body,
+    color: DS.color.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+  },
   notifDot: {
     position: 'absolute',
     top: -2,
@@ -1474,6 +2687,125 @@ const styles = StyleSheet.create({
   feedList: {
     padding: DS.space.base,
     gap: DS.space.base,
+  },
+  feedBanner: {
+    backgroundColor: DS.color.goldTint10,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.postBorderGold20,
+    padding: DS.space.md,
+    marginBottom: DS.space.base,
+  },
+  feedBannerText: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    lineHeight: 20,
+    color: DS.color.text,
+  },
+  feedEmptyText: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    textAlign: 'center',
+    marginVertical: DS.space.lg,
+  },
+  feedSampleKicker: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 12,
+    letterSpacing: 0.8,
+    color: DS.color.gold,
+    textAlign: 'center',
+    marginBottom: DS.space.base,
+    textTransform: 'uppercase',
+  },
+  composerWrap: {
+    backgroundColor: DS.color.surface,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.postBorderGold20,
+    padding: DS.space.md,
+    marginBottom: DS.space.base,
+  },
+  composerInput: {
+    fontFamily: DS.font.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: DS.color.text,
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  composerRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: DS.space.sm,
+  },
+  attachActions: {
+    flexDirection: 'row',
+    gap: DS.space.sm,
+    marginTop: DS.space.sm,
+  },
+  attachBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    backgroundColor: DS.color.surfaceAlt,
+  },
+  attachBtnTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 12,
+    color: DS.color.text,
+  },
+  attachRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: DS.space.sm,
+    marginTop: DS.space.sm,
+  },
+  attachChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    backgroundColor: DS.color.surfaceAlt,
+    maxWidth: '100%',
+  },
+  attachThumb: { width: 22, height: 22, borderRadius: 6 },
+  attachIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    backgroundColor: DS.color.goldTint10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachName: {
+    fontFamily: DS.font.body,
+    fontSize: 12,
+    color: DS.color.text,
+    maxWidth: 160,
+  },
+  postButton: {
+    backgroundColor: DS.color.gold,
+    paddingHorizontal: DS.space.lg,
+    paddingVertical: DS.space.sm,
+    borderRadius: 8,
+  },
+  postButtonDisabled: {
+    opacity: 0.45,
+  },
+  postButtonText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    fontWeight: '600',
+    color: DS.color.background,
   },
   postCard: {
     backgroundColor: DS.color.surface,
@@ -1537,6 +2869,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: DS.color.text,
   },
+  mentionGold: {
+    color: DS.color.gold,
+    fontFamily: DS.font.bodyMedium,
+    fontWeight: '600',
+  },
   clapEmoji: {
     fontSize: 13,
     lineHeight: 16,
@@ -1546,6 +2883,20 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 9,
     borderRadius: DS.radius.lg,
     marginTop: DS.space.sm,
+  },
+  postCarouselWrap: {
+    width: '100%',
+    marginTop: DS.space.sm,
+    borderRadius: DS.radius.lg,
+    overflow: 'hidden',
+  },
+  postCarouselItem: {
+    aspectRatio: 16 / 9,
+    backgroundColor: DS.color.surfaceAlt,
+  },
+  postCarouselMedia: {
+    width: '100%',
+    height: '100%',
   },
   postActions: {
     flexDirection: 'row',
@@ -1912,10 +3263,21 @@ const styles = StyleSheet.create({
     width: 40,
     alignItems: 'flex-end',
   },
+  notifHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   markAllRead: {
     fontFamily: DS.font.bodyMedium,
     fontSize: 14,
     color: DS.color.gold,
+  },
+  notifClear: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    color: DS.color.gold,
+    fontWeight: '600',
   },
   notifItem: {
     flexDirection: 'row',
