@@ -3,7 +3,6 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "web-deploy",
   "installCommand": "cd expo-app && npm install",
-  "framework": "other",
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
