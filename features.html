@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grant Access — Features</title>
+  <meta name="description" content="Community, Events, Media, and Premium tools—purpose-built for athletes." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
+  <link rel="stylesheet" href="shared/site-transition.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0A0A0A',
+            gold: '#C8A84B',
+            mist: '#D4D0C8',
+            dim: '#9A9690',
+            line: 'rgba(255,255,255,0.09)',
+            panel: 'rgba(255,255,255,0.04)',
+            panel2: 'rgba(255,255,255,0.03)',
+          },
+          fontFamily: {
+            bebas: ['"Bebas Neue"', 'sans-serif'],
+            sans: ['"DM Sans"', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background:
+        radial-gradient(1200px 860px at 18% -12%, rgba(200, 168, 75, 0.22), transparent 58%),
+        radial-gradient(700px 520px at 60% 110%, rgba(232, 83, 58, 0.10), transparent 58%),
+        var(--demo-bg);
+      color: var(--demo-text);
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+  <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
+    <div class="mx-auto max-w-6xl px-5 py-5 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-baseline gap-3">
+        <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
+        <span class="text-dim text-xs tracking-wide">Features</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-5 text-sm">
+        <a class="text-dim hover:text-mist transition-colors" href="/how">How</a>
+        <a class="text-mist hover:text-white transition-colors" href="/features">Features</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/impact">Impact</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/privacy">Privacy</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/terms">Terms</a>
+      </nav>
+      <div class="flex items-center gap-3">
+        <a href="/demo" class="hidden sm:inline-flex px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors">View demo</a>
+        <a href="/app" class="inline-flex px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Open web app</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-5 py-10 md:py-14">
+    <p class="font-bebas text-gold tracking-[0.26em] text-sm">FEATURES</p>
+    <h1 class="font-bebas text-mist tracking-wide text-5xl md:text-6xl leading-[0.95] mt-3">
+      Everything an athlete needs—without the bloat.
+    </h1>
+    <p class="text-dim mt-5 max-w-3xl leading-relaxed">
+      The product is built with predictable patterns and semantic intent: primary actions feel obvious,
+      secondary actions stay available, and advanced tools only show up when you need them.
+    </p>
+
+    <div class="grid md:grid-cols-3 gap-4 mt-10">
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs">COMMUNITY</p>
+        <p class="text-mist font-semibold mt-2">Feed that fuels consistency</p>
+        <p class="text-dim text-sm mt-2">Post updates, react, comment, and keep your training visible.</p>
+      </div>
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs">MESSAGING</p>
+        <p class="text-mist font-semibold mt-2">DMs that stay private</p>
+        <p class="text-dim text-sm mt-2">Conversation access is limited to participants—built for trust.</p>
+      </div>
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs">EVENTS</p>
+        <p class="text-mist font-semibold mt-2">Discover and book</p>
+        <p class="text-dim text-sm mt-2">Browse events, reserve spots, and keep booking details in one place.</p>
+      </div>
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs">CHECK‑IN</p>
+        <p class="text-mist font-semibold mt-2">Host tools</p>
+        <p class="text-dim text-sm mt-2">Premium host workflows for validating attendance at the door.</p>
+      </div>
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs">MEDIA</p>
+        <p class="text-mist font-semibold mt-2">Proof of work</p>
+        <p class="text-dim text-sm mt-2">Upload training clips and build a portfolio that travels with you.</p>
+      </div>
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs">PREMIUM</p>
+        <p class="text-mist font-semibold mt-2">Creator tools</p>
+        <p class="text-dim text-sm mt-2">Unlock higher-impact actions (create events, upload media, sponsor tools).</p>
+      </div>
+    </div>
+
+    <div class="rounded-[2rem] border border-line bg-panel p-8 md:p-12 mt-12 relative overflow-hidden">
+      <div class="absolute -top-24 -right-28 w-[420px] h-[420px] rounded-full bg-gold/15 blur-3xl"></div>
+      <p class="font-bebas text-gold tracking-[0.26em] text-sm relative">SEE IT</p>
+      <h2 class="font-bebas text-mist tracking-wide text-4xl md:text-5xl mt-3 relative">Walk the demo or open the web app.</h2>
+      <p class="text-dim mt-5 max-w-3xl leading-relaxed relative">
+        You can explore clickable flows or use the interactive web build with the same navigation stacks as the mobile app.
+      </p>
+      <div class="mt-8 flex flex-col sm:flex-row gap-3 relative">
+        <a href="/demo" class="px-6 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open demo hub</a>
+        <a href="/app" class="px-6 py-3 rounded-2xl border border-gold/35 text-gold font-semibold text-sm text-center hover:bg-gold/10 transition-colors">Open web app</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="mx-auto max-w-6xl px-5 pb-12 pt-8 text-xs text-dim">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-line pt-6">
+      <p>© <span id="y"></span> Grant Access.</p>
+      <div class="flex flex-wrap items-center gap-4">
+        <a class="hover:text-mist transition-colors" href="/privacy">Privacy</a>
+        <a class="hover:text-mist transition-colors" href="/terms">Terms</a>
+        <a class="hover:text-mist transition-colors" href="/demo">Demo</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+  <script src="shared/site-transition.js"></script>
+</body>
+</html>
+

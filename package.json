@@ -4,5 +4,8 @@
   "scripts": {
     "build:web": "node scripts/vercel-build.mjs",
     "vercel-build": "node scripts/vercel-build.mjs"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

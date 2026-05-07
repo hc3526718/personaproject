@@ -1,0 +1,61 @@
+/* Marketing site: Rive transition overlay */
+:root {
+  --ga-ink: #0a0a0a;
+  --ga-mist: #d4d0c8;
+  --ga-gold: #c8a84b;
+}
+
+#ga-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+#ga-transition.ga-on {
+  display: flex;
+}
+
+#ga-transition .ga-frame {
+  width: min(92vw, 560px);
+  height: min(92vw, 560px);
+  border-radius: 28px;
+  border: 1px solid rgba(200, 168, 75, 0.28);
+  background: radial-gradient(60% 60% at 50% 40%, rgba(200, 168, 75, 0.12), rgba(0, 0, 0, 0));
+  overflow: hidden;
+  box-shadow:
+    0 32px 120px rgba(0, 0, 0, 0.55),
+    0 10px 40px rgba(0, 0, 0, 0.40);
+  transform: translateY(10px) scale(0.98);
+  opacity: 0;
+  transition: transform 280ms cubic-bezier(.2,.9,.2,1), opacity 280ms ease;
+}
+
+#ga-transition.ga-on .ga-frame {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+#ga-transition iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+#ga-transition .ga-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(18px, env(safe-area-inset-bottom, 18px));
+  text-align: center;
+  font-family: var(--demo-font-body, ui-sans-serif, system-ui);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(212, 208, 200, 0.65);
+}
+

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grant Access — Global impact</title>
+  <meta name="description" content="Why Grant Access matters: helping athletes around the world access opportunity, community, and visibility." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared/theme.css">
+  <link rel="stylesheet" href="shared/site-transition.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink: '#0A0A0A',
+            gold: '#C8A84B',
+            mist: '#D4D0C8',
+            dim: '#9A9690',
+            line: 'rgba(255,255,255,0.09)',
+            panel: 'rgba(255,255,255,0.04)',
+            panel2: 'rgba(255,255,255,0.03)',
+          },
+          fontFamily: {
+            bebas: ['"Bebas Neue"', 'sans-serif'],
+            sans: ['"DM Sans"', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background:
+        radial-gradient(1200px 860px at 18% -12%, rgba(200, 168, 75, 0.22), transparent 58%),
+        radial-gradient(900px 720px at 105% 18%, rgba(212, 208, 200, 0.10), transparent 55%),
+        radial-gradient(700px 520px at 60% 110%, rgba(232, 83, 58, 0.10), transparent 58%),
+        var(--demo-bg);
+      color: var(--demo-text);
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+  <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
+    <div class="mx-auto max-w-6xl px-5 py-5 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-baseline gap-3">
+        <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
+        <span class="text-dim text-xs tracking-wide">Impact</span>
+      </a>
+      <nav class="hidden md:flex items-center gap-5 text-sm">
+        <a class="text-dim hover:text-mist transition-colors" href="/how">How</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/features">Features</a>
+        <a class="text-mist hover:text-white transition-colors" href="/impact">Impact</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/privacy">Privacy</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/terms">Terms</a>
+      </nav>
+      <div class="flex items-center gap-3">
+        <a href="/demo" class="hidden sm:inline-flex px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors">View demo</a>
+        <a href="/app" class="inline-flex px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Open web app</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-5 py-10 md:py-14">
+    <p class="font-bebas text-gold tracking-[0.26em] text-sm">GLOBAL IMPACT</p>
+    <h1 class="font-bebas text-mist tracking-wide text-5xl md:text-6xl leading-[0.95] mt-3">
+      Opportunity shouldn’t be geographic.
+    </h1>
+    <p class="text-dim mt-5 max-w-3xl leading-relaxed">
+      Great athletes exist everywhere—often far from coaches, clubs, and sponsors. Grant Access is built to reduce that distance:
+      your training becomes visible, your network becomes intentional, and your opportunities become reachable.
+    </p>
+
+    <div class="grid md:grid-cols-12 gap-4 mt-10">
+      <div class="md:col-span-7 rounded-[2rem] border border-line bg-panel p-8 md:p-10 relative overflow-hidden">
+        <div class="absolute -top-24 -right-28 w-[420px] h-[420px] rounded-full bg-gold/15 blur-3xl"></div>
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs relative">THE PROBLEM</p>
+        <p class="text-mist font-semibold text-xl mt-3 relative">Talent is distributed. Access is not.</p>
+        <p class="text-dim mt-3 leading-relaxed relative">
+          Many athletes don’t have consistent coaching, events, or the right rooms. Social platforms exist—but they aren’t built
+          around performance, accountability, and trustworthy progression.
+        </p>
+      </div>
+      <div class="md:col-span-5 rounded-[2rem] border border-line bg-panel2 p-8 md:p-10">
+        <p class="font-bebas text-gold tracking-[0.22em] text-xs">THE APPROACH</p>
+        <ul class="mt-4 space-y-3 text-dim text-sm leading-relaxed">
+          <li><span class="text-mist font-semibold">Consistency loop</span>: turn training into a daily system.</li>
+          <li><span class="text-mist font-semibold">Signal over noise</span>: athlete-first community behaviors.</li>
+          <li><span class="text-mist font-semibold">Proof of work</span>: media + progress become portable.</li>
+          <li><span class="text-mist font-semibold">Events</span>: show up, compete, connect.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-4 mt-12">
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="text-mist font-semibold">For athletes</p>
+        <p class="text-dim text-sm mt-2">Structure, feedback, and visibility—without needing to live in the “right” city.</p>
+      </div>
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="text-mist font-semibold">For coaches</p>
+        <p class="text-dim text-sm mt-2">A clean space to guide progress, track momentum, and recommend events.</p>
+      </div>
+      <div class="rounded-3xl border border-line bg-panel2 p-6">
+        <p class="text-mist font-semibold">For sponsors</p>
+        <p class="text-dim text-sm mt-2">Discover talent through verified signals and consistent performance evidence.</p>
+      </div>
+    </div>
+
+    <div class="mt-12 flex flex-col sm:flex-row gap-3">
+      <a href="/app" class="px-6 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open web app</a>
+      <a href="/demo" class="px-6 py-3 rounded-2xl border border-gold/35 text-gold font-semibold text-sm text-center hover:bg-gold/10 transition-colors">Walk the demo</a>
+    </div>
+  </main>
+
+  <footer class="mx-auto max-w-6xl px-5 pb-12 pt-8 text-xs text-dim">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-line pt-6">
+      <p>© <span id="y"></span> Grant Access.</p>
+      <div class="flex flex-wrap items-center gap-4">
+        <a class="hover:text-mist transition-colors" href="/privacy">Privacy</a>
+        <a class="hover:text-mist transition-colors" href="/terms">Terms</a>
+        <a class="hover:text-mist transition-colors" href="/demo">Demo</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+  <script src="shared/site-transition.js"></script>
+</body>
+</html>
+

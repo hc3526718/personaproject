@@ -8,6 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/theme.css">
+  <link rel="stylesheet" href="shared/site-transition.css">
   <script>
     tailwind.config = {
       theme: {
@@ -63,20 +64,20 @@
   <div class="grain"></div>
   <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
     <div class="mx-auto max-w-6xl px-5 py-5 flex items-center justify-between gap-4">
-      <a href="index.html" class="flex items-baseline gap-3">
+      <a href="/" class="flex items-baseline gap-3">
         <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
         <span class="text-dim text-xs tracking-wide">Health · Sport · Social</span>
       </a>
       <nav class="hidden md:flex items-center gap-5 text-sm">
-        <a class="text-dim hover:text-mist transition-colors" href="#how">How it works</a>
-        <a class="text-dim hover:text-mist transition-colors" href="#features">Features</a>
-        <a class="text-dim hover:text-mist transition-colors" href="#impact">Impact</a>
-        <a class="text-dim hover:text-mist transition-colors" href="privacy.html">Privacy</a>
-        <a class="text-dim hover:text-mist transition-colors" href="terms.html">Terms</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/how">How</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/features">Features</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/impact">Impact</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/privacy">Privacy</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/terms">Terms</a>
       </nav>
       <div class="flex items-center gap-3">
-        <a href="demo.html" class="hidden sm:inline-flex px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors">View demo</a>
-        <a href="app/index.html" class="inline-flex px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Open web app</a>
+        <a href="/demo" class="hidden sm:inline-flex px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors">View demo</a>
+        <a href="/app" class="inline-flex px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Open web app</a>
       </div>
     </div>
   </header>
@@ -95,8 +96,8 @@
           </p>
 
           <div class="flex flex-col sm:flex-row gap-3 mt-7">
-            <a href="app/index.html" class="px-5 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open interactive web app</a>
-            <a href="demo.html" class="px-5 py-3 rounded-2xl border border-line bg-panel2 text-mist font-semibold text-sm text-center hover:bg-white/[0.05] transition-colors">Walk the product demo</a>
+            <a href="/app" class="px-5 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open interactive web app</a>
+            <a href="/demo" class="px-5 py-3 rounded-2xl border border-line bg-panel2 text-mist font-semibold text-sm text-center hover:bg-white/[0.05] transition-colors">Walk the product demo</a>
           </div>
 
           <div class="mt-7 grid grid-cols-3 gap-3 max-w-xl">
@@ -140,95 +141,34 @@
               </div>
             </div>
             <div class="mt-5 flex flex-col sm:flex-row gap-3">
-              <a href="privacy.html" class="flex-1 text-center px-4 py-3 rounded-2xl border border-gold/35 text-gold text-sm font-semibold hover:bg-gold/10 transition-colors">Privacy policy</a>
-              <a href="terms.html" class="flex-1 text-center px-4 py-3 rounded-2xl border border-line text-mist text-sm font-semibold hover:bg-white/[0.05] transition-colors">Terms of service</a>
+              <a href="/privacy" class="flex-1 text-center px-4 py-3 rounded-2xl border border-gold/35 text-gold text-sm font-semibold hover:bg-gold/10 transition-colors">Privacy policy</a>
+              <a href="/terms" class="flex-1 text-center px-4 py-3 rounded-2xl border border-line text-mist text-sm font-semibold hover:bg-white/[0.05] transition-colors">Terms of service</a>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section id="how" class="mx-auto max-w-6xl px-5 py-12 md:py-16">
-      <div class="grid md:grid-cols-12 gap-10 items-start">
-        <div class="md:col-span-5">
-          <p class="font-bebas text-gold tracking-[0.26em] text-sm">HOW IT WORKS</p>
-          <h2 class="font-bebas text-mist tracking-wide text-4xl md:text-5xl mt-3">A system that compounds.</h2>
-          <p class="text-dim mt-4 leading-relaxed">
-            The app is built around a repeatable loop: plan sessions, share progress, connect with people who raise your standards,
-            and show up to events with confidence.
-          </p>
-        </div>
-        <div class="md:col-span-7 grid gap-4">
-          <div class="rounded-3xl border border-line bg-panel2 p-5 md:p-6">
-            <p class="font-bebas text-gold tracking-[0.22em] text-xs">01</p>
-            <p class="text-mist font-semibold mt-2">Discover events and sessions</p>
-            <p class="text-dim text-sm mt-1">Browse what’s happening, reserve a spot, and keep it all in one schedule.</p>
-          </div>
-          <div class="rounded-3xl border border-line bg-panel2 p-5 md:p-6">
-            <p class="font-bebas text-gold tracking-[0.22em] text-xs">02</p>
-            <p class="text-mist font-semibold mt-2">Build your network</p>
-            <p class="text-dim text-sm mt-1">Follow requests, DMs, and community feedback—without the chaos of generic social.</p>
-          </div>
-          <div class="rounded-3xl border border-line bg-panel2 p-5 md:p-6">
-            <p class="font-bebas text-gold tracking-[0.22em] text-xs">03</p>
-            <p class="text-mist font-semibold mt-2">Show your work</p>
-            <p class="text-dim text-sm mt-1">Training clips and media act as a living portfolio—progress you can point to.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="features" class="mx-auto max-w-6xl px-5 py-12 md:py-16">
-      <div class="flex items-end justify-between gap-6 flex-wrap">
-        <div>
-          <p class="font-bebas text-gold tracking-[0.26em] text-sm">FEATURES</p>
-          <h2 class="font-bebas text-mist tracking-wide text-4xl md:text-5xl mt-3">Everything an athlete needs to stay sharp.</h2>
-        </div>
-        <a href="demo.html" class="text-gold text-sm font-semibold hover:opacity-90 transition-opacity">See it in the demo →</a>
-      </div>
-
-      <div class="grid md:grid-cols-3 gap-4 mt-8">
-        <div class="rounded-3xl border border-line bg-panel2 p-6">
-          <p class="text-mist font-semibold">Community feed</p>
-          <p class="text-dim text-sm mt-2">Post updates, react, comment, and keep the social loop athlete-first.</p>
-        </div>
-        <div class="rounded-3xl border border-line bg-panel2 p-6">
-          <p class="text-mist font-semibold">Messaging</p>
-          <p class="text-dim text-sm mt-2">DMs with secure membership-only threads for conversations that matter.</p>
-        </div>
-        <div class="rounded-3xl border border-line bg-panel2 p-6">
-          <p class="text-mist font-semibold">Events + booking</p>
-          <p class="text-dim text-sm mt-2">Reserve spots, manage tickets, and support host check-in workflows.</p>
-        </div>
-        <div class="rounded-3xl border border-line bg-panel2 p-6">
-          <p class="text-mist font-semibold">Media library</p>
-          <p class="text-dim text-sm mt-2">Curated media and athlete uploads—your highlights, your proof.</p>
-        </div>
-        <div class="rounded-3xl border border-line bg-panel2 p-6">
-          <p class="text-mist font-semibold">Premium</p>
-          <p class="text-dim text-sm mt-2">Unlock creator tools for events/media. Manage subscriptions via platform billing.</p>
-        </div>
-        <div class="rounded-3xl border border-line bg-panel2 p-6">
-          <p class="text-mist font-semibold">Privacy & policy ready</p>
-          <p class="text-dim text-sm mt-2">Dedicated Terms and Privacy pages ready for review and store listing.</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="impact" class="mx-auto max-w-6xl px-5 py-12 md:py-16">
-      <div class="rounded-[2rem] border border-line bg-panel p-8 md:p-12 relative overflow-hidden">
-        <div class="absolute -top-24 -right-28 w-[420px] h-[420px] rounded-full bg-gold/15 blur-3xl"></div>
-        <div class="absolute -bottom-24 -left-28 w-[420px] h-[420px] rounded-full bg-white/5 blur-3xl"></div>
-        <p class="font-bebas text-gold tracking-[0.26em] text-sm relative">GLOBAL IMPACT</p>
-        <h2 class="font-bebas text-mist tracking-wide text-4xl md:text-6xl mt-3 relative">Opportunity shouldn’t be geographic.</h2>
-        <p class="text-dim mt-5 max-w-3xl leading-relaxed relative">
-          Great athletes exist everywhere—often far from coaches, clubs, and sponsors. Grant Access is built to reduce that distance:
-          your training becomes visible, your network becomes intentional, and your opportunities become reachable.
-        </p>
-        <div class="mt-8 flex flex-col sm:flex-row gap-3 relative">
-          <a href="app/index.html" class="px-6 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open web app</a>
-          <a href="mailto:hello@grantaccess.app?subject=Grant%20Access%20—%20Early%20access" class="px-6 py-3 rounded-2xl border border-gold/35 text-gold font-semibold text-sm text-center hover:bg-gold/10 transition-colors">Request early access</a>
-        </div>
+    <section class="mx-auto max-w-6xl px-5 pb-12 md:pb-16">
+      <div class="grid md:grid-cols-12 gap-4">
+        <a href="/how" class="md:col-span-4 rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
+          <p class="font-bebas text-gold tracking-[0.22em] text-xs">HOW IT WORKS</p>
+          <p class="text-mist font-semibold mt-2">A system that compounds</p>
+          <p class="text-dim text-sm mt-2">Plan → execute → prove → feedback → repeat.</p>
+          <p class="text-gold text-sm font-semibold mt-4">Read more →</p>
+        </a>
+        <a href="/features" class="md:col-span-4 rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
+          <p class="font-bebas text-gold tracking-[0.22em] text-xs">FEATURES</p>
+          <p class="text-mist font-semibold mt-2">Community, events, media</p>
+          <p class="text-dim text-sm mt-2">Everything athletes need—without the bloat.</p>
+          <p class="text-gold text-sm font-semibold mt-4">Explore →</p>
+        </a>
+        <a href="/impact" class="md:col-span-4 rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
+          <p class="font-bebas text-gold tracking-[0.22em] text-xs">IMPACT</p>
+          <p class="text-mist font-semibold mt-2">Opportunity shouldn’t be geographic</p>
+          <p class="text-dim text-sm mt-2">Access, visibility, and trust—anywhere in the world.</p>
+          <p class="text-gold text-sm font-semibold mt-4">Why it matters →</p>
+        </a>
       </div>
     </section>
   </main>
@@ -237,10 +177,10 @@
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-line pt-6">
       <p>© <span id="y"></span> Grant Access. <span class="text-dim/80">Built for athletes.</span></p>
       <div class="flex flex-wrap items-center gap-4">
-        <a class="hover:text-mist transition-colors" href="privacy.html">Privacy</a>
-        <a class="hover:text-mist transition-colors" href="terms.html">Terms</a>
-        <a class="hover:text-mist transition-colors" href="demo.html">Demo</a>
-        <a class="hover:text-mist transition-colors" href="app/index.html">Web app</a>
+        <a class="hover:text-mist transition-colors" href="/privacy">Privacy</a>
+        <a class="hover:text-mist transition-colors" href="/terms">Terms</a>
+        <a class="hover:text-mist transition-colors" href="/demo">Demo</a>
+        <a class="hover:text-mist transition-colors" href="/app">Web app</a>
       </div>
     </div>
   </footer>
@@ -248,5 +188,6 @@
   <script>
     document.getElementById('y').textContent = new Date().getFullYear();
   </script>
+  <script src="shared/site-transition.js"></script>
 </body>
 </html>

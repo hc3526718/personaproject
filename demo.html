@@ -8,6 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/theme.css">
+  <link rel="stylesheet" href="shared/site-transition.css">
   <script>
     tailwind.config = {
       theme: {
@@ -40,9 +41,9 @@
         <strong class="text-mist">/app</strong>.
       </p>
       <div class="flex flex-wrap gap-3 mt-4">
-        <a href="index.html" class="px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Website</a>
-        <a href="privacy.html" class="px-4 py-2 rounded-xl border border-white/10 text-dim text-sm hover:text-mist">Privacy</a>
-        <a href="terms.html" class="px-4 py-2 rounded-xl border border-white/10 text-dim text-sm hover:text-mist">Terms</a>
+        <a href="/" class="px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10">Website</a>
+        <a href="/privacy" class="px-4 py-2 rounded-xl border border-white/10 text-dim text-sm hover:text-mist">Privacy</a>
+        <a href="/terms" class="px-4 py-2 rounded-xl border border-white/10 text-dim text-sm hover:text-mist">Terms</a>
       </div>
     </div>
   </header>
@@ -51,7 +52,7 @@
     <section class="rounded-2xl border border-gold/30 bg-gold/[0.06] p-5 space-y-3">
       <h2 class="font-bebas text-xl text-gold tracking-wide">Interactive app (React Native web)</h2>
       <p class="text-dim text-sm">Same bottom tabs and stacks as the Expo shell in the browser. On Vercel this is served under <strong class="text-mist">/app</strong>.</p>
-      <a href="app/index.html" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Open interactive app</a>
+      <a href="/app" class="block w-full text-center py-3.5 rounded-xl bg-gold text-ink font-semibold text-sm hover:opacity-90 transition-opacity">Open interactive app</a>
     </section>
 
     <section class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
@@ -91,6 +92,9 @@
   <p class="text-center text-dim text-xs px-6 pb-8">
     For local serving instructions, see <a href="README.md" class="text-gold underline">README.md</a>.
   </p>
+
+  <script src="shared/site-transition.js"></script>
 </body>
 </html>
+
 
