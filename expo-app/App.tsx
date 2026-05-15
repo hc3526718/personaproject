@@ -9,6 +9,7 @@ import { ActionBannerProvider } from './src/actionBanner/ActionBannerContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
+import { BootCircleLoader } from './src/components/BootCircleLoader';
 import { appFontSources } from './src/loadAppFonts';
 import WebDemoApp from './src/WebDemoApp';
 
@@ -22,7 +23,15 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
   return (
     <SubscriptionProvider>
       <ActionBannerProvider>
-        <View style={styles.shell}>{coreReady ? <AppNavigator /> : null}</View>
+        <View style={styles.shell}>
+          {coreReady ? (
+            <AppNavigator />
+          ) : (
+            <View style={styles.bootLoader}>
+              <BootCircleLoader />
+            </View>
+          )}
+        </View>
       </ActionBannerProvider>
     </SubscriptionProvider>
   );
@@ -60,4 +69,10 @@ export default Sentry.wrap(App);
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: DS.color.background },
   shell: { flex: 1, backgroundColor: DS.color.background },
+  bootLoader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: DS.color.background,
+  },
 });

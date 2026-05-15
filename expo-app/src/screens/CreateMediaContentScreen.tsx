@@ -1,6 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -16,6 +15,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { AppButton } from '../components/ui/AppButton';
 import { FormField } from '../components/ui/FormField';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -116,7 +116,7 @@ export function CreateMediaContentScreen({ navigation }: Props) {
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <ScreenHeader title="Upload video" onBack={() => navigation.goBack()} />
         <View style={styles.gateBody}>
-          <ActivityIndicator color={DS.color.gold} size="large" />
+          <AppLoadingIndicator />
           <Text style={[styles.gateTxt, { marginTop: DS.space.lg, textAlign: 'center' }]}>
             Opening subscription options…
           </Text>

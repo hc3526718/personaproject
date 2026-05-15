@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { signInWithAppleNative, signInWithGoogleOAuth } from './oauthSupabase';
@@ -251,6 +251,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const { pathname, search, hash } = window.location;
+    const hasOAuthReturn =
+      search.includes('code=') ||
+      hash.includes('access_token=') ||
+      search.includes('error=') ||
+      hash.includes('error=');
+    if (!hasOAuthReturn) return;
+    window.history.replaceState({}, document.title, pathname);
+  }, []);
+
   const login = useCallback(
     async (email: string, password: string) => {
       const trimmed = email.trim();
@@ -354,13 +366,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setOAuthBusy(true);
     const result = await signInWithGoogleOAuth(supabase);
-    setOAuthBusy(false);
     if (!result.ok) {
+      setOAuthBusy(false);
       if (result.message !== 'Sign in cancelled') {
         Alert.alert('Google sign in', result.message);
       }
       return false;
     }
+    if (Platform.OS === 'web') {
+      return true;
+    }
+    setOAuthBusy(false);
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       setUser(appUserFromSupabaseUser(data.session.user));

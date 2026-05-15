@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppLoadingIndicator } from './AppLoadingIndicator';
 import { DS } from '../designSystem';
 
 /** Pull-to-refresh indicator under the status bar (paired with transparent RefreshControl). */
@@ -14,7 +15,7 @@ export function PullRefreshRiveOverlay({
   return (
     <View pointerEvents="none" style={[styles.overlay, { paddingTop: topInset }]}>
       <View style={styles.box}>
-        <ActivityIndicator size="large" color={DS.color.gold} />
+        <AppLoadingIndicator />
       </View>
     </View>
   );

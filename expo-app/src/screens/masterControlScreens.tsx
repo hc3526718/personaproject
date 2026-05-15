@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -15,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AppButton } from '../components/ui/AppButton';
 import { DS } from '../designSystem';
@@ -150,7 +150,7 @@ export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
       <View style={[styles.root, { paddingTop: insets.top, flex: 1 }]}>
         <ScreenHeader title="Master verification" onBack={() => navigation.goBack()} />
         <View style={styles.loadingGate}>
-          <ActivityIndicator color={DS.color.gold} size="large" />
+          <AppLoadingIndicator />
         </View>
       </View>
     );
@@ -369,7 +369,7 @@ export function MasterPartnerOffersScreen({ navigation }: PProps<'MasterPartnerO
         </Pressable>
       </View>
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 24 }} color={DS.color.gold} />
+        <AppLoadingIndicator style={{ marginTop: 24 }} />
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
           {rows.map((r) => (

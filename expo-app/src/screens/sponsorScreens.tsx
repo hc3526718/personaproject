@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -14,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
@@ -96,7 +96,7 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
         refreshControl={pullRefreshControl(refreshing, onRefresh)}
       >
         {loading && items.length === 0 ? (
-          <ActivityIndicator color={DS.color.gold} style={{ marginTop: DS.space.xl }} />
+          <AppLoadingIndicator style={{ marginTop: DS.space.xl }} />
         ) : null}
         {!loading && items.length === 0 ? (
           <Text style={styles.emptyText}>

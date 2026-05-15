@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
@@ -59,7 +60,7 @@ export function PaywallScreen({ navigation }: Props) {
 
       <View style={styles.center}>
         {busy || presenting ? (
-          <ActivityIndicator color={DS.color.gold} size="large" />
+          <AppLoadingIndicator />
         ) : (
           <>
             <Text style={styles.lead}>

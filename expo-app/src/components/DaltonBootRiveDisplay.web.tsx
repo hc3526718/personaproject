@@ -66,6 +66,7 @@ export function DaltonBootRiveDisplay({
           width: typeof w === 'number' ? w : '100%',
           height: typeof h === 'number' ? h : '100%',
           backgroundColor: BOOT_PAGE_BACKGROUND,
+          colorScheme: 'dark',
           display: 'block',
         },
         onLoad: () => markEmbedReady(),

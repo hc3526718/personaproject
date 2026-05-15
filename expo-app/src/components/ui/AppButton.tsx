@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
+import { AppLoadingIndicator } from '../AppLoadingIndicator';
 import { DS } from '../../designSystem';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
@@ -41,7 +42,7 @@ export function AppButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={v.spinner} />
+        <AppLoadingIndicator size={24} />
       ) : (
         <>
           {icon}

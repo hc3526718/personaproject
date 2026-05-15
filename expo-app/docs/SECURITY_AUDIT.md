@@ -81,3 +81,28 @@ This document summarizes a **code-assisted security review** (not a formal penet
 - `backend/migrations/012_subscription_state_rls.sql` + `backend/rls_policies.sql` — RLS for `subscription_state`.
 
 Apply migration **`012_subscription_state_rls.sql`** on your Supabase project (CLI `db push` / SQL Editor) so the new RLS and client checks align.
+
+---
+
+## Agentic pentesting (Shannon / Keygraph)
+
+[Shannon](https://github.com/KeygraphHQ/shannon) (Keygraph) is an autonomous white-box pentester that reads application source, runs real exploits, and reports only findings with proof-of-concept. Use it **after** manual checklist items below, on a **staging** deployment that mirrors production auth (Supabase redirect URLs, Vercel `/app` routes).
+
+**Recommended scope for Dalton web (`dalton-access.vercel.app/app`):**
+
+1. **Auth & session** — email/password, Google OAuth callback (`/app/auth/callback`), PKCE code exchange, `localStorage` session persistence, logout, stale refresh tokens.
+2. **RLS / PostgREST** — attempt cross-user reads/writes on `profiles`, `posts`, `messages`, `subscription_state`, storage buckets.
+3. **Edge Functions** — `master-delete-user`, `send-post-report-email` (JWT, rate limits, secret headers).
+4. **Client** — XSS in community post bodies, open redirects in OAuth, demo auth disabled in production builds.
+
+**How to run Shannon Lite (local):**
+
+- Requirements: Docker, Node 18+, Anthropic API key (see [KeygraphHQ/shannon](https://github.com/KeygraphHQ/shannon)).
+- Point Shannon at this repo + staging URL; include `expo-app/` and Supabase schema under `expo-app/backend/`.
+- Enterprise **Shannon Pro** ([keygraph.io](https://keygraph.io)) adds CI/CD integration, SAST/SCA, and continuous agentic testing.
+
+**Manual pentest priorities before Shannon:**
+
+- Confirm Supabase **Site URL** and **Redirect URLs** match Vercel exactly (no trailing-slash drift).
+- Verify Google Cloud **Authorized redirect URIs** include `https://dalton-access.vercel.app/app/auth/callback`.
+- Run Supabase **Security Advisor** (`get_advisors`) after each migration.

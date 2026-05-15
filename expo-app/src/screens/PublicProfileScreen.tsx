@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { DS } from '../designSystem';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import { isSupabaseConfigured } from '../lib/env';
@@ -62,7 +62,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
         <View style={{ width: 28 }} />
       </View>
       {loading ? (
-        <ActivityIndicator color={DS.color.gold} style={{ marginTop: 32 }} />
+        <AppLoadingIndicator style={{ marginTop: 32 }} />
       ) : (
         <ScrollView
           contentContainerStyle={[styles.body, { paddingBottom: 48 + insets.bottom }]}

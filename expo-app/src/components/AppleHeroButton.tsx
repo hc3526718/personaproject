@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, type PressableProps, type ViewStyle } from 'react-native';
+import { AppLoadingIndicator } from './AppLoadingIndicator';
 import { DS } from '../designSystem';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'social';
@@ -45,7 +46,7 @@ export function AppleHeroButton({
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? DS.color.background : DS.color.gold} />
+        <AppLoadingIndicator size={24} />
       ) : typeof children === 'string' ? (
         <Text
           style={[

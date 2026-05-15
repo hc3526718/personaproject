@@ -19,7 +19,11 @@ async function copyDir(src, dest) {
 function runExpoExport() {
   execSync('npx expo export --platform web', {
     cwd: expoDir,
-    env: { ...process.env, EXPO_WEB_BASE_PATH: '/app' },
+    env: {
+      ...process.env,
+      EXPO_WEB_BASE_PATH: '/app',
+      EXPO_PUBLIC_WEB_BASE_PATH: '/app',
+    },
     stdio: 'inherit',
   });
 }

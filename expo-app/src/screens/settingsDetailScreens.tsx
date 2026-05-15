@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -155,7 +156,7 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
           disabled={signingOutOthers}
         >
           {signingOutOthers ? (
-            <ActivityIndicator color={DS.color.error} />
+            <AppLoadingIndicator size={24} />
           ) : (
             <Text style={styles.dangerOutlineText}>Sign out all other sessions</Text>
           )}
@@ -255,7 +256,7 @@ export function ChangePasswordScreen({ navigation }: PProps<'ChangePassword'>) {
           disabled={busy}
         >
           {busy ? (
-            <ActivityIndicator color={DS.color.background} />
+            <AppLoadingIndicator size={24} />
           ) : (
             <Text style={styles.primaryBtnText}>Update password</Text>
           )}

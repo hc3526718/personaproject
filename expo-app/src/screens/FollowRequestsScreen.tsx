@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -16,6 +15,7 @@ import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { DS } from '../designSystem';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
@@ -127,7 +127,7 @@ export function FollowRequestsScreen({ navigation }: Props) {
             (see backend migrations in this repository).
           </Text>
         ) : loading ? (
-          <ActivityIndicator color={DS.color.gold} style={{ marginTop: 24 }} />
+          <AppLoadingIndicator style={{ marginTop: 24 }} />
         ) : null}
 
         {live && !loading ? (

@@ -10,6 +10,8 @@
     { "source": "/how", "destination": "/how.html" },
     { "source": "/features", "destination": "/features.html" },
     { "source": "/impact", "destination": "/impact.html" },
-    { "source": "/app", "destination": "/app/index.html" }
+    { "source": "/app", "destination": "/app/index.html" },
+    { "source": "/app/auth/callback", "destination": "/app/index.html" },
+    { "source": "/app/:path*", "destination": "/app/index.html" }
   ]
 }

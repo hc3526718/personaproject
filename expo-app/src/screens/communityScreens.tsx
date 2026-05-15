@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActionSheetIOS,
-  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -25,6 +24,7 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { BrandLogo } from '../components/BrandLogo';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootTitleText } from '../designSystem';
@@ -393,7 +393,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
       {feedIsWeb && !demoCommunityAudience ? (
         <View style={[styles.feedWebColumn, webFeedColumnStyle()]}>
           {feedLoading ? (
-            <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
+            <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
           ) : feedPosts.length === 0 ? (
             <Text style={[styles.feedEmptyText, styles.feedList]}>No posts yet. Yours can be the first.</Text>
           ) : (
@@ -432,7 +432,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           ) : (
             <>
               {feedLoading ? (
-                <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
+                <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
               ) : feedPosts.length === 0 ? (
                 <Text style={styles.feedEmptyText}>No posts yet. Yours can be the first.</Text>
               ) : (
@@ -1710,7 +1710,7 @@ export function CommunitySearchResultsScreen({
           {resultCount} result{resultCount === 1 ? '' : 's'} for &quot;{displayQ}&quot;
         </Text>
         {useLiveSearch && searchLoading ? (
-          <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
+          <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
         ) : null}
         {useLiveSearch && !searchLoading && visibleLivePosts.length === 0 ? (
           <Text style={styles.feedEmptyText}>No posts match your search.</Text>
@@ -2048,7 +2048,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
         showsVerticalScrollIndicator={false}
       >
         {notificationsLoading ? (
-          <ActivityIndicator color={DS.color.gold} style={{ marginTop: DS.space.lg }} />
+          <AppLoadingIndicator style={{ marginTop: DS.space.lg }} />
         ) : null}
         {showNotificationsEmpty ? (
           <Text style={styles.feedEmptyText}>No new notifications</Text>
@@ -2555,7 +2555,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         showsVerticalScrollIndicator={false}
       >
         {loading && isLive ? (
-          <ActivityIndicator color={DS.color.gold} style={{ marginVertical: 16 }} />
+          <AppLoadingIndicator style={{ marginVertical: 16 }} />
         ) : null}
         <View style={styles.threadDayPillWrap}>
           <Text style={styles.threadDayPill}>Today</Text>
@@ -2798,7 +2798,7 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
     const insets = useSafeAreaInsets();
     return (
       <View style={[styles.root, { justifyContent: 'center', alignItems: 'center', paddingTop: insets.top }]}>
-        <ActivityIndicator color={DS.color.gold} />
+        <AppLoadingIndicator />
       </View>
     );
   }

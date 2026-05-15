@@ -3,19 +3,27 @@ import { Animated, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { DS } from '../designSystem';
 
-const SIZE = 52;
+const DEFAULT_SIZE = 52;
 const STROKE = 3;
-const R = (SIZE - STROKE) / 2;
-const CX = SIZE / 2;
-const CY = SIZE / 2;
-const CIRC = 2 * Math.PI * R;
 /** One continuous gold arc; gap keeps a single sweeping segment on the full ring */
-const ARC_LEN = CIRC * 0.26;
+const ARC_RATIO = 0.26;
+
+type Props = {
+  size?: number;
+  /** Omit top margin when nested in lists, buttons, or overlays */
+  compact?: boolean;
+};
 
 /**
  * Full circular track with one gold arc rotating smoothly (no segmented pills).
  */
-export function BootCircleLoader() {
+export function BootCircleLoader({ size = DEFAULT_SIZE, compact = false }: Props) {
+  const R = (size - STROKE) / 2;
+  const CX = size / 2;
+  const CY = size / 2;
+  const CIRC = 2 * Math.PI * R;
+  const ARC_LEN = CIRC * ARC_RATIO;
+
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -73,8 +81,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  spin: {
-    width: SIZE,
-    height: SIZE,
+  wrapCompact: {
+    marginTop: 0,
   },
+  spin: {},
 });

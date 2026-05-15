@@ -4,17 +4,43 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getDaltonWebUrl } from '../lib/env';
+
+WebBrowser.maybeCompleteAuthSession();
 
 /**
- * OAuth redirect must match Supabase Dashboard → Authentication → URL Configuration → Redirect URLs
- * (e.g. `dalton-demo://auth/callback` when `scheme` in app config is `dalton-demo`).
+ * OAuth redirect must match Supabase Dashboard → Authentication → URL Configuration → Redirect URLs.
+ * - Native: `dalton-demo://auth/callback` (scheme from app.config.js)
+ * - Web (Vercel): `https://dalton-access.vercel.app/app/auth/callback`
  */
 export function getOAuthRedirectUri(): string {
+  const explicit = (process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URL ?? '').trim();
+  if (explicit) return explicit;
+
+  if (Platform.OS === 'web') {
+    const basePath = (process.env.EXPO_PUBLIC_WEB_BASE_PATH ?? '/app').replace(/\/$/, '');
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return `${window.location.origin}${basePath}/auth/callback`;
+    }
+    const marketing = getDaltonWebUrl();
+    if (marketing) return `${marketing}${basePath}/auth/callback`;
+    return `https://dalton-access.vercel.app${basePath}/auth/callback`;
+  }
+
   return Linking.createURL('auth/callback');
 }
 
-/** Reject forged OAuth returns (wrong app scheme vs expected redirect). */
+/** Reject forged OAuth returns (wrong scheme on native, wrong origin on web). */
 export function isOAuthReturnUrlTrusted(returnUrl: string, redirectTo: string): boolean {
+  if (Platform.OS === 'web') {
+    try {
+      const a = new URL(returnUrl);
+      const b = new URL(redirectTo);
+      return a.origin === b.origin && a.pathname === b.pathname;
+    } catch {
+      return false;
+    }
+  }
   try {
     const a = Linking.parse(returnUrl);
     const b = Linking.parse(redirectTo);
@@ -90,6 +116,16 @@ export async function signInWithGoogleOAuth(
   supabase: SupabaseClient,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const redirectTo = getOAuthRedirectUri();
+
+  if (Platform.OS === 'web') {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    if (error) return { ok: false, message: error.message };
+    return { ok: true };
+  }
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {

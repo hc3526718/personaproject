@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -32,6 +31,7 @@ import {
 } from '../lib/eventsStorage';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BookingQrCode } from '../components/BookingQrCode';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
@@ -1528,7 +1528,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
                   <BookingQrCode value={qrToken} />
                 ) : (
                   <View style={styles.qrInner}>
-                    <ActivityIndicator color={DS.color.gold} size="large" />
+                    <AppLoadingIndicator />
                   </View>
                 )}
               </View>

@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppLoadingIndicator } from './components/AppLoadingIndicator';
 import { DS } from './designSystem';
 
 const ENV_URL = (process.env.EXPO_PUBLIC_DALTON_WEB_URL || '').trim();
@@ -106,7 +106,7 @@ export default function WebDemoApp() {
       />
       {loading ? (
         <View style={styles.loadingOverlay} pointerEvents="none">
-          <ActivityIndicator size="large" color={DS.color.gold} />
+          <AppLoadingIndicator />
         </View>
       ) : null}
       <TouchableOpacity
