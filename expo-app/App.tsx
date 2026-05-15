@@ -1,6 +1,8 @@
 import * as Sentry from '@sentry/react-native';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
+import { hideNativeSplash, scheduleNativeSplashFailsafe } from './src/boot/nativeSplashGate';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -19,6 +21,18 @@ const USE_WEBVIEW_DEMO = process.env.EXPO_PUBLIC_USE_WEBVIEW_DEMO === '1';
 function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
   const { ready: authReady } = useAuth();
   const coreReady = fontsReady && authReady;
+
+  useEffect(() => {
+    scheduleNativeSplashFailsafe();
+  }, []);
+
+  useEffect(() => {
+    if (fontsReady) hideNativeSplash();
+  }, [fontsReady]);
+
+  useEffect(() => {
+    if (coreReady) hideNativeSplash();
+  }, [coreReady]);
 
   return (
     <SubscriptionProvider>
