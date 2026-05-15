@@ -55,7 +55,7 @@ export function isOAuthReturnUrlTrusted(returnUrl: string, redirectTo: string): 
  * PKCE `code` — query string, hash, or `Linking.parse` quirks on custom schemes.
  * Prefer regex on decoded URL so we never miss `?code=` / `#code=` / `&code=`.
  */
-function parseOAuthCodeFromReturnUrl(returnUrl: string): string | null {
+export function parseOAuthCodeFromReturnUrl(returnUrl: string): string | null {
   const chunks: string[] = [returnUrl];
   const hash = returnUrl.indexOf('#');
   if (hash >= 0) {
@@ -110,6 +110,48 @@ async function tryImplicitSessionFromReturnUrl(
     refresh_token: refreshToken,
   });
   return !error;
+}
+
+/** Read PKCE `code` from the current browser URL (OAuth callback on web). */
+export function readOAuthCodeFromWebLocation(): string | null {
+  if (typeof window === 'undefined') return null;
+  return parseOAuthCodeFromReturnUrl(window.location.href);
+}
+
+/** After sign-in, leave `/app/auth/callback` and drop auth query params from the address bar. */
+export function cleanupWebAuthUrlAfterSignIn(): void {
+  if (typeof window === 'undefined') return;
+  const basePath = (process.env.EXPO_PUBLIC_WEB_BASE_PATH ?? '/app').replace(/\/$/, '');
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  const onCallback = path === `${basePath}/auth/callback` || path.endsWith('/auth/callback');
+  const nextPath = onCallback ? `${basePath}/` : path;
+  window.history.replaceState({}, document.title, nextPath);
+}
+
+/**
+ * Exchange OAuth callback `code` for a session on web.
+ * Must run before stripping `?code=` from the URL.
+ */
+export async function completeWebOAuthSessionIfNeeded(
+  supabase: SupabaseClient,
+): Promise<{ exchanged: boolean; error?: string }> {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') {
+    return { exchanged: false };
+  }
+  const returnUrl = window.location.href;
+  const code = parseOAuthCodeFromReturnUrl(returnUrl);
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return { exchanged: true, error: error.message };
+    cleanupWebAuthUrlAfterSignIn();
+    return { exchanged: true };
+  }
+  const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, returnUrl);
+  if (implicitOk) {
+    cleanupWebAuthUrlAfterSignIn();
+    return { exchanged: true };
+  }
+  return { exchanged: false };
 }
 
 export async function signInWithGoogleOAuth(

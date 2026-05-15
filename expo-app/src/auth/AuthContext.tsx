@@ -9,10 +9,15 @@ import {
 } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
-import { authAlert } from './authAlert';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
-import { signInWithAppleNative, signInWithGoogleOAuth } from './oauthSupabase';
+import {
+  cleanupWebAuthUrlAfterSignIn,
+  completeWebOAuthSessionIfNeeded,
+  signInWithAppleNative,
+  signInWithGoogleOAuth,
+} from './oauthSupabase';
+import { authAlert } from './authAlert';
 import { AUTH_BOOT_UNLOCK_MS, AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/bootTiming';
 import { setAllowMessagesFrom } from '../messaging/messagingPrefs';
 import { ensureProfileRow, fetchProfileByUserId } from '../roadmap/profileService';
@@ -206,6 +211,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
+        if (Platform.OS === 'web') {
+          const oauth = await completeWebOAuthSessionIfNeeded(supabase);
+          if (oauth.error) {
+            authAlert('Google sign in', oauth.error);
+          }
+        }
         const { data, error } = await supabase.auth.getSession();
         if (cancelled) return;
         sessionResolved = true;
@@ -231,9 +242,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setReady(true);
       }
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (cancelled) return;
+        if (
+          Platform.OS === 'web' &&
+          (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
+          session
+        ) {
+          cleanupWebAuthUrlAfterSignIn();
+        }
         await applySessionUser(session);
       } catch (err) {
         if (!cancelled && isStaleRefreshTokenError(err)) {
@@ -251,18 +269,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
     };
   }, [supabase]);
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    const { pathname, search, hash } = window.location;
-    const hasOAuthReturn =
-      search.includes('code=') ||
-      hash.includes('access_token=') ||
-      search.includes('error=') ||
-      hash.includes('error=');
-    if (!hasOAuthReturn) return;
-    window.history.replaceState({}, document.title, pathname);
-  }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {
