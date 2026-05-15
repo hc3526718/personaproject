@@ -30,7 +30,8 @@ import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootTitleText } from '../designSystem';
 import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
 import { isSupabaseConfigured } from '../lib/env';
-import { webFeedColumnStyle } from '../layout/webLayout';
+import { webCommunityFeedPaneStyle, webPageShellStyle } from '../layout/webLayout';
+import { CommunityWebTrendingPanel } from '../components/CommunityWebTrendingPanel';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import { canSubmitCommunityPost } from '../roadmap/communityPolicy';
@@ -366,10 +367,43 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     [eventTitleMap, removePost],
   );
 
+  const openTopicSearch = useCallback(
+    (topic: string) => {
+      navigation.navigate('CommunitySearchResults', { query: topic.trim() || 'community' });
+    },
+    [navigation],
+  );
+
+  const feedPane = feedIsWeb && !demoCommunityAudience ? (
+    <View style={[styles.feedWebColumn, webCommunityFeedPaneStyle()]}>
+      {feedLoading ? (
+        <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
+      ) : feedPosts.length === 0 ? (
+        <Text style={[styles.feedEmptyText, styles.feedList]}>No posts yet. Yours can be the first.</Text>
+      ) : (
+        <FlatList
+          data={feedPosts}
+          keyExtractor={(p) => p.id}
+          renderItem={({ item }) => (
+            <View style={[styles.feedWebSnapCell, { minHeight: webSnapHeight }]}>
+              {renderFeedPost(item)}
+            </View>
+          )}
+          pagingEnabled
+          snapToAlignment="start"
+          decelerationRate="fast"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.feedList, styles.feedListWebSnap, { paddingBottom: 124 + insets.bottom }]}
+          refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
+        />
+      )}
+    </View>
+  ) : null;
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, feedIsWeb && styles.rootWebFull]}>
       <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
-      <View style={[styles.feedHeader, { paddingTop: insets.top + DS.space.md }]}>
+      <View style={[styles.feedHeader, webPageShellStyle(), { paddingTop: insets.top + DS.space.md }]}>
         <View style={styles.feedHeaderRow}>
           <Text style={styles.communityTitle}>COMMUNITY</Text>
           <View style={styles.feedHeaderActions}>
@@ -390,29 +424,14 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           </View>
         </View>
       </View>
-      {feedIsWeb && !demoCommunityAudience ? (
-        <View style={[styles.feedWebColumn, webFeedColumnStyle()]}>
-          {feedLoading ? (
-            <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
-          ) : feedPosts.length === 0 ? (
-            <Text style={[styles.feedEmptyText, styles.feedList]}>No posts yet. Yours can be the first.</Text>
-          ) : (
-            <FlatList
-              data={feedPosts}
-              keyExtractor={(p) => p.id}
-              renderItem={({ item }) => (
-                <View style={[styles.feedWebSnapCell, { minHeight: webSnapHeight }]}>
-                  {renderFeedPost(item)}
-                </View>
-              )}
-              pagingEnabled
-              snapToAlignment="start"
-              decelerationRate="fast"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
-              refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
-            />
-          )}
+      {feedPane ? (
+        <View style={styles.feedWebSplit}>
+          {feedPane}
+          <CommunityWebTrendingPanel
+            posts={feedPosts}
+            onSelectTopic={openTopicSearch}
+            paddingBottom={124 + insets.bottom}
+          />
         </View>
       ) : (
         <ScrollView
@@ -3273,13 +3292,30 @@ const styles = StyleSheet.create({
     padding: DS.space.base,
     gap: DS.space.base,
   },
+  rootWebFull: {
+    width: '100%',
+    maxWidth: '100%',
+  },
+  feedWebSplit: {
+    flex: 1,
+    flexDirection: 'row',
+    width: '100%',
+    alignItems: 'stretch',
+  },
   feedWebColumn: {
     flex: 1,
     width: '100%',
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: DS.color.borderWhite5,
+  },
+  feedListWebSnap: {
+    flexGrow: 1,
   },
   feedWebSnapCell: {
+    flex: 1,
     justifyContent: 'center',
     paddingVertical: DS.space.sm,
+    width: '100%',
   },
   postAvatarGoldRing: {
     borderWidth: 2,
@@ -3412,7 +3448,7 @@ const styles = StyleSheet.create({
     padding: DS.space.base,
     marginBottom: DS.space.base,
     ...(Platform.OS === 'web'
-      ? { alignSelf: 'center' as const, width: '100%' as const, maxWidth: 480 }
+      ? { alignSelf: 'stretch' as const, width: '100%' as const, maxWidth: '100%' as const }
       : null),
   },
   postTop: {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { webPageShellStyle } from '../layout/webLayout';
 import { WebAppFrame } from '../components/WebAppFrame';
 import {
   NavigationContainer,
@@ -386,6 +387,7 @@ function MainTabNavigator() {
       initialRouteName="Community"
       screenOptions={{
         headerShown: false,
+        sceneStyle: Platform.OS === 'web' ? { ...webPageShellStyle(), backgroundColor: DS.color.background } : undefined,
         tabBarStyle: tabBarStyleVisible,
         tabBarActiveTintColor: DS.color.gold,
         tabBarInactiveTintColor: DS.color.textMuted,
