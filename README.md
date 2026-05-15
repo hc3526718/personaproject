@@ -35,8 +35,8 @@ After deploying, clean URLs are available:
 
 - `/privacy` → `privacy.html`
 - `/terms` → `terms.html`
-- `/demo` → `demo.html`
-- `/app` → interactive Expo web build
+- `/app` → interactive Expo web build (live product)
+- `/demo` → redirects to `/app` (legacy URL)
 
 ## Test on a phone (same Wi‑Fi)
 

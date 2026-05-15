@@ -45,9 +45,13 @@ export function BootCircleLoader({ size = DEFAULT_SIZE, compact = false }: Props
   });
 
   return (
-    <View style={styles.wrap} accessibilityRole="progressbar" accessibilityLabel="Loading">
-      <Animated.View style={[styles.spin, { transform: [{ rotate }] }]}>
-        <Svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+    <View
+      style={[styles.wrap, compact && styles.wrapCompact]}
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
+    >
+      <Animated.View style={[styles.spin, { width: size, height: size, transform: [{ rotate }] }]}>
+        <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <Circle
             cx={CX}
             cy={CY}

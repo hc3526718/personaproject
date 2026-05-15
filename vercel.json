@@ -6,7 +6,8 @@
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
-    { "source": "/demo", "destination": "/demo.html" },
+    { "source": "/demo", "destination": "/app/index.html" },
+    { "source": "/demo/:path*", "destination": "/app/index.html" },
     { "source": "/how", "destination": "/how.html" },
     { "source": "/features", "destination": "/features.html" },
     { "source": "/impact", "destination": "/impact.html" },
