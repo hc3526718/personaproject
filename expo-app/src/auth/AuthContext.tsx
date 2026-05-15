@@ -8,7 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
+import { authAlert } from './authAlert';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { signInWithAppleNative, signInWithGoogleOAuth } from './oauthSupabase';
@@ -358,9 +359,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) {
-      Alert.alert(
+      authAlert(
         'Supabase not configured',
-        'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to expo-app/.env, restart Metro with npx expo start -c. For EAS dev builds, set the same keys in Expo project Environment Variables and rebuild.',
+        'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in Vercel (Production) and redeploy, or in expo-app/.env for local web.',
       );
       return false;
     }
@@ -369,7 +370,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!result.ok) {
       setOAuthBusy(false);
       if (result.message !== 'Sign in cancelled') {
-        Alert.alert('Google sign in', result.message);
+        authAlert('Google sign in', result.message);
       }
       return false;
     }
@@ -408,9 +409,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithApple = useCallback(async () => {
     if (!supabase) {
-      Alert.alert(
+      authAlert(
         'Supabase not configured',
-        'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to expo-app/.env, restart Metro with npx expo start -c. For EAS dev builds, set the same keys in Expo project Environment Variables and rebuild.',
+        'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in Vercel (Production) and redeploy, or in expo-app/.env for local web.',
       );
       return false;
     }
@@ -419,7 +420,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOAuthBusy(false);
     if (!result.ok) {
       if (result.message !== 'Sign in cancelled') {
-        Alert.alert('Apple sign in', result.message);
+        authAlert('Apple sign in', result.message);
       }
       return false;
     }

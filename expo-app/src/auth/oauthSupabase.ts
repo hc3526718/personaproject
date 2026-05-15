@@ -118,12 +118,22 @@ export async function signInWithGoogleOAuth(
   const redirectTo = getOAuthRedirectUri();
 
   if (Platform.OS === 'web') {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo },
     });
     if (error) return { ok: false, message: error.message };
-    return { ok: true };
+    const url = data?.url;
+    if (url && typeof window !== 'undefined') {
+      window.location.assign(url);
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      message:
+        'Google sign-in could not start. Check Supabase Google provider and redirect URL: ' +
+        redirectTo,
+    };
   }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
