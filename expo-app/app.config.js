@@ -10,6 +10,7 @@ function loadEnv() {
 }
 
 const EAS_PROJECT_ID = '8b3d97c5-6276-49b3-ab55-aa9b87e47047';
+const EAS_UPDATE_URL = `https://u.expo.dev/${EAS_PROJECT_ID}`;
 
 /**
  * Base config without Supabase `extra` — those are merged in `module.exports` on every evaluation
@@ -20,6 +21,57 @@ const EAS_PROJECT_ID = '8b3d97c5-6276-49b3-ab55-aa9b87e47047';
  * **App icons:** `icon` = 1024 master (store / Android base). `ios.icon` = smaller iOS home-screen source (152@2x).
  * Adaptive Android foreground + Web favicon from `dalton_logo_final_img-icons/`. iOS home-screen fill is the PNG itself; use `#0A0A0A` in the asset or keep adaptive-style padding in design.
  */
+
+function buildPlugins() {
+  const sentryOrg = (process.env.SENTRY_ORG || '').trim();
+  const sentryProject = (process.env.SENTRY_PROJECT || '').trim();
+
+  return [
+    sentryOrg && sentryProject
+      ? ['@sentry/react-native/expo', { organization: sentryOrg, project: sentryProject }]
+      : '@sentry/react-native/expo',
+    'expo-font',
+    'expo-web-browser',
+    'expo-apple-authentication',
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow Dalton to use your camera for event QR scanning.',
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow Dalton to access your photos and videos for uploads.',
+        cameraPermission: 'Allow Dalton to use your camera for uploads.',
+      },
+    ],
+    [
+      'expo-build-properties',
+      {
+        ios: {
+          deploymentTarget: '15.1',
+        },
+        android: {
+          usesCleartextTraffic: true,
+        },
+      },
+    ],
+    [
+      'expo-splash-screen',
+      {
+        backgroundColor: '#0A0A0A',
+        image: './assets/dalton_logo_final_img.png',
+        resizeMode: 'contain',
+        dark: {
+          backgroundColor: '#0A0A0A',
+          image: './assets/dalton_logo_final_img.png',
+        },
+      },
+    ],
+  ];
+}
+
 const ICON_1024 = './assets/dalton_logo_final_img-icons/iOS/Icon-1024.png';
 const IOS_ICON_152 = './assets/dalton_logo_final_img-icons/iOS/Icon-76@2x.png';
 const ADAPTIVE_FG = './assets/dalton_logo_final_img-icons/Android/mipmap-xxxhdpi/ic_launcher_foreground.png';
@@ -86,49 +138,7 @@ const baseExpo = {
   web: {
     favicon: WEB_FAVICON,
   },
-  plugins: [
-    /** Source maps / native symbols: set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` for EAS (see docs). */
-    '@sentry/react-native/expo',
-    'expo-font',
-    'expo-web-browser',
-    'expo-apple-authentication',
-    [
-      'expo-camera',
-      {
-        cameraPermission: 'Allow Dalton to use your camera for event QR scanning.',
-      },
-    ],
-    [
-      'expo-image-picker',
-      {
-        photosPermission: 'Allow Dalton to access your photos and videos for uploads.',
-        cameraPermission: 'Allow Dalton to use your camera for uploads.',
-      },
-    ],
-    [
-      'expo-build-properties',
-      {
-        ios: {
-          deploymentTarget: '15.1',
-        },
-        android: {
-          usesCleartextTraffic: true,
-        },
-      },
-    ],
-    [
-      'expo-splash-screen',
-      {
-        backgroundColor: '#0A0A0A',
-        image: './assets/dalton_logo_final_img.png',
-        resizeMode: 'contain',
-        dark: {
-          backgroundColor: '#0A0A0A',
-          image: './assets/dalton_logo_final_img.png',
-        },
-      },
-    ],
-  ],
+  plugins: buildPlugins(),
   owner: 'hc111',
 };
 
@@ -136,6 +146,14 @@ module.exports = () => {
   loadEnv();
 
   const expo = { ...baseExpo };
+
+  expo.updates = {
+    url: EAS_UPDATE_URL,
+  };
+  expo.runtimeVersion = {
+    policy: 'appVersion',
+  };
+
   const baseUrl = (process.env.EXPO_WEB_BASE_PATH || '').trim();
   if (baseUrl) {
     expo.experiments = { ...(expo.experiments || {}), baseUrl };
