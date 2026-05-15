@@ -93,6 +93,12 @@ const baseExpo = {
     'expo-web-browser',
     'expo-apple-authentication',
     [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow Dalton to use your camera for event QR scanning.',
+      },
+    ],
+    [
       'expo-image-picker',
       {
         photosPermission: 'Allow Dalton to access your photos and videos for uploads.',
@@ -175,6 +181,9 @@ module.exports = () => {
     eas: { projectId: EAS_PROJECT_ID },
     supabaseUrl: (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim(),
     supabaseAnonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim(),
+    /** RevenueCat public SDK keys — duplicated here so native init can read `expo.extra` if env inlining differs. */
+    revenueCatApiKeyIos: (process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS || '').trim(),
+    revenueCatApiKeyAndroid: (process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID || '').trim(),
     /** Direct HTTPS `.riv` URL for native Rive; same as `EXPO_PUBLIC_RIVE_URL`. */
     riveAnimationUrl: (process.env.EXPO_PUBLIC_RIVE_URL || '').trim(),
     riveEmbedUrl:

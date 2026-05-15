@@ -20,8 +20,14 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
--- Memberships + capability-backed roles
-create type public.app_role as enum ('member', 'admin', 'super_admin');
+-- Memberships + capability-backed roles (enum is idempotent for re-running this file).
+do $$
+begin
+  create type public.app_role as enum ('member', 'admin', 'super_admin');
+exception
+  when duplicate_object then null;
+end
+$$;
 
 create table if not exists public.organization_memberships (
   id uuid primary key default uuid_generate_v4(),
@@ -34,7 +40,13 @@ create table if not exists public.organization_memberships (
 );
 
 -- Media metadata (binary in Storage / S3)
-create type public.media_kind as enum ('image', 'video', 'audio', 'file');
+do $$
+begin
+  create type public.media_kind as enum ('image', 'video', 'audio', 'file');
+exception
+  when duplicate_object then null;
+end
+$$;
 
 create table if not exists public.media_assets (
   id uuid primary key default uuid_generate_v4(),
@@ -161,6 +173,16 @@ alter table public.profiles add column if not exists persona_role text;
 alter table public.profiles add column if not exists sports text[] not null default '{}';
 alter table public.profiles add column if not exists discovery_source text;
 alter table public.profiles add column if not exists onboarding_completed_at timestamptz;
+alter table public.profiles add column if not exists username text;
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists interests text[] not null default '{}';
+alter table public.profiles add column if not exists banner_url text;
+alter table public.profiles add column if not exists primary_sport text;
+alter table public.profiles add column if not exists highlights jsonb not null default '[]'::jsonb;
+alter table public.profiles add column if not exists recent_results jsonb not null default '[]'::jsonb;
+create unique index if not exists profiles_username_unique_idx
+  on public.profiles (username)
+  where username is not null;
 
 -- RLS: policies live in backend/rls_policies.sql (run after this file + handle_new_user.sql).
 alter table public.profiles enable row level security;

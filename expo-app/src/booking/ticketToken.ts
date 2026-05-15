@@ -22,6 +22,11 @@ export async function signTicketPayload(
   payload: TicketPayloadV1,
   secret: string = getTicketSigningSecret(),
 ): Promise<string> {
+  if (!secret.trim()) {
+    throw new Error(
+      'Ticket signing is not configured. Set EXPO_PUBLIC_TICKET_SIGNING_SECRET (release builds require a strong secret).',
+    );
+  }
   const json = JSON.stringify(payload);
   const payloadB64 = toBase64Utf8(json);
   const sig = await Crypto.digestStringAsync(
@@ -36,6 +41,9 @@ export async function verifyTicketToken(
   token: string,
   secret: string = getTicketSigningSecret(),
 ): Promise<{ ok: true; payload: TicketPayloadV1 } | { ok: false; reason: string }> {
+  if (!secret.trim()) {
+    return { ok: false, reason: 'Ticket signing not configured' };
+  }
   const parts = token.split('.');
   if (parts.length !== 2) return { ok: false, reason: 'Malformed token' };
   const [payloadB64, sig] = parts;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -10,7 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { isSupabaseConfigured } from '../lib/env';
+import { useRoute, type RouteProp, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,9 +19,15 @@ import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { useAuth } from '../auth/AuthContext';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
+import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
+import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
+import {
+  deleteMediaAsset,
+  listBrowseMediaAssets,
+} from '../roadmap/liveDataService';
+import type { MediaAssetRow } from '../roadmap/types';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
 
@@ -193,12 +200,28 @@ const BROWSE = ['All Media', 'Training', 'Mindset', 'Nutrition', 'Recovery', 'Ca
 export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { isPro } = useSubscription();
-  const tierOk = hasPremiumOrAdminTier(isPro, user?.role);
+  const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
+  const tierOk =
+    hasPremiumOrAdminTier(isPro, user?.role) || Boolean(user?.masterControl);
   const canCreate = canCreateVerifiedContent(isPro, user);
   const [b, setB] = useState(0);
-  const noopMediaReload = useCallback(async () => undefined, []);
-  const { refreshing, onRefresh } = useRefreshWithMinimum(noopMediaReload, 4000);
+  const [browseAssets, setBrowseAssets] = useState<MediaAssetRow[]>([]);
+  const loadBrowse = useCallback(async () => {
+    const rows = await listBrowseMediaAssets(80);
+    setBrowseAssets(rows);
+  }, []);
+  const { refreshing, onRefresh } = useRefreshWithMinimum(
+    useCallback(async () => {
+      await loadBrowse();
+    }, [loadBrowse]),
+    4000,
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadBrowse();
+    }, [loadBrowse]),
+  );
   return (
     <View style={styles.root}>
       <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
@@ -210,7 +233,11 @@ export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
             hitSlop={8}
             onPress={() => {
               if (!tierOk) {
-                navigateToPremiumPaywall(navigation);
+                void (async () => {
+                  const { premiumActivated } = await presentRevenueCatPaywall();
+                  await refreshSubscription();
+                  if (premiumActivated) notifyNewPremiumFromPaywall(true);
+                })();
                 return;
               }
               if (!canCreate) {
@@ -273,25 +300,58 @@ export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
             </Pressable>
           ))}
         </ScrollView>
-        <View style={styles.grid2}>
-          {[1, 2, 3, 4].map((i) => (
-            <Pressable
-              key={i}
-              style={styles.gridCell}
-              onPress={() => navigation.navigate('MediaPlayer', { title: `Video ${i}` })}
-            >
-              <View style={styles.thumbWrap}>
-                <Image source={{ uri: THUMB }} style={styles.thumbImg} />
-                <View style={styles.thumbDur}>
-                  <Text style={styles.thumbDurText}>12:45</Text>
-                </View>
-              </View>
-              <Text style={styles.thumbTag}>Training</Text>
-              <Text style={styles.thumbTitle} numberOfLines={2}>
-                Explosive power mechanics #{i}
-              </Text>
-            </Pressable>
-          ))}
+        <View style={[styles.grid2, browseAssets.length === 0 ? { width: '100%' } : null]}>
+          {browseAssets.length === 0 ? (
+            <Text style={[styles.muted, { paddingHorizontal: DS.space.base, width: '100%' }]}>
+              No media published yet. Creators with access can upload from the + button.
+            </Text>
+          ) : (
+            browseAssets.map((asset) => {
+              const thumb = asset.thumbnail_url || asset.public_url || THUMB;
+              const label =
+                asset.storage_path?.split('/').pop() || asset.kind.toUpperCase();
+              const open = () =>
+                navigation.navigate('MediaPlayer', {
+                  title: label,
+                });
+              const promptDelete = () => {
+                if (!user?.masterControl) return;
+                Alert.alert('Delete media?', 'Removes this asset for everyone.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                      void (async () => {
+                        const ok = await deleteMediaAsset(asset.id);
+                        if (ok) await loadBrowse();
+                        else Alert.alert('Could not delete', 'Check permissions and try again.');
+                      })();
+                    },
+                  },
+                ]);
+              };
+              return (
+                <Pressable
+                  key={asset.id}
+                  style={styles.gridCell}
+                  onPress={open}
+                  onLongPress={user?.masterControl ? promptDelete : undefined}
+                >
+                  <View style={styles.thumbWrap}>
+                    <Image source={{ uri: thumb }} style={styles.thumbImg} />
+                    <View style={styles.thumbDur}>
+                      <Text style={styles.thumbDurText}>{asset.kind}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.thumbTag}>{asset.visibility}</Text>
+                  <Text style={styles.thumbTitle} numberOfLines={2}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })
+          )}
         </View>
         <Text style={styles.browseLabel}>Continue Watching</Text>
         <Pressable
@@ -459,21 +519,55 @@ const SEARCH_DEMO_RESULTS: ResultRow[] = [
   },
 ];
 
+function mediaAssetToResultRow(r: MediaAssetRow): ResultRow {
+  const uri = r.thumbnail_url?.trim() || r.public_url?.trim() || THUMB;
+  const label = r.kind === 'video' ? 'Video' : r.kind === 'image' ? 'Image' : 'Media';
+  const name = r.storage_path?.split('/').pop() || 'Media asset';
+  return {
+    id: r.id,
+    uri,
+    duration: label,
+    badge: label,
+    badgeVariant: r.kind === 'video' ? 'accent' : 'gold',
+    title: name,
+    meta: new Date(r.created_at).toLocaleDateString(),
+    rating: '—',
+  };
+}
+
 export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResults'>) {
   const insets = useSafeAreaInsets();
   const route = useRoute<MediaResultsRoute>();
   const paramQ = route.params?.query?.trim();
-  const initialQ = paramQ && paramQ.length > 0 ? paramQ : 'boxing techniques';
+  const initialQ = paramQ && paramQ.length > 0 ? paramQ : '';
   const [searchText, setSearchText] = useState(initialQ);
   const [sortBy, setSortBy] = useState<(typeof SORT_LABELS)[number]>('Relevance');
   const [sortOpen, setSortOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [trainingFilter, setTrainingFilter] = useState(true);
   const [loadMoreDone, setLoadMoreDone] = useState(false);
+  const [liveMedia, setLiveMedia] = useState<MediaAssetRow[]>([]);
+  const liveMediaMode = isSupabaseConfigured();
+
+  useEffect(() => {
+    if (!liveMediaMode) return;
+    void listBrowseMediaAssets(120).then(setLiveMedia);
+  }, [liveMediaMode]);
 
   const results = useMemo(() => {
-    let base: ResultRow[] = [...SEARCH_DEMO_RESULTS];
-    if (loadMoreDone) {
+    let base: ResultRow[] = liveMediaMode
+      ? liveMedia.map(mediaAssetToResultRow)
+      : [...SEARCH_DEMO_RESULTS];
+    const q = searchText.trim().toLowerCase();
+    if (q) {
+      base = base.filter(
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          r.meta.toLowerCase().includes(q) ||
+          r.badge.toLowerCase().includes(q),
+      );
+    }
+    if (loadMoreDone && !liveMediaMode) {
       base.push(
         {
           id: '7',
@@ -501,7 +595,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
       base = base.filter((r) => r.badge === 'Training');
     }
     return base;
-  }, [loadMoreDone, trainingFilter]);
+  }, [loadMoreDone, trainingFilter, liveMedia, liveMediaMode, searchText]);
 
   const openPlayer = (title: string) => navigation.navigate('MediaPlayer', { title });
 
@@ -663,7 +757,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
           disabled={loadMoreDone}
         >
           <Text style={[styles.loadMoreBtnText, loadMoreDone && styles.loadMoreBtnTextDone]}>
-            {loadMoreDone ? 'All results loaded (demo)' : 'Load More Results'}
+            {loadMoreDone ? 'All results loaded' : 'Load More Results'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -705,7 +799,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const insets = useSafeAreaInsets();
   const title = route.params?.title ?? 'Advanced Boxing Combinations for Power';
   const meta = playerMeta(title);
-  const demoAlert = (msg: string) => Alert.alert('Dalton demo', msg);
+  const playerNotice = (msg: string) => Alert.alert('Grant Access', msg);
 
   return (
     <View style={styles.root}>
@@ -713,7 +807,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
         <Pressable style={styles.playerChromeBtn} onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
-        <Pressable style={styles.playerChromeBtn} onPress={() => demoAlert('More options (static demo).')}>
+        <Pressable style={styles.playerChromeBtn} onPress={() => playerNotice('More options are not available yet.')}>
           <FontAwesome name="ellipsis-h" size={18} color={DS.color.text} />
         </Pressable>
       </View>
@@ -734,16 +828,16 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
           </View>
           <View style={styles.ctrlRow}>
             <View style={styles.ctrlLeft}>
-              <Pressable onPress={() => demoAlert('Previous chapter (demo).')}>
+              <Pressable onPress={() => playerNotice('Previous chapter is not available yet.')}>
                 <FontAwesome name="step-backward" size={18} color={DS.color.white} />
               </Pressable>
               <Text style={styles.timeText}>4:23 / {meta.duration}</Text>
             </View>
             <View style={styles.ctrlRight}>
-              <Pressable onPress={() => demoAlert('Volume (demo).')}>
+              <Pressable onPress={() => playerNotice('Volume controls are not available yet.')}>
                 <FontAwesome name="volume-up" size={18} color={DS.color.white} />
               </Pressable>
-              <Pressable onPress={() => demoAlert('Fullscreen (demo).')}>
+              <Pressable onPress={() => playerNotice('Fullscreen is not available yet.')}>
                 <FontAwesome name="expand" size={18} color={DS.color.white} />
               </Pressable>
             </View>
@@ -767,21 +861,21 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
         <View style={styles.playerActionsRow}>
           <Pressable
             style={styles.playerActionGold}
-            onPress={() => demoAlert('Added to Continue Watching (demo).')}
+            onPress={() => playerNotice('Added to Continue Watching.')}
           >
             <FontAwesome name="clock-o" size={14} color={DS.color.gold} />
             <Text style={styles.playerActionGoldText}> Add to Continue Watching</Text>
           </Pressable>
           <Pressable
             style={styles.playerActionGhost}
-            onPress={() => demoAlert('Saved to your list (demo).')}
+            onPress={() => playerNotice('Saved to your list.')}
           >
             <FontAwesome name="bookmark-o" size={14} color={DS.color.text} />
             <Text style={styles.playerActionGhostText}> Save</Text>
           </Pressable>
           <Pressable
             style={styles.playerActionGhost}
-            onPress={() => demoAlert('Share sheet would open here (demo).')}
+            onPress={() => playerNotice('Share is not available in this preview.')}
           >
             <FontAwesome name="share" size={14} color={DS.color.text} />
             <Text style={styles.playerActionGhostText}> Share</Text>
@@ -916,7 +1010,7 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
         <View style={styles.savedHeaderActions}>
           <Pressable
             style={styles.savedIconBtn}
-            onPress={() => Alert.alert('Dalton demo', 'Search saved videos (static demo).')}
+            onPress={() => Alert.alert('Grant Access', 'Search for saved videos is not available yet.')}
           >
             <FontAwesome name="search" size={16} color={DS.color.text} />
           </Pressable>
@@ -1089,9 +1183,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   hero: {
-    marginHorizontal: DS.space.base,
+    alignSelf: 'stretch',
+    width: '100%',
+    marginHorizontal: 0,
     aspectRatio: 4 / 3,
-    borderRadius: DS.radius.xxl,
+    borderRadius: 0,
     overflow: 'hidden',
     backgroundColor: DS.color.surface,
     marginBottom: DS.space.lg,

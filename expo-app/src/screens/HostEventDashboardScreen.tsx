@@ -8,7 +8,7 @@ import type { EventsStackParamList } from '../navigation/types';
 type Props = NativeStackScreenProps<EventsStackParamList, 'HostEventDashboard'>;
 
 /**
- * Host-facing stats for an event — wire to `bookings` / `events` with RLS when live.
+ * Host-facing stats for an event (placeholder figures until wired to bookings / events data).
  * Shown to Dalton-verified users with `manage_events` from Admin tools.
  */
 export function HostEventDashboardScreen({ navigation }: Props) {
@@ -21,8 +21,8 @@ export function HostEventDashboardScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Demo totals for your flagship session. Replace with Supabase aggregates (tickets sold, free
-          RSVPs, check-ins, attendee list).
+          Summary totals for your session. Connect your database to show live tickets sold, RSVPs,
+          check-ins, and attendee lists.
         </Text>
         <View style={styles.statGrid}>
           <View style={styles.statCard}>
@@ -35,7 +35,7 @@ export function HostEventDashboardScreen({ navigation }: Props) {
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statVal}>$4.2k</Text>
-            <Text style={styles.statLbl}>Gross (demo)</Text>
+            <Text style={styles.statLbl}>Gross</Text>
           </View>
         </View>
         <Text style={styles.section}>Recent sign-ups</Text>

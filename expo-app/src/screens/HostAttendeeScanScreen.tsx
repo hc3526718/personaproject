@@ -109,7 +109,7 @@ export function HostAttendeeScanScreen({ navigation }: HostAttendeeScanScreenPro
       setBusy(true);
       try {
         if (!isSupabaseConfigured()) {
-          showActionBanner('Checked in (demo)', `Ref ${v.payload.ref}`);
+          showActionBanner('Checked in', `Ref ${v.payload.ref}`);
           return;
         }
 

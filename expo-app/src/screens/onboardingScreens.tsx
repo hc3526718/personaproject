@@ -15,14 +15,8 @@ import { AppleHeroButton } from '../components/AppleHeroButton';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  DEMO_EMAIL,
-  DEMO_PASSWORD,
-  PREMIUM_DEMO_EMAIL,
-  PREMIUM_DEMO_PASSWORD,
-  useAuth,
-} from '../auth/AuthContext';
-import { BrandLogo } from '../components/BrandLogo';
+import { useAuth } from '../auth/AuthContext';
+import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import type { AuthStackParamList } from '../navigation/types';
@@ -50,18 +44,8 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
     >
       <ScrollView contentContainerStyle={styles.welcomeScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeHero}>
-          <BrandLogo width={120} height={120} style={styles.welcomeLogo} />
-          <Text style={styles.grant}>Grant Access</Text>
-          <Text style={styles.welcomeLead}>Elite Athletic Mentorship</Text>
-          <Text style={styles.welcomeSub}>
-            Connect with world-class coaches and athletes. Access exclusive training content and
-            community insights.
-          </Text>
-          <Text style={styles.demoHint}>
-            Admin demo: {DEMO_EMAIL} / {DEMO_PASSWORD}
-            {'\n'}
-            Premium + admin (media/events): {PREMIUM_DEMO_EMAIL} / {PREMIUM_DEMO_PASSWORD}
-          </Text>
+          <AuthWelcomeRiveHero height={220} />
+          <Text style={styles.welcomeAppName}>Grant Access</Text>
         </View>
       </ScrollView>
       <View style={styles.welcomeActions}>
@@ -112,8 +96,8 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
 export function LogInScreen({ navigation }: Props<'LogIn'>) {
   const insets = useSafeAreaInsets();
   const { login, signInWithGoogle, signInWithApple, oAuthBusy } = useAuth();
-  const [email, setEmail] = useState(PREMIUM_DEMO_EMAIL);
-  const [password, setPassword] = useState(PREMIUM_DEMO_PASSWORD);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(true);
   return (
@@ -131,16 +115,9 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.loginLogoRow}>
-          <BrandLogo width={96} height={96} />
+          <AuthWelcomeRiveHero height={120} />
         </View>
-        {__DEV__ ? (
-          <Text style={styles.loginDemoHint}>
-            Premium test: {PREMIUM_DEMO_EMAIL} / {PREMIUM_DEMO_PASSWORD}
-            {' · '}
-            Legacy admin: {DEMO_EMAIL} / {DEMO_PASSWORD}
-          </Text>
-        ) : null}
-        <Field label="Email">
+        <AuthFormField label="Email">
           <TextInput
             style={styles.inputCompact}
             placeholder="athlete@example.com"
@@ -150,8 +127,8 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
             value={email}
             onChangeText={setEmail}
           />
-        </Field>
-        <Field label="Password">
+        </AuthFormField>
+        <AuthFormField label="Password">
           <View style={styles.inputRow}>
             <TextInput
               style={[styles.inputCompact, styles.inputFlex]}
@@ -169,7 +146,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
               />
             </Pressable>
           </View>
-        </Field>
+        </AuthFormField>
         <View style={styles.loginOpts}>
           <Pressable style={styles.rememberRow} onPress={() => setRemember((r) => !r)}>
             <View style={[styles.checkbox, remember && styles.checkboxOn]}>
@@ -190,7 +167,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
               if (ok) return;
               Alert.alert(
                 'Log in failed',
-                `Offline mode: use ${PREMIUM_DEMO_EMAIL} + ${PREMIUM_DEMO_PASSWORD}, or ${DEMO_EMAIL} + ${DEMO_PASSWORD}.`,
+                'Check your email and password, or sign in with Apple or Google.',
               );
             })();
           }}
@@ -258,7 +235,7 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
             </Text>
           </View>
         </View>
-        <Field label="Email Address">
+        <AuthFormField label="Email Address">
           <TextInput
             style={styles.input}
             placeholder="athlete@example.com"
@@ -266,7 +243,7 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-        </Field>
+        </AuthFormField>
         <AppleHeroButton onPress={() => navigation.navigate('VerifyReset')}>Send reset code</AppleHeroButton>
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Remember your password? </Text>
@@ -419,7 +396,7 @@ export function CreatePasswordScreen({ navigation }: Props<'CreatePassword'>) {
             </View>
           </View>
         </View>
-        <Field label="Confirm Password">
+        <AuthFormField label="Confirm Password">
           <View style={styles.inputRow}>
             <TextInput
               style={[styles.input, styles.inputFlex]}
@@ -433,7 +410,7 @@ export function CreatePasswordScreen({ navigation }: Props<'CreatePassword'>) {
               <FontAwesome name={show2 ? 'eye-slash' : 'eye'} size={18} color={DS.color.textMuted} />
             </Pressable>
           </View>
-        </Field>
+        </AuthFormField>
         <Text style={styles.reqHeading}>Password Requirements</Text>
         {reqs.map((r) => (
           <Text key={r.t} style={[styles.reqLine, r.ok && styles.reqLineOk]}>
@@ -453,7 +430,7 @@ export function CreatePasswordScreen({ navigation }: Props<'CreatePassword'>) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+export function AuthFormField({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -479,7 +456,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: DS.space.md,
   },
-  loginDemoHint: {
+  loginDevHint: {
     fontSize: 11,
     color: DS.color.textMuted,
     lineHeight: 16,
@@ -489,15 +466,23 @@ const styles = StyleSheet.create({
   welcomeScroll: {
     flexGrow: 1,
     paddingHorizontal: DS.space.lg,
-    paddingTop: DS.space.xxl,
+    paddingTop: DS.space.xl,
     alignItems: 'center',
   },
   welcomeHero: {
     alignItems: 'center',
-    marginBottom: DS.space.xl,
+    marginBottom: DS.space.md,
   },
   welcomeLogo: {
     marginBottom: DS.space.md,
+  },
+  welcomeAppName: {
+    fontFamily: DS.font.heading,
+    fontSize: 28,
+    letterSpacing: 3,
+    color: DS.color.text,
+    textTransform: 'uppercase',
+    textAlign: 'center',
   },
   grant: {
     fontSize: 13,
@@ -518,15 +503,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     maxWidth: 300,
-  },
-  demoHint: {
-    marginTop: DS.space.lg,
-    fontSize: 12,
-    color: DS.color.gold,
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 320,
-    opacity: 0.95,
   },
   welcomeActions: {
     paddingHorizontal: DS.space.lg,
@@ -763,3 +739,6 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
   },
 });
+
+/** Shared login/sign-up field layout styles (used by `GrantAccessScreen`). */
+export const authScreenSharedStyles = styles;

@@ -33,10 +33,10 @@ export function buildIcsEvent(input: IcsEventInput): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Dalton Demo//EN',
+    'PRODID:-//Grant Access//EN',
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
-    `UID:${escapeIcsText(input.uid)}@dalton-demo`,
+    `UID:${escapeIcsText(input.uid)}@grant-access.app`,
     `DTSTAMP:${formatIcsDate(new Date())}`,
     `DTSTART:${formatIcsDate(input.start)}`,
     `DTEND:${formatIcsDate(input.end)}`,

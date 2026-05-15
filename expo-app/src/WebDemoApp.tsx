@@ -36,6 +36,17 @@ export default function WebDemoApp() {
     return `${baseUrl}/index.html`;
   }, [baseUrl]);
 
+  const originWhitelist = useMemo(() => {
+    if (!baseUrl) return ['https://', 'http://'];
+    try {
+      const normalized = /^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`;
+      const u = new URL(normalized);
+      return [`${u.protocol}//${u.host}`];
+    } catch {
+      return ['https://', 'http://'];
+    }
+  }, [baseUrl]);
+
   const openDraft = useCallback(() => {
     const next = normalizeBaseUrl(draft);
     if (next) {
@@ -51,7 +62,7 @@ export default function WebDemoApp() {
         style={styles.setupRoot}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={styles.setupTitle}>Dalton demo</Text>
+        <Text style={styles.setupTitle}>Grant Access</Text>
         <Text style={styles.setupBody}>
           Point this app at the folder served by your PC, or at a hosted copy (HTTPS).
         </Text>
@@ -71,7 +82,7 @@ export default function WebDemoApp() {
           onSubmitEditing={openDraft}
         />
         <TouchableOpacity style={styles.button} onPress={openDraft} activeOpacity={0.85}>
-          <Text style={styles.buttonText}>Open demo</Text>
+          <Text style={styles.buttonText}>Open</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     );
@@ -89,8 +100,8 @@ export default function WebDemoApp() {
         javaScriptEnabled
         domStorageEnabled
         allowsBackForwardNavigationGestures
-        originWhitelist={['*']}
-        mixedContentMode="always"
+        originWhitelist={originWhitelist}
+        mixedContentMode={entryUri.startsWith('https:') ? 'never' : 'compatibility'}
         setSupportMultipleWindows={false}
       />
       {loading ? (

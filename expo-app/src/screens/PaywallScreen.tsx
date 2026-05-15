@@ -1,131 +1,135 @@
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppleHeroButton } from '../components/AppleHeroButton';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { FontAwesome } from '@expo/vector-icons';
 import { DS } from '../designSystem';
+import { presentRevenueCatCustomerCenter, presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ProfileStackParamList } from '../navigation/types';
-import { getRevenueCatEntitlementId } from '../lib/env';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Paywall'>;
 
 export function PaywallScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { isPro, busy, refresh, restore } = useSubscription();
-  const entitlementId = getRevenueCatEntitlementId();
+  const { busy, refresh, restore, notifyNewPremiumFromPaywall } = useSubscription();
+  const [presenting, setPresenting] = useState(false);
+  const paywallBusy = useRef(false);
 
-  const presentPaywall = async () => {
+  const showRevenueCatPaywall = useCallback(async () => {
+    if (paywallBusy.current) return;
+    paywallBusy.current = true;
+    setPresenting(true);
     try {
-      const ui = require('react-native-purchases-ui') as typeof import('react-native-purchases-ui');
-      // Present current offering paywall
-      const result = await ui.RevenueCatUI.presentPaywall();
-      if (__DEV__) console.warn('[RevenueCatUI] paywall result', result);
+      const { premiumActivated } = await presentRevenueCatPaywall();
       await refresh();
-    } catch (e) {
-      Alert.alert('Paywall', e instanceof Error ? e.message : 'Could not open paywall');
+      if (premiumActivated) notifyNewPremiumFromPaywall(true);
+    } finally {
+      paywallBusy.current = false;
+      setPresenting(false);
     }
-  };
+  }, [refresh, notifyNewPremiumFromPaywall]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void showRevenueCatPaywall();
+    }, [showRevenueCatPaywall]),
+  );
 
   const openCustomerCenter = async () => {
-    try {
-      const ui = require('react-native-purchases-ui') as typeof import('react-native-purchases-ui');
-      await ui.RevenueCatUI.presentCustomerCenter();
-    } catch (e) {
-      Alert.alert('Customer Center', e instanceof Error ? e.message : 'Could not open customer center');
-    }
+    await presentRevenueCatCustomerCenter();
   };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Premium" onBack={() => navigation.goBack()} largeTitle />
-      <ScrollView contentContainerStyle={styles.body}>
-        {busy ? (
-          <ActivityIndicator color={DS.color.gold} style={{ marginTop: 24 }} />
+      <View style={styles.topBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={12}
+          onPress={() => navigation.goBack()}
+          style={styles.iconHit}
+        >
+          <FontAwesome name="chevron-left" size={22} color={DS.color.gold} />
+        </Pressable>
+        <Text style={styles.topTitle}>Premium</Text>
+        <View style={{ width: 28 }} />
+      </View>
+
+      <View style={styles.center}>
+        {busy || presenting ? (
+          <ActivityIndicator color={DS.color.gold} size="large" />
         ) : (
           <>
-            <Text style={styles.demoKicker}>Preview</Text>
             <Text style={styles.lead}>
-              Premium unlocks host check-in QR scanning on the Events tab plus creating events and uploading
-              media — all synced with RevenueCat soon. Pricing and plans will appear here after you plug in
-              your products.
+              Subscription options use your RevenueCat Paywall templates. Tap below if the sheet did not open
+              (e.g. Expo Go or store billing not configured).
             </Text>
-            <View style={styles.card}>
-              <Text style={styles.status}>
-                Status: {isPro ? 'Premium active' : 'Regular · free'}
-              </Text>
-              <Text style={styles.meta}>Entitlement: {entitlementId || 'premium'}</Text>
-            </View>
-            <AppleHeroButton
-              variant="secondary"
-              onPress={() => navigation.goBack()}
-              style={styles.btnSpaced}
-            >
-              Continue with current plan
-            </AppleHeroButton>
-            <AppleHeroButton onPress={() => void presentPaywall()} style={styles.btnSpaced}>
-              View plans
-            </AppleHeroButton>
-            <AppleHeroButton onPress={() => void refresh()} style={styles.btnSpaced}>
-              Refresh entitlements
-            </AppleHeroButton>
-            <AppleHeroButton variant="secondary" onPress={() => void restore()}>
-              Restore purchases
-            </AppleHeroButton>
-            <AppleHeroButton variant="secondary" onPress={() => void openCustomerCenter()} style={styles.btnSpaced}>
-              Manage subscription
-            </AppleHeroButton>
-            <Text style={styles.hint}>
-              RevenueCat integration is optional in development. Use an EAS build with billing keys when you
-              are ready for real purchases.
-            </Text>
+            <Pressable style={styles.primaryBtn} onPress={() => void showRevenueCatPaywall()}>
+              <Text style={styles.primaryBtnText}>View plans</Text>
+            </Pressable>
+            <Pressable style={styles.linkBtn} onPress={() => void openCustomerCenter()}>
+              <Text style={styles.linkTxt}>Manage subscription</Text>
+            </Pressable>
+            <Pressable style={styles.linkBtn} onPress={() => void restore().then((gained) => {
+              if (gained) notifyNewPremiumFromPaywall(true);
+            })}>
+              <Text style={styles.linkTxt}>Restore purchases</Text>
+            </Pressable>
           </>
         )}
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: DS.color.background },
-  body: { padding: DS.space.lg, paddingBottom: 48 },
-  demoKicker: {
-    alignSelf: 'flex-start',
+  root: { flex: 1, backgroundColor: '#000000' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: DS.space.base,
+    paddingBottom: DS.space.sm,
+  },
+  iconHit: { padding: DS.space.xs },
+  topTitle: {
     fontFamily: DS.font.bodyMedium,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: DS.color.gold,
-    textTransform: 'uppercase',
-    marginBottom: DS.space.sm,
+    fontSize: 16,
+    color: DS.color.mist,
+  },
+  center: {
+    flex: 1,
+    paddingHorizontal: DS.space.xl,
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    gap: DS.space.md,
   },
   lead: {
     fontFamily: DS.font.body,
-    fontSize: 15,
+    fontSize: 14,
     color: DS.color.textMuted,
-    lineHeight: 22,
-    marginBottom: DS.space.lg,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: DS.space.md,
   },
-  card: {
-    backgroundColor: DS.color.surface,
+  primaryBtn: {
+    backgroundColor: DS.color.gold,
+    paddingVertical: 14,
     borderRadius: 12,
-    padding: DS.space.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DS.color.borderWhite5,
-    marginBottom: DS.space.lg,
+    alignItems: 'center',
   },
-  status: { fontFamily: DS.font.bodyMedium, fontSize: 16, color: DS.color.text },
-  meta: {
-    marginTop: DS.space.sm,
-    fontFamily: DS.font.body,
-    fontSize: 12,
-    color: DS.color.textMuted,
+  primaryBtnText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    color: DS.color.background,
+    fontWeight: '700',
   },
-  btnSpaced: { marginBottom: DS.space.md },
-  hint: {
-    marginTop: DS.space.xl,
+  linkBtn: { paddingVertical: 12, alignItems: 'center' },
+  linkTxt: {
     fontFamily: DS.font.body,
-    fontSize: 12,
-    color: DS.color.textMuted,
-    lineHeight: 18,
+    fontSize: 15,
+    color: DS.color.gold,
   },
 });

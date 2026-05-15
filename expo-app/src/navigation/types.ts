@@ -6,6 +6,10 @@ export type CommunityStackParamList = {
   CreateCommunityPost: undefined;
   CommunitySearch: undefined;
   CommunitySearchResults: { query?: string };
+  /** Read-only profile for another member (from feed tap). */
+  PublicProfile: { userId: string };
+  /** Local share log (gold icons) for posts shared from the community tab. */
+  ShareActivity: undefined;
   Notifications: undefined;
   MessagesInbox: undefined;
   MessageThread: {
@@ -14,7 +18,7 @@ export type CommunityStackParamList = {
     peerUserId?: string;
     avatarUrl?: string;
   };
-  BrandPartner: undefined;
+  BrandPartner: { pageId?: string } | undefined;
   DemoHub: undefined;
 };
 
@@ -68,7 +72,7 @@ export type EventsStackParamList = {
 
 export type SponsorsStackParamList = {
   SponsorListings: undefined;
-  BrandPartner: undefined;
+  BrandPartner: { pageId?: string } | undefined;
 };
 
 export type ProfileStackParamList = {
@@ -80,6 +84,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   Accessibility: undefined;
   AccountSecurity: undefined;
+  ChangePassword: undefined;
   PrivacyVisibility: undefined;
   NotificationPrefs: undefined;
   FollowRequests: undefined;
@@ -90,8 +95,14 @@ export type ProfileStackParamList = {
   EditAthlete: undefined;
   EditProfileSections: undefined;
   EditProfileSectionDetail: {
-    slug: 'highlights' | 'recentResults' | 'socialLinks' | 'bioDescription';
+    slug: 'banner' | 'bio' | 'interests' | 'highlights' | 'recentResults';
   };
+  MasterControlHub: undefined;
+  MasterGate: undefined;
+  MasterSetPin: undefined;
+  MasterPartnerOffers: undefined;
+  CreatePartnerOffer: undefined;
+  MasterUserAccounts: undefined;
 };
 
 /** Shown before sign-in — no tab bar. */
@@ -107,6 +118,7 @@ export type AuthStackParamList = {
 /** Post–sign-in profile questions (first session). */
 export type OnboardingStackParamList = {
   OnboardingName: undefined;
+  OnboardingUsername: undefined;
   OnboardingRole: undefined;
   OnboardingSports: undefined;
   OnboardingDiscovery: undefined;

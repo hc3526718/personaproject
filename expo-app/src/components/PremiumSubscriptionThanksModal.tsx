@@ -1,82 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../auth/AuthContext';
 import { DS } from '../designSystem';
 
-const storageKeyForUser = (userId: string) => `@daltonVerifiedWelcome:v1:${userId}`;
-
 type Props = {
-  /** Wait until boot/splash is gone so this sits on top of the main app shell. */
-  deferVisible: boolean;
+  visible: boolean;
+  onDismiss: () => void;
 };
 
-/**
- * One-time celebratory overlay when a signed-in user is Dalton verified (`user.daltonVerified`).
- * Dismissal is persisted per user id in AsyncStorage and is not shown again.
- */
-export function DaltonVerifiedWelcomeOverlay({ deferVisible }: Props) {
+export function PremiumSubscriptionThanksModal({ visible, onDismiss }: Props) {
   const insets = useSafeAreaInsets();
-  const { ready, user } = useAuth();
-
-  const [dismissLoaded, setDismissLoaded] = useState(false);
-  const [alreadyDismissed, setAlreadyDismissed] = useState(false);
-  const [hiddenThisSession, setHiddenThisSession] = useState(false);
-
-  const uid = user?.id;
-  const verified = Boolean(user?.daltonVerified);
-  const eligible = deferVisible && ready && !!uid && verified;
-
-  useEffect(() => {
-    setHiddenThisSession(false);
-  }, [uid]);
-
-  useEffect(() => {
-    if (!uid || !verified) {
-      setDismissLoaded(false);
-      setAlreadyDismissed(false);
-      return;
-    }
-    let cancelled = false;
-    setDismissLoaded(false);
-    const key = storageKeyForUser(uid);
-    void AsyncStorage.getItem(key).then((raw) => {
-      if (cancelled) return;
-      setAlreadyDismissed(raw === '1');
-      setDismissLoaded(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [uid, verified]);
-
-  const persistDismiss = useCallback(async () => {
-    if (!uid) return;
-    await AsyncStorage.setItem(storageKeyForUser(uid), '1');
-  }, [uid]);
-
-  const onDismiss = useCallback(() => {
-    setHiddenThisSession(true);
-    setAlreadyDismissed(true);
-    void persistDismiss();
-  }, [persistDismiss]);
-
-  const show =
-    eligible && dismissLoaded && !alreadyDismissed && !hiddenThisSession;
 
   return (
     <Modal
-      visible={show}
+      visible={visible}
       transparent
       animationType="fade"
       statusBarTranslucent
@@ -86,7 +23,7 @@ export function DaltonVerifiedWelcomeOverlay({ deferVisible }: Props) {
         <View style={[styles.card, { marginTop: Math.max(insets.top, DS.space.base) }]}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Close Dalton verified notice"
+            accessibilityLabel="Close thank you message"
             hitSlop={12}
             style={styles.closeBtn}
             onPress={onDismiss}
@@ -100,19 +37,14 @@ export function DaltonVerifiedWelcomeOverlay({ deferVisible }: Props) {
             contentContainerStyle={styles.cardScroll}
           >
             <View style={styles.iconWrap}>
-              <FontAwesome name="certificate" size={28} color={DS.color.gold} />
+              <FontAwesome name="star" size={28} color={DS.color.gold} />
             </View>
-            <Text style={styles.title}>DALTON VERIFIED</Text>
-            <Text style={styles.lead}>Your profile is verified as Dalton.</Text>
+            <Text style={styles.title}>Thank you</Text>
+            <Text style={styles.lead}>You now have Premium access on Dalton.</Text>
 
             <Text style={styles.body}>
-              Dalton verified creators and hosts unlock trusted tools across the platform: verified
-              media creation, clearer discovery for your audience, and features designed for coaches
-              and athletes who partner with Dalton.
-            </Text>
-            <Text style={styles.body}>
-              Tap continue when you&apos;re ready — this message appears once after verification.
-              You can resume what you were doing right away.
+              Enjoy subscriber-only tools across media, events, and the community. Manage or cancel anytime from
+              Premium → Manage subscription.
             </Text>
 
             <Pressable style={styles.primaryCta} onPress={onDismiss}>

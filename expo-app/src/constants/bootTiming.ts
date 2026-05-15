@@ -8,8 +8,8 @@
  * experience. A fully native animated splash would require custom native code (e.g. iOS
  * storyboard + Lottie/Rive at the native layer), outside the JS bundle.
  */
-/** Minimum time the in-app boot overlay stays visible (boot visual + ring). Lower = snappier handoff to app. */
-export const MIN_BOOT_OVERLAY_MS = 1000;
+/** Minimum time the in-app boot overlay stays visible (Rive / bounce + ring). Must elapse before handoff to auth/app. */
+export const MIN_BOOT_OVERLAY_MS = 5000;
 
 /** Rive Cloud embed: if `onLoadEnd` never fires (WebView/cache/network), fall back to bounce + Sentry. */
 export const RIVE_EMBED_LOAD_TIMEOUT_MS = 15000;

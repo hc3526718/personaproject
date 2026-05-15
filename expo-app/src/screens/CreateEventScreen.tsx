@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -19,8 +21,13 @@ import { FormField } from '../components/ui/FormField';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import type { EventsStackParamList } from '../navigation/types';
+import { insertCommunityEvent } from '../roadmap/liveDataService';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
+import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
+import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
+import { customerHasPremium, fetchCustomerInfo } from '../subscriptions/revenueCat';
+import { endsAtAfterDuration, parseEventStartIso } from '../lib/eventFormParse';
+import { getSupabase } from '../lib/supabase';
 
 type Props = NativeStackScreenProps<EventsStackParamList, 'CreateEvent'>;
 
@@ -29,10 +36,46 @@ type AssetItem = { uri: string; kind: 'image' | 'video' };
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'All levels'] as const;
 const DESC_MIN = 100;
 
+function inferImageContentType(uri: string): string {
+  const u = uri.toLowerCase().split('?')[0] ?? '';
+  if (u.endsWith('.png')) return 'image/png';
+  if (u.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
+function inferImageExt(uri: string): string {
+  const u = uri.toLowerCase().split('?')[0] ?? '';
+  const dot = u.lastIndexOf('.');
+  const ext = dot !== -1 ? u.slice(dot + 1) : '';
+  if (ext && ext.length <= 5 && /^[a-z0-9]+$/.test(ext)) return ext;
+  return 'jpg';
+}
+
+/** Uploads a local hero image to the `media_assets` bucket and returns its public URL. */
+async function uploadEventHero(userId: string, uri: string): Promise<string | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    const blob = await (await fetch(uri)).blob();
+    const ext = inferImageExt(uri);
+    const contentType = inferImageContentType(uri);
+    const rand = Math.random().toString(36).slice(2, 8);
+    const storage_path = `events/${userId}/hero-${Date.now()}-${rand}.${ext}`;
+    const { error } = await supabase.storage
+      .from('media_assets')
+      .upload(storage_path, blob, { contentType, upsert: false });
+    if (error) return null;
+    const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
+    return pub.data.publicUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function CreateEventScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { isPro } = useSubscription();
+  const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
   const tierOk = hasPremiumOrAdminTier(isPro, user?.role);
   const verified = !!user?.daltonVerified;
 
@@ -52,6 +95,37 @@ export function CreateEventScreen({ navigation }: Props) {
   ]);
   const [faqs, setFaqs] = useState<{ q: string; a: string }[]>([{ q: '', a: '' }]);
   const [bring, setBring] = useState('');
+  const [publishing, setPublishing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tierOk) return undefined;
+      let cancelled = false;
+      void (async () => {
+        const { premiumActivated } = await presentRevenueCatPaywall();
+        if (cancelled) return;
+        await refreshSubscription();
+        if (cancelled) return;
+        const info = await fetchCustomerInfo();
+        const proNow = customerHasPremium(info);
+        const admin = user?.role === 'admin' || user?.role === 'super_admin';
+        if (!proNow && !admin) {
+          navigation.goBack();
+          return;
+        }
+        if (premiumActivated) notifyNewPremiumFromPaywall(true);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [
+      tierOk,
+      navigation,
+      refreshSubscription,
+      user?.role,
+      notifyNewPremiumFromPaywall,
+    ]),
+  );
 
   const sortedAssets = useMemo(
     () => [...assets].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'image' ? -1 : 1)),
@@ -97,6 +171,12 @@ export function CreateEventScreen({ navigation }: Props) {
   }, []);
 
   const submit = useCallback(() => {
+    if (publishing || !user?.id || user.id.startsWith('demo-')) {
+      if (!user?.id || user.id.startsWith('demo-')) {
+        Alert.alert('Sign in required', 'Create an account to publish community events.');
+      }
+      return;
+    }
     const errs: string[] = [];
     if (!eventTitle.trim()) errs.push('Event title is required.');
     if (description.trim().length < DESC_MIN) {
@@ -117,26 +197,91 @@ export function CreateEventScreen({ navigation }: Props) {
       Alert.alert('Check form', errs.join('\n'));
       return;
     }
-    Alert.alert(
-      'Event draft saved',
-      'Publishing requires API + host role checks. Images will sort before videos on the public card.',
-      [{ text: 'OK', onPress: () => navigation.goBack() }],
-    );
-  }, [eventTitle, description, dateStr, timeStr, costFree, price, agenda, navigation]);
+    const starts = parseEventStartIso(dateStr, timeStr);
+    if (!starts) {
+      Alert.alert('Check date & time', 'Use YYYY-MM-DD for the date and a time like 10:00 AM or 14:30.');
+      return;
+    }
+    const ends = endsAtAfterDuration(starts, duration);
+    const firstImage = sortedAssets.find((a) => a.kind === 'image');
+    const faqLines = faqs
+      .filter((f) => f.q.trim() && f.a.trim())
+      .map((f) => `Q: ${f.q.trim()}\nA: ${f.a.trim()}`);
+    const agendaBlock = completeAgenda.map((row) => `• ${row.time.trim()} — ${row.title.trim()}`).join('\n');
+    const descParts: string[] = [
+      description.trim(),
+      '',
+      `Level: ${level}`,
+      `Tags: ${eventTags.trim() || '—'}`,
+      '',
+      'Agenda:',
+      agendaBlock,
+    ];
+    if (faqLines.length > 0) {
+      descParts.push('', 'FAQs:', ...faqLines);
+    }
+    descParts.push('', `What to bring: ${bring.trim() || '—'}`);
+    const longDesc = descParts.join('\n');
+
+    setPublishing(true);
+    void (async () => {
+      let hero: string | null = null;
+      if (firstImage?.uri) {
+        if (/^https?:\/\//i.test(firstImage.uri)) {
+          hero = firstImage.uri;
+        } else {
+          hero = await uploadEventHero(user.id, firstImage.uri);
+        }
+      }
+      const row = await insertCommunityEvent({
+        title: eventTitle.trim(),
+        description: longDesc,
+        starts_at: starts,
+        ends_at: ends,
+        venue: null,
+        hero_image_url: hero,
+        requires_payment: !costFree,
+        stripe_price_id: null,
+        created_by: user.id,
+      });
+      setPublishing(false);
+      if (!row) {
+        Alert.alert(
+          'Could not publish',
+          'Check your connection and that your account can create events, then try again.',
+        );
+        return;
+      }
+      Alert.alert('Event published', row.title, [{ text: 'OK', onPress: () => navigation.goBack() }]);
+    })();
+  }, [
+    publishing,
+    user?.id,
+    eventTitle,
+    description,
+    dateStr,
+    timeStr,
+    duration,
+    costFree,
+    price,
+    agenda,
+    eventTags,
+    level,
+    faqs,
+    bring,
+    sortedAssets,
+    navigation,
+  ]);
 
   if (!tierOk) {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <ScreenHeader title="Create event" onBack={() => navigation.goBack()} />
         <View style={styles.gateBody}>
-          <FontAwesome name="star" size={40} color={DS.color.gold} />
-          <Text style={styles.gateTitle}>Premium</Text>
-          <Text style={styles.gateTxt}>
-            Creating events is a Premium host tool here. Preview the paywall below — real pricing arrives with
-            RevenueCat.
+          <ActivityIndicator color={DS.color.gold} size="large" />
+          <Text style={[styles.gateTxt, { marginTop: DS.space.lg, textAlign: 'center' }]}>
+            Opening subscription options…
           </Text>
-          <AppButton label="Preview Premium" onPress={() => navigateToPremiumPaywall(navigation)} />
-          <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
         </View>
       </View>
     );
@@ -393,7 +538,7 @@ export function CreateEventScreen({ navigation }: Props) {
         </View>
 
         <View style={{ height: DS.apple.sectionGap }} />
-        <AppButton label="Submit event draft" onPress={submit} />
+        <AppButton label="Publish event" onPress={submit} loading={publishing} />
         <View style={{ height: DS.space.md }} />
         <AppButton label="Cancel" onPress={() => navigation.goBack()} variant="ghost" />
       </ScrollView>

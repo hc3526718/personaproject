@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { WebAppFrame } from '../components/WebAppFrame';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -13,6 +14,7 @@ import { useAuth } from '../auth/AuthContext';
 import { DS } from '../designSystem';
 import { getSupabase } from '../lib/supabase';
 import { ensureProfileRow } from '../roadmap/profileService';
+import { OAuthProfileSetupModal } from '../components/OAuthProfileSetupModal';
 import { OnboardingNavigator } from '../onboarding/OnboardingNavigator';
 import type {
   AuthStackParamList,
@@ -35,6 +37,8 @@ import {
   MessagesInboxScreen,
   NotificationsScreen,
 } from '../screens/communityScreens';
+import { PublicProfileScreen } from '../screens/PublicProfileScreen';
+import { ShareActivityScreen } from '../screens/ShareActivityScreen';
 import {
   MediaCommunityFeedScreen,
   MediaLibraryScreen,
@@ -74,11 +78,20 @@ import { AdminMediaUploadScreen } from '../screens/AdminMediaUploadScreen';
 import {
   AccountSecurityScreen,
   AccessibilityScreen,
+  ChangePasswordScreen,
   LegalScreen,
   NotificationPrefsScreen,
   PrivacyVisibilityScreen,
   SupportScreen,
 } from '../screens/settingsDetailScreens';
+import {
+  CreatePartnerOfferScreen,
+  MasterControlHubScreen,
+  MasterGateScreen,
+  MasterPartnerOffersScreen,
+  MasterSetPinScreen,
+  MasterUserAccountsScreen,
+} from '../screens/masterControlScreens';
 import {
   CreatePasswordScreen,
   ForgotPasswordScreen,
@@ -121,6 +134,8 @@ function CommunityStackNavigator() {
       <CommunityStack.Screen name="CreateCommunityPost" component={CreateCommunityPostScreen} />
       <CommunityStack.Screen name="CommunitySearch" component={CommunitySearchScreen} />
       <CommunityStack.Screen name="CommunitySearchResults" component={CommunitySearchResultsScreen} />
+      <CommunityStack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <CommunityStack.Screen name="ShareActivity" component={ShareActivityScreen} />
       <CommunityStack.Screen name="Notifications" component={NotificationsScreen} />
       <CommunityStack.Screen name="MessagesInbox" component={MessagesInboxScreen} />
       <CommunityStack.Screen name="MessageThread" component={MessageThreadScreen} />
@@ -202,6 +217,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
       <ProfileStack.Screen name="Accessibility" component={AccessibilityScreen} />
       <ProfileStack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
+      <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       <ProfileStack.Screen name="PrivacyVisibility" component={PrivacyVisibilityScreen} />
       <ProfileStack.Screen name="NotificationPrefs" component={NotificationPrefsScreen} />
       <ProfileStack.Screen name="FollowRequests" component={FollowRequestsScreen} />
@@ -212,6 +228,12 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="EditAthlete" component={EditAthleteScreen} />
       <ProfileStack.Screen name="EditProfileSections" component={EditProfileSectionsScreen} />
       <ProfileStack.Screen name="EditProfileSectionDetail" component={EditProfileSectionDetailScreen} />
+      <ProfileStack.Screen name="MasterControlHub" component={MasterControlHubScreen} />
+      <ProfileStack.Screen name="MasterGate" component={MasterGateScreen} />
+      <ProfileStack.Screen name="MasterSetPin" component={MasterSetPinScreen} />
+      <ProfileStack.Screen name="MasterPartnerOffers" component={MasterPartnerOffersScreen} />
+      <ProfileStack.Screen name="CreatePartnerOffer" component={CreatePartnerOfferScreen} />
+      <ProfileStack.Screen name="MasterUserAccounts" component={MasterUserAccountsScreen} />
     </ProfileStack.Navigator>
   );
 }
@@ -219,14 +241,14 @@ function ProfileStackNavigator() {
 function AuthStackNavigator() {
   return (
     <AuthStack.Navigator
-      initialRouteName="LogIn"
+      initialRouteName="WelcomeHub"
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: DS.color.background },
       }}
     >
-      <AuthStack.Screen name="GrantAccess" component={GrantAccessScreen} />
       <AuthStack.Screen name="WelcomeHub" component={WelcomeHubScreen} />
+      <AuthStack.Screen name="GrantAccess" component={GrantAccessScreen} />
       <AuthStack.Screen name="LogIn" component={LogInScreen} />
       <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <AuthStack.Screen name="VerifyReset" component={VerifyResetScreen} />
@@ -253,31 +275,65 @@ function AuthenticatedShell() {
   const { user } = useAuth();
   const supabase = getSupabase();
   const [gate, setGate] = useState<'loading' | 'onboarding' | 'app'>('loading');
+  const [oauthProfileSetupOpen, setOauthProfileSetupOpen] = useState(false);
 
   const refreshGate = useCallback(async () => {
     if (!user) {
       setGate('loading');
+      setOauthProfileSetupOpen(false);
       return;
     }
     if (!supabase || user.id.startsWith('demo')) {
       setGate('app');
+      setOauthProfileSetupOpen(false);
       return;
     }
-    const row = await Promise.race([
-      supabase
+
+    const { data: authUserRes } = await supabase.auth.getUser();
+    const identities = authUserRes.user?.identities ?? [];
+    const providers = new Set(identities.map((i) => i.provider));
+    const oauthAppleGoogleOnly =
+      !providers.has('email') && (providers.has('google') || providers.has('apple'));
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('onboarding_completed_at')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      if (__DEV__) console.warn('[AuthenticatedShell] profile fetch', error.message);
+      await ensureProfileRow(user.id, user.email ?? null);
+      setOauthProfileSetupOpen(false);
+      setGate('onboarding');
+      return;
+    }
+
+    let onboardingAt = profile?.onboarding_completed_at ?? null;
+    if (!profile) {
+      await ensureProfileRow(user.id, user.email ?? null);
+      const { data: again } = await supabase
         .from('profiles')
         .select('onboarding_completed_at')
         .eq('id', user.id)
-        .maybeSingle()
-        .then((r) => r.data as { onboarding_completed_at: string | null } | null),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
-    ]);
-    if (row) {
-      setGate(row.onboarding_completed_at ? 'app' : 'onboarding');
+        .maybeSingle();
+      onboardingAt = again?.onboarding_completed_at ?? null;
+    }
+
+    if (onboardingAt) {
+      setOauthProfileSetupOpen(false);
+      setGate('app');
       return;
     }
-    void ensureProfileRow(user.id, user.email ?? null);
-    setGate('app');
+
+    if (oauthAppleGoogleOnly) {
+      setOauthProfileSetupOpen(true);
+      setGate('app');
+      return;
+    }
+
+    setOauthProfileSetupOpen(false);
+    setGate('onboarding');
   }, [user, supabase]);
 
   useEffect(() => {
@@ -297,7 +353,19 @@ function AuthenticatedShell() {
       />
     );
   }
-  return <MainTabNavigator />;
+  return (
+    <>
+      <MainTabNavigator />
+      <OAuthProfileSetupModal
+        visible={oauthProfileSetupOpen}
+        onCompleted={() => {
+          setOauthProfileSetupOpen(false);
+          setGate('loading');
+          void refreshGate();
+        }}
+      />
+    </>
+  );
 }
 
 function MainTabNavigator() {
@@ -414,17 +482,19 @@ function MainTabNavigator() {
 export function AppNavigator() {
   const { isAuthenticated } = useAuth();
   return (
-    <NavigationContainer theme={navTheme}>
-      <RootStack.Navigator
-        key={isAuthenticated ? 'root-app' : 'root-auth'}
-        screenOptions={{ headerShown: false }}
-      >
-        {isAuthenticated ? (
-          <RootStack.Screen name="Main" component={AuthenticatedShell} />
-        ) : (
-          <RootStack.Screen name="Auth" component={AuthStackNavigator} />
-        )}
-      </RootStack.Navigator>
-    </NavigationContainer>
+    <WebAppFrame>
+      <NavigationContainer theme={navTheme}>
+        <RootStack.Navigator
+          key={isAuthenticated ? 'root-app' : 'root-auth'}
+          screenOptions={{ headerShown: false }}
+        >
+          {isAuthenticated ? (
+            <RootStack.Screen name="Main" component={AuthenticatedShell} />
+          ) : (
+            <RootStack.Screen name="Auth" component={AuthStackNavigator} />
+          )}
+        </RootStack.Navigator>
+      </NavigationContainer>
+    </WebAppFrame>
   );
 }

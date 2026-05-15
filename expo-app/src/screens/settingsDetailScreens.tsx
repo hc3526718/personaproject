@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
+import { getSupabase } from '../lib/supabase';
+import { getDaltonWebUrl } from '../lib/env';
 import {
   DEFAULT_NOTIFY_PREFS,
   IN_APP_NOTIFY_LABELS,
@@ -36,15 +38,58 @@ const BANNER_TOGGLE_SUB: Partial<Record<InAppNotifyCategory, string>> = {
 };
 import type { AllowMessagesFrom } from '../messaging/messagingPrefs';
 import { getAllowMessagesFrom, setAllowMessagesFrom } from '../messaging/messagingPrefs';
+import { syncAllowMessagesFromRemote } from '../messaging/dmPolicySync';
 import type { ProfileStackParamList } from '../navigation/types';
 import { loadAccessibilityPrefs, saveAccessibilityPrefs, type AccessibilityPrefs } from '../lib/accessibilityPrefs';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
+import { useAuth } from '../auth/AuthContext';
+import { fetchProfileByUserId } from '../roadmap/profileService';
+import { fetchUserPrefsDoc, patchUserPrefsDoc } from '../roadmap/userSettingsService';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 
 export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>) {
   const insets = useSafeAreaInsets();
-  const [twoFa, setTwoFa] = useState(true);
+  const { user } = useAuth();
+  const showBanner = useActionBanner();
+  const isDemo = !user?.id || user.id.startsWith('demo-');
+  const [signingOutOthers, setSigningOutOthers] = useState(false);
+
+  const onSignOutOthers = useCallback(() => {
+    if (isDemo) {
+      showBanner('Sign in required', 'This action only works for live accounts.');
+      return;
+    }
+    Alert.alert(
+      'Sign out other sessions?',
+      'This signs you out everywhere except this device. Use it if you suspect another device has access to your account.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out others',
+          style: 'destructive',
+          onPress: () => {
+            const supabase = getSupabase();
+            if (!supabase) {
+              showBanner('Not available', 'Supabase is not configured for this build.');
+              return;
+            }
+            setSigningOutOthers(true);
+            void (async () => {
+              const { error } = await supabase.auth.signOut({ scope: 'others' });
+              setSigningOutOthers(false);
+              if (error) {
+                showBanner('Could not sign out', error.message);
+                return;
+              }
+              showBanner('Signed out others', 'All other sessions for your account have been ended.');
+            })();
+          },
+        },
+      ],
+    );
+  }, [isDemo, showBanner]);
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="Account & Security" onBack={() => navigation.goBack()} largeTitle />
@@ -57,37 +102,166 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
           <Text style={styles.labelSm}>Email</Text>
           <TextInput
             style={styles.input}
-            defaultValue="athlete@dalton.demo"
+            value={user?.email?.trim() || '—'}
             placeholderTextColor={DS.color.textMuted}
             editable={false}
           />
           <Text style={styles.labelSmSpaced}>Password</Text>
-          <Pressable style={styles.rowBtn}>
+          <Pressable
+            style={styles.rowBtn}
+            onPress={() => {
+              if (isDemo) {
+                showBanner('Sign in required', 'Password changes work for live accounts only.');
+                return;
+              }
+              navigation.navigate('ChangePassword');
+            }}
+          >
             <Text style={styles.rowBtnText}>Change password</Text>
             <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
           </Pressable>
         </View>
+
         <Text style={styles.cardKickerSpaced}>Two-factor authentication</Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.toggleTitle}>Authenticator app</Text>
-              <Text style={styles.toggleSub}>Extra security for your account (demo).</Text>
+              <Text style={styles.toggleSub}>
+                TOTP enrollment is handled by Supabase Auth (MFA). Enable it in your Supabase project, then a
+                future build will surface the QR enrollment flow here.
+              </Text>
             </View>
-            <Switch value={twoFa} onValueChange={setTwoFa} trackColor={{ true: DS.color.goldTint30 }} />
+            <View style={styles.statusPillMuted}>
+              <Text style={styles.statusPillMutedText}>Coming soon</Text>
+            </View>
           </View>
         </View>
+
         <Text style={styles.cardKickerSpaced}>Sessions</Text>
         <View style={styles.card}>
-          {['This device · iPhone', 'Web · Chrome · London'].map((s) => (
-            <View key={s} style={styles.sessionRow}>
-              <FontAwesome name="mobile" size={16} color={DS.color.gold} />
-              <Text style={styles.sessionText}>{s}</Text>
-            </View>
-          ))}
+          <View style={styles.sessionRow}>
+            <FontAwesome name="mobile" size={16} color={DS.color.gold} />
+            <Text style={styles.sessionText}>This device — currently signed in</Text>
+          </View>
+          <Text style={[styles.toggleSub, { marginTop: 4 }]}>
+            Supabase Auth does not list every refresh token here. Use the action below to invalidate other
+            sessions on suspicion of compromise.
+          </Text>
         </View>
-        <Pressable style={styles.dangerOutline}>
-          <Text style={styles.dangerOutlineText}>Sign out all other sessions</Text>
+        <Pressable
+          style={[styles.dangerOutline, signingOutOthers && { opacity: 0.6 }]}
+          onPress={onSignOutOthers}
+          disabled={signingOutOthers}
+        >
+          {signingOutOthers ? (
+            <ActivityIndicator color={DS.color.error} />
+          ) : (
+            <Text style={styles.dangerOutlineText}>Sign out all other sessions</Text>
+          )}
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
+export function ChangePasswordScreen({ navigation }: PProps<'ChangePassword'>) {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const showBanner = useActionBanner();
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = useCallback(() => {
+    if (busy) return;
+    if (!user?.id || user.id.startsWith('demo-')) {
+      Alert.alert('Sign in required', 'Password changes work for live accounts only.');
+      return;
+    }
+    const errs: string[] = [];
+    if (next.length < 8) errs.push('Use at least 8 characters.');
+    if (!/[A-Z]/.test(next) || !/[a-z]/.test(next) || !/\d/.test(next)) {
+      errs.push('Mix upper/lowercase letters and at least one number.');
+    }
+    if (next !== confirm) errs.push('New password and confirmation do not match.');
+    if (errs.length) {
+      Alert.alert('Check password', errs.join('\n'));
+      return;
+    }
+    const supabase = getSupabase();
+    if (!supabase) {
+      Alert.alert('Not available', 'Supabase is not configured for this build.');
+      return;
+    }
+    setBusy(true);
+    void (async () => {
+      const { error } = await supabase.auth.updateUser({ password: next });
+      setBusy(false);
+      if (error) {
+        Alert.alert('Could not change password', error.message);
+        return;
+      }
+      setNext('');
+      setConfirm('');
+      showBanner('Password updated', 'Your password has been changed.');
+      navigation.goBack();
+    })();
+  }, [busy, user?.id, next, confirm, navigation, showBanner]);
+
+  return (
+    <View style={styles.root}>
+      <ScreenHeader title="Change password" onBack={() => navigation.goBack()} largeTitle />
+      <ScrollView
+        contentContainerStyle={[styles.padded, { paddingBottom: 32 + insets.bottom }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.bodyMuted}>
+          Choose a new password. We recommend a unique password you do not use elsewhere — at least 8
+          characters with letters and a number.
+        </Text>
+
+        <View style={styles.card}>
+          <Text style={styles.labelSm}>New password</Text>
+          <TextInput
+            style={[styles.input, { color: DS.color.text }]}
+            value={next}
+            onChangeText={setNext}
+            placeholder="At least 8 characters"
+            placeholderTextColor={DS.color.textMuted}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="newPassword"
+          />
+          <Text style={styles.labelSmSpaced}>Confirm new password</Text>
+          <TextInput
+            style={[styles.input, { color: DS.color.text }]}
+            value={confirm}
+            onChangeText={setConfirm}
+            placeholder="Repeat the password"
+            placeholderTextColor={DS.color.textMuted}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="newPassword"
+          />
+        </View>
+
+        <Pressable
+          style={[styles.primaryBtn, busy && { opacity: 0.6 }]}
+          onPress={submit}
+          disabled={busy}
+        >
+          {busy ? (
+            <ActivityIndicator color={DS.color.background} />
+          ) : (
+            <Text style={styles.primaryBtnText}>Update password</Text>
+          )}
+        </Pressable>
+        <Pressable style={styles.ghostBtn} onPress={() => navigation.goBack()} disabled={busy}>
+          <Text style={styles.ghostBtnText}>Cancel</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -96,15 +270,79 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
 
 export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibility'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const showBanner = useActionBanner();
   const [pub, setPub] = useState(true);
   const [showResults, setShowResults] = useState(true);
   const [dataShare, setDataShare] = useState(false);
   const [dmPolicy, setDmPolicy] = useState<AllowMessagesFrom>(() => getAllowMessagesFrom());
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id || user.id.startsWith('demo-')) return;
+      void (async () => {
+        const [p, doc] = await Promise.all([fetchProfileByUserId(user.id), fetchUserPrefsDoc(user.id)]);
+        const raw = p?.allow_messages_from?.trim();
+        if (raw === 'everyone' || raw === 'followers_only' || raw === 'friends_only') {
+          setAllowMessagesFrom(raw);
+          setDmPolicy(raw);
+        }
+        const pr = doc.privacy;
+        if (pr?.profile_public != null) setPub(pr.profile_public);
+        if (pr?.show_recent_results != null) setShowResults(pr.show_recent_results);
+        if (pr?.partner_analytics != null) setDataShare(pr.partner_analytics);
+      })();
+    }, [user?.id]),
+  );
+
   const applyDm = (value: AllowMessagesFrom) => {
+    const rollback = dmPolicy;
     setAllowMessagesFrom(value);
     setDmPolicy(value);
-    Alert.alert('Messages', 'Preference saved locally. Sync to `profiles.allow_messages_from` with Supabase.');
+    if (!user?.id || user.id.startsWith('demo-')) {
+      showBanner('Saved here only', 'Sign in to sync this to your account.');
+      return;
+    }
+    void (async () => {
+      const ok = await syncAllowMessagesFromRemote(user.id, value);
+      if (!ok) {
+        setAllowMessagesFrom(rollback);
+        setDmPolicy(rollback);
+        showBanner('Could not save', 'Check your connection. Restored your previous choice.');
+      } else {
+        showBanner('Saved', 'Who can message you is updated on your account.');
+      }
+    })();
   };
+
+  const applyPrivacy = useCallback(
+    (
+      patch: Partial<{ profile_public: boolean; show_recent_results: boolean; partner_analytics: boolean }>,
+      rollback: { pub: boolean; showResults: boolean; dataShare: boolean },
+    ) => {
+      if (patch.profile_public != null) setPub(patch.profile_public);
+      if (patch.show_recent_results != null) setShowResults(patch.show_recent_results);
+      if (patch.partner_analytics != null) setDataShare(patch.partner_analytics);
+
+      if (!user?.id || user.id.startsWith('demo-')) {
+        showBanner('Saved here only', 'Sign in to sync privacy preferences to your account.');
+        return;
+      }
+      void (async () => {
+        const ok = await patchUserPrefsDoc(user.id, { privacy: patch });
+        if (!ok) {
+          setPub(rollback.pub);
+          setShowResults(rollback.showResults);
+          setDataShare(rollback.dataShare);
+          showBanner('Could not save', 'Check your connection. Restored your previous choices.');
+        } else {
+          showBanner('Saved', 'Privacy preferences updated.');
+        }
+      })();
+    },
+    [user?.id, showBanner],
+  );
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="Privacy & Visibility" onBack={() => navigation.goBack()} largeTitle />
@@ -113,12 +351,10 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.bodyMuted}>
-          Control who sees your profile and how your data is used in the Dalton demo.
+          Control who sees your profile and how your information is used.
         </Text>
         <Text style={styles.cardKicker}>Direct messages</Text>
-        <Text style={styles.bodyMutedSm}>
-          Who can start a new conversation with you (enforced server-side when live).
-        </Text>
+        <Text style={styles.bodyMutedSm}>Who can start a new conversation with you.</Text>
         <View style={styles.card}>
           {(
             [
@@ -148,7 +384,11 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
               <Text style={styles.toggleTitle}>Public profile</Text>
               <Text style={styles.toggleSub}>Discoverable in search and community.</Text>
             </View>
-            <Switch value={pub} onValueChange={setPub} trackColor={{ true: DS.color.goldTint30 }} />
+            <Switch
+              value={pub}
+              onValueChange={(v) => applyPrivacy({ profile_public: v }, { pub, showResults, dataShare })}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
           <View style={styles.hairline} />
           <View style={styles.toggleRow}>
@@ -156,7 +396,13 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
               <Text style={styles.toggleTitle}>Show recent results</Text>
               <Text style={styles.toggleSub}>Display meet marks on your profile.</Text>
             </View>
-            <Switch value={showResults} onValueChange={setShowResults} trackColor={{ true: DS.color.goldTint30 }} />
+            <Switch
+              value={showResults}
+              onValueChange={(v) =>
+                applyPrivacy({ show_recent_results: v }, { pub, showResults, dataShare })
+              }
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
           <View style={styles.hairline} />
           <View style={styles.toggleRow}>
@@ -164,7 +410,13 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
               <Text style={styles.toggleTitle}>Partner analytics</Text>
               <Text style={styles.toggleSub}>Share anonymized usage with sponsors.</Text>
             </View>
-            <Switch value={dataShare} onValueChange={setDataShare} trackColor={{ true: DS.color.goldTint30 }} />
+            <Switch
+              value={dataShare}
+              onValueChange={(v) =>
+                applyPrivacy({ partner_analytics: v }, { pub, showResults, dataShare })
+              }
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
         </View>
       </ScrollView>
@@ -174,6 +426,8 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
 
 export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPrefs'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const showBanner = useActionBanner();
   const [push, setPush] = useState(true);
   const [email, setEmail] = useState(true);
   const [events, setEvents] = useState(true);
@@ -184,8 +438,51 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
     useCallback(() => {
       void (async () => {
         setBannerPrefs(await loadInAppNotifyPrefs());
+        if (user?.id && !user.id.startsWith('demo-')) {
+          const doc = await fetchUserPrefsDoc(user.id);
+          const ch = doc.notification_channels;
+          if (ch?.push != null) setPush(ch.push);
+          if (ch?.email != null) setEmail(ch.email);
+          if (ch?.event_reminders != null) setEvents(ch.event_reminders);
+          if (ch?.community_mentions != null) setCommunity(ch.community_mentions);
+        }
       })();
-    }, []),
+    }, [user?.id]),
+  );
+
+  const patchNotifyChannel = useCallback(
+    (
+      patch: Partial<{
+        push: boolean;
+        email: boolean;
+        event_reminders: boolean;
+        community_mentions: boolean;
+      }>,
+      rollback: { push: boolean; email: boolean; events: boolean; community: boolean },
+    ) => {
+      if (patch.push != null) setPush(patch.push);
+      if (patch.email != null) setEmail(patch.email);
+      if (patch.event_reminders != null) setEvents(patch.event_reminders);
+      if (patch.community_mentions != null) setCommunity(patch.community_mentions);
+
+      if (!user?.id || user.id.startsWith('demo-')) {
+        showBanner('Saved here only', 'Sign in to sync notification preferences to your account.');
+        return;
+      }
+      void (async () => {
+        const ok = await patchUserPrefsDoc(user.id, { notification_channels: patch });
+        if (!ok) {
+          setPush(rollback.push);
+          setEmail(rollback.email);
+          setEvents(rollback.events);
+          setCommunity(rollback.community);
+          showBanner('Could not save', 'Check your connection. Restored your previous choices.');
+        } else {
+          showBanner('Saved', 'Notification preferences updated.');
+        }
+      })();
+    },
+    [user?.id, showBanner],
   );
 
   const patchBanner = async (partial: Partial<InAppNotifyPrefs>) => {
@@ -203,22 +500,42 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <Text style={styles.toggleTitle}>Push notifications</Text>
-            <Switch value={push} onValueChange={setPush} trackColor={{ true: DS.color.goldTint30 }} />
+            <Switch
+              value={push}
+              onValueChange={(v) => patchNotifyChannel({ push: v }, { push, email, events, community })}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
           <View style={styles.hairline} />
           <View style={styles.toggleRow}>
             <Text style={styles.toggleTitle}>Email digest</Text>
-            <Switch value={email} onValueChange={setEmail} trackColor={{ true: DS.color.goldTint30 }} />
+            <Switch
+              value={email}
+              onValueChange={(v) => patchNotifyChannel({ email: v }, { push, email, events, community })}
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
           <View style={styles.hairline} />
           <View style={styles.toggleRow}>
             <Text style={styles.toggleTitle}>Event reminders</Text>
-            <Switch value={events} onValueChange={setEvents} trackColor={{ true: DS.color.goldTint30 }} />
+            <Switch
+              value={events}
+              onValueChange={(v) =>
+                patchNotifyChannel({ event_reminders: v }, { push, email, events, community })
+              }
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
           <View style={styles.hairline} />
           <View style={styles.toggleRow}>
             <Text style={styles.toggleTitle}>Community mentions</Text>
-            <Switch value={community} onValueChange={setCommunity} trackColor={{ true: DS.color.goldTint30 }} />
+            <Switch
+              value={community}
+              onValueChange={(v) =>
+                patchNotifyChannel({ community_mentions: v }, { push, email, events, community })
+              }
+              trackColor={{ true: DS.color.goldTint30 }}
+            />
           </View>
         </View>
 
@@ -416,6 +733,26 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
 
 export function SupportScreen({ navigation }: PProps<'Support'>) {
   const insets = useSafeAreaInsets();
+  const webBase = getDaltonWebUrl();
+  const open = useCallback(
+    async (path: string) => {
+      if (!webBase) {
+        Alert.alert(
+          'Not configured',
+          'Set EXPO_PUBLIC_DALTON_WEB_URL in expo-app/.env (and in EAS env vars) to enable support links.',
+        );
+        return;
+      }
+      const url = `${webBase}${path.startsWith('/') ? path : `/${path}`}`;
+      const ok = await Linking.canOpenURL(url);
+      if (!ok) {
+        Alert.alert('Open link', 'Unable to open the website on this device.');
+        return;
+      }
+      await Linking.openURL(url);
+    },
+    [webBase],
+  );
   return (
     <View style={styles.root}>
       <ScreenHeader title="Support" onBack={() => navigation.goBack()} largeTitle />
@@ -423,7 +760,7 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
         contentContainerStyle={[styles.padded, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.supportCard}>
+        <Pressable style={styles.supportCard} onPress={() => void open('/help-center')}>
           <FontAwesome5 name="book-open" size={18} color={DS.color.gold} solid />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>Help center</Text>
@@ -431,19 +768,19 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
-        <Pressable style={styles.supportCard}>
+        <Pressable style={styles.supportCard} onPress={() => void open('/contact-us')}>
           <FontAwesome name="envelope-o" size={18} color={DS.color.gold} />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>Contact us</Text>
-            <Text style={styles.supportSub}>support@dalton.demo (static showcase).</Text>
+            <Text style={styles.supportSub}>Email, forms, and support routes (configure later).</Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
-        <Pressable style={styles.supportCard}>
+        <Pressable style={styles.supportCard} onPress={() => void open('/live-chat')}>
           <FontAwesome name="comments-o" size={18} color={DS.color.gold} />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>Live chat</Text>
-            <Text style={styles.supportSub}>Weekdays 9–17 GMT (demo UI only).</Text>
+            <Text style={styles.supportSub}>Weekdays 9–17 GMT (hours may vary).</Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
@@ -454,11 +791,31 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
 
 export function LegalScreen({ navigation }: PProps<'Legal'>) {
   const insets = useSafeAreaInsets();
+  const webBase = getDaltonWebUrl();
+  const open = useCallback(
+    async (path: string) => {
+      if (!webBase) {
+        Alert.alert(
+          'Not configured',
+          'Set EXPO_PUBLIC_DALTON_WEB_URL in expo-app/.env (and in EAS env vars) to enable legal links.',
+        );
+        return;
+      }
+      const url = `${webBase}${path.startsWith('/') ? path : `/${path}`}`;
+      const ok = await Linking.canOpenURL(url);
+      if (!ok) {
+        Alert.alert('Open link', 'Unable to open the website on this device.');
+        return;
+      }
+      await Linking.openURL(url);
+    },
+    [webBase],
+  );
   const rows = [
-    { title: 'Terms of service', sub: 'Platform rules and eligibility' },
-    { title: 'Privacy policy', sub: 'How we handle your data' },
-    { title: 'Cookie policy', sub: 'Tracking and preferences' },
-    { title: 'Athlete agreement', sub: 'Grant Access program terms' },
+    { title: 'Terms of service', sub: 'Platform rules and eligibility', path: '/terms' },
+    { title: 'Privacy policy', sub: 'How we handle your data', path: '/privacy' },
+    { title: 'Cookie policy', sub: 'Tracking and preferences', path: '/cookie-policy' },
+    { title: 'Athlete agreement', sub: 'Grant Access program terms', path: '/athlete-agreement' },
   ];
   return (
     <View style={styles.root}>
@@ -468,7 +825,7 @@ export function LegalScreen({ navigation }: PProps<'Legal'>) {
         showsVerticalScrollIndicator={false}
       >
         {rows.map((r) => (
-          <Pressable key={r.title} style={styles.legalRow}>
+          <Pressable key={r.title} style={styles.legalRow} onPress={() => void open(r.path)}>
             <View style={{ flex: 1 }}>
               <Text style={styles.legalTitle}>{r.title}</Text>
               <Text style={styles.legalSub}>{r.sub}</Text>
@@ -476,7 +833,7 @@ export function LegalScreen({ navigation }: PProps<'Legal'>) {
             <FontAwesome name="external-link" size={14} color={DS.color.textMuted} />
           </Pressable>
         ))}
-        <Text style={styles.legalFoot}>Static demo — links do not open external URLs.</Text>
+        <Text style={styles.legalFoot}>Document links open in your browser where configured.</Text>
       </ScrollView>
     </View>
   );
@@ -580,6 +937,42 @@ const styles = StyleSheet.create({
     color: DS.color.error,
     fontWeight: '600',
     fontSize: 14,
+  },
+  statusPillMuted: {
+    paddingHorizontal: DS.space.sm,
+    paddingVertical: 4,
+    borderRadius: DS.radius.pill,
+    backgroundColor: DS.color.surfaceAlt,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderHairline,
+  },
+  statusPillMutedText: {
+    fontSize: 11,
+    color: DS.color.textMuted,
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+  primaryBtn: {
+    marginTop: DS.space.xl,
+    paddingVertical: DS.space.md,
+    borderRadius: DS.radius.lg,
+    backgroundColor: DS.color.gold,
+    alignItems: 'center',
+  },
+  primaryBtnText: {
+    color: DS.color.background,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  ghostBtn: {
+    marginTop: DS.space.md,
+    paddingVertical: DS.space.md,
+    alignItems: 'center',
+  },
+  ghostBtnText: {
+    color: DS.color.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
   },
   bodyMuted: {
     fontSize: 14,

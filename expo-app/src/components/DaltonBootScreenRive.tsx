@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type { DaltonBootRiveError } from './DaltonBootRivePlayer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,7 +83,6 @@ export function DaltonBootScreenRive() {
             onBootVisualReady={hideNativeSplashWhenBootVisualReady}
           />
         )}
-        <Text style={styles.tagline}>Grant Access</Text>
         <BootCircleLoader />
       </View>
     </View>
@@ -100,13 +99,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: DS.space.xl,
-  },
-  tagline: {
-    marginTop: DS.space.lg,
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 15,
-    letterSpacing: 2,
-    color: DS.color.textMuted,
-    textTransform: 'uppercase',
   },
 });

@@ -7,13 +7,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { Alert } from 'react-native';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { signInWithAppleNative, signInWithGoogleOAuth } from './oauthSupabase';
 import { AUTH_BOOT_UNLOCK_MS, AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/bootTiming';
-import { ensureProfileRow } from '../roadmap/profileService';
+import { setAllowMessagesFrom } from '../messaging/messagingPrefs';
+import { ensureProfileRow, fetchProfileByUserId } from '../roadmap/profileService';
 import { captureAuthSessionTimeout } from '../monitoring/sentryBoot';
 import { ensureDefaultDaltonVerifiedMetadata } from './userMetadataSupabase';
 import {
@@ -29,10 +30,12 @@ export { PREMIUM_DEMO_EMAIL, PREMIUM_DEMO_PASSWORD } from './demoAccounts';
 export type AppUser = {
   id: string;
   email: string;
-  /** From Supabase user_metadata.role or demo default */
+  /** From Supabase user_metadata.role or local preview default */
   role: 'member' | 'admin' | 'super_admin';
   /** Dalton-verified creator/host — set in user_metadata.dalton_verified for Supabase */
   daltonVerified: boolean;
+  /** From profiles.master_control === 'yes' (hydrated after session). */
+  masterControl?: boolean;
 };
 
 export type SignUpResult =
@@ -45,7 +48,7 @@ type AuthContextValue = {
   user: AppUser | null;
   sessionEmail: string | null;
   oAuthBusy: boolean;
-  /** Demo or Supabase email/password */
+  /** Email/password via Supabase, or local preview when env is unset */
   login: (email: string, password: string) => Promise<boolean>;
   /** Supabase email/password registration; no-op when Supabase is not configured */
   signUp: (email: string, password: string) => Promise<SignUpResult>;
@@ -79,6 +82,30 @@ function appUserFromSupabaseUser(u: {
     role: roleFromMetadata(meta),
     daltonVerified: daltonVerifiedFromMetadata(meta),
   };
+}
+
+/** Stored Expo SecureSession tokens no longer valid server-side (e.g. after deleting Auth users). */
+function isStaleRefreshTokenError(err: unknown): boolean {
+  const raw =
+    typeof err === 'object' &&
+    err !== null &&
+    'message' in err &&
+    typeof (err as { message: unknown }).message === 'string'
+      ? (err as { message: string }).message
+      : '';
+  const m = raw.toLowerCase();
+  return (
+    m.includes('refresh token') &&
+    (m.includes('invalid') || m.includes('not found') || m.includes('revoked'))
+  );
+}
+
+async function clearLocalSupabaseSession(supabase: SupabaseClient): Promise<void> {
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    /* Storage may already be cleared */
+  }
 }
 
 function demoRoleForEmail(email: string): AppUser['role'] {
@@ -115,16 +142,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
 
-    const syncVerifiedFromProfile = async (userId: string) => {
+    const syncProfileFlags = async (userId: string) => {
       try {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('dalton_verified')
+          .select('dalton_verified, master_control')
           .eq('id', userId)
           .maybeSingle();
         if (cancelled) return;
-        if (profile?.dalton_verified) {
-          setUser((prev) => (prev?.id === userId ? { ...prev, daltonVerified: true } : prev));
+        setUser((prev) => {
+          if (prev?.id !== userId) return prev;
+          const mc = profile?.master_control === 'yes';
+          const dv = prev.daltonVerified || !!profile?.dalton_verified;
+          return { ...prev, daltonVerified: dv, masterControl: mc };
+        });
+      } catch {
+        /* non-fatal */
+      }
+    };
+
+    const hydrateDmPolicy = async (userId: string) => {
+      try {
+        const row = await fetchProfileByUserId(userId);
+        const raw = row?.allow_messages_from?.trim();
+        if (raw === 'everyone' || raw === 'followers_only' || raw === 'friends_only') {
+          setAllowMessagesFrom(raw);
         }
       } catch {
         /* non-fatal */
@@ -135,7 +177,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         setUser(appUserFromSupabaseUser(session.user));
         void ensureProfileRow(session.user.id, session.user.email ?? null);
-        void syncVerifiedFromProfile(session.user.id);
+        void hydrateDmPolicy(session.user.id);
+        void syncProfileFlags(session.user.id);
         void (async () => {
           try {
             await ensureDefaultDaltonVerifiedMetadata(supabase);
@@ -144,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         })();
       } else {
+        setAllowMessagesFrom('everyone');
         setUser(null);
       }
     };
@@ -161,18 +205,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         if (cancelled) return;
         sessionResolved = true;
         clearTimeout(unlockId);
         clearTimeout(slowSessionId);
+        if (error && isStaleRefreshTokenError(error)) {
+          await clearLocalSupabaseSession(supabase);
+          setUser(null);
+          setReady(true);
+          return;
+        }
         await applySessionUser(data.session ?? null);
         setReady(true);
-      } catch {
+      } catch (err) {
         if (cancelled) return;
         sessionResolved = true;
         clearTimeout(unlockId);
         clearTimeout(slowSessionId);
+        if (isStaleRefreshTokenError(err)) {
+          await clearLocalSupabaseSession(supabase);
+        }
         setUser(null);
         setReady(true);
       }
@@ -181,6 +234,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         if (cancelled) return;
         await applySessionUser(session);
+      } catch (err) {
+        if (!cancelled && isStaleRefreshTokenError(err)) {
+          await clearLocalSupabaseSession(supabase);
+          setUser(null);
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -208,12 +266,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const { data: profile } = await supabase
               .from('profiles')
-              .select('dalton_verified')
+              .select('dalton_verified, master_control')
               .eq('id', data.session!.user.id)
               .maybeSingle();
-            if (profile?.dalton_verified) {
+            if (profile?.dalton_verified || profile?.master_control === 'yes') {
               setUser((prev) =>
-                prev?.id === data.session!.user.id ? { ...prev, daltonVerified: true } : prev,
+                prev?.id === data.session!.user.id
+                  ? {
+                      ...prev,
+                      daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
+                      masterControl: profile?.master_control === 'yes',
+                    }
+                  : prev,
               );
             }
           } catch {
@@ -221,6 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         })();
         return true;
+      }
+      /** Built-in demo accounts must never work in release if Supabase env is missing (known passwords ship in the bundle). */
+      if (!__DEV__) {
+        return false;
       }
       const demoLegacy =
         trimmed.toLowerCase() === DEMO_EMAIL.toLowerCase() && password === DEMO_PASSWORD;
@@ -234,6 +302,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: trimmed,
           role: demoRoleForEmail(trimmed),
           daltonVerified: true,
+          masterControl: false,
         });
       }
       return ok;
@@ -265,7 +334,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    if (supabase) await supabase.auth.signOut();
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        await clearLocalSupabaseSession(supabase);
+      }
+    }
     setUser(null);
   }, [supabase]);
 
@@ -293,12 +368,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('dalton_verified')
+            .select('dalton_verified, master_control')
             .eq('id', data.session!.user.id)
             .maybeSingle();
-          if (profile?.dalton_verified) {
+          if (profile?.dalton_verified || profile?.master_control === 'yes') {
             setUser((prev) =>
-              prev?.id === data.session!.user.id ? { ...prev, daltonVerified: true } : prev,
+              prev?.id === data.session!.user.id
+                ? {
+                    ...prev,
+                    daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
+                    masterControl: profile?.master_control === 'yes',
+                  }
+                : prev,
             );
           }
         } catch {
@@ -333,12 +414,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('dalton_verified')
+            .select('dalton_verified, master_control')
             .eq('id', data.session!.user.id)
             .maybeSingle();
-          if (profile?.dalton_verified) {
+          if (profile?.dalton_verified || profile?.master_control === 'yes') {
             setUser((prev) =>
-              prev?.id === data.session!.user.id ? { ...prev, daltonVerified: true } : prev,
+              prev?.id === data.session!.user.id
+                ? {
+                    ...prev,
+                    daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
+                    masterControl: profile?.master_control === 'yes',
+                  }
+                : prev,
             );
           }
         } catch {

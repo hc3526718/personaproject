@@ -224,3 +224,15 @@ create policy "follow_req_insert_self"
   with check (auth.uid() = requester_id and requester_id <> target_id);
 
 -- Status changes: use rpc_follow_requests.sql (accept / reject / cancel) — SECURITY DEFINER.
+
+-- ---------------------------------------------------------------------------
+-- subscription_state (RevenueCat / store mirror — server writes only)
+-- ---------------------------------------------------------------------------
+alter table if exists public.subscription_state enable row level security;
+
+drop policy if exists "subscription_state_select_own" on public.subscription_state;
+create policy "subscription_state_select_own"
+  on public.subscription_state for select
+  to authenticated
+  using (auth.uid() = user_id);
+

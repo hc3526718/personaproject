@@ -11,9 +11,37 @@ export type ProfileRow = {
   last_name: string | null;
   persona_role: string | null;
   sports: string[] | null;
+  primary_sport?: string | null;
   discovery_source: string | null;
+  bio?: string | null;
+  interests?: string[] | null;
+  banner_url?: string | null;
+  highlights?: unknown;
+  recent_results?: unknown;
   onboarding_completed_at: string | null;
+  /** Lowercase handle; unique when set (`backend/migrations/010_profiles_username.sql`). */
+  username?: string | null;
   dalton_verified: boolean | null;
+  /** DM gate: who can start a thread with this user (`profiles.allow_messages_from`). */
+  allow_messages_from?: string | null;
+  /** Platform master controller (`008_master_control_subscription_pages`). */
+  master_control?: string | null;
+  master_pin_hash?: string | null;
+};
+
+/** Curated partner / subscription showcase rows (master only writes). */
+export type SubscriptionOfferPageRow = {
+  id: string;
+  created_by: string;
+  business_name: string;
+  description: string | null;
+  hero_image_url: string | null;
+  video_url: string | null;
+  website_url: string | null;
+  social_links: unknown;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 };
 
 export type PostRow = {
@@ -37,6 +65,8 @@ export type EventRow = {
   requires_payment: boolean;
   stripe_price_id: string | null;
   created_at: string;
+  /** Optional long-form copy from create-event form (`006_*` migration). */
+  description?: string | null;
 };
 
 export type MediaAssetRow = {

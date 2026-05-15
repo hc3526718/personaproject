@@ -45,13 +45,15 @@ import { pullRefreshControl } from '../lib/pullRefreshUi';
 import type { EventsBrowseFilterChip, EventsStackParamList } from '../navigation/types';
 import {
   createEventAndBooking,
+  deleteCommunityEvent,
   getEventById,
   listAllEvents,
   listBookingsWithEventsForUser,
   type BookingWithEvent,
 } from '../roadmap/liveDataService';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
+import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
+import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
 import type { EventRow } from '../roadmap/types';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
@@ -155,6 +157,13 @@ function mergeBrowseRows(db: EventRow[], html: HtmlEventCard[]): BrowseEventRow[
   }
   out.sort((a, b) => browseRowStartsAt(a) - browseRowStartsAt(b));
   return out;
+}
+
+/** Signed-in live sessions: DB-backed events only (no HTML demo cards). */
+function browseRowsDbOnly(db: EventRow[]): BrowseEventRow[] {
+  return [...db]
+    .map((row) => ({ kind: 'db' as const, row }))
+    .sort((a, b) => browseRowStartsAt(a) - browseRowStartsAt(b));
 }
 
 function rowMatchesBrowseFilter(
@@ -325,10 +334,12 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
   const insets = useSafeAreaInsets();
   const route = useRoute<RouteProp<EventsStackParamList, 'UpcomingEvents'>>();
   const { user } = useAuth();
-  const { isPro } = useSubscription();
-  const premiumEventTools = hasPremiumOrAdminTier(isPro, user?.role);
+  const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
+  const premiumEventTools = hasPremiumOrAdminTier(isPro, user?.role) || Boolean(user?.masterControl);
   const canCreate = canCreateVerifiedContent(isPro, user);
   const demoSession = !user || user.id.startsWith('demo-');
+  const liveListing =
+    !demoSession && isSupabaseConfigured() && !!user && !user.id.startsWith('demo-');
 
   const [filter, setFilter] = useState<EventBrowseFilter>('all');
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
@@ -367,10 +378,10 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
     if (f) setFilter(f);
   }, [route.params?.initialFilter]);
 
-  const mergedRows = useMemo(
-    () => mergeBrowseRows(dbEvents, UPCOMING_EVENTS_FROM_HTML),
-    [dbEvents],
-  );
+  const mergedRows = useMemo(() => {
+    if (isSupabaseConfigured()) return browseRowsDbOnly(dbEvents);
+    return mergeBrowseRows(dbEvents, UPCOMING_EVENTS_FROM_HTML);
+  }, [dbEvents]);
 
   const bookedEventIds = useMemo(() => new Set(bookings.map((b) => b.eventId)), [bookings]);
 
@@ -388,9 +399,9 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
       { key: 'saved' },
       { key: 'past' },
     ];
-    if (isPro) base.push({ key: 'my_events' });
+    if (isPro || user?.masterControl) base.push({ key: 'my_events' });
     return base;
-  }, [isPro]);
+  }, [isPro, user?.masterControl]);
 
   const { upcoming: upcomingRows, past: pastRows } = useMemo(() => {
     const now = Date.now();
@@ -426,8 +437,19 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
             style={styles.eventsIconBtnSm}
             hitSlop={8}
             onPress={() => {
-              if (!canCreate) {
-                navigateToPremiumPaywall(navigation);
+              if (!premiumEventTools) {
+                void (async () => {
+                  const { premiumActivated } = await presentRevenueCatPaywall();
+                  await refreshSubscription();
+                  if (premiumActivated) notifyNewPremiumFromPaywall(true);
+                })();
+                return;
+              }
+              if (!user?.daltonVerified) {
+                Alert.alert(
+                  'Dalton verified',
+                  'Verification is required before you can publish events.',
+                );
                 return;
               }
               navigation.navigate('CreateEvent');
@@ -566,6 +588,8 @@ export function EventsSearchScreen({ navigation }: EProps<'EventsSearch'>) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const demoSession = !user || user.id.startsWith('demo-');
+  const liveListing =
+    !demoSession && isSupabaseConfigured() && !!user && !user.id.startsWith('demo-');
 
   const [draft, setDraft] = useState('');
   const [applied, setApplied] = useState('');
@@ -594,10 +618,10 @@ export function EventsSearchScreen({ navigation }: EProps<'EventsSearch'>) {
     }, [reloadSearchData]),
   );
 
-  const mergedRows = useMemo(
-    () => mergeBrowseRows(dbEvents, UPCOMING_EVENTS_FROM_HTML),
-    [dbEvents],
-  );
+  const mergedRows = useMemo(() => {
+    if (isSupabaseConfigured()) return browseRowsDbOnly(dbEvents);
+    return mergeBrowseRows(dbEvents, UPCOMING_EVENTS_FROM_HTML);
+  }, [dbEvents]);
 
   const searchResults = useMemo(() => {
     const q = applied.trim().toLowerCase();
@@ -812,9 +836,26 @@ function openGoogleCalendarLink(
   }
 }
 
+function formatEventSchedule(ev: EventRow): string {
+  const start = new Date(ev.starts_at);
+  const end = ev.ends_at ? new Date(ev.ends_at) : null;
+  const dateFmt: Intl.DateTimeFormatOptions = {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  };
+  const timeFmt: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+  const d = start.toLocaleDateString(undefined, dateFmt);
+  const t1 = start.toLocaleTimeString(undefined, timeFmt);
+  const t2 =
+    end && !Number.isNaN(end.getTime()) ? end.toLocaleTimeString(undefined, timeFmt) : null;
+  return t2 ? `${d} · ${t1} – ${t2}` : `${d} · ${t1}`;
+}
+
 export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>) {
   const insets = useSafeAreaInsets();
   const showBanner = useActionBanner();
+  const { user } = useAuth();
   const [saved, setSaved] = useState(false);
   const title = route.params?.title ?? 'STRENGTH CAMP';
   const heroUri = route.params?.imageUri ?? DEFAULT_HERO;
@@ -822,6 +863,31 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const heroScheduleLine =
     dateShort ?? 'October 15, 2024 • 10:00 AM - 12:00 PM';
   const sub = route.params?.sub;
+  const supabaseEventId = route.params?.supabaseEventId;
+  const [dbEvent, setDbEvent] = useState<EventRow | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!supabaseEventId) {
+        setDbEvent(null);
+        return;
+      }
+      let alive = true;
+      void (async () => {
+        const row = await getEventById(supabaseEventId);
+        if (alive) setDbEvent(row);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [supabaseEventId]),
+  );
+
+  const displayTitle = dbEvent?.title ?? title;
+  const displayHero = dbEvent?.hero_image_url?.trim() || heroUri;
+  const displaySchedule = dbEvent ? formatEventSchedule(dbEvent) : heroScheduleLine;
+  const displayVenue = dbEvent?.venue?.trim() || sub?.trim() || 'Elite Fitness Center';
+  const overviewFromHost = dbEvent?.description?.trim() ?? '';
 
   const storageKey = useMemo(
     () =>
@@ -829,10 +895,10 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
       unifiedEventSlug({
         source: route.params?.supabaseEventId ? 'db' : 'html',
         id: route.params?.supabaseEventId,
-        title,
+        title: displayTitle,
         dateHint: dateShort ?? '',
       }),
-    [route.params?.eventStorageKey, route.params?.supabaseEventId, title, dateShort],
+    [route.params?.eventStorageKey, route.params?.supabaseEventId, displayTitle, dateShort],
   );
 
   useFocusEffect(
@@ -862,13 +928,13 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
 
   const goConfirm = () =>
     navigation.navigate('ConfirmAttend', {
-      title,
-      imageUri: heroUri,
-      scheduleLine: heroScheduleLine,
+      title: displayTitle,
+      imageUri: displayHero,
+      scheduleLine: displaySchedule,
     });
 
-  const venueName = sub?.trim() || 'Elite Fitness Center';
-  const addCal = () => void shareEventCalendar(title, venueName, heroScheduleLine, title);
+  const addCal = () =>
+    void shareEventCalendar(displayTitle, displayVenue, displaySchedule, displayTitle);
 
   return (
     <View style={styles.root}>
@@ -880,7 +946,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           style={styles.headerRoundBtn}
           onPress={() =>
             Share.share({
-              message: `${title} — Dalton Grant Sports`,
+              message: `${displayTitle} — Dalton Grant Sports`,
             }).catch(() => undefined)
           }
         >
@@ -892,18 +958,18 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         contentContainerStyle={{ paddingBottom: 220 + insets.bottom }}
       >
         <View style={styles.detailHeroTall}>
-          <Image source={{ uri: heroUri }} style={styles.detailHeroFill} resizeMode="cover" />
+          <Image source={{ uri: displayHero }} style={styles.detailHeroFill} resizeMode="cover" />
           <View style={styles.detailHeroScrimTop} />
           <View style={styles.detailHeroScrimBottom} />
           <View style={styles.detailHeroTextWrap}>
-            <Text style={styles.detailHeroDate}>{heroScheduleLine}</Text>
+            <Text style={styles.detailHeroDate}>{displaySchedule}</Text>
             <Text style={[styles.detailHeroTitle, styles.detailHeroTitleGold]}>
-              {title.toUpperCase()}
+              {displayTitle.toUpperCase()}
             </Text>
             <View style={styles.detailHeroMetaRowSpread}>
               <View style={styles.detailHeroMetaGroup}>
                 <FontAwesome name="map-marker" size={12} color={DS.color.gold} />
-                <Text style={styles.detailHeroMeta}>{venueName}</Text>
+                <Text style={styles.detailHeroMeta}>{displayVenue}</Text>
               </View>
               <View style={styles.detailHeroMetaGroup}>
                 <FontAwesome name="users" size={12} color={DS.color.gold} />
@@ -913,77 +979,123 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           </View>
         </View>
         <View style={styles.detailPad}>
-          <View style={styles.coachCard}>
-            <Image
-              source={{
-                uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg',
-              }}
-              style={styles.coachAvatar}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.coachName}>David Miller</Text>
-              <View style={styles.coachVerifiedRow}>
-                <FontAwesome name="check-circle" size={10} color={DS.color.gold} />
-                <Text style={styles.coachVerified}> Venue Master</Text>
+          {!dbEvent ? (
+            <>
+              <View style={styles.coachCard}>
+                <Image
+                  source={{
+                    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg',
+                  }}
+                  style={styles.coachAvatar}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.coachName}>David Miller</Text>
+                  <View style={styles.coachVerifiedRow}>
+                    <FontAwesome name="check-circle" size={10} color={DS.color.gold} />
+                    <Text style={styles.coachVerified}> Venue Master</Text>
+                  </View>
+                  <Text style={styles.coachBio}>
+                    Elite strength & conditioning specialist with 10+ years experience
+                  </Text>
+                </View>
               </View>
-              <Text style={styles.coachBio}>
-                Elite strength & conditioning specialist with 10+ years experience
+              <View style={styles.quickStatsRow}>
+                <View style={styles.quickStat}>
+                  <FontAwesome name="clock-o" size={20} color={DS.color.gold} />
+                  <Text style={styles.quickStatLabel}>Duration</Text>
+                  <Text style={styles.quickStatVal}>2 Hours</Text>
+                </View>
+                <View style={styles.quickStat}>
+                  <FontAwesome name="signal" size={20} color={DS.color.gold} />
+                  <Text style={styles.quickStatLabel}>Level</Text>
+                  <Text style={styles.quickStatVal}>Intermediate</Text>
+                </View>
+              </View>
+            </>
+          ) : null}
+          {dbEvent ? (
+            <>
+              <Text style={styles.detailSectionKicker}>OVERVIEW</Text>
+              {overviewFromHost ? (
+                <Text style={styles.detailBody}>{overviewFromHost}</Text>
+              ) : (
+                <Text style={[styles.detailBody, styles.muted]}>
+                  No extra description from the host yet.
+                </Text>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={styles.detailSectionKicker}>OVERVIEW</Text>
+              <Text style={styles.detailBody}>
+                Elite performance training session designed to build functional strength and power. This
+                intensive workshop combines compound movements, progressive overload techniques, and
+                sport-specific conditioning.
               </Text>
-            </View>
-          </View>
-          <View style={styles.quickStatsRow}>
-            <View style={styles.quickStat}>
-              <FontAwesome name="clock-o" size={20} color={DS.color.gold} />
-              <Text style={styles.quickStatLabel}>Duration</Text>
-              <Text style={styles.quickStatVal}>2 Hours</Text>
-            </View>
-            <View style={styles.quickStat}>
-              <FontAwesome name="signal" size={20} color={DS.color.gold} />
-              <Text style={styles.quickStatLabel}>Level</Text>
-              <Text style={styles.quickStatVal}>Intermediate</Text>
-            </View>
-          </View>
-          <Text style={styles.detailSectionKicker}>OVERVIEW</Text>
-          <Text style={styles.detailBody}>
-            Elite performance training session designed to build functional strength and power. This
-            intensive workshop combines compound movements, progressive overload techniques, and
-            sport-specific conditioning.
-          </Text>
-          <Text style={styles.detailBody}>
-            Perfect for athletes looking to break through plateaus and take their strength training to
-            the next level. All equipment provided.
-          </Text>
-          <Text style={styles.detailSectionKicker}>AGENDA</Text>
-          {AGENDA.map((a) => (
-            <View key={a.n} style={styles.agendaRow}>
-              <View style={styles.agendaNum}>
-                <Text style={styles.agendaNumText}>{a.n}</Text>
+              <Text style={styles.detailBody}>
+                Perfect for athletes looking to break through plateaus and take their strength training to
+                the next level. All equipment provided.
+              </Text>
+              <Text style={styles.detailSectionKicker}>AGENDA</Text>
+              {AGENDA.map((a) => (
+                <View key={a.n} style={styles.agendaRow}>
+                  <View style={styles.agendaNum}>
+                    <Text style={styles.agendaNumText}>{a.n}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.agendaTitle}>{a.title}</Text>
+                    <Text style={styles.agendaTime}>{a.time}</Text>
+                  </View>
+                </View>
+              ))}
+              <Text style={styles.detailSectionKicker}>WHAT TO BRING</Text>
+              <View style={styles.bringGrid}>
+                {BRING.map((b) => (
+                  <View key={b} style={styles.bringGridCell}>
+                    <FontAwesome name="check" size={14} color={DS.color.gold} />
+                    <Text style={styles.bringText}>{b}</Text>
+                  </View>
+                ))}
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.agendaTitle}>{a.title}</Text>
-                <Text style={styles.agendaTime}>{a.time}</Text>
-              </View>
-            </View>
-          ))}
-          <Text style={styles.detailSectionKicker}>WHAT TO BRING</Text>
-          <View style={styles.bringGrid}>
-            {BRING.map((b) => (
-              <View key={b} style={styles.bringGridCell}>
-                <FontAwesome name="check" size={14} color={DS.color.gold} />
-                <Text style={styles.bringText}>{b}</Text>
-              </View>
-            ))}
-          </View>
-          <Text style={styles.detailSectionKicker}>FREQUENTLY ASKED</Text>
-          {FAQS.map((f, idx) => (
-            <View
-              key={f.q}
-              style={[styles.faqBlock, idx < FAQS.length - 1 && styles.faqBlockBorder]}
+              <Text style={styles.detailSectionKicker}>FREQUENTLY ASKED</Text>
+              {FAQS.map((f, idx) => (
+                <View
+                  key={f.q}
+                  style={[styles.faqBlock, idx < FAQS.length - 1 && styles.faqBlockBorder]}
+                >
+                  <Text style={styles.faqQ}>{f.q}</Text>
+                  <Text style={styles.faqA}>{f.a}</Text>
+                </View>
+              ))}
+            </>
+          )}
+          {user?.masterControl && supabaseEventId ? (
+            <Pressable
+              style={styles.masterDeleteEventBtn}
+              onPress={() => {
+                Alert.alert('Delete event?', 'This removes the event for everyone.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => {
+                      void (async () => {
+                        const ok = await deleteCommunityEvent(supabaseEventId);
+                        if (ok) {
+                          showBanner('Event deleted');
+                          navigation.goBack();
+                        } else {
+                          Alert.alert('Could not delete', 'Check permissions and try again.');
+                        }
+                      })();
+                    },
+                  },
+                ]);
+              }}
             >
-              <Text style={styles.faqQ}>{f.q}</Text>
-              <Text style={styles.faqA}>{f.a}</Text>
-            </View>
-          ))}
+              <Text style={styles.masterDeleteEventLabel}>Delete event (master)</Text>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
       <View style={[styles.eventStickyFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -1296,8 +1408,12 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         ...(eventId ? { eventId } : {}),
         exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
       };
-      const t = await signTicketPayload(payload);
-      if (alive) setQrToken(t);
+      try {
+        const t = await signTicketPayload(payload);
+        if (alive) setQrToken(t);
+      } catch {
+        if (alive) setQrToken('');
+      }
     })();
     return () => {
       alive = false;
@@ -1364,7 +1480,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
       icon: <FontAwesome name="user-plus" size={14} color={DS.color.gold} />,
       onPress: () =>
         Share.share({
-          message: `Join me for ${evTitle} on Dalton Grant Sports (demo).`,
+          message: `Join me for ${evTitle} on Grant Access.`,
         }).catch(() => undefined),
     },
   ];
@@ -2203,6 +2319,20 @@ const styles = StyleSheet.create({
   },
   saveLaterOutlineTextSaved: {
     opacity: 0.95,
+  },
+  masterDeleteEventBtn: {
+    marginTop: DS.space.xl,
+    paddingVertical: DS.space.md,
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(220,80,80,0.6)',
+    alignItems: 'center',
+  },
+  masterDeleteEventLabel: {
+    fontFamily: DS.font.bodyBold,
+    fontSize: 14,
+    color: 'rgba(220,80,80,0.95)',
+    letterSpacing: 0.5,
   },
   confirmSummary: {
     flexDirection: 'row',

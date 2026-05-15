@@ -10,7 +10,8 @@ import { getSupabase } from '../lib/supabase';
 import type { EventsStackParamList } from '../navigation/types';
 import { listAllEvents } from '../roadmap/liveDataService';
 import type { EventRow } from '../roadmap/types';
-import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
+import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
+import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 
 type Props = NativeStackScreenProps<EventsStackParamList, 'HostScanPickEvent'>;
@@ -18,16 +19,20 @@ type Props = NativeStackScreenProps<EventsStackParamList, 'HostScanPickEvent'>;
 export function HostScanPickEventScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { isPro } = useSubscription();
+  const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
   const premiumGate = hasPremiumOrAdminTier(isPro, user?.role);
   const [rows, setRows] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useLayoutEffect(() => {
     if (premiumGate) return;
-    navigateToPremiumPaywall(navigation);
-    if (navigation.canGoBack()) navigation.goBack();
-  }, [premiumGate, navigation]);
+    void (async () => {
+      const { premiumActivated } = await presentRevenueCatPaywall();
+      await refreshSubscription();
+      if (premiumActivated) notifyNewPremiumFromPaywall(true);
+      if (navigation.canGoBack()) navigation.goBack();
+    })();
+  }, [premiumGate, navigation, refreshSubscription, notifyNewPremiumFromPaywall]);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured()) {

@@ -1,18 +1,29 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../designSystem';
-import { BrandLogo } from './BrandLogo';
+import { DaltonBootRiveDisplay } from './DaltonBootRiveDisplay';
+import { BouncingBrandLogo } from './BouncingBrandLogo';
 
-/** Web boot: static SVG logo + spinner (Rive native module not used on web). */
+/** Web: Rive Cloud embed via iframe (see DaltonBootRiveDisplay.web.tsx). */
 export function DaltonBootScreen() {
   const insets = useSafeAreaInsets();
+  const [useFallback, setUseFallback] = useState(false);
+
+  const onEmbedError = useCallback(() => setUseFallback(true), []);
+  const onNativeError = useCallback(() => setUseFallback(true), []);
+
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <View style={styles.center}>
-        <BrandLogo width={200} height={200} />
-        <Text style={styles.tagline}>Grant Access</Text>
-        <ActivityIndicator size="large" color={DS.color.gold} style={styles.spinner} />
-      </View>
+      {useFallback ? (
+        <BouncingBrandLogo size={180} />
+      ) : (
+        <DaltonBootRiveDisplay
+          style={styles.rive}
+          onEmbedError={onEmbedError}
+          onNativeError={onNativeError}
+        />
+      )}
     </View>
   );
 }
@@ -22,21 +33,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: DS.color.background,
     justifyContent: 'center',
-  },
-  center: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: DS.space.xl,
   },
-  tagline: {
-    marginTop: 24,
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 15,
-    letterSpacing: 2,
-    color: DS.color.textMuted,
-    textTransform: 'uppercase',
-  },
-  spinner: {
-    marginTop: 32,
+  rive: {
+    width: '100%',
+    height: '100%',
+    maxWidth: 360,
+    maxHeight: 360,
+    backgroundColor: DS.color.background,
   },
 });

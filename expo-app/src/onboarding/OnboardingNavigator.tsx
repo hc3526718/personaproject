@@ -25,6 +25,15 @@ import type { OnboardingStackParamList } from '../navigation/types';
 import { BOOT_USE_RIVE, getDaltonBootRiveDisplayMode } from '../constants/riveBoot';
 import { BouncingBrandLogo } from '../components/BouncingBrandLogo';
 import { DaltonBootRiveDisplay } from '../components/DaltonBootRiveDisplay';
+import { MasterControlRecoverySteps } from '../components/MasterControlRecoverySteps';
+import { UsernameSetupFields, canProceedWithUsername } from '../components/UsernameSetupFields';
+import {
+  allocateAutoUsername,
+  checkUsernameAvailable,
+  isValidUsernameFormat,
+  normalizeUsernameTyping,
+} from '../profile/usernameProfile';
+import { useUsernameAvailability } from '../profile/useUsernameAvailability';
 import { DISCOVERY_OPTIONS, PERSONA_OPTIONS, SPORT_OPTIONS } from './onboardingCopy';
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
@@ -32,6 +41,9 @@ const Stack = createNativeStackNavigator<OnboardingStackParamList>();
 export type OnboardingDraft = {
   firstName: string;
   lastName: string;
+  username: string;
+  usernameSkipped: boolean;
+  primarySport: string;
   personaRole: string;
   sports: string[];
   discoverySource: string;
@@ -40,6 +52,9 @@ export type OnboardingDraft = {
 const defaultDraft = (): OnboardingDraft => ({
   firstName: '',
   lastName: '',
+  username: '',
+  usernameSkipped: false,
+  primarySport: '',
   personaRole: '',
   sports: [],
   discoverySource: '',
@@ -116,6 +131,7 @@ export function OnboardingNavigator({ onFinished }: Props) {
         }}
       >
         <Stack.Screen name="OnboardingName" component={NameStep} />
+        <Stack.Screen name="OnboardingUsername" component={UsernameStep} />
         <Stack.Screen name="OnboardingRole" component={RoleStep} />
         <Stack.Screen name="OnboardingSports" component={SportsStep} />
         <Stack.Screen name="OnboardingDiscovery" component={DiscoveryStep} />
@@ -177,7 +193,7 @@ function NameStep({ navigation }: StepProps<'OnboardingName'>) {
       footer={
         <AppleHeroButton
           disabled={!canNext}
-          onPress={() => navigation.navigate('OnboardingRole')}
+          onPress={() => navigation.navigate('OnboardingUsername')}
         >
           Continue
         </AppleHeroButton>
@@ -203,6 +219,54 @@ function NameStep({ navigation }: StepProps<'OnboardingName'>) {
           autoCapitalize="words"
         />
       </Field>
+    </StepChrome>
+  );
+}
+
+function UsernameStep({ navigation }: StepProps<'OnboardingUsername'>) {
+  const { draft, setDraft } = useOnboardingCtx();
+  const { user } = useAuth();
+  const supabase = getSupabase();
+  const availability = useUsernameAvailability(
+    supabase,
+    user?.id,
+    draft.username,
+    draft.usernameSkipped,
+  );
+  const canNext = canProceedWithUsername(draft.usernameSkipped, draft.username, availability);
+
+  return (
+    <StepChrome
+      title="Choose a username"
+      subtitle="This is how you&apos;ll appear across Dalton. We check what you type against existing members — or skip and we&apos;ll use your first name plus four random digits."
+      footer={
+        <View style={styles.footerRow}>
+          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
+            Back
+          </AppleHeroButton>
+          <AppleHeroButton
+            disabled={!canNext}
+            style={styles.footerHalf}
+            onPress={() => navigation.navigate('OnboardingRole')}
+          >
+            Continue
+          </AppleHeroButton>
+        </View>
+      }
+    >
+      <UsernameSetupFields
+        firstNameForPreview={draft.firstName}
+        usernameInput={draft.username}
+        onUsernameInputChange={(v) => setDraft({ username: v })}
+        skipped={draft.usernameSkipped}
+        onSkippedChange={(skipped) =>
+          setDraft({
+            usernameSkipped: skipped,
+            username: skipped ? '' : draft.username,
+          })
+        }
+        availability={availability}
+      />
     </StepChrome>
   );
 }
@@ -256,15 +320,15 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
   };
   return (
     <StepChrome
-      title="Your sports"
-      subtitle="Select all that apply."
+      title="Sport you currently compete in"
+      subtitle="This is used to structure recent results. You can add more sports later."
       footer={
         <View style={styles.footerRow}>
           <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
             Back
           </AppleHeroButton>
           <AppleHeroButton
-            disabled={draft.sports.length === 0}
+            disabled={!draft.primarySport}
             style={styles.footerHalf}
             onPress={() => navigation.navigate('OnboardingDiscovery')}
           >
@@ -275,10 +339,18 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
     >
       <View style={styles.chipGrid}>
         {SPORT_OPTIONS.map((s) => {
-          const on = draft.sports.includes(s);
+          const on = draft.primarySport === s;
           return (
-            <Pressable key={s} onPress={() => toggle(s)} style={[styles.chip, on && styles.chipOn]}>
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{s}</Text>
+            <Pressable
+              key={s}
+              onPress={() => {
+                setDraft({ primarySport: s });
+                // Keep `sports[]` aligned: ensure primary sport exists in the multi-sport list.
+                if (!draft.sports.includes(s)) toggle(s);
+              }}
+              style={[styles.chip, on && styles.chipPrimary]}
+            >
+              <Text style={[styles.chipText, on && styles.chipPrimaryText]}>{s}</Text>
             </Pressable>
           );
         })}
@@ -328,6 +400,7 @@ function DiscoveryStep({ navigation }: StepProps<'OnboardingDiscovery'>) {
 }
 
 function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
+  const insets = useSafeAreaInsets();
   const { draft, onFinished, resetDraft } = useOnboardingCtx();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -340,15 +413,41 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
       return;
     }
     setSaving(true);
+    let usernameFinal: string;
+    try {
+      if (draft.usernameSkipped) {
+        usernameFinal = await allocateAutoUsername(supabase, draft.firstName.trim(), user.id);
+      } else {
+        usernameFinal = normalizeUsernameTyping(draft.username);
+        if (!isValidUsernameFormat(usernameFinal)) {
+          setSaving(false);
+          Alert.alert('Username', 'Choose a valid username from the previous step.');
+          return;
+        }
+        const avail = await checkUsernameAvailable(supabase, usernameFinal, user.id);
+        if (!avail) {
+          setSaving(false);
+          Alert.alert('Username taken', 'Go back and pick a different username.');
+          return;
+        }
+      }
+    } catch (e) {
+      setSaving(false);
+      Alert.alert('Username', e instanceof Error ? e.message : 'Could not set username.');
+      return;
+    }
+
     const displayName = `${draft.firstName.trim()} ${draft.lastName.trim()}`.trim();
     const { error } = await supabase.from('profiles').upsert(
       {
         id: user.id,
+        username: usernameFinal,
         first_name: draft.firstName.trim(),
         last_name: draft.lastName.trim(),
         display_name: displayName,
         persona_role: draft.personaRole,
         sports: draft.sports,
+        primary_sport: draft.primarySport || (draft.sports[0] ?? null),
         discovery_source: draft.discoverySource,
         onboarding_completed_at: new Date().toISOString(),
       },
@@ -356,7 +455,11 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
     );
     setSaving(false);
     if (error) {
-      Alert.alert('Could not save profile', error.message);
+      if (error.code === '23505') {
+        Alert.alert('Username taken', 'That username was just claimed. Go back and choose another.');
+      } else {
+        Alert.alert('Could not save profile', error.message);
+      }
       return;
     }
     onFinished();
@@ -364,26 +467,37 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
 
   return (
     <View style={styles.completeRoot}>
-      <View style={styles.riveBlock}>
-        <OnboardingCompleteRive riveFailed={riveFailed} onRiveFailed={() => setRiveFailed(true)} />
-      </View>
-      <Text style={styles.completeTitle}>You&apos;re in</Text>
-      <Text style={styles.completeBody}>
-        Welcome to the premium experience. Tutorial flows and deeper profile customization will arrive in
-        a future update — for now, dive into the community.
-      </Text>
-      <AppleHeroButton loading={saving} onPress={() => void saveAndEnter()} style={styles.enterBtn}>
-        Enter the community
-      </AppleHeroButton>
-      <Pressable
-        onPress={() => {
-          resetDraft();
-          navigation.navigate('OnboardingName');
+      <ScrollView
+        style={{ flex: 1, width: '100%' }}
+        contentContainerStyle={{
+          alignItems: 'center',
+          paddingBottom: insets.bottom + DS.space.xl,
         }}
-        hitSlop={12}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.restart}>Start over</Text>
-      </Pressable>
+        <View style={styles.riveBlock}>
+          <OnboardingCompleteRive riveFailed={riveFailed} onRiveFailed={() => setRiveFailed(true)} />
+        </View>
+        <Text style={styles.completeTitle}>You&apos;re in</Text>
+        <Text style={styles.completeBody}>
+          Welcome to the premium experience. Tutorial flows and deeper profile customization will arrive in a future
+          update — for now, dive into the community.
+        </Text>
+        <MasterControlRecoverySteps style={{ width: '100%', maxWidth: 420, marginBottom: DS.space.lg }} />
+        <AppleHeroButton loading={saving} onPress={() => void saveAndEnter()} style={styles.enterBtn}>
+          Enter the community
+        </AppleHeroButton>
+        <Pressable
+          onPress={() => {
+            resetDraft();
+            navigation.navigate('OnboardingName');
+          }}
+          hitSlop={12}
+        >
+          <Text style={styles.restart}>Start over</Text>
+        </Pressable>
+      </ScrollView>
     </View>
   );
 }
@@ -458,6 +572,14 @@ const styles = StyleSheet.create({
   },
   chipText: { fontFamily: DS.font.bodyMedium, fontSize: 15, color: DS.color.text },
   chipTextOn: { color: DS.color.gold },
+  chipPrimary: {
+    backgroundColor: DS.color.gold,
+    borderColor: DS.color.gold,
+  },
+  chipPrimaryText: {
+    color: DS.color.background,
+    fontFamily: DS.font.bodyMedium,
+  },
   chipCol: { gap: DS.space.sm },
   choiceRow: {
     flexDirection: 'row',

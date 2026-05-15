@@ -36,8 +36,8 @@ export function AdminToolsScreen({ navigation }: Props) {
           Role: <Text style={styles.roleGold}>{role}</Text>
         </Text>
         <Text style={styles.sub}>
-          Capabilities are enforced on the server (RLS / API). Dalton-verified hosts use the flows
-          below; wire Supabase for live data.
+          Capabilities are enforced on the server. Verified hosts use the tools below; data comes from
+          your connected backend.
         </Text>
 
         {can(role, 'moderate_posts') ? (
@@ -46,7 +46,7 @@ export function AdminToolsScreen({ navigation }: Props) {
             onPress={() =>
               Alert.alert(
                 'Moderation queue',
-                'Reported posts and messages will load from Supabase with moderator RLS.',
+                'Reports from the community are stored in post_reports. Open that table in Supabase or build a moderator UI.',
               )
             }
           >
@@ -61,7 +61,7 @@ export function AdminToolsScreen({ navigation }: Props) {
             onPress={() => tabNav.navigate('Events', { screen: 'HostEventDashboard' })}
           >
             <Text style={styles.rowTitle}>Event host dashboard</Text>
-            <Text style={styles.rowSub}>Tickets, RSVPs, attendee list (demo data)</Text>
+            <Text style={styles.rowSub}>Tickets, RSVPs, attendee summary</Text>
           </Pressable>
         ) : null}
 
@@ -71,7 +71,7 @@ export function AdminToolsScreen({ navigation }: Props) {
             onPress={() =>
               Alert.alert(
                 'Create / edit events',
-                'Forms will insert into the `events` table once RLS allows `manage_events`.',
+                'Use the Events area to publish and manage sessions. Ensure your database role allows publishing.',
               )
             }
           >

@@ -1,11 +1,7 @@
-import { useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
-import type { DaltonBootRiveError } from './DaltonBootRivePlayer';
-import { DaltonBootRiveDisplay } from './DaltonBootRiveDisplay';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { DS } from '../designSystem';
-import { BOOT_USE_RIVE } from '../constants/riveBoot';
 
-/** Shown under the status bar while pull-to-refresh runs (paired with transparent RefreshControl). */
+/** Pull-to-refresh indicator under the status bar (paired with transparent RefreshControl). */
 export function PullRefreshRiveOverlay({
   visible,
   topInset,
@@ -13,26 +9,12 @@ export function PullRefreshRiveOverlay({
   visible: boolean;
   topInset: number;
 }) {
-  const [riveFailed, setRiveFailed] = useState(false);
-
   if (!visible) return null;
-
-  const useEmbedRive =
-    BOOT_USE_RIVE && Platform.OS !== 'web';
-  const showSpinner = !useEmbedRive || riveFailed;
 
   return (
     <View pointerEvents="none" style={[styles.overlay, { paddingTop: topInset }]}>
       <View style={styles.box}>
-        {showSpinner ? (
-          <ActivityIndicator size="large" color={DS.color.gold} />
-        ) : (
-          <DaltonBootRiveDisplay
-            style={styles.rive}
-            onNativeError={(_e: DaltonBootRiveError) => setRiveFailed(true)}
-            onEmbedError={() => setRiveFailed(true)}
-          />
-        )}
+        <ActivityIndicator size="large" color={DS.color.gold} />
       </View>
     </View>
   );
@@ -53,5 +35,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rive: { width: 120, height: 88 },
 });

@@ -1,4 +1,5 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { Platform } from 'react-native';
 import { DS } from '../designSystem';
 
 /**
@@ -52,24 +53,6 @@ function useBundledRiveFile(): boolean {
   return envTrim('EXPO_PUBLIC_RIVE_USE_BUNDLED') === '1';
 }
 
-function debugLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
-  // #region agent log
-  fetch('http://127.0.0.1:7386/ingest/bab823b9-460d-4f52-948e-3e1cf5b36c4f', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6e09fa' },
-    body: JSON.stringify({
-      sessionId: '6e09fa',
-      runId: 'pre-fix',
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-}
-
 export function daltonRiveLayoutProps() {
   return {
     ...(DALTON_BOOT_ARTBOARD ? { artboardName: DALTON_BOOT_ARTBOARD } : {}),
@@ -88,14 +71,8 @@ export type DaltonBootRiveDisplayMode = 'native-url' | 'embed' | 'bundled';
 
 export function getDaltonBootRiveDisplayMode(): DaltonBootRiveDisplayMode {
   if (!BOOT_USE_RIVE) return 'embed';
+  if (Platform.OS === 'web') return 'embed';
   if (RIVE_FORCE_EMBED) {
-    debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=embed (forced)', {
-      executionEnvironment: Constants.executionEnvironment,
-      riveEmbedDisabled: RIVE_EMBED_DISABLED,
-      useBundled: useBundledRiveFile(),
-      riveUrl: DALTON_BOOT_RIVE_URL,
-      embedUrl: getDaltonBootRiveEmbedUri(),
-    });
     return 'embed';
   }
   const expoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
@@ -109,42 +86,18 @@ export function getDaltonBootRiveDisplayMode(): DaltonBootRiveDisplayMode {
     /\.riv($|\?)/i.test(riv) &&
     envTrim('EXPO_PUBLIC_RIVE_USE_NATIVE_URL') === '1'
   ) {
-    debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=native-url', {
-      executionEnvironment: Constants.executionEnvironment,
-      riveEmbedDisabled: RIVE_EMBED_DISABLED,
-      useBundled: useBundledRiveFile(),
-      riveUrl: riv,
-    });
     return 'native-url';
   }
   if (RIVE_EMBED_DISABLED || useBundledRiveFile()) {
-    debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=bundled', {
-      executionEnvironment: Constants.executionEnvironment,
-      riveEmbedDisabled: RIVE_EMBED_DISABLED,
-      useBundled: useBundledRiveFile(),
-      riveUrl: riv,
-      bundledModuleId: DALTON_BOOT_RIVE,
-    });
     return 'bundled';
   }
-  debugLog('H1', 'src/constants/riveBoot.ts:getDaltonBootRiveDisplayMode', 'mode=embed', {
-    executionEnvironment: Constants.executionEnvironment,
-    riveEmbedDisabled: RIVE_EMBED_DISABLED,
-    useBundled: useBundledRiveFile(),
-    riveUrl: riv,
-    embedUrl: getDaltonBootRiveEmbedUri(),
-  });
   return 'embed';
 }
 
 export function getDaltonBootRiveAsset(): { url: string } | { source: number } {
   const u = DALTON_BOOT_RIVE_URL;
   if (u && /^https:\/\//i.test(u) && /\.riv($|\?)/i.test(u)) {
-    debugLog('H2', 'src/constants/riveBoot.ts:getDaltonBootRiveAsset', 'asset=url', { url: u });
     return { url: u };
   }
-  debugLog('H2', 'src/constants/riveBoot.ts:getDaltonBootRiveAsset', 'asset=source(module)', {
-    bundledModuleId: DALTON_BOOT_RIVE,
-  });
   return { source: DALTON_BOOT_RIVE };
 }

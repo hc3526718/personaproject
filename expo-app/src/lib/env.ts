@@ -75,11 +75,20 @@ export function getApiBaseUrl(): string {
   return (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
 }
 
+/** Public marketing / support website. Used for Legal + Help center linkouts. */
+export function getDaltonWebUrl(): string {
+  return (process.env.EXPO_PUBLIC_DALTON_WEB_URL ?? '').trim().replace(/\/$/, '');
+}
+
+/**
+ * HMAC secret for QR ticket tokens. In production, **must** be set to a long random value
+ * matching server `TICKET_HMAC_SECRET` (see docs/QR_CHECKIN.md). Dev-only fallback when unset.
+ */
 export function getTicketSigningSecret(): string {
-  return (
-    process.env.EXPO_PUBLIC_TICKET_SIGNING_SECRET ??
-    'dalton-demo-ticket-secret'
-  ).trim();
+  const fromEnv = (process.env.EXPO_PUBLIC_TICKET_SIGNING_SECRET ?? '').trim();
+  if (fromEnv) return fromEnv;
+  if (__DEV__) return 'dalton-demo-ticket-secret';
+  return '';
 }
 
 export function getRevenueCatApiKey(): string | undefined {
@@ -90,4 +99,10 @@ export function getRevenueCatApiKey(): string | undefined {
 
 export function getRevenueCatEntitlementId(): string {
   return (process.env.EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID ?? 'premium').trim() || 'premium';
+}
+
+/** Supabase Edge Function `master-delete-user` (JWT + master PIN). Requires SERVICE_ROLE in project secrets. */
+export function getMasterDeleteUserEdgeUrl(): string {
+  const base = getSupabaseUrl().replace(/\/$/, '');
+  return `${base}/functions/v1/master-delete-user`;
 }

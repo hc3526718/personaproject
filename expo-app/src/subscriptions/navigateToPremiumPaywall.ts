@@ -1,6 +1,6 @@
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 
-/** Opens Profile tab → Paywall (demo / RevenueCat) from nested stacks inside the main tab navigator. */
+/** Opens Profile tab → Paywall (RevenueCat) from nested stacks inside the main tab navigator. */
 export function navigateToPremiumPaywall(navigation: NavigationProp<ParamListBase>): void {
   navigation.getParent()?.navigate('Profile' as never, { screen: 'Paywall' } as never);
 }

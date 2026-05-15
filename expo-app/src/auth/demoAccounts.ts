@@ -1,6 +1,5 @@
 /**
- * Offline / no-Supabase demo credentials. Do not use in production backends.
- * Premium demo: RevenueCat-free “Premium” + super_admin role for admin/media flows.
+ * Local preview sign-in when Supabase env is unavailable. Do not ship these credentials to production backends.
  */
 export const PREMIUM_DEMO_EMAIL = 'dalton.media.admin@dalton.test';
 export const PREMIUM_DEMO_PASSWORD = 'DaltonMediaAdmin1!';

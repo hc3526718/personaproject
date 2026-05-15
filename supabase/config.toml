@@ -1,0 +1,10 @@
+# Supabase CLI — https://supabase.com/docs/guides/cli/config
+# Run from repo root: `supabase link` then `supabase functions deploy send-post-report-email`
+
+[functions.send-post-report-email]
+# Database webhooks send a JSON body without a user JWT; auth is enforced via `x-report-secret`.
+verify_jwt = false
+
+[functions.master-delete-user]
+# Validates caller JWT inside the function and requires master PIN + service role for admin.deleteUser.
+verify_jwt = false

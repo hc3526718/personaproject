@@ -1,19 +1,13 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import * as SecureStore from 'expo-secure-store';
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from './env';
-
-const secureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-};
+import { supabaseAuthStorage } from './supabaseAuthStorage';
 
 let client: SupabaseClient | null = null;
 let cachedUrl = '';
 let cachedKey = '';
 
 /**
- * Shared Supabase client. Null when env is not configured (demo-only mode).
+ * Shared Supabase client. Null when URL/key env is not configured.
  * Recreates the client if URL/key change (e.g. after Metro loads app config).
  */
 export function getSupabase(): SupabaseClient | null {
@@ -33,7 +27,7 @@ export function getSupabase(): SupabaseClient | null {
     cachedKey = key;
     client = createClient(url, key, {
       auth: {
-        storage: secureStoreAdapter,
+        storage: supabaseAuthStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,

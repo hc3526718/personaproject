@@ -1,5 +1,5 @@
 /**
- * Legacy PNG alias for static / demo parity. Prefer `BrandLogo` / `brandAssets`.
+ * Legacy PNG alias. Prefer `BrandLogo` / `brandAssets`.
  */
 export { DALTON_LOGO_FINAL_PNG as BRAND_LOGO_PNG } from './brandAssets';
 

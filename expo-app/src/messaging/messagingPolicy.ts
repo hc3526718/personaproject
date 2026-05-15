@@ -3,8 +3,7 @@ import type { AllowMessagesFrom } from './messagingPrefs';
 export type MessageGateReason = 'ok' | 'recipient_blocks_unknown' | 'sender_must_follow';
 
 /**
- * Demo policy: when recipient restricts DMs, block new threads from non-followers.
- * Wire `isFollowing` + recipient prefs from Supabase in production.
+ * When the recipient restricts DMs, block new threads from senders who are not allowed contacts.
  */
 export function assertCanMessageRecipient(params: {
   recipientPref: AllowMessagesFrom;

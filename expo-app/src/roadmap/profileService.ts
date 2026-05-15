@@ -25,3 +25,16 @@ export async function ensureProfileRow(userId: string, emailHint: string | null)
     { onConflict: 'id' },
   );
 }
+
+export async function updateProfileAllowMessagesFrom(
+  userId: string,
+  value: 'everyone' | 'followers_only' | 'friends_only',
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase
+    .from('profiles')
+    .update({ allow_messages_from: value })
+    .eq('id', userId);
+  return !error;
+}

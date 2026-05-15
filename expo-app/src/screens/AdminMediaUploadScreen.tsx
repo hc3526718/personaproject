@@ -34,7 +34,7 @@ export function AdminMediaUploadScreen({ navigation }: Props) {
           }
         >
           <FontAwesome name="cloud-upload" size={22} color={DS.color.background} />
-          <Text style={styles.ctaTxt}> Choose file (demo)</Text>
+          <Text style={styles.ctaTxt}> Choose file</Text>
         </Pressable>
       </ScrollView>
     </View>

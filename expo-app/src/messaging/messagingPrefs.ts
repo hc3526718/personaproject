@@ -1,6 +1,5 @@
 /**
- * Who can start a DM with the current user (mirrors `profiles.allow_messages_from` when live).
- * Persist with Supabase / SecureStore in production.
+ * Who can start a DM with the current user (aligned with `profiles.allow_messages_from` in the backend).
  */
 export type AllowMessagesFrom = 'everyone' | 'followers_only' | 'friends_only';
 

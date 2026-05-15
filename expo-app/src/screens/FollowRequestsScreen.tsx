@@ -123,8 +123,8 @@ export function FollowRequestsScreen({ navigation }: Props) {
       >
         {!live ? (
           <Text style={styles.hint}>
-            Sign in with a Supabase account (not offline demo) and apply follow-request SQL from the
-            repo backend folder.
+            Sign in with your account and ensure follow requests are enabled in your project database
+            (see backend migrations in this repository).
           </Text>
         ) : loading ? (
           <ActivityIndicator color={DS.color.gold} style={{ marginTop: 24 }} />

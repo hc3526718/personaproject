@@ -3,9 +3,14 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
+  type ImageSourcePropType,
   type LayoutChangeEvent,
   FlatList,
+  KeyboardAvoidingView,
+  Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -15,8 +20,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
@@ -25,25 +30,40 @@ import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootTitleText } from '../designSystem';
 import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
 import { isSupabaseConfigured } from '../lib/env';
+import { webFeedColumnStyle } from '../layout/webLayout';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import { canSubmitCommunityPost } from '../roadmap/communityPolicy';
 import { getSupabase } from '../lib/supabase';
-import {
-  getPostCommentCount,
-  getPostLikeCount,
-  getUserHasLikedPost,
-  likePost,
-  unlikePost,
-} from '../roadmap/communityInteractionsService';
+import { parsePostBody } from '../lib/communityPostBody';
 import {
   enrichPostWithAuthor,
   insertCommunityPost,
   listRecentCommunityPosts,
   listAllEvents,
+  getEventsByIds,
+  deleteCommunityPost,
+  getSubscriptionOfferPageById,
+  searchCommunityPosts,
   subscribeCommunityPosts,
   type CommunityPostFeedRow,
 } from '../roadmap/liveDataService';
+import {
+  addPostComment,
+  getPostCommentCount,
+  getPostLikeCount,
+  getTopPostReactions,
+  getUserHasLikedPost,
+  likePost,
+  listPostComments,
+  setPostReaction,
+  submitPostReport,
+  unlikePost,
+  type PostCommentRow,
+  type PostReportReason,
+  type ReactionSummary,
+} from '../roadmap/communityInteractionsService';
+import { logShareActivity } from '../sharing/shareActivityLog';
 import {
   clearInAppNotifications,
   listInAppNotifications,
@@ -58,11 +78,12 @@ import {
   sendTextMessage,
   type ConversationSummary,
 } from '../roadmap/messagingService';
-import type { MessageRow } from '../roadmap/types';
+import type { MessageRow, SubscriptionOfferPageRow } from '../roadmap/types';
 import type { CommunityStackParamList, SponsorsStackParamList } from '../navigation/types';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
+import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 
 type CProps<K extends keyof CommunityStackParamList> = NativeStackScreenProps<
   CommunityStackParamList,
@@ -185,6 +206,7 @@ type ComposerMedia = {
   kind: 'image' | 'video';
   uri: string;
   durationMs?: number;
+  mimeType?: string;
 };
 
 const MAX_IMAGES = 7;
@@ -235,10 +257,11 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   const { user } = useAuth();
   const [feedPosts, setFeedPosts] = useState<CommunityPostFeedRow[]>([]);
   const [feedLoading, setFeedLoading] = useState(() => isSupabaseConfigured());
+  const [eventTitleMap, setEventTitleMap] = useState<Map<string, string>>(new Map());
 
   const liveMode = isSupabaseConfigured();
-  const isDemoUser = Boolean(user?.id.startsWith('demo-'));
-  const demoCommunityAudience = !liveMode || isDemoUser || (!user && liveMode);
+  /** With Supabase configured, never show HTML/demo posts — only real rows or empty state. */
+  const demoCommunityAudience = !liveMode;
 
   const loadFeed = useCallback(async () => {
     if (!liveMode) {
@@ -249,7 +272,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     const rows = await listRecentCommunityPosts(30);
     setFeedPosts(rows);
     setFeedLoading(false);
-  }, [liveMode]);
+  }, [liveMode, user?.id]);
 
   const reloadFeedQuiet = useCallback(async () => {
     if (!liveMode) return;
@@ -292,6 +315,57 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     });
   }, [liveMode]);
 
+  useEffect(() => {
+    const ids = new Set<string>();
+    for (const p of feedPosts) {
+      const { eventId } = parsePostBody(p.body);
+      if (eventId) ids.add(eventId);
+    }
+    if (ids.size === 0) {
+      setEventTitleMap(new Map());
+      return;
+    }
+    void (async () => {
+      const m = await getEventsByIds([...ids]);
+      const next = new Map<string, string>();
+      m.forEach((v, k) => next.set(k, v.title));
+      setEventTitleMap(next);
+    })();
+  }, [feedPosts]);
+
+  const removePost = useCallback((id: string) => {
+    setFeedPosts((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const feedIsWeb = Platform.OS === 'web';
+  const webSnapHeight = Math.max(520, Math.round(Dimensions.get('window').height * 0.78));
+
+  const renderFeedPost = useCallback(
+    (p: CommunityPostFeedRow) => {
+      const { displayBody, eventId } = parsePostBody(p.body);
+      const av = p.author_avatar_url?.trim();
+      return (
+        <PostCard
+          postId={p.id}
+          authorId={p.author_id}
+          avatar={av ? { uri: av } : DALTON_LOGO_FINAL_IMG}
+          name={p.author_display_name?.trim() || 'Member'}
+          time={formatRelativePostTime(p.created_at)}
+          body={displayBody}
+          imageUri={p.attachments?.find((a) => a.kind === 'image')?.uri}
+          media={p.attachments}
+          likes={0}
+          heartFilled={false}
+          comments={0}
+          eventId={eventId}
+          eventTitle={eventId ? eventTitleMap.get(eventId) : undefined}
+          onPostDeleted={removePost}
+        />
+      );
+    },
+    [eventTitleMap, removePost],
+  );
+
   return (
     <View style={styles.root}>
       <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
@@ -316,67 +390,68 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           </View>
         </View>
       </View>
-      <ScrollView
-        contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
-      >
-        {demoCommunityAudience ? (
-          <>
-            {liveMode && isDemoUser && user ? (
-              <View style={styles.feedBanner}>
-                <Text style={styles.feedBannerText}>
-                  You are in offline demo sign-in. Use a real Supabase account (email or Apple/Google) to
-                  post and see live updates across devices.
+      {feedIsWeb && !demoCommunityAudience ? (
+        <View style={[styles.feedWebColumn, webFeedColumnStyle()]}>
+          {feedLoading ? (
+            <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
+          ) : feedPosts.length === 0 ? (
+            <Text style={[styles.feedEmptyText, styles.feedList]}>No posts yet. Yours can be the first.</Text>
+          ) : (
+            <FlatList
+              data={feedPosts}
+              keyExtractor={(p) => p.id}
+              renderItem={({ item }) => (
+                <View style={[styles.feedWebSnapCell, { minHeight: webSnapHeight }]}>
+                  {renderFeedPost(item)}
+                </View>
+              )}
+              pagingEnabled
+              snapToAlignment="start"
+              decelerationRate="fast"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
+              refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
+            />
+          )}
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
+        >
+          {demoCommunityAudience ? (
+            <>
+              {!liveMode ? (
+                <Text style={styles.feedSampleKicker}>
+                  Example posts shown while the database is not configured.
                 </Text>
-              </View>
-            ) : null}
-            {!liveMode ? (
-              <Text style={styles.feedSampleKicker}>
-                Sample posts · connect Supabase for a live Community feed.
-              </Text>
-            ) : null}
-            {liveMode && !user ? (
-              <>
-                <Text style={styles.feedEmptyText}>Sign in to post to the community.</Text>
-                <Text style={styles.feedSampleKicker}>Sample posts below</Text>
-              </>
-            ) : null}
-            <CommunityDemoPostList navigation={navigation} />
-          </>
-        ) : (
-          <>
-            {feedLoading ? (
-              <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
-            ) : feedPosts.length === 0 ? (
-              <Text style={styles.feedEmptyText}>No posts yet. Yours can be the first.</Text>
-            ) : (
-              feedPosts.map((p) => (
-                <PostCard
-                  key={p.id}
-                  postId={p.id}
-                  avatar={p.author_avatar_url?.trim() ? p.author_avatar_url : FEED_AVATAR_PLACEHOLDER}
-                  name={p.author_display_name?.trim() || 'Member'}
-                  time={formatRelativePostTime(p.created_at)}
-                  body={p.body ?? ''}
-                  imageUri={p.attachments?.find((a) => a.kind === 'image')?.uri}
-                  media={p.attachments}
-                  likes={0}
-                  heartFilled={false}
-                  comments={0}
-                />
-              ))
-            )}
-          </>
-        )}
-      </ScrollView>
+              ) : null}
+              {!liveMode ? <CommunityDemoPostList navigation={navigation} /> : null}
+            </>
+          ) : (
+            <>
+              {feedLoading ? (
+                <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
+              ) : feedPosts.length === 0 ? (
+                <Text style={styles.feedEmptyText}>No posts yet. Yours can be the first.</Text>
+              ) : (
+                feedPosts.map((p) => <View key={p.id}>{renderFeedPost(p)}</View>)
+              )}
+            </>
+          )}
+        </ScrollView>
+      )}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="New post"
-        style={[styles.communityFab, { bottom: 58 + Math.max(insets.bottom, 8) }]}
+        style={[
+          styles.communityFab,
+          { bottom: 36 + Math.max(insets.bottom, 8), right: DS.space.lg + 16 },
+        ]}
         onPress={() => navigation.navigate('CreateCommunityPost')}
       >
-        <FontAwesome name="plus" size={22} color={DS.color.background} />
+        <FontAwesome name="plus" size={28} color={DS.color.background} />
       </Pressable>
     </View>
   );
@@ -406,12 +481,10 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
   }, [liveMode]);
 
   const openPicker = useCallback(async () => {
-    if (Platform.OS === 'web') {
-      Alert.alert('Not on web', 'Use iOS or Android to pick photos and videos.');
-      return;
+    if (Platform.OS !== 'web') {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
     }
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
 
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
@@ -429,9 +502,14 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
       if (pickerAssetIsVideo(a)) {
         const durMs = pickerVideoDurationMs(a) ?? MAX_VIDEO_MS;
         if (durMs > MAX_VIDEO_MS) continue;
-        nextIncoming.push({ kind: 'video', uri, durationMs: durMs });
+        nextIncoming.push({
+          kind: 'video',
+          uri,
+          durationMs: durMs,
+          mimeType: a.mimeType ?? undefined,
+        });
       } else if (uri) {
-        nextIncoming.push({ kind: 'image', uri });
+        nextIncoming.push({ kind: 'image', uri, mimeType: a.mimeType ?? undefined });
       }
     }
 
@@ -478,7 +556,7 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
           const blob = await (await fetch(m.uri)).blob();
           const ext = inferExt(m.kind, m.uri);
           const storage_path = `posts/${row.id}/${Date.now()}-${i}.${ext}`;
-          const contentType = inferContentType(m.kind, m.uri);
+          const contentType = m.mimeType ?? inferContentType(m.kind, m.uri);
           const up = await supabase.storage.from('media_assets').upload(storage_path, blob, {
             contentType,
             upsert: false,
@@ -659,8 +737,17 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
 
 type SecondaryReaction = { kind: 'fire' | 'clap' | 'lightbulb'; count: number };
 
+function resolvePostAvatar(src: string | ImageSourcePropType): ImageSourcePropType {
+  return typeof src === 'string' ? { uri: src } : src;
+}
+
+function isDefaultDaltonAvatar(src: ImageSourcePropType): boolean {
+  return typeof src === 'number' && src === DALTON_LOGO_FINAL_IMG;
+}
+
 function PostCard({
   postId: _postId,
+  authorId,
   avatar,
   name,
   time,
@@ -674,9 +761,14 @@ function PostCard({
   comments: initialCommentCount,
   badge,
   onPressCard,
+  eventId,
+  eventTitle,
+  onPostDeleted,
 }: {
   postId: string;
-  avatar: string;
+  /** When set and looks like a real profile id, avatar/name open public profile. */
+  authorId?: string;
+  avatar: string | ImageSourcePropType;
   name: string;
   time: string;
   body?: string;
@@ -689,34 +781,62 @@ function PostCard({
   comments: number;
   badge?: string;
   onPressCard?: () => void;
+  eventId?: string | null;
+  eventTitle?: string;
+  onPostDeleted?: (postId: string) => void;
 }) {
   const { user } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<CommunityStackParamList>>();
   const liveMode = isSupabaseConfigured() && user && !user.id.startsWith('demo-');
   const [liked, setLiked] = useState(!!initialLiked);
   const [likeCount, setLikeCount] = useState(initialLikes);
   const [secondary, setSecondary] = useState<SecondaryReaction | undefined>(initialSecondary);
+  const [topReactions, setTopReactions] = useState<ReactionSummary[]>([]);
   const [commentCount, setCommentCount] = useState(initialCommentCount);
   const [syncing, setSyncing] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [comments, setComments] = useState<PostCommentRow[]>([]);
+  const [commentDraft, setCommentDraft] = useState('');
+  const [commentsBusy, setCommentsBusy] = useState(false);
   const showActionBanner = useActionBanner();
+  const insets = useSafeAreaInsets();
+
+  const canOpenProfile =
+    Boolean(authorId && !authorId.startsWith('demo') && authorId.length > 20);
 
   useEffect(() => {
     if (!liveMode || !user) return;
     let cancelled = false;
     void (async () => {
-      const [has, cLikes, cComments] = await Promise.all([
+      const [has, cLikes, cComments, tops] = await Promise.all([
         getUserHasLikedPost(_postId, user.id),
         getPostLikeCount(_postId),
         getPostCommentCount(_postId),
+        getTopPostReactions(_postId, 3),
       ]);
       if (cancelled) return;
       setLiked(has);
       setLikeCount(cLikes);
       setCommentCount(cComments);
+      setTopReactions(tops);
     })();
     return () => {
       cancelled = true;
     };
   }, [_postId, liveMode, user]);
+
+  const reloadComments = useCallback(async () => {
+    if (!liveMode) return;
+    const rows = await listPostComments(_postId);
+    setComments(rows);
+    const n = await getPostCommentCount(_postId);
+    setCommentCount(n);
+  }, [_postId, liveMode]);
+
+  useEffect(() => {
+    if (!commentsOpen || !liveMode) return;
+    void reloadComments();
+  }, [commentsOpen, liveMode, reloadComments]);
 
   const bodyText = useMemo(
     () => (bodyParagraphs ? bodyParagraphs.join('\n\n') : body ?? ''),
@@ -790,6 +910,26 @@ function PostCard({
       <Image source={{ uri: imageUri }} style={styles.postImage} />
     ) : null;
 
+  const goEvent = useCallback(() => {
+    if (!eventId) return;
+    const tabNav = navigation.getParent();
+    tabNav?.navigate(
+      'Events' as never,
+      {
+        screen: 'EventDetails',
+        params: {
+          supabaseEventId: eventId,
+          title: eventTitle ?? 'Event',
+        },
+      } as never,
+    );
+  }, [navigation, eventId, eventTitle]);
+
+  const openProfile = useCallback(() => {
+    if (!canOpenProfile || !authorId) return;
+    navigation.navigate('PublicProfile', { userId: authorId });
+  }, [navigation, authorId, canOpenProfile]);
+
   const toggleLike = useCallback(() => {
     if (!liveMode || !user) {
       setLiked((v) => {
@@ -820,25 +960,41 @@ function PostCard({
   const sharePost = useCallback(async () => {
     try {
       await Share.share({
-        title: `${name} · Dalton`,
+        title: `${name} · Grant Access`,
         message: `${name}\n\n${bodyText}`.slice(0, 4000),
       });
+      await logShareActivity({
+        kind: 'post',
+        title: `Shared ${name}'s post`,
+        detail: bodyText.slice(0, 160),
+      });
+      showActionBanner('Shared', 'Logged in Share activity');
     } catch {
       /* dismissed */
     }
-  }, [bodyText, name]);
+  }, [bodyText, name, showActionBanner]);
 
   const pickEmojiReaction = useCallback(() => {
     const apply = (kind: SecondaryReaction['kind']) => {
-      setSecondary((prev) => {
-        if (prev?.kind === kind) {
-          return { kind, count: prev.count + 1 };
+      const run = async () => {
+        if (liveMode && user) {
+          const ok = await setPostReaction(_postId, user.id, kind);
+          if (ok) {
+            const tops = await getTopPostReactions(_postId, 3);
+            setTopReactions(tops);
+          }
         }
-        const seed = initialSecondary?.kind === kind ? initialSecondary.count : 0;
-        return { kind, count: seed + 1 };
-      });
-      const label = kind === 'fire' ? 'Fire' : kind === 'clap' ? 'Clap' : 'Insight';
-      showActionBanner('Reaction sent', label);
+        setSecondary((prev) => {
+          if (prev?.kind === kind) {
+            return { kind, count: prev.count + 1 };
+          }
+          const seed = initialSecondary?.kind === kind ? initialSecondary.count : 0;
+          return { kind, count: seed + 1 };
+        });
+        const label = kind === 'fire' ? 'Fire' : kind === 'clap' ? 'Clap' : 'Insight';
+        showActionBanner('Reaction sent', label);
+      };
+      void run();
     };
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -860,70 +1016,156 @@ function PostCard({
         { text: 'Cancel', style: 'cancel' },
       ]);
     }
-  }, [initialSecondary, showActionBanner]);
+  }, [initialSecondary, liveMode, user, _postId, showActionBanner]);
 
-  const openPostMenu = useCallback(() => {
+  const reportPost = useCallback(() => {
+    if (!liveMode || !user?.id || user.id.startsWith('demo-')) {
+      Alert.alert('Report', 'Sign in with your account to report posts.');
+      return;
+    }
+    const reporterId = user.id;
+    const run = async (reason: PostReportReason) => {
+      const ok = await submitPostReport(_postId, reporterId, reason);
+      if (ok) showActionBanner('Report sent', 'Thanks for helping keep the community safe.');
+      else Alert.alert('Could not send report', 'Check your connection and try again.');
+    };
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Report post', 'Copy link', 'Hide from feed'],
+          options: ['Cancel', 'Spam', 'Harassment', 'Misinformation', 'Copyright', 'Something else'],
           cancelButtonIndex: 0,
-          destructiveButtonIndex: 1,
         },
         (i) => {
-          if (i === 1) {
-            Alert.alert('Report', 'Thanks — moderation syncs with Supabase when live.');
-          }
-          if (i === 2) {
-            Alert.alert('Copied', 'Post link copied to clipboard (demo).');
-          }
-          if (i === 3) {
-            Alert.alert('Hidden', 'Feed preferences will sync when the API is connected.');
+          if (i === 1) void run('spam');
+          if (i === 2) void run('harassment');
+          if (i === 3) void run('misinformation');
+          if (i === 4) void run('copyright');
+          if (i === 5) void run('other');
+        },
+      );
+    } else {
+      Alert.alert('Report post', 'What best describes the issue?', [
+        { text: 'Spam', onPress: () => void run('spam') },
+        { text: 'Harassment', onPress: () => void run('harassment') },
+        { text: 'Misinformation', onPress: () => void run('misinformation') },
+        { text: 'Copyright', onPress: () => void run('copyright') },
+        { text: 'Other', onPress: () => void run('other') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }, [liveMode, user, _postId, showActionBanner]);
+
+  const openPostMenu = useCallback(() => {
+    const isAuthor = Boolean(user?.id && authorId && user.id === authorId);
+    const canDelete = isAuthor || Boolean(user?.masterControl);
+    const copyId = () => {
+      Alert.alert('Post reference', _postId, [{ text: 'OK' }]);
+    };
+    const deletePost = () => {
+      if (!canDelete) return;
+      Alert.alert('Delete post?', 'This cannot be undone.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const ok = await deleteCommunityPost(_postId);
+              if (ok) {
+                onPostDeleted?.(_postId);
+                showActionBanner('Deleted', 'Post removed from the feed.');
+              } else {
+                Alert.alert(
+                  'Could not delete',
+                  'You may not have permission to delete this post. Try again later.',
+                );
+              }
+            })();
+          },
+        },
+      ]);
+    };
+
+    if (Platform.OS === 'ios') {
+      const options = canDelete
+        ? ['Cancel', 'Delete post', 'Report post', 'Copy reference']
+        : ['Cancel', 'Report post', 'Copy reference'];
+      ActionSheetIOS.showActionSheetWithOptions(
+        canDelete
+          ? { options, cancelButtonIndex: 0, destructiveButtonIndex: 1 }
+          : { options, cancelButtonIndex: 0 },
+        (i) => {
+          if (canDelete) {
+            if (i === 1) deletePost();
+            if (i === 2) reportPost();
+            if (i === 3) copyId();
+          } else {
+            if (i === 1) reportPost();
+            if (i === 2) copyId();
           }
         },
       );
     } else {
-      Alert.alert('Post menu', undefined, [
-        {
-          text: 'Report post',
-          style: 'destructive',
-          onPress: () => Alert.alert('Report', 'Thanks — moderation syncs when live.'),
-        },
-        { text: 'Copy link', onPress: () => Alert.alert('Copied', 'Demo copy.') },
-        { text: 'Hide from feed', onPress: () => {} },
+      const buttons: {
+        text: string;
+        style?: 'destructive' | 'cancel';
+        onPress?: () => void;
+      }[] = [];
+      if (canDelete) {
+        buttons.push({ text: 'Delete post', style: 'destructive', onPress: deletePost });
+      }
+      buttons.push(
+        { text: 'Report post', onPress: reportPost },
+        { text: 'Copy reference', onPress: copyId },
         { text: 'Cancel', style: 'cancel' },
-      ]);
+      );
+      Alert.alert('Post menu', undefined, buttons);
     }
-  }, []);
+  }, [user, authorId, liveMode, _postId, onPostDeleted, showActionBanner, reportPost]);
 
-  const openComments = useCallback(() => {
-    setCommentCount((c) => c);
-    Alert.alert(
-      'Comments',
-      liveMode
-        ? 'Comments are stored in Supabase (`post_comments`). Full thread UI is next; for now this shows the live count.'
-        : 'Thread view will load from Supabase (`post_comments`) when the backend is wired. You can still demo the counter locally.',
-      [
-        {
-          text: 'Add demo comment',
-          onPress: () => {
-            setCommentCount((c) => c + 1);
-            showActionBanner('Comment added', 'Full threads sync when comments API is wired.');
-          },
-        },
-        { text: 'OK', style: 'cancel' },
-      ],
-    );
-  }, [liveMode, showActionBanner]);
+  const submitComment = useCallback(async () => {
+    if (!liveMode || !user) {
+      setCommentCount((c) => c + 1);
+      showActionBanner('Comment', 'Sign in to post comments.');
+      return;
+    }
+    const t = commentDraft.trim();
+    if (!t) return;
+    setCommentsBusy(true);
+    const ok = await addPostComment(_postId, user.id, t);
+    setCommentsBusy(false);
+    if (ok) {
+      setCommentDraft('');
+      await reloadComments();
+      showActionBanner('Comment posted', '');
+    } else {
+      Alert.alert('Could not comment', 'Check your connection and try again.');
+    }
+  }, [liveMode, user, commentDraft, _postId, reloadComments, showActionBanner]);
+
+  const avatarSource = resolvePostAvatar(avatar);
 
   return (
     <View style={styles.postCard}>
       <View style={styles.postTop}>
-        <Image source={{ uri: avatar }} style={styles.postAvatar} />
-        <View style={styles.postMetaCol}>
+        <Pressable
+          onPress={openProfile}
+          disabled={!canOpenProfile}
+          style={({ pressed }) => [pressed && canOpenProfile ? { opacity: 0.85 } : null]}
+        >
+          <Image
+            source={avatarSource}
+            style={[styles.postAvatar, isDefaultDaltonAvatar(avatarSource) && styles.postAvatarGoldRing]}
+          />
+        </Pressable>
+        <Pressable
+          onPress={openProfile}
+          disabled={!canOpenProfile}
+          style={[styles.postMetaCol, !canOpenProfile ? { flex: 1 } : { flex: 1 }]}
+        >
           <Text style={styles.postName}>{name}</Text>
           <Text style={styles.postTime}>{time}</Text>
-        </View>
+        </Pressable>
         {badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badge}</Text>
@@ -933,6 +1175,15 @@ function PostCard({
           <FontAwesome name="ellipsis-h" size={16} color={DS.color.textMuted} />
         </Pressable>
       </View>
+      {eventId ? (
+        <Pressable onPress={goEvent} style={styles.postEventChip}>
+          <FontAwesome name="calendar" size={12} color={DS.color.gold} />
+          <Text style={styles.postEventChipTxt} numberOfLines={1}>
+            {eventTitle?.trim() ? eventTitle : 'Event'}
+          </Text>
+          <FontAwesome name="chevron-right" size={10} color={DS.color.textMuted} />
+        </Pressable>
+      ) : null}
       {onPressCard ? (
         <Pressable
           onPress={onPressCard}
@@ -947,6 +1198,15 @@ function PostCard({
           {mediaSection}
         </>
       )}
+      {liveMode && topReactions.length > 0 ? (
+        <View style={styles.topReactionsRow}>
+          {topReactions.map((r) => (
+            <Text key={r.emoji} style={styles.topReactionTxt}>
+              {r.emoji} {r.count}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       <View style={styles.postActions}>
         <View style={styles.postActionsLeft}>
           <Pressable style={styles.actionPill} onPress={toggleLike}>
@@ -957,7 +1217,7 @@ function PostCard({
             />
             <Text style={styles.actionTxt}> {likeCount}</Text>
           </Pressable>
-          {secondary ? (
+          {!liveMode && secondary ? (
             <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
               {secondary.kind === 'fire' ? (
                 <FontAwesome5 name="fire" size={13} color="#f97316" solid />
@@ -970,23 +1230,87 @@ function PostCard({
               ) : null}
               <Text style={styles.actionTxt}> {secondary.count}</Text>
             </Pressable>
-          ) : (
+          ) : !liveMode ? (
             <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
               <Text style={styles.actionTxt}>＋ 😊</Text>
             </Pressable>
+          ) : null}
+          {liveMode ? (
+            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
+              <FontAwesome name="smile-o" size={14} color={DS.color.gold} />
+            </Pressable>
+          ) : (
+            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
+              <FontAwesome name="smile-o" size={14} color={DS.color.textMuted} />
+            </Pressable>
           )}
-          <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
-            <FontAwesome name="smile-o" size={14} color={DS.color.textMuted} />
-          </Pressable>
-          <Pressable style={styles.actionPill} onPress={() => void sharePost()}>
-            <FontAwesome name="share-alt" size={14} color={DS.color.textMuted} />
+          <Pressable
+            style={styles.actionPill}
+            onPress={() => void sharePost()}
+            accessibilityLabel="Share post"
+          >
+            <FontAwesome name="share-alt" size={14} color={DS.color.gold} />
           </Pressable>
         </View>
-        <Pressable style={styles.actionPill} onPress={openComments}>
+        <Pressable style={styles.actionPill} onPress={() => setCommentsOpen(true)}>
           <Text style={styles.actionTxt}>{commentCount} </Text>
           <FontAwesome name="comment-o" size={14} color={DS.color.textMuted} />
         </Pressable>
       </View>
+
+      <Modal
+        visible={commentsOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setCommentsOpen(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.commentsModalRoot}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.commentsHeader, { paddingTop: Math.max(insets.top, 12) }]}>
+            <Text style={styles.commentsTitle}>Comments</Text>
+            <Pressable hitSlop={10} onPress={() => setCommentsOpen(false)}>
+              <Text style={styles.commentsClose}>Done</Text>
+            </Pressable>
+          </View>
+          <FlatList
+            data={comments}
+            keyExtractor={(c) => c.id}
+            contentContainerStyle={{ paddingHorizontal: DS.space.base, paddingBottom: 12 }}
+            ListEmptyComponent={
+              <Text style={styles.commentsEmpty}>
+                {liveMode ? 'No comments yet. Start the thread.' : 'Sign in to read and post comments.'}
+              </Text>
+            }
+            renderItem={({ item }) => (
+              <View style={styles.commentRow}>
+                <Text style={styles.commentAuthor}>
+                  {item.author_display_name?.trim() || 'Member'}
+                </Text>
+                <Text style={styles.commentBody}>{item.body}</Text>
+              </View>
+            )}
+          />
+          <View style={[styles.commentComposer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Write a comment…"
+              placeholderTextColor={DS.color.textMuted}
+              value={commentDraft}
+              onChangeText={setCommentDraft}
+              multiline
+            />
+            <Pressable
+              style={[styles.commentSend, commentsBusy || !commentDraft.trim() ? { opacity: 0.4 } : null]}
+              disabled={commentsBusy || !commentDraft.trim()}
+              onPress={() => void submitComment()}
+            >
+              <FontAwesome name="send" size={16} color={DS.color.background} />
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1225,10 +1549,76 @@ export function CommunitySearchResultsScreen({
   route,
 }: CProps<'CommunitySearchResults'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const q = route.params?.query?.trim() || 'sprint technique';
   const displayQ = q.length > 28 ? `${q.slice(0, 28)}…` : q;
   const [sortI, setSortI] = useState(0);
   const [chipI, setChipI] = useState(0);
+  const liveConfigured = isSupabaseConfigured();
+  const useLiveSearch = liveConfigured && Boolean(user);
+
+  const [livePosts, setLivePosts] = useState<CommunityPostFeedRow[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [eventTitleMap, setEventTitleMap] = useState<Map<string, string>>(new Map());
+  const [removedPostIds, setRemovedPostIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!useLiveSearch) {
+      setLivePosts([]);
+      return;
+    }
+    let cancelled = false;
+    setSearchLoading(true);
+    void (async () => {
+      const rows = await searchCommunityPosts(q);
+      if (!cancelled) {
+        setLivePosts(rows);
+        setSearchLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [useLiveSearch, q]);
+
+  useEffect(() => {
+    if (!useLiveSearch || livePosts.length === 0) {
+      setEventTitleMap(new Map());
+      return;
+    }
+    const ids = new Set<string>();
+    for (const p of livePosts) {
+      const { eventId } = parsePostBody(p.body);
+      if (eventId) ids.add(eventId);
+    }
+    if (ids.size === 0) {
+      setEventTitleMap(new Map());
+      return;
+    }
+    void (async () => {
+      const m = await getEventsByIds([...ids]);
+      const next = new Map<string, string>();
+      m.forEach((v, k) => next.set(k, v.title));
+      setEventTitleMap(next);
+    })();
+  }, [useLiveSearch, livePosts]);
+
+  const demoPostsFiltered = useMemo(() => {
+    if (useLiveSearch) return [];
+    const needle = q.toLowerCase();
+    if (!needle) return SEARCH_RESULT_POSTS;
+    return SEARCH_RESULT_POSTS.filter(
+      (p) =>
+        p.name.toLowerCase().includes(needle) || p.body.toLowerCase().includes(needle),
+    );
+  }, [useLiveSearch, q]);
+
+  const visibleLivePosts = useMemo(
+    () => livePosts.filter((p) => !removedPostIds.has(p.id)),
+    [livePosts, removedPostIds],
+  );
+
+  const resultCount = useLiveSearch ? visibleLivePosts.length : demoPostsFiltered.length;
+
   return (
     <View style={styles.root}>
       <View
@@ -1316,53 +1706,85 @@ export function CommunitySearchResultsScreen({
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.searchResultCount}>147 results for &quot;{displayQ}&quot;</Text>
-        {SEARCH_RESULT_POSTS.map((post, idx) => (
-          <Pressable
-            key={`${post.name}-${idx}`}
-            style={styles.searchResultCard}
-            onPress={() => navigation.navigate('CommunityFeed')}
-          >
-            <View style={styles.searchResultCardTop}>
-              <Image source={{ uri: post.avatar }} style={styles.searchResultAvatar} />
-              <View style={{ flex: 1 }}>
-                <View style={styles.searchResultNameRow}>
-                  <Text style={styles.searchResultName}>{post.name}</Text>
-                  <Text style={styles.searchResultDot}> • </Text>
-                  <Text style={styles.searchResultTime}>{post.time}</Text>
+        <Text style={styles.searchResultCount}>
+          {resultCount} result{resultCount === 1 ? '' : 's'} for &quot;{displayQ}&quot;
+        </Text>
+        {useLiveSearch && searchLoading ? (
+          <ActivityIndicator color={DS.color.gold} style={{ marginVertical: DS.space.lg }} />
+        ) : null}
+        {useLiveSearch && !searchLoading && visibleLivePosts.length === 0 ? (
+          <Text style={styles.feedEmptyText}>No posts match your search.</Text>
+        ) : null}
+        {useLiveSearch && !searchLoading
+          ? visibleLivePosts.map((p) => {
+              const { displayBody, eventId } = parsePostBody(p.body);
+              const av = p.author_avatar_url?.trim();
+              return (
+                <PostCard
+                  key={p.id}
+                  postId={p.id}
+                  authorId={p.author_id}
+                  avatar={av ? { uri: av } : DALTON_LOGO_FINAL_IMG}
+                  name={p.author_display_name?.trim() || 'Member'}
+                  time={formatRelativePostTime(p.created_at)}
+                  body={displayBody}
+                  imageUri={p.attachments?.find((a) => a.kind === 'image')?.uri}
+                  media={p.attachments}
+                  likes={0}
+                  heartFilled={false}
+                  comments={0}
+                  eventId={eventId}
+                  eventTitle={eventId ? eventTitleMap.get(eventId) : undefined}
+                  onPostDeleted={(id) => setRemovedPostIds((prev) => new Set(prev).add(id))}
+                />
+              );
+            })
+          : demoPostsFiltered.map((post, idx) => (
+              <Pressable
+                key={`${post.name}-${idx}`}
+                style={styles.searchResultCard}
+                onPress={() => navigation.navigate('CommunityFeed')}
+              >
+                <View style={styles.searchResultCardTop}>
+                  <Image source={{ uri: post.avatar }} style={styles.searchResultAvatar} />
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.searchResultNameRow}>
+                      <Text style={styles.searchResultName}>{post.name}</Text>
+                      <Text style={styles.searchResultDot}> • </Text>
+                      <Text style={styles.searchResultTime}>{post.time}</Text>
+                    </View>
+                    <HighlightBody text={post.body} query={q} />
+                  </View>
                 </View>
-                <HighlightBody text={post.body} query={q} />
-              </View>
-            </View>
-            {post.imageUri ? (
-              <View style={styles.searchResultMedia}>
-                <Image source={{ uri: post.imageUri }} style={styles.searchResultMediaImg} />
-                {idx === 3 ? (
-                  <View style={styles.searchResultPlay}>
-                    <FontAwesome name="play" size={16} color={DS.color.white} />
+                {post.imageUri ? (
+                  <View style={styles.searchResultMedia}>
+                    <Image source={{ uri: post.imageUri }} style={styles.searchResultMediaImg} />
+                    {idx === 3 ? (
+                      <View style={styles.searchResultPlay}>
+                        <FontAwesome name="play" size={16} color={DS.color.white} />
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
-              </View>
-            ) : null}
-            <View style={styles.searchResultActions}>
-              <Pressable style={styles.searchResultAction}>
-                <FontAwesome
-                  name={post.heartFilled ? 'heart' : 'heart-o'}
-                  size={14}
-                  color={post.heartFilled ? DS.color.error : DS.color.textMuted}
-                />
-                <Text style={styles.searchResultActionTxt}> {post.likes}</Text>
+                <View style={styles.searchResultActions}>
+                  <Pressable style={styles.searchResultAction}>
+                    <FontAwesome
+                      name={post.heartFilled ? 'heart' : 'heart-o'}
+                      size={14}
+                      color={post.heartFilled ? DS.color.error : DS.color.textMuted}
+                    />
+                    <Text style={styles.searchResultActionTxt}> {post.likes}</Text>
+                  </Pressable>
+                  <Pressable style={styles.searchResultAction}>
+                    <FontAwesome name="comment-o" size={14} color={DS.color.textMuted} />
+                    <Text style={styles.searchResultActionTxt}> {post.comments}</Text>
+                  </Pressable>
+                  <Pressable style={styles.searchResultAction}>
+                    <FontAwesome name="share-alt" size={14} color={DS.color.textMuted} />
+                  </Pressable>
+                </View>
               </Pressable>
-              <Pressable style={styles.searchResultAction}>
-                <FontAwesome name="comment-o" size={14} color={DS.color.textMuted} />
-                <Text style={styles.searchResultActionTxt}> {post.comments}</Text>
-              </Pressable>
-              <Pressable style={styles.searchResultAction}>
-                <FontAwesome name="share-alt" size={14} color={DS.color.textMuted} />
-              </Pressable>
-            </View>
-          </Pressable>
-        ))}
+            ))}
       </ScrollView>
     </View>
   );
@@ -1541,7 +1963,13 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
     })) ?? [];
 
   const visible: NotifRowUi[] =
-    useServerNotifs && liveNotifs !== null ? serverVisible : useServerNotifs && liveNotifs === null ? [] : demoVisible;
+    useServerNotifs && liveNotifs !== null
+      ? serverVisible
+      : useServerNotifs && liveNotifs === null
+        ? []
+        : liveMode
+          ? []
+          : demoVisible;
 
   const notificationsLoading = useServerNotifs && liveNotifs === null;
   const showNotificationsEmpty = !notificationsLoading && visible.length === 0;
@@ -1791,8 +2219,8 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
     Alert.alert(
       'New message',
       liveMsgs
-        ? 'Demo threads below. To DM a real user: add a Supabase profile UUID (Settings → follow requests test peers), then we can wire a picker here.'
-        : 'Try a recipient who limits DMs vs one you follow. Server-side RLS will mirror this with Supabase.',
+        ? 'Below are shortcuts to test messaging policies. Recipient search will open here in a future update.'
+        : 'Sign in with your account to start real conversations.',
       [
         {
           text: 'Marcus (not following)',
@@ -1837,18 +2265,7 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
       conversationId: t.conversation_id,
       peerUserId: t.peer_user_id,
     }));
-    const demoRows: InboxRowUi[] = INBOX_THREADS.map((t) => ({
-      id: t.id,
-      name: t.name,
-      avatar: t.avatar,
-      time: t.time,
-      preview: t.preview,
-      previewMuted: t.previewMuted,
-      online: t.online,
-      unread: t.unread,
-      selected: t.selected,
-    }));
-    const merged = [...liveRows, ...demoRows];
+    const merged = liveMsgs ? liveRows : [];
     const f = filter.trim().toLowerCase();
     if (!f) return merged;
     return merged.filter(
@@ -2085,14 +2502,14 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
       setLiveMessages((prev) => [...prev, m]);
       showBanner('Sent', 'Message delivered.');
     } else {
-      Alert.alert('Send failed', 'Check Supabase messaging RLS and rpc_get_or_create_dm.sql.');
+      Alert.alert('Send failed', 'Could not send this message. Check your connection and try again.');
     }
   }, [cidFinal, user, draft, showBanner]);
 
   const demoBubbles = isCoachDemo
     ? COACH_THREAD
     : [
-        { from: 'them' as const, text: `Hey — chat with ${title} (demo).`, time: 'Now' },
+        { from: 'them' as const, text: `Hey — good to connect, ${title}.`, time: 'Now' },
         { from: 'me' as const, text: 'Sounds good!', time: 'Now', read: 'double' as const },
       ];
 
@@ -2213,7 +2630,27 @@ const BRAND_PRODUCTS: { uri: string; title: string; price: string }[] = [
   },
 ];
 
-export function BrandPartnerScreen({ navigation }: BrandPartnerScreenProps) {
+function normalizePartnerLinks(raw: unknown): { label: string; url: string }[] {
+  if (!Array.isArray(raw)) return [];
+  const out: { label: string; url: string }[] = [];
+  for (const item of raw) {
+    if (typeof item === 'string' && /^https?:\/\//i.test(item)) {
+      out.push({ label: 'Link', url: item });
+      continue;
+    }
+    if (item && typeof item === 'object' && 'url' in item) {
+      const url = String((item as { url: unknown }).url);
+      const lab =
+        'label' in item ? String((item as { label: unknown }).label).slice(0, 80) : 'Link';
+      if (/^https?:\/\//i.test(url)) out.push({ label: lab || 'Link', url });
+    }
+  }
+  return out;
+}
+
+function BrandPartnerAthleticXLegacy({
+  navigation,
+}: Pick<BrandPartnerScreenProps, 'navigation'>) {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.root}>
@@ -2328,6 +2765,154 @@ export function BrandPartnerScreen({ navigation }: BrandPartnerScreenProps) {
   );
 }
 
+export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProps) {
+  const pageId = route.params?.pageId?.trim();
+  const [offer, setOffer] = useState<
+    SubscriptionOfferPageRow | 'loading' | 'idle' | 'missing'
+  >(pageId ? 'loading' : 'idle');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!pageId) {
+        setOffer('idle');
+        return;
+      }
+      let alive = true;
+      setOffer('loading');
+      void (async () => {
+        const row = await getSubscriptionOfferPageById(pageId);
+        if (!alive) return;
+        setOffer(row ?? 'missing');
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [pageId]),
+  );
+
+  if (!pageId || offer === 'idle') {
+    return <BrandPartnerAthleticXLegacy navigation={navigation} />;
+  }
+
+  if (offer === 'loading') {
+    const insets = useSafeAreaInsets();
+    return (
+      <View style={[styles.root, { justifyContent: 'center', alignItems: 'center', paddingTop: insets.top }]}>
+        <ActivityIndicator color={DS.color.gold} />
+      </View>
+    );
+  }
+
+  if (offer === 'missing') {
+    const insets = useSafeAreaInsets();
+    return (
+      <View style={[styles.root, { paddingTop: insets.top + DS.space.md, paddingHorizontal: DS.space.lg }]}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.brandNavBtn}>
+          <FontAwesome name="chevron-left" size={18} color={DS.color.textMuted} />
+        </Pressable>
+        <Text style={[styles.brandAboutTitle, { marginTop: DS.space.lg }]}>Partner not found</Text>
+        <Text style={[styles.brandAboutBody, { marginTop: DS.space.sm }]}>
+          This page may have been removed.
+        </Text>
+      </View>
+    );
+  }
+
+  const page = offer;
+  const insets = useSafeAreaInsets();
+  const links = normalizePartnerLinks(page.social_links);
+  const heroUri = page.hero_image_url?.trim();
+  const videoUri = page.video_url?.trim();
+  const siteUri = page.website_url?.trim();
+
+  return (
+    <View style={styles.root}>
+      <View style={[styles.brandTopNav, { paddingTop: insets.top + DS.space.sm }]}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.brandNavBtn}>
+          <FontAwesome name="chevron-left" size={18} color={DS.color.textMuted} />
+        </Pressable>
+        <Text style={styles.brandNavTitle}>Partner</Text>
+        <View style={styles.brandNavBtn} />
+      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.brandScroll, { paddingBottom: 120 + insets.bottom }]}
+      >
+        <View style={styles.brandHero}>
+          {heroUri ? (
+            <Image
+              source={{ uri: heroUri }}
+              style={{
+                width: '100%',
+                height: 200,
+                borderRadius: DS.radius.xl,
+                marginBottom: DS.space.md,
+              }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.brandLogoCard}>
+              <BrandLogo width={240} height={72} />
+            </View>
+          )}
+          <Text style={styles.brandHeroTitle}>{page.business_name.toUpperCase()}</Text>
+          <View style={styles.brandActiveRow}>
+            <View style={styles.brandActiveDot} />
+            <Text style={styles.brandActiveLabel}>Partner offer</Text>
+          </View>
+        </View>
+        {page.description?.trim() ? (
+          <View style={styles.brandAbout}>
+            <Text style={styles.brandAboutTitle}>About</Text>
+            <Text style={styles.brandAboutBody}>{page.description.trim()}</Text>
+          </View>
+        ) : null}
+        {videoUri ? (
+          <Pressable
+            style={[styles.brandPromoBlock, { marginTop: DS.space.md }]}
+            onPress={() => void Linking.openURL(videoUri)}
+          >
+            <View style={styles.brandPromoHeadingRow}>
+              <FontAwesome name="play-circle" size={12} color={DS.color.gold} />
+              <Text style={styles.brandPromoHeading}> Watch video</Text>
+            </View>
+            <Text style={styles.brandCodeHint}>Opens in your browser</Text>
+          </Pressable>
+        ) : null}
+        {links.length ? (
+          <View style={[styles.brandAbout, { marginTop: DS.space.sm }]}>
+            <Text style={styles.brandAboutTitle}>Links</Text>
+            {links.map((l) => (
+              <Pressable
+                key={`${l.label}-${l.url}`}
+                onPress={() => void Linking.openURL(l.url)}
+                style={{ marginBottom: DS.space.md }}
+              >
+                <Text style={{ fontFamily: DS.font.bodyBold, color: DS.color.gold }}>{l.label}</Text>
+                <Text style={styles.muted} numberOfLines={2}>
+                  {l.url}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+      </ScrollView>
+      <View style={[styles.brandFooter, { paddingBottom: Math.max(insets.bottom, DS.space.md) }]}>
+        <Pressable
+          style={styles.brandVisitCta}
+          onPress={() => {
+            if (siteUri) void Linking.openURL(siteUri);
+            else Alert.alert('Website', 'No website URL has been added for this partner yet.');
+          }}
+        >
+          <Text style={styles.brandVisitText}>VISIT WEBSITE</Text>
+          <FontAwesome5 name="external-link-alt" size={13} color={DS.color.gold} solid />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export function DemoHubScreen({ navigation }: CProps<'DemoHub'>) {
   const { logout } = useAuth();
   const go = (tab: 'Community' | 'Media' | 'Events' | 'Sponsors' | 'Profile', screen: string) => {
@@ -2336,11 +2921,11 @@ export function DemoHubScreen({ navigation }: CProps<'DemoHub'>) {
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.hubPad}>
       <Text style={styles.hubKicker}>DALTON PROJECT</Text>
-      <Text style={styles.hubTitle}>MOBILE DEMO FLOWS</Text>
+      <Text style={styles.hubTitle}>SCREEN SHORTCUTS</Text>
       <Text style={styles.hubBody}>
-        Jump into the same paths as index.html — native React Native screens.
+        Quick jumps to primary areas while building and testing the app.
       </Text>
-      <HubBtn label="Path A — Sign out → auth / welcome" onPress={() => void logout()} />
+      <HubBtn label="Path A — Sign out (return to welcome)" onPress={() => void logout()} />
       <HubBtn label="Path B — Upcoming events" onPress={() => go('Events', 'UpcomingEvents')} />
       <HubBtn label="Path C — Media library" onPress={() => go('Media', 'MediaLibrary')} />
       <HubBtn label="Path D — Community feed" onPress={() => go('Community', 'CommunityFeed')} />
@@ -2387,9 +2972,9 @@ const styles = StyleSheet.create({
   communityFab: {
     position: 'absolute',
     right: DS.space.base,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: DS.color.gold,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2688,6 +3273,18 @@ const styles = StyleSheet.create({
     padding: DS.space.base,
     gap: DS.space.base,
   },
+  feedWebColumn: {
+    flex: 1,
+    width: '100%',
+  },
+  feedWebSnapCell: {
+    justifyContent: 'center',
+    paddingVertical: DS.space.sm,
+  },
+  postAvatarGoldRing: {
+    borderWidth: 2,
+    borderColor: DS.color.gold,
+  },
   feedBanner: {
     backgroundColor: DS.color.goldTint10,
     borderRadius: 10,
@@ -2814,6 +3411,9 @@ const styles = StyleSheet.create({
     borderColor: DS.color.postBorderGold20,
     padding: DS.space.base,
     marginBottom: DS.space.base,
+    ...(Platform.OS === 'web'
+      ? { alignSelf: 'center' as const, width: '100%' as const, maxWidth: 480 }
+      : null),
   },
   postTop: {
     flexDirection: 'row',
@@ -2917,6 +3517,112 @@ const styles = StyleSheet.create({
   actionTxt: {
     fontSize: 12,
     color: DS.color.textMuted,
+  },
+  topReactionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: DS.space.sm,
+    marginTop: DS.space.xs,
+  },
+  topReactionTxt: {
+    fontSize: 12,
+    color: DS.color.textMuted,
+  },
+  postEventChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginBottom: DS.space.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: DS.radius.pill,
+    backgroundColor: DS.color.surfaceAlt,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+    maxWidth: '100%',
+  },
+  postEventChipTxt: {
+    flex: 1,
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 13,
+    color: DS.color.gold,
+  },
+  commentsModalRoot: {
+    flex: 1,
+    backgroundColor: DS.color.background,
+  },
+  commentsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: DS.space.base,
+    paddingBottom: DS.space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DS.color.borderWhite5,
+  },
+  commentsTitle: {
+    fontFamily: DS.font.heading,
+    fontSize: 16,
+    letterSpacing: 1,
+    color: DS.color.text,
+  },
+  commentsClose: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    color: DS.color.gold,
+  },
+  commentsEmpty: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    paddingVertical: DS.space.lg,
+  },
+  commentRow: {
+    paddingVertical: DS.space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DS.color.borderWhite5,
+  },
+  commentAuthor: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 12,
+    color: DS.color.gold,
+    marginBottom: 4,
+  },
+  commentBody: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.text,
+    lineHeight: 20,
+  },
+  commentComposer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: DS.space.sm,
+    paddingHorizontal: DS.space.base,
+    paddingTop: DS.space.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: DS.color.borderWhite5,
+    backgroundColor: DS.color.surface,
+  },
+  commentInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 120,
+    borderRadius: DS.radius.lg,
+    paddingHorizontal: DS.space.md,
+    paddingVertical: DS.space.sm,
+    backgroundColor: DS.color.input,
+    color: DS.color.text,
+    fontSize: 15,
+  },
+  commentSend: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: DS.color.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchHeader: {
     flexDirection: 'row',

@@ -1,5 +1,6 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -20,7 +22,9 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { hasPremiumOrAdminTier, navigateToPremiumPaywall } from '../subscriptions/navigateToPremiumPaywall';
+import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
+import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
+import { customerHasPremium, fetchCustomerInfo } from '../subscriptions/revenueCat';
 
 type Props = NativeStackScreenProps<MediaStackParamList, 'CreateMediaContent'>;
 
@@ -29,7 +33,7 @@ const DESC_MIN = 100;
 export function CreateMediaContentScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { isPro } = useSubscription();
+  const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
   const tierOk = hasPremiumOrAdminTier(isPro, user?.role);
   const verified = !!user?.daltonVerified;
 
@@ -38,6 +42,36 @@ export function CreateMediaContentScreen({ navigation }: Props) {
   const [description, setDescription] = useState('');
   const [tagPeople, setTagPeople] = useState('');
   const [searchTags, setSearchTags] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (tierOk) return undefined;
+      let cancelled = false;
+      void (async () => {
+        const { premiumActivated } = await presentRevenueCatPaywall();
+        if (cancelled) return;
+        await refreshSubscription();
+        if (cancelled) return;
+        const info = await fetchCustomerInfo();
+        const proNow = customerHasPremium(info);
+        const admin = user?.role === 'admin' || user?.role === 'super_admin';
+        if (!proNow && !admin) {
+          navigation.goBack();
+          return;
+        }
+        if (premiumActivated) notifyNewPremiumFromPaywall(true);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [
+      tierOk,
+      navigation,
+      refreshSubscription,
+      user?.role,
+      notifyNewPremiumFromPaywall,
+    ]),
+  );
 
   const pickVideo = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -72,7 +106,7 @@ export function CreateMediaContentScreen({ navigation }: Props) {
     }
     Alert.alert(
       'Queued for review',
-      'Your upload will go live after Dalton verification and Supabase Storage wiring (see WHAT_NEXT.md).',
+      'Your upload will go live after verification and publishing are enabled for your account.',
       [{ text: 'OK', onPress: () => navigation.goBack() }],
     );
   }, [videoUri, title, description, navigation]);
@@ -82,14 +116,10 @@ export function CreateMediaContentScreen({ navigation }: Props) {
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <ScreenHeader title="Upload video" onBack={() => navigation.goBack()} />
         <View style={styles.gateBody}>
-          <FontAwesome name="star" size={40} color={DS.color.gold} />
-          <Text style={styles.gateTitle}>Premium</Text>
-          <Text style={styles.gateTxt}>
-            Uploading media is included with Premium. This is a preview paywall until RevenueCat pricing is
-            wired up.
+          <ActivityIndicator color={DS.color.gold} size="large" />
+          <Text style={[styles.gateTxt, { marginTop: DS.space.lg, textAlign: 'center' }]}>
+            Opening subscription options…
           </Text>
-          <AppButton label="Preview Premium" onPress={() => navigateToPremiumPaywall(navigation)} />
-          <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
         </View>
       </View>
     );
@@ -172,7 +202,7 @@ export function CreateMediaContentScreen({ navigation }: Props) {
 
         <FormField
           label="Tag people"
-          hint="Optional — comma-separated names or @handles (syncs with profiles when live)."
+          hint="Optional — comma-separated names or @handles linked to member profiles."
         >
           <TextInput
             value={tagPeople}

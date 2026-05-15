@@ -1,9 +1,24 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
-import type { CustomerInfo } from 'react-native-purchases';
+import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 import { getRevenueCatEntitlementId } from '../lib/env';
 
 const ENTITLEMENT_PREMIUM = getRevenueCatEntitlementId();
+
+function getRevenueCatKeysForPlatform(): { ios: string; android: string } {
+  const fromEnvIos = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS?.trim() ?? '';
+  const fromEnvAndroid = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID?.trim() ?? '';
+  const expoConfig = Constants.expoConfig as Record<string, unknown> | null | undefined;
+  const extra = expoConfig?.extra as Record<string, unknown> | undefined;
+  const fromExtraIos =
+    typeof extra?.revenueCatApiKeyIos === 'string' ? extra.revenueCatApiKeyIos.trim() : '';
+  const fromExtraAndroid =
+    typeof extra?.revenueCatApiKeyAndroid === 'string' ? extra.revenueCatApiKeyAndroid.trim() : '';
+  return {
+    ios: fromEnvIos || fromExtraIos,
+    android: fromEnvAndroid || fromExtraAndroid,
+  };
+}
 
 function isExpoGo(): boolean {
   return (
@@ -13,6 +28,9 @@ function isExpoGo(): boolean {
 }
 
 type PurchasesModule = typeof import('react-native-purchases').default;
+
+/** True after `Purchases.configure` succeeded — RevenueCatUI asserts if paywall runs before this. */
+let purchasesSdkConfigured = false;
 
 /**
  * Never `import` Purchases at module scope — that loads the native module and breaks **Expo Go**.
@@ -26,20 +44,57 @@ function tryPurchases(): PurchasesModule | null {
   }
 }
 
+export function isRevenueCatSdkConfigured(): boolean {
+  return purchasesSdkConfigured;
+}
+
 /**
- * Safe init for Expo Go (skipped) and dev/production builds with API keys.
+ * Configures the native Purchases SDK. Safe to call multiple times — configures once, then no-ops.
+ * @returns whether the SDK is ready for `getCustomerInfo` / RevenueCat UI (false in Expo Go or missing API key / configure error).
  */
-export async function initRevenueCat(): Promise<void> {
+export async function initRevenueCat(): Promise<boolean> {
+  if (purchasesSdkConfigured) return true;
   const Purchases = tryPurchases();
-  if (!Purchases) return;
-  const ios = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS?.trim();
-  const android = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID?.trim();
+  if (!Purchases) return false;
+  const { ios, android } = getRevenueCatKeysForPlatform();
   const key = Platform.OS === 'ios' ? ios : android;
-  if (!key) return;
+  if (!key) return false;
   try {
     Purchases.configure({ apiKey: key });
+    purchasesSdkConfigured = true;
+    return true;
   } catch (e) {
     if (__DEV__) console.warn('[RevenueCat] configure failed', e);
+    return false;
+  }
+}
+
+/**
+ * Offering used by RevenueCat Paywall UI. Prefer `EXPO_PUBLIC_REVENUECAT_OFFERING_IDENTIFIER`
+ * (RevenueCat **lookup key**, e.g. `Official Offering`); otherwise try that id; else dashboard **current**.
+ *
+ * Important: if the dashboard **current** offering still points at **Test Store** products while your
+ * paywall design uses **App Store** SKUs, you must either mark the App Store offering as current **or**
+ * set this env so `presentPaywall({ offering })` loads StoreKit prices for the right products.
+ */
+export async function fetchOfferingForPaywall(): Promise<PurchasesOffering | null> {
+  const Purchases = tryPurchases();
+  if (!Purchases) return null;
+  const fromEnv = process.env.EXPO_PUBLIC_REVENUECAT_OFFERING_IDENTIFIER?.trim();
+  const preferredKeys = [
+    ...(fromEnv ? [fromEnv] : []),
+    'Official Offering',
+    'default',
+  ];
+  try {
+    const offerings = await Purchases.getOfferings();
+    for (const key of preferredKeys) {
+      const o = offerings.all[key];
+      if (o) return o;
+    }
+    return offerings.current ?? null;
+  } catch {
+    return null;
   }
 }
 

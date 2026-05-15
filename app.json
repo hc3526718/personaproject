@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4e6678ad-6d77-4954-bdcd-9bcb62b0f1d3"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.hc111.daltonproject",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    }
+  }
+}
