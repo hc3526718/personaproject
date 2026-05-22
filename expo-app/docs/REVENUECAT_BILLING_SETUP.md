@@ -77,17 +77,42 @@ Events: `checkout.session.completed`, `customer.subscription.updated`, `customer
 
 ---
 
-## 4. RevenueCat webhooks (recommended for App Store purchases)
+## 4. RevenueCat webhook (App Store / Play → database)
 
-**Gap today:** No `revenuecat-webhook` Edge Function in repo — mobile purchases may not update `subscription_state` until you add one.
+**Webhook URL** (RevenueCat Dashboard → Integrations → Webhooks):
 
-**Manual setup:**
+```text
+https://<PROJECT_REF>.supabase.co/functions/v1/revenuecat-webhook
+```
 
-1. RevenueCat → Integrations → Webhooks → add endpoint (your Supabase function or worker).  
-2. On `INITIAL_PURCHASE`, `RENEWAL`, `CANCELLATION`, map `app_user_id` → `subscription_state` upsert (same shape as `stripe-webhook`).  
-3. Verify webhook authorization header per RC docs.
+Replace `<PROJECT_REF>` with the id from your Supabase URL (`EXPO_PUBLIC_SUPABASE_URL`):
 
-Until deployed, native users rely on RevenueCat SDK locally; web relies on Stripe webhook — **cross-platform premium** needs both webhooks writing the same table.
+- If URL is `https://abcdefghijklmnop.supabase.co` → ref is `abcdefghijklmnop`  
+- Full example: `https://abcdefghijklmnop.supabase.co/functions/v1/revenuecat-webhook`
+
+**Do not** use `https://dalton-access.vercel.app/...` — Vercel hosts the marketing site and `/app`, not Supabase Edge Functions.
+
+**Deploy:**
+
+```bash
+supabase link --project-ref <REF>
+supabase secrets set REVENUECAT_WEBHOOK_AUTHORIZATION="<long-random-secret>"
+supabase functions deploy revenuecat-webhook --project-ref <REF>
+```
+
+In RevenueCat, set **Authorization header** to the same value (RC sends `Authorization: Bearer <secret>`).
+
+**Also deploy** (web Stripe checkout):
+
+```bash
+supabase functions deploy stripe-webhook --project-ref <REF>
+```
+
+Stripe Dashboard webhook URL (separate from RevenueCat):
+
+```text
+https://<PROJECT_REF>.supabase.co/functions/v1/stripe-webhook
+```
 
 ---
 

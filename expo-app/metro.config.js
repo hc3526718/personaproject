@@ -21,7 +21,10 @@ const config = getSentryExpoConfig(__dirname, {
   },
 });
 
-/** Reduce jest-worker serialization load on large bundles (helps "Data cannot be cloned" / OOM on some setups). */
-config.maxWorkers = Math.min(4, Math.max(1, require('os').cpus()?.length ?? 2));
+/** CI (Vercel): lower parallelism to reduce peak memory during web export. */
+const cpus = require('os').cpus()?.length ?? 2;
+config.maxWorkers = process.env.CI
+  ? 1
+  : Math.min(4, Math.max(1, cpus));
 
 module.exports = config;

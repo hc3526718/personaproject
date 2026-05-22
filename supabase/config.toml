@@ -8,3 +8,13 @@ verify_jwt = false
 [functions.master-delete-user]
 # Validates caller JWT inside the function and requires master PIN + service role for admin.deleteUser.
 verify_jwt = false
+
+[functions.revenuecat-webhook]
+# RevenueCat sends Authorization header, not a Supabase user JWT.
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-create-checkout]
+verify_jwt = false

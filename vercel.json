@@ -3,6 +3,11 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "web-deploy",
   "installCommand": "cd expo-app && npm install",
+  "framework": null,
+  "env": {
+    "SENTRY_DISABLE_AUTO_UPLOAD": "true",
+    "NODE_OPTIONS": "--max-old-space-size=8192"
+  },
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },

@@ -1,5 +1,5 @@
 /**
- * Vercel build: static HTML demo at repo root + Expo web export under /app.
+ * Vercel build: static HTML at repo root + Expo web export under /app.
  */
 import { execSync } from 'node:child_process';
 import { cp, mkdir, readdir } from 'node:fs/promises';
@@ -17,15 +17,39 @@ async function copyDir(src, dest) {
 }
 
 function runExpoExport() {
-  execSync('npx expo export --platform web', {
-    cwd: expoDir,
-    env: {
-      ...process.env,
-      EXPO_WEB_BASE_PATH: '/app',
-      EXPO_PUBLIC_WEB_BASE_PATH: '/app',
-    },
-    stdio: 'inherit',
-  });
+  const env = {
+    ...process.env,
+    CI: 'true',
+    EXPO_WEB_BASE_PATH: '/app',
+    EXPO_PUBLIC_WEB_BASE_PATH: '/app',
+    /** Avoid Sentry source-map upload failing the build when SENTRY_AUTH_TOKEN is unset. */
+    SENTRY_DISABLE_AUTO_UPLOAD: 'true',
+    EXPO_NO_TELEMETRY: '1',
+    /** Large RN web bundle — prevent OOM on Vercel builders. */
+    NODE_OPTIONS: [
+      process.env.NODE_OPTIONS ?? '',
+      '--max-old-space-size=8192',
+    ]
+      .filter(Boolean)
+      .join(' '),
+  };
+
+  console.log('[vercel-build] Running expo export (web) in', expoDir);
+
+  try {
+    execSync('npx expo export --platform web', {
+      cwd: expoDir,
+      env,
+      stdio: 'inherit',
+      encoding: 'utf8',
+    });
+  } catch (err) {
+    console.error('[vercel-build] expo export failed.');
+    if (err.stdout) console.error(err.stdout);
+    if (err.stderr) console.error(err.stderr);
+    if (err.message) console.error(err.message);
+    throw err;
+  }
 }
 
 async function main() {
