@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   ActionSheetIOS,
   Alert,
+  AppState,
   Dimensions,
   Image,
   type ImageSourcePropType,
@@ -25,11 +26,16 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
+import { CaptionComposer } from '../components/CaptionComposer';
 import { BrandLogo } from '../components/BrandLogo';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootTitleText } from '../designSystem';
 import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
-import { isSupabaseConfigured } from '../lib/env';
+import {
+  isScreenshotSampleConversationId,
+  SCREENSHOT_INBOX_EXTRAS,
+} from '../data/appStoreScreenshotSamples';
+import { isAppStoreScreenshotMode, isSupabaseConfigured } from '../lib/env';
 import { webCommunityFeedPaneStyle, webPageShellStyle } from '../layout/webLayout';
 import { CommunityWebTrendingPanel } from '../components/CommunityWebTrendingPanel';
 import * as ImagePicker from 'expo-image-picker';
@@ -294,6 +300,13 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   );
 
   useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void reloadFeedQuiet();
+    });
+    return () => sub.remove();
+  }, [reloadFeedQuiet]);
+
+  useEffect(() => {
     if (!liveMode) return;
     return subscribeCommunityPosts((change) => {
       if (change.event === 'DELETE') {
@@ -482,7 +495,8 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
   const liveMode = isSupabaseConfigured();
   const isDemoUser = Boolean(user?.id.startsWith('demo-'));
 
-  const [caption, setCaption] = useState('');
+  const [captionValue, setCaptionValue] = useState({ body: '', hashtags: [] as string[] });
+  const [captionPlain, setCaptionPlain] = useState('');
   const [busy, setBusy] = useState(false);
   const [media, setMedia] = useState<ComposerMedia[]>([]);
   const [events, setEvents] = useState<{ id: string; title: string; starts_at: string }[]>([]);
@@ -541,7 +555,7 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
         !isDemoUser &&
         liveMode &&
         media.length > 0 &&
-        canSubmitCommunityPost(user.id, { body: caption }) &&
+        canSubmitCommunityPost(user.id, { body: captionPlain }) &&
         !busy,
     );
 
@@ -556,14 +570,14 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
       Alert.alert('Add media', 'Choose at least one photo or video.');
       return;
     }
-    if (!canSubmitCommunityPost(user.id, { body: caption })) {
+    if (!canSubmitCommunityPost(user.id, { body: captionPlain })) {
       Alert.alert('Caption required', 'Add a caption before posting.');
       return;
     }
     setBusy(true);
     try {
       const eventTag = eventId ? `\n\n#event:${eventId}` : '';
-      const row = await insertCommunityPost(user.id, `${caption.trim()}${eventTag}`);
+      const row = await insertCommunityPost(user.id, `${captionPlain.trim()}${eventTag}`);
       if (!row) {
         Alert.alert('Could not post', 'Check your connection and try again.');
         return;
@@ -599,7 +613,7 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
     } finally {
       setBusy(false);
     }
-  }, [user, isDemoUser, liveMode, caption, eventId, navigation, media, showBanner]);
+  }, [user, isDemoUser, liveMode, captionPlain, eventId, navigation, media, showBanner]);
 
   const first = media[0];
 
@@ -693,13 +707,13 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
 
         <Text style={[styles.composerSectionKicker, { marginTop: DS.space.md }]}>CAPTION · MENTIONS · HASHTAGS</Text>
         <View style={styles.captionCard}>
-          <TextInput
-            value={caption}
-            onChangeText={setCaption}
-            placeholder={"@coach and #track — say what's happening"}
-            placeholderTextColor={DS.color.textMuted}
-            multiline
-            style={styles.captionInput}
+          <CaptionComposer
+            value={captionValue}
+            onChange={(v, plain) => {
+              setCaptionValue(v);
+              setCaptionPlain(plain);
+            }}
+            placeholder={"@coach teammates — #hashtags move to the tray below"}
             maxLength={4000}
           />
         </View>
@@ -2213,16 +2227,30 @@ type InboxRowUi = {
 export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const liveMsgs = Boolean(isSupabaseConfigured() && user && !user.id.startsWith('demo-'));
+  const screenshotMsgs = isAppStoreScreenshotMode();
+  const liveMsgs =
+    screenshotMsgs || Boolean(isSupabaseConfigured() && user && !user.id.startsWith('demo-'));
   const [liveThreads, setLiveThreads] = useState<ConversationSummary[]>([]);
 
   const reloadInboxThreads = useCallback(async () => {
-    if (!liveMsgs || !user) {
+    if (!user) {
       setLiveThreads([]);
       return;
     }
-    const rows = await listConversationSummaries(user.id);
-    setLiveThreads(rows);
+    if (!liveMsgs) {
+      setLiveThreads([]);
+      return;
+    }
+    try {
+      const rows = await listConversationSummaries(user.id);
+      setLiveThreads(rows);
+      const { cacheMessageInbox } = await import('../lib/offline/messagesOffline');
+      await cacheMessageInbox(user.id, rows);
+    } catch {
+      const { loadCachedMessageInbox } = await import('../lib/offline/messagesOffline');
+      const cached = await loadCachedMessageInbox(user.id);
+      if (cached) setLiveThreads(cached);
+    }
   }, [liveMsgs, user]);
 
   useFocusEffect(
@@ -2274,16 +2302,20 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
     );
   }, [navigation, liveMsgs]);
   const threads = useMemo(() => {
-    const liveRows: InboxRowUi[] = liveThreads.map((t) => ({
-      id: `live-${t.conversation_id}`,
-      name: t.peer_display_name?.trim() || 'Member',
-      avatar: t.peer_avatar_url?.trim() ? t.peer_avatar_url : FEED_AVATAR_PLACEHOLDER,
-      time: t.last_at ? formatRelativePostTime(t.last_at) : '',
-      preview: t.last_body ?? 'No messages yet',
-      previewMuted: !t.last_body,
-      conversationId: t.conversation_id,
-      peerUserId: t.peer_user_id,
-    }));
+    const liveRows: InboxRowUi[] = liveThreads.map((t) => {
+      const extras = SCREENSHOT_INBOX_EXTRAS[t.conversation_id] ?? {};
+      return {
+        id: `live-${t.conversation_id}`,
+        name: t.peer_display_name?.trim() || 'Member',
+        avatar: t.peer_avatar_url?.trim() ? t.peer_avatar_url : FEED_AVATAR_PLACEHOLDER,
+        time: t.last_at ? formatRelativePostTime(t.last_at) : '',
+        preview: t.last_body ?? 'No messages yet',
+        previewMuted: !t.last_body,
+        conversationId: t.conversation_id,
+        peerUserId: t.peer_user_id,
+        ...extras,
+      };
+    });
     const merged = liveMsgs ? liveRows : [];
     const f = filter.trim().toLowerCase();
     if (!f) return merged;
@@ -2456,8 +2488,16 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         }
         if (conversationIdParam) {
           setLoading(true);
-          const msgs = await listMessages(conversationIdParam, 100);
-          setLiveMessages(msgs);
+          try {
+            const msgs = await listMessages(conversationIdParam, 100);
+            setLiveMessages(msgs);
+            const { cacheMessageThread } = await import('../lib/offline/messagesOffline');
+            await cacheMessageThread(conversationIdParam, msgs);
+          } catch {
+            const { loadCachedMessageThread } = await import('../lib/offline/messagesOffline');
+            const cached = await loadCachedMessageThread(conversationIdParam);
+            if (cached) setLiveMessages(cached);
+          }
           setLoading(false);
           return;
         }
@@ -2466,8 +2506,16 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           const cid = await getOrCreateConversationId(peerUserId);
           if (cid) {
             setActiveConversationId(cid);
-            const msgs = await listMessages(cid, 100);
-            setLiveMessages(msgs);
+            try {
+              const msgs = await listMessages(cid, 100, user.id);
+              setLiveMessages(msgs);
+              const { cacheMessageThread } = await import('../lib/offline/messagesOffline');
+              await cacheMessageThread(cid, msgs);
+            } catch {
+              const { loadCachedMessageThread } = await import('../lib/offline/messagesOffline');
+              const cached = await loadCachedMessageThread(cid);
+              if (cached) setLiveMessages(cached);
+            }
           }
           setLoading(false);
         } else {
@@ -2479,7 +2527,13 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
   );
 
   const cidFinal = activeConversationId ?? conversationIdParam;
-  const isLive = Boolean(cidFinal && user && !user.id.startsWith('demo-'));
+  const isSampleThread = Boolean(
+    cidFinal && isAppStoreScreenshotMode() && isScreenshotSampleConversationId(cidFinal),
+  );
+  const isLive = Boolean(
+    cidFinal && user && !user.id.startsWith('demo-') && !isSampleThread,
+  );
+  const isScreenshotThread = Boolean(cidFinal && user && isSampleThread);
 
   useEffect(() => {
     if (!isLive || !cidFinal || !user) return;
@@ -2532,14 +2586,15 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         { from: 'me' as const, text: 'Sounds good!', time: 'Now', read: 'double' as const },
       ];
 
-  const bubbles = isLive
-    ? liveMessages.map((m) => ({
-        from: (m.sender_id === user.id ? 'me' : 'them') as 'me' | 'them',
-        text: m.body ?? '',
-        time: formatRelativePostTime(m.created_at),
-        read: (m.sender_id === user.id ? 'double' : undefined) as 'double' | 'single' | undefined,
-      }))
-    : demoBubbles;
+  const bubbles =
+    isLive || isScreenshotThread
+      ? liveMessages.map((m) => ({
+          from: (m.sender_id === user!.id ? 'me' : 'them') as 'me' | 'them',
+          text: m.body ?? '',
+          time: formatRelativePostTime(m.created_at),
+          read: (m.sender_id === user!.id ? 'double' : undefined) as 'double' | 'single' | undefined,
+        }))
+      : demoBubbles;
 
   return (
     <View style={styles.root}>
@@ -2552,7 +2607,9 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           <Text style={styles.threadHeaderName} numberOfLines={1}>
             {title}
           </Text>
-          <Text style={styles.threadHeaderStatus}>{isLive ? 'Messages' : 'Online'}</Text>
+          <Text style={styles.threadHeaderStatus}>
+            {isLive || isScreenshotThread ? 'Messages' : 'Online'}
+          </Text>
         </View>
         <View style={styles.threadHeaderActions}>
           <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
@@ -2573,7 +2630,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         contentContainerStyle={[styles.threadBody, { paddingBottom: DS.space.lg }]}
         showsVerticalScrollIndicator={false}
       >
-        {loading && isLive ? (
+        {loading && (isLive || isScreenshotThread) ? (
           <AppLoadingIndicator style={{ marginVertical: 16 }} />
         ) : null}
         <View style={styles.threadDayPillWrap}>

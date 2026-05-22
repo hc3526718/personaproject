@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grant Access — Help Centre</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="shared/theme.css" />
+    <link rel="stylesheet" href="shared/site-transition.css" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { ink: "#0A0A0A", gold: "#C8A84B", mist: "#D4D0C8", dim: "#9A9690", line: "rgba(255,255,255,0.09)", panel: "rgba(255,255,255,0.04)" },
+            fontFamily: { bebas: ['"Bebas Neue"', "sans-serif"], sans: ['"DM Sans"', "sans-serif"] },
+          },
+        },
+      };
+    </script>
+    <style>
+      body { font-family: "DM Sans", sans-serif; background: var(--demo-bg); color: var(--demo-text); }
+      .chip { cursor: pointer; }
+      .chip.active { background: rgba(200,168,75,0.15); border-color: rgba(200,168,75,0.45); color: #f2efe8; }
+      .article.hidden { display: none; }
+    </style>
+  </head>
+  <body class="min-h-screen antialiased">
+    <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
+      <div class="mx-auto max-w-4xl px-5 py-4 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center gap-3">
+          <img src="/showcase/dalton_logo.png" alt="" class="h-9 w-9 rounded-lg" width="36" height="36" />
+          <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
+        </a>
+        <a href="/app" class="px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold">Login</a>
+      </div>
+    </header>
+    <main class="mx-auto max-w-4xl px-5 py-10">
+      <p class="font-bebas text-gold tracking-[0.24em] text-sm">HELP CENTRE</p>
+      <h1 class="font-bebas text-4xl md:text-5xl text-mist mt-2">How can we help?</h1>
+      <div class="mt-6 relative">
+        <input
+          id="search"
+          type="search"
+          placeholder="Search topics…"
+          class="w-full rounded-2xl border border-line bg-panel px-5 py-4 text-mist placeholder:text-dim focus:outline-none focus:border-gold/50"
+        />
+      </div>
+      <div id="chips" class="flex flex-wrap gap-2 mt-4"></div>
+      <div id="articles" class="mt-8 space-y-4"></div>
+      <div class="mt-10 rounded-2xl border border-gold/30 bg-panel p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p class="text-mist font-semibold">Still stuck?</p>
+          <p class="text-dim text-sm mt-1">Talk to our assistant or email the team.</p>
+        </div>
+        <div class="flex gap-3">
+          <a href="/live-chat" class="px-4 py-2.5 rounded-xl bg-gold text-ink text-sm font-semibold">Live chat</a>
+          <a href="/contact-us" class="px-4 py-2.5 rounded-xl border border-line text-mist text-sm font-semibold">Contact us</a>
+        </div>
+      </div>
+    </main>
+    <script>
+      const ARTICLES = [
+        { t: "Getting started", k: "sign up login onboarding google apple", b: "Sign in at /app with email, Google, or Apple. Complete onboarding, then use Community, Events, Media, and Profile with the same account on every device." },
+        { t: "Premium — one subscription", k: "premium stripe revenuecat billing restore web ios", b: "Subscribe once per account. Web uses Stripe Checkout; iOS/Android use the App Store or Play. Do not buy twice—sign in with the same email. Use Restore purchases on mobile after payment." },
+        { t: "Dalton verification", k: "verified creator publish host upload awaiting", b: "Premium first, then team approval (Dalton verified) before publishing events or media. Contact us if verification is delayed." },
+        { t: "Community & feed", k: "post feed refresh comment", b: "Pull to refresh. Feed updates in realtime when online and when you return to the app." },
+        { t: "Events & tickets", k: "book event ticket qr host", b: "Browse Events, book sessions, and use host tools when verified. Offline viewing of previously opened events is limited." },
+        { t: "Accessibility", k: "larger text contrast dark color", b: "In-app Settings → Accessibility: Larger Text, Differentiate Without Color, Sufficient Contrast. Dark interface is default; prefs sync when signed in." },
+        { t: "Delete account", k: "gdpr delete removal", b: "Email support@grantaccess.app from your account email until in-app deletion ships." },
+      ];
+      const SUGGESTED = ["Premium subscription", "Dalton verification", "Restore purchases", "Accessibility", "Delete account"];
+      const chipsEl = document.getElementById("chips");
+      const articlesEl = document.getElementById("articles");
+      const searchEl = document.getElementById("search");
+      function renderArticles(q) {
+        const needle = (q || "").trim().toLowerCase();
+        articlesEl.innerHTML = ARTICLES.filter((a) => !needle || (a.t + a.k + a.b).toLowerCase().includes(needle))
+          .map((a) => `<article class="article rounded-2xl border border-line bg-panel p-5"><h2 class="text-mist font-semibold text-lg">${a.t}</h2><p class="text-dim mt-2 leading-relaxed">${a.b}</p></article>`)
+          .join("") || '<p class="text-dim">No results. Try another topic or <a class="text-gold underline" href="/contact-us">contact us</a>.</p>';
+      }
+      SUGGESTED.forEach((label) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip px-3 py-1.5 rounded-full border border-line text-dim text-sm";
+        b.textContent = label;
+        b.onclick = () => { searchEl.value = label; document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active")); b.classList.add("active"); renderArticles(label); };
+        chipsEl.appendChild(b);
+      });
+      searchEl.addEventListener("input", () => { document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active")); renderArticles(searchEl.value); });
+      const params = new URLSearchParams(location.search);
+      const q = params.get("q");
+      if (q) searchEl.value = q;
+      renderArticles(searchEl.value);
+    </script>
+    <script src="shared/site-transition.js"></script>
+  </body>
+</html>

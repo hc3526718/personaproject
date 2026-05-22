@@ -41,7 +41,7 @@ import type { AllowMessagesFrom } from '../messaging/messagingPrefs';
 import { getAllowMessagesFrom, setAllowMessagesFrom } from '../messaging/messagingPrefs';
 import { syncAllowMessagesFromRemote } from '../messaging/dmPolicySync';
 import type { ProfileStackParamList } from '../navigation/types';
-import { loadAccessibilityPrefs, saveAccessibilityPrefs, type AccessibilityPrefs } from '../lib/accessibilityPrefs';
+import { useAccessibility } from '../accessibility/AccessibilityContext';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
 import { fetchProfileByUserId } from '../roadmap/profileService';
@@ -583,25 +583,15 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
 export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
   const insets = useSafeAreaInsets();
   const showBanner = useActionBanner();
-  const [prefs, setPrefs] = useState<AccessibilityPrefs | null>(null);
+  const { prefs, ready, updatePrefs } = useAccessibility();
 
-  useFocusEffect(
-    useCallback(() => {
-      void (async () => {
-        setPrefs(await loadAccessibilityPrefs());
-      })();
-    }, []),
-  );
-
-  const patch = async (partial: Partial<AccessibilityPrefs>, label: string) => {
-    await saveAccessibilityPrefs(partial);
-    const next = await loadAccessibilityPrefs();
-    setPrefs(next);
+  const patch = async (partial: Parameters<typeof updatePrefs>[0], label: string) => {
+    await updatePrefs(partial);
     const on = Object.values(partial)[0] === true;
     showBanner(label, on ? 'Enabled' : 'Disabled');
   };
 
-  if (!prefs) {
+  if (!ready) {
     return (
       <View style={styles.root}>
         <ScreenHeader title="Accessibility" onBack={() => navigation.goBack()} largeTitle />
@@ -620,33 +610,17 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.bodyMuted}>
-          These toggles store your preferences locally. Some options can be fully applied in React Native
-          (like reduced motion); others affect how Dalton renders UI and will be expanded over time.
+          Preferences sync to your account when signed in, so iOS, Android, and web stay aligned.
+          Grant Access uses a dark interface by default.
         </Text>
 
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>VoiceOver</Text>
-              <Text style={styles.toggleSub}>Gesture, keyboard, braille, and speech navigation.</Text>
+              <Text style={styles.toggleTitle}>Dark interface</Text>
+              <Text style={styles.toggleSub}>Always on — optimized for low-light viewing.</Text>
             </View>
-            <Switch
-              value={prefs.voiceOver}
-              onValueChange={(v) => void patch({ voiceOver: v }, 'VoiceOver')}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
-          </View>
-          <View style={styles.hairline} />
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Voice Control</Text>
-              <Text style={styles.toggleSub}>Navigate and interact using voice commands.</Text>
-            </View>
-            <Switch
-              value={prefs.voiceControl}
-              onValueChange={(v) => void patch({ voiceControl: v }, 'Voice Control')}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
+            <FontAwesome name="check-circle" size={22} color={DS.color.gold} />
           </View>
         </View>
 
@@ -666,20 +640,8 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
           <View style={styles.hairline} />
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Light Interface</Text>
-              <Text style={styles.toggleSub}>Use a light color scheme instead of dark.</Text>
-            </View>
-            <Switch
-              value={prefs.lightInterface}
-              onValueChange={(v) => void patch({ lightInterface: v }, 'Light Interface')}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
-          </View>
-          <View style={styles.hairline} />
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
               <Text style={styles.toggleTitle}>Differentiate Without Color</Text>
-              <Text style={styles.toggleSub}>Use text/shapes in addition to color for emphasis.</Text>
+              <Text style={styles.toggleSub}>Icons, labels, and borders in addition to color.</Text>
             </View>
             <Switch
               value={prefs.differentiateWithoutColor}
@@ -696,33 +658,6 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
             <Switch
               value={prefs.sufficientContrast}
               onValueChange={(v) => void patch({ sufficientContrast: v }, 'Sufficient Contrast')}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
-          </View>
-        </View>
-
-        <Text style={styles.cardKickerSpaced}>Motion & Media</Text>
-        <View style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Reduced Motion</Text>
-              <Text style={styles.toggleSub}>Reduce animations that may cause discomfort.</Text>
-            </View>
-            <Switch
-              value={prefs.reducedMotion}
-              onValueChange={(v) => void patch({ reducedMotion: v }, 'Reduced Motion')}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
-          </View>
-          <View style={styles.hairline} />
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Captions</Text>
-              <Text style={styles.toggleSub}>Prefer captions for video/audio content.</Text>
-            </View>
-            <Switch
-              value={prefs.captions}
-              onValueChange={(v) => void patch({ captions: v }, 'Captions')}
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
@@ -761,11 +696,30 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
         contentContainerStyle={[styles.padded, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable style={styles.supportCard} onPress={() => void open('/help-center')}>
+        <Pressable
+          style={styles.supportCard}
+          onPress={() => navigation.navigate('HelpCentre')}
+        >
           <FontAwesome5 name="book-open" size={18} color={DS.color.gold} solid />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
-            <Text style={styles.supportTitle}>Help center</Text>
-            <Text style={styles.supportSub}>Guides, FAQs, and troubleshooting.</Text>
+            <Text style={styles.supportTitle}>Help centre</Text>
+            <Text style={styles.supportSub}>Search guides, FAQs, and suggested topics.</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+        </Pressable>
+        <Pressable style={styles.supportCard} onPress={() => void open('/help-center')}>
+          <FontAwesome name="globe" size={18} color={DS.color.gold} />
+          <View style={{ flex: 1, marginLeft: DS.space.md }}>
+            <Text style={styles.supportTitle}>Help on web</Text>
+            <Text style={styles.supportSub}>Full help centre and live chat in your browser.</Text>
+          </View>
+          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+        </Pressable>
+        <Pressable style={styles.supportCard} onPress={() => void open('/live-chat')}>
+          <FontAwesome name="comments-o" size={18} color={DS.color.gold} />
+          <View style={{ flex: 1, marginLeft: DS.space.md }}>
+            <Text style={styles.supportTitle}>Live chat</Text>
+            <Text style={styles.supportSub}>AI assistant for quick answers.</Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
@@ -774,14 +728,6 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>Contact us</Text>
             <Text style={styles.supportSub}>Email, forms, and support routes (configure later).</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
-        </Pressable>
-        <Pressable style={styles.supportCard} onPress={() => void open('/live-chat')}>
-          <FontAwesome name="comments-o" size={18} color={DS.color.gold} />
-          <View style={{ flex: 1, marginLeft: DS.space.md }}>
-            <Text style={styles.supportTitle}>Live chat</Text>
-            <Text style={styles.supportSub}>Weekdays 9–17 GMT (hours may vary).</Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>

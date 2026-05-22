@@ -45,6 +45,13 @@ async function main() {
 
   await copyDir(join(root, 'shared'), join(outDir, 'shared'));
 
+  const showcaseSrc = join(root, 'showcase');
+  try {
+    await copyDir(showcaseSrc, join(outDir, 'showcase'));
+  } catch {
+    console.warn('[vercel-build] No showcase/ folder — landing phone mockups skipped.');
+  }
+
   console.log('[vercel-build] Output:', outDir);
 }
 

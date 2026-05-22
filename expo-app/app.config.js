@@ -197,6 +197,7 @@ module.exports = () => {
 
   expo.extra = {
     eas: { projectId: EAS_PROJECT_ID },
+    daltonWebUrl: (process.env.EXPO_PUBLIC_DALTON_WEB_URL || '').trim(),
     supabaseUrl: (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim(),
     supabaseAnonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim(),
     /** RevenueCat public SDK keys — duplicated here so native init can read `expo.extra` if env inlining differs. */

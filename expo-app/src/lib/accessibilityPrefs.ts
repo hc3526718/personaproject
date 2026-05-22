@@ -1,44 +1,74 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'dalton_accessibility_prefs_v1';
+const KEY = 'dalton_accessibility_prefs_v2';
 
+/** In-app accessibility toggles (App Store declaration subset). */
 export type AccessibilityPrefs = {
-  voiceOver: boolean;
-  voiceControl: boolean;
   largerText: boolean;
-  lightInterface: boolean;
   differentiateWithoutColor: boolean;
   sufficientContrast: boolean;
-  reducedMotion: boolean;
-  captions: boolean;
 };
 
 export const DEFAULT_ACCESSIBILITY_PREFS: AccessibilityPrefs = {
-  voiceOver: false,
-  voiceControl: false,
   largerText: false,
-  lightInterface: false,
   differentiateWithoutColor: false,
   sufficientContrast: false,
-  reducedMotion: false,
-  captions: false,
 };
 
 const KEYS: (keyof AccessibilityPrefs)[] = [
-  'voiceOver',
-  'voiceControl',
   'largerText',
-  'lightInterface',
   'differentiateWithoutColor',
   'sufficientContrast',
-  'reducedMotion',
-  'captions',
 ];
+
+/** Cloud `user_settings.preferences.accessibility` shape (snake_case). */
+export type AccessibilityPrefsCloud = {
+  larger_text?: boolean;
+  differentiate_without_color?: boolean;
+  sufficient_contrast?: boolean;
+};
+
+export function prefsToCloud(p: AccessibilityPrefs): AccessibilityPrefsCloud {
+  return {
+    larger_text: p.largerText,
+    differentiate_without_color: p.differentiateWithoutColor,
+    sufficient_contrast: p.sufficientContrast,
+  };
+}
+
+export function prefsFromCloud(c: AccessibilityPrefsCloud | undefined): Partial<AccessibilityPrefs> {
+  if (!c) return {};
+  const out: Partial<AccessibilityPrefs> = {};
+  if (typeof c.larger_text === 'boolean') out.largerText = c.larger_text;
+  if (typeof c.differentiate_without_color === 'boolean') {
+    out.differentiateWithoutColor = c.differentiate_without_color;
+  }
+  if (typeof c.sufficient_contrast === 'boolean') out.sufficientContrast = c.sufficient_contrast;
+  return out;
+}
+
+function migrateLegacy(raw: Record<string, unknown>): Partial<AccessibilityPrefs> {
+  const out: Partial<AccessibilityPrefs> = {};
+  if (typeof raw.largerText === 'boolean') out.largerText = raw.largerText;
+  if (typeof raw.differentiateWithoutColor === 'boolean') {
+    out.differentiateWithoutColor = raw.differentiateWithoutColor;
+  }
+  if (typeof raw.sufficientContrast === 'boolean') out.sufficientContrast = raw.sufficientContrast;
+  return out;
+}
 
 export async function loadAccessibilityPrefs(): Promise<AccessibilityPrefs> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULT_ACCESSIBILITY_PREFS };
+    if (!raw) {
+      const legacy = await AsyncStorage.getItem('dalton_accessibility_prefs_v1');
+      if (!legacy) return { ...DEFAULT_ACCESSIBILITY_PREFS };
+      const o = JSON.parse(legacy) as Record<string, unknown>;
+      const migrated = migrateLegacy(o);
+      const merged = { ...DEFAULT_ACCESSIBILITY_PREFS, ...migrated };
+      await AsyncStorage.setItem(KEY, JSON.stringify(merged));
+      return merged;
+    }
     const o = JSON.parse(raw) as Record<string, unknown>;
     const out: AccessibilityPrefs = { ...DEFAULT_ACCESSIBILITY_PREFS };
     for (const k of KEYS) {
@@ -50,8 +80,9 @@ export async function loadAccessibilityPrefs(): Promise<AccessibilityPrefs> {
   }
 }
 
-export async function saveAccessibilityPrefs(prefs: Partial<AccessibilityPrefs>): Promise<void> {
+export async function saveAccessibilityPrefs(prefs: Partial<AccessibilityPrefs>): Promise<AccessibilityPrefs> {
   const cur = await loadAccessibilityPrefs();
-  await AsyncStorage.setItem(KEY, JSON.stringify({ ...cur, ...prefs }));
+  const next = { ...cur, ...prefs };
+  await AsyncStorage.setItem(KEY, JSON.stringify(next));
+  return next;
 }
-

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grant Access — Contact</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="shared/theme.css" />
+    <style>
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: radial-gradient(900px 600px at 20% 0%, rgba(200, 168, 75, 0.15), transparent 55%), var(--demo-bg);
+        color: var(--demo-text);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen antialiased">
+    <header class="border-b border-line bg-ink/80 backdrop-blur-xl sticky top-0 z-10">
+      <div class="mx-auto max-w-3xl px-5 py-4 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-3">
+          <img src="/showcase/dalton_logo.png" alt="" class="h-9 w-9 rounded-lg" />
+          <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
+        </a>
+        <a href="/app" class="text-sm font-semibold text-ink bg-gold px-4 py-2 rounded-xl">Login</a>
+      </div>
+    </header>
+    <main class="mx-auto max-w-3xl px-5 py-12">
+      <p class="font-bebas text-gold tracking-[0.24em] text-sm">CONTACT</p>
+      <h1 class="font-bebas text-4xl text-mist mt-2">Talk to the team</h1>
+      <p class="text-dim mt-4 leading-relaxed">
+        We respond to billing, safety, verification, and account requests. Include your account email and whether you use
+        <strong class="text-mist font-medium">web</strong>, <strong class="text-mist font-medium">iOS</strong>, or
+        <strong class="text-mist font-medium">Android</strong>.
+      </p>
+      <div class="mt-8 grid gap-4">
+        <a href="mailto:support@grantaccess.app" class="block rounded-2xl border border-line bg-panel p-5 hover:border-gold/40 transition-colors">
+          <p class="text-mist font-semibold">General & billing</p>
+          <p class="text-gold mt-1">support@grantaccess.app</p>
+        </a>
+        <a href="mailto:privacy@grantaccess.app" class="block rounded-2xl border border-line bg-panel p-5 hover:border-gold/40 transition-colors">
+          <p class="text-mist font-semibold">Privacy & data requests</p>
+          <p class="text-gold mt-1">privacy@grantaccess.app</p>
+        </a>
+        <a href="/live-chat" class="block rounded-2xl border border-gold/35 bg-gold/10 p-5">
+          <p class="text-mist font-semibold">Prefer chat?</p>
+          <p class="text-dim text-sm mt-1">Open the AI help assistant for instant answers.</p>
+          <p class="text-gold text-sm font-semibold mt-3">Go to live chat →</p>
+        </a>
+      </div>
+      <p class="text-dim text-xs mt-10">In the app: Profile → Settings → Support.</p>
+    </main>
+  </body>
+</html>

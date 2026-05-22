@@ -6,6 +6,12 @@
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/cookie-policy", "destination": "/cookie-policy.html" },
+    { "source": "/cookies", "destination": "/cookie-policy.html" },
+    { "source": "/athlete-agreement", "destination": "/athlete-agreement.html" },
+    { "source": "/help-center", "destination": "/help-center.html" },
+    { "source": "/contact-us", "destination": "/contact-us.html" },
+    { "source": "/live-chat", "destination": "/live-chat.html" },
     { "source": "/demo", "destination": "/app/index.html" },
     { "source": "/demo/:path*", "destination": "/app/index.html" },
     { "source": "/how", "destination": "/how.html" },

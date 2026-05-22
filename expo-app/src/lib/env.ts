@@ -71,13 +71,28 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(getSupabaseUrl() && getSupabaseAnonKey());
 }
 
+/**
+ * When true, the app merges fictional rows for sponsors, events, media browse, and community
+ * (see `src/data/appStoreScreenshotSamples.ts`). Set `EXPO_PUBLIC_APP_STORE_SCREENSHOTS=1` in `.env`
+ * for App Store / Play Store capture builds only — turn off for production.
+ */
+export function isAppStoreScreenshotMode(): boolean {
+  return process.env.EXPO_PUBLIC_APP_STORE_SCREENSHOTS === '1';
+}
+
 export function getApiBaseUrl(): string {
   return (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
 }
 
 /** Public marketing / support website. Used for Legal + Help center linkouts. */
 export function getDaltonWebUrl(): string {
-  return (process.env.EXPO_PUBLIC_DALTON_WEB_URL ?? '').trim().replace(/\/$/, '');
+  const fromEnv = (process.env.EXPO_PUBLIC_DALTON_WEB_URL ?? '').trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, '');
+  const expoConfig = Constants.expoConfig as Record<string, unknown> | null | undefined;
+  const extra = expoConfig?.extra as Record<string, unknown> | undefined;
+  const fromExtra =
+    typeof extra?.daltonWebUrl === 'string' ? extra.daltonWebUrl.trim() : '';
+  return fromExtra.replace(/\/$/, '');
 }
 
 /**

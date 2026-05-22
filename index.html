@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Grant Access — Train. Connect. Get Discovered.</title>
-  <meta name="description" content="Grant Access is a health, sports, and social networking app helping athletes train with intention, connect with the right people, and unlock opportunities—anywhere in the world." />
+  <meta name="description" content="Grant Access helps athletes train with intention, connect with the right people, and unlock opportunities—on iOS, Android, and web." />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/theme.css">
@@ -36,7 +36,6 @@
       background:
         radial-gradient(1200px 860px at 18% -12%, rgba(200, 168, 75, 0.22), transparent 58%),
         radial-gradient(900px 720px at 105% 18%, rgba(212, 208, 200, 0.10), transparent 55%),
-        radial-gradient(700px 520px at 60% 110%, rgba(232, 83, 58, 0.10), transparent 58%),
         var(--demo-bg);
       color: var(--demo-text);
     }
@@ -49,125 +48,119 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
       background-size: 260px 260px;
     }
-    .shine {
+    .showcase-stack {
+      position: relative;
+      min-height: 520px;
+    }
+    .showcase-phone {
       position: absolute;
-      inset: -2px;
-      border-radius: 1.75rem;
-      background: linear-gradient(120deg, rgba(200,168,75,0.55), rgba(255,255,255,0.08), rgba(200,168,75,0.10));
-      opacity: 0.20;
-      filter: blur(18px);
-      pointer-events: none;
+      width: 46%;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      overflow: hidden;
+      background: #111;
+      transition: transform 0.35s ease;
+    }
+    .showcase-phone img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .showcase-phone:hover { transform: translateY(-4px) scale(1.02); z-index: 5; }
+    .showcase-phone.s1 { left: 0; top: 0; transform: rotate(-4deg); }
+    .showcase-phone.s2 { left: 28%; top: 8%; transform: rotate(2deg); z-index: 2; }
+    .showcase-phone.s3 { right: 0; top: 2%; transform: rotate(5deg); z-index: 1; }
+    .showcase-phone.s4 { left: 6%; bottom: 0; transform: rotate(3deg); z-index: 3; }
+    .showcase-phone.s5 { left: 34%; bottom: 6%; transform: rotate(-2deg); z-index: 4; }
+    .showcase-phone.s6 { right: 4%; bottom: 2%; transform: rotate(-5deg); z-index: 2; }
+    @media (max-width: 767px) {
+      .showcase-stack { min-height: 380px; }
+      .showcase-phone { width: 52%; }
     }
   </style>
 </head>
 <body class="min-h-screen antialiased">
   <div class="grain"></div>
   <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
-    <div class="mx-auto max-w-6xl px-5 py-5 flex items-center justify-between gap-4">
-      <a href="/" class="flex items-baseline gap-3">
-        <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
-        <span class="text-dim text-xs tracking-wide">Health · Sport · Social</span>
+    <div class="mx-auto max-w-6xl px-5 py-4 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-center gap-3 min-w-0">
+        <img src="/showcase/dalton_logo.png" alt="Grant Access" class="h-10 w-10 rounded-lg object-contain shrink-0" width="40" height="40" />
+        <span class="font-bebas text-gold text-sm tracking-[0.22em] truncate">GRANT ACCESS</span>
       </a>
       <nav class="hidden md:flex items-center gap-5 text-sm">
         <a class="text-dim hover:text-mist transition-colors" href="/how">How</a>
         <a class="text-dim hover:text-mist transition-colors" href="/features">Features</a>
-        <a class="text-dim hover:text-mist transition-colors" href="/impact">Impact</a>
-        <a class="text-dim hover:text-mist transition-colors" href="/privacy">Privacy</a>
-        <a class="text-dim hover:text-mist transition-colors" href="/terms">Terms</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/help-center">Help</a>
+        <a class="text-dim hover:text-mist transition-colors" href="/contact-us">Contact</a>
       </nav>
       <div class="flex items-center gap-3">
-        <a href="/app" class="hidden sm:inline-flex px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors">View demo</a>
-        <a href="/app" class="inline-flex px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Open web app</a>
+        <a href="/app" class="inline-flex px-5 py-2.5 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Login</a>
       </div>
     </div>
   </header>
 
   <main>
-    <section class="mx-auto max-w-6xl px-5 pt-10 md:pt-16 pb-10">
-      <div class="grid md:grid-cols-12 gap-10 items-start">
-        <div class="md:col-span-7">
+    <section class="mx-auto max-w-6xl px-5 pt-10 md:pt-14 pb-12">
+      <div class="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+        <div class="lg:col-span-6">
           <p class="font-bebas text-gold tracking-[0.26em] text-sm">TRAIN · CONNECT · GET DISCOVERED</p>
-          <h1 class="font-bebas text-mist tracking-wide text-5xl md:text-7xl leading-[0.92] mt-3">
+          <h1 class="font-bebas text-mist tracking-wide text-5xl md:text-6xl lg:text-7xl leading-[0.92] mt-3">
             A social sports network built to move your career forward.
           </h1>
-          <p class="text-dim mt-5 max-w-2xl leading-relaxed">
-            Grant Access brings training, community, and opportunities into one place—so athletes can build consistency,
-            find the right people, and show up ready when it matters.
+          <p class="text-dim mt-5 max-w-xl leading-relaxed">
+            Community, events, media, and sponsors in one dark, focused experience—on iPhone, Android, and web with the same account.
           </p>
-
           <div class="flex flex-col sm:flex-row gap-3 mt-7">
-            <a href="/app" class="px-5 py-3 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Open interactive web app</a>
-            <a href="/app" class="px-5 py-3 rounded-2xl border border-line bg-panel2 text-mist font-semibold text-sm text-center hover:bg-white/[0.05] transition-colors">Walk the product demo</a>
+            <a href="/app" class="px-6 py-3.5 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Login</a>
+            <a href="/help-center" class="px-6 py-3.5 rounded-2xl border border-line bg-panel2 text-mist font-semibold text-sm text-center hover:bg-white/[0.05] transition-colors">Help centre</a>
           </div>
-
-          <div class="mt-7 grid grid-cols-3 gap-3 max-w-xl">
+          <div class="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-xl">
             <div class="rounded-2xl border border-line bg-panel2 p-4">
               <p class="font-bebas text-gold tracking-[0.22em] text-xs">COMMUNITY</p>
-              <p class="text-mist font-semibold mt-2">Signal & accountability</p>
-              <p class="text-dim text-xs mt-1 leading-relaxed">Feed, reactions, DMs, follow requests—built for athletes.</p>
+              <p class="text-mist font-semibold text-sm mt-1">Feed & DMs</p>
             </div>
             <div class="rounded-2xl border border-line bg-panel2 p-4">
               <p class="font-bebas text-gold tracking-[0.22em] text-xs">EVENTS</p>
-              <p class="text-mist font-semibold mt-2">Show up & compete</p>
-              <p class="text-dim text-xs mt-1 leading-relaxed">Discover sessions, book, and manage tickets + check-in.</p>
+              <p class="text-mist font-semibold text-sm mt-1">Book & host</p>
             </div>
-            <div class="rounded-2xl border border-line bg-panel2 p-4">
-              <p class="font-bebas text-gold tracking-[0.22em] text-xs">MEDIA</p>
-              <p class="text-mist font-semibold mt-2">Proof of work</p>
-              <p class="text-dim text-xs mt-1 leading-relaxed">Upload training, share highlights, and build trust.</p>
+            <div class="rounded-2xl border border-line bg-panel2 p-4 col-span-2 sm:col-span-1">
+              <p class="font-bebas text-gold tracking-[0.22em] text-xs">PREMIUM</p>
+              <p class="text-mist font-semibold text-sm mt-1">One sub, all devices</p>
             </div>
           </div>
         </div>
 
-        <div class="md:col-span-5 relative">
-          <div class="shine"></div>
-          <div class="rounded-[1.75rem] border border-line bg-panel p-5 md:p-6">
-            <div class="flex items-center justify-between">
-              <p class="font-bebas text-gold tracking-[0.24em] text-sm">WHAT ATHLETES GET</p>
-              <span class="text-dim text-xs">Built for global access</span>
-            </div>
-            <div class="mt-4 space-y-3">
-              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p class="text-mist font-semibold">A simple daily loop</p>
-                <p class="text-dim text-sm mt-1">Train → share → get feedback → keep momentum.</p>
-              </div>
-              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p class="text-mist font-semibold">Opportunities, not noise</p>
-                <p class="text-dim text-sm mt-1">Sponsors, events, and community signals in one place.</p>
-              </div>
-              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                <p class="text-mist font-semibold">Designed for trust</p>
-                <p class="text-dim text-sm mt-1">Verified creator tools and premium gates to keep quality high.</p>
-              </div>
-            </div>
-            <div class="mt-5 flex flex-col sm:flex-row gap-3">
-              <a href="/privacy" class="flex-1 text-center px-4 py-3 rounded-2xl border border-gold/35 text-gold text-sm font-semibold hover:bg-gold/10 transition-colors">Privacy policy</a>
-              <a href="/terms" class="flex-1 text-center px-4 py-3 rounded-2xl border border-line text-mist text-sm font-semibold hover:bg-white/[0.05] transition-colors">Terms of service</a>
-            </div>
+        <div class="lg:col-span-6">
+          <p class="font-bebas text-gold tracking-[0.24em] text-sm mb-4 text-center lg:text-left">IN THE APP</p>
+          <div class="showcase-stack mx-auto max-w-md lg:max-w-none">
+            <div class="showcase-phone s1"><img src="/showcase/01.png" alt="Community feed" loading="lazy" /></div>
+            <div class="showcase-phone s2"><img src="/showcase/02.png" alt="Messages inbox" loading="lazy" /></div>
+            <div class="showcase-phone s3"><img src="/showcase/03.png" alt="Events list" loading="lazy" /></div>
+            <div class="showcase-phone s4"><img src="/showcase/04.png" alt="Sponsors" loading="lazy" /></div>
+            <div class="showcase-phone s5"><img src="/showcase/05.png" alt="Media browse" loading="lazy" /></div>
+            <div class="showcase-phone s6"><img src="/showcase/06.png" alt="Partner detail" loading="lazy" /></div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="mx-auto max-w-6xl px-5 pb-12 md:pb-16">
-      <div class="grid md:grid-cols-12 gap-4">
-        <a href="/how" class="md:col-span-4 rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
-          <p class="font-bebas text-gold tracking-[0.22em] text-xs">HOW IT WORKS</p>
-          <p class="text-mist font-semibold mt-2">A system that compounds</p>
-          <p class="text-dim text-sm mt-2">Plan → execute → prove → feedback → repeat.</p>
-          <p class="text-gold text-sm font-semibold mt-4">Read more →</p>
+    <section class="mx-auto max-w-6xl px-5 pb-14">
+      <div class="grid md:grid-cols-3 gap-4">
+        <a href="/help-center" class="rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
+          <p class="font-bebas text-gold tracking-[0.22em] text-xs">HELP</p>
+          <p class="text-mist font-semibold mt-2">Guides & FAQs</p>
+          <p class="text-dim text-sm mt-2">Search topics: premium, events, verification.</p>
         </a>
-        <a href="/features" class="md:col-span-4 rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
-          <p class="font-bebas text-gold tracking-[0.22em] text-xs">FEATURES</p>
-          <p class="text-mist font-semibold mt-2">Community, events, media</p>
-          <p class="text-dim text-sm mt-2">Everything athletes need—without the bloat.</p>
-          <p class="text-gold text-sm font-semibold mt-4">Explore →</p>
+        <a href="/contact-us" class="rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
+          <p class="font-bebas text-gold tracking-[0.22em] text-xs">CONTACT</p>
+          <p class="text-mist font-semibold mt-2">Human support</p>
+          <p class="text-dim text-sm mt-2">Billing, safety, and account requests.</p>
         </a>
-        <a href="/impact" class="md:col-span-4 rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
-          <p class="font-bebas text-gold tracking-[0.22em] text-xs">IMPACT</p>
-          <p class="text-mist font-semibold mt-2">Opportunity shouldn’t be geographic</p>
-          <p class="text-dim text-sm mt-2">Access, visibility, and trust—anywhere in the world.</p>
-          <p class="text-gold text-sm font-semibold mt-4">Why it matters →</p>
+        <a href="/live-chat" class="rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
+          <p class="font-bebas text-gold tracking-[0.22em] text-xs">LIVE CHAT</p>
+          <p class="text-mist font-semibold mt-2">AI help assistant</p>
+          <p class="text-dim text-sm mt-2">Instant answers; escalate when needed.</p>
         </a>
       </div>
     </section>
@@ -175,19 +168,15 @@
 
   <footer class="mx-auto max-w-6xl px-5 pb-12 pt-8 text-xs text-dim">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-line pt-6">
-      <p>© <span id="y"></span> Grant Access. <span class="text-dim/80">Built for athletes.</span></p>
+      <p>© <span id="y"></span> Grant Access.</p>
       <div class="flex flex-wrap items-center gap-4">
         <a class="hover:text-mist transition-colors" href="/privacy">Privacy</a>
         <a class="hover:text-mist transition-colors" href="/terms">Terms</a>
-        <a class="hover:text-mist transition-colors" href="/app">Demo</a>
-        <a class="hover:text-mist transition-colors" href="/app">Web app</a>
+        <a class="hover:text-mist transition-colors" href="/app">Login</a>
       </div>
     </div>
   </footer>
-
-  <script>
-    document.getElementById('y').textContent = new Date().getFullYear();
-  </script>
+  <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
   <script src="shared/site-transition.js"></script>
 </body>
 </html>

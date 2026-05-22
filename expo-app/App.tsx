@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { AccessibilityProvider } from './src/accessibility/AccessibilityContext';
 import { ActionBannerProvider } from './src/actionBanner/ActionBannerContext';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
@@ -35,19 +36,21 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
   }, [coreReady]);
 
   return (
-    <SubscriptionProvider>
-      <ActionBannerProvider>
-        <View style={styles.shell}>
-          {coreReady ? (
-            <AppNavigator />
-          ) : (
-            <View style={styles.bootLoader}>
-              <BootCircleLoader />
-            </View>
-          )}
-        </View>
-      </ActionBannerProvider>
-    </SubscriptionProvider>
+    <AccessibilityProvider>
+      <SubscriptionProvider>
+        <ActionBannerProvider>
+          <View style={styles.shell}>
+            {coreReady ? (
+              <AppNavigator />
+            ) : (
+              <View style={styles.bootLoader}>
+                <BootCircleLoader />
+              </View>
+            )}
+          </View>
+        </ActionBannerProvider>
+      </SubscriptionProvider>
+    </AccessibilityProvider>
   );
 }
 

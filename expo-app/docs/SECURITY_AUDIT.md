@@ -21,6 +21,31 @@ This document summarizes a **code-assisted security review** (not a formal penet
 | **`subscription_state` without RLS** | Table could be writable/readable too broadly via PostgREST depending on grants — client could tamper with `is_pro` if policies were absent. | **Implemented:** migration `012_subscription_state_rls.sql` + matching block in `backend/rls_policies.sql` — **select own row only** for `authenticated`; no client insert/update/delete. **Manual:** run migration on Supabase. |
 | **`dalton_verified` metadata** | `syncDaltonVerifiedFromProfileIfPremium` called `auth.updateUser` when client believed user was pro — **metadata is not a billing source of truth**; a modified client could try to flip flags when server said otherwise. | **Implemented:** if `subscription_state` row exists and `is_pro === false`, **do not** set `dalton_verified` in metadata. **Manual:** complete RevenueCat **webhook → `subscription_state`** so pro is server-driven; treat **entitlements in API** as authoritative for paid features. |
 
+| **Missing RevenueCat webhook** | Native purchases update RC SDK locally but **`subscription_state` may stay empty** without an RC webhook Edge Function — web Stripe path works; cross-platform premium can desync. | **Manual:** deploy RC webhook → upsert `subscription_state` by `app_user_id` (see `docs/REVENUECAT_BILLING_SETUP.md`). **Implemented:** `Purchases.logIn(supabaseUserId)` on session. |
+| **No in-app account deletion** | Apple App Store requires deletion when accounts exist; users must email support. | **Manual:** ship self-serve delete (Edge Function + UI) or document support SLA. |
+| **Stripe webhook single point** | Forged webhooks blocked by `STRIPE_WEBHOOK_SECRET`; misconfigured secret breaks billing. | **Manual:** rotate `whsec_` on compromise; monitor failed webhook deliveries in Stripe Dashboard. |
+
+---
+
+## Penetration-test perspective (significant weaknesses)
+
+Top findings an external tester would report, and fixes:
+
+| # | Weakness | Exploit / impact | Fix |
+|---|----------|------------------|-----|
+| 1 | **Client-only premium checks** on some flows | Modified app might show UI early; real writes should fail at RLS/API. | Enforce premium on **RPC / Edge Functions / RLS** for `INSERT` on events, media, proposals. |
+| 2 | **Broad profile read (authenticated)** | Scrape emails, bios, metadata at scale with one stolen session. | Column-level view + rate limits; CAPTCHA on sign-up. |
+| 3 | **Master delete + service role** | Stolen JWT + PIN or leaked service role → mass account deletion. | IP allowlist, audit log, separate break-glass credentials, MFA for admins. |
+| 4 | **CORS `*` on Edge Functions** | CSRF-style invocation from malicious sites if victim has valid JWT in browser. | Restrict `Access-Control-Allow-Origin` to `https://dalton-access.vercel.app`. |
+| 5 | **Ticket HMAC in `EXPO_PUBLIC_*`** | Secret in mobile bundle → forge QR tokens if same secret on server. | Server-only signing for production check-in; rotate secret. |
+| 6 | **No RC webhook** | User pays on iPhone, web still free (or reverse) until DB synced. | RC + Stripe webhooks both write `subscription_state`. |
+| 7 | **Placeholder legal / support emails** | Phishing trust issues; GDPR contact invalid. | Replace before launch; verify domain. |
+| 8 | **Supabase anon key in bundle** | Expected; abuse = RLS bypass attempts, credential stuffing. | RLS tests per table; Auth rate limits; leaked password protection on. |
+| 9 | **Storage bucket policies** | Direct upload URLs if policies too open. | Audit `media_assets` policies; virus scan pipeline for uploads. |
+| 10 | **Live chat shell** | No auth on `/live-chat` until widget added — bot spam to provider. | Rate limit; require login for chat; moderation. |
+
+**External tools:** Run [Supabase advisors](https://supabase.com/dashboard), Stripe radar, and optional Shannon on staging (`docs/SECURITY_AUDIT.md` § Agentic pentesting).
+
 ---
 
 ## Medium risk

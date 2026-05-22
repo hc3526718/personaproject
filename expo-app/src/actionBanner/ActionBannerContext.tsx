@@ -11,7 +11,6 @@ import {
 import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../designSystem';
-import { loadAccessibilityPrefs } from '../lib/accessibilityPrefs';
 
 type ShowFn = (title: string, body?: string) => void;
 
@@ -25,17 +24,6 @@ export function ActionBannerProvider({ children }: { children: ReactNode }) {
   const [body, setBody] = useState<string | undefined>(undefined);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduceMotionRef = useRef(false);
-
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const p = await loadAccessibilityPrefs();
-      if (alive) reduceMotionRef.current = Boolean(p.reducedMotion);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const hide = useCallback(() => {
     Animated.timing(translateY, {

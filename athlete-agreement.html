@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grant Access — Athlete Agreement</title>
+    <meta name="description" content="Program terms for athletes using Grant Access events, community, and training features." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="shared/theme.css" />
+    <link rel="stylesheet" href="shared/site-transition.css" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { ink: "#0A0A0A", gold: "#C8A84B", mist: "#D4D0C8", dim: "#9A9690", line: "rgba(255,255,255,0.09)", panel: "rgba(255,255,255,0.04)" },
+            fontFamily: { bebas: ['"Bebas Neue"', "sans-serif"], sans: ['"DM Sans"', "sans-serif"] },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: radial-gradient(1100px 820px at 12% -10%, rgba(200, 168, 75, 0.18), transparent 60%), var(--demo-bg);
+        color: var(--demo-text);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen antialiased">
+    <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
+      <div class="mx-auto max-w-5xl px-5 py-5 flex items-center justify-between gap-4">
+        <a href="/" class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</a>
+        <nav class="flex items-center gap-3 text-sm">
+          <a class="text-mist hover:text-white" href="/terms">Terms</a>
+          <a class="text-mist hover:text-white" href="/privacy">Privacy</a>
+          <a class="text-gold" href="/app">App</a>
+        </nav>
+      </div>
+    </header>
+    <main class="mx-auto max-w-5xl px-5 py-10">
+      <div class="rounded-3xl border border-line bg-panel p-6 md:p-10">
+        <p class="font-bebas text-gold tracking-[0.24em] text-sm">ATHLETE AGREEMENT</p>
+        <h1 class="font-bebas text-4xl md:text-5xl text-mist mt-2">Grant Access program terms</h1>
+        <p class="text-dim mt-4 max-w-3xl leading-relaxed">
+          By participating in Grant Access as an athlete or member, you agree to these program terms in addition to our
+          Terms of Service and Privacy Policy. Have counsel review before launch.
+        </p>
+        <div class="mt-10 space-y-8 leading-relaxed text-dim">
+          <section>
+            <h2 class="text-mist font-semibold text-lg">1. Eligibility & conduct</h2>
+            <p class="mt-2">
+              You must provide accurate profile information, respect other members, and follow event and community
+              rules set by hosts and Dalton administrators.
+            </p>
+          </section>
+          <section>
+            <h2 class="text-mist font-semibold text-lg">2. Events & bookings</h2>
+            <p class="mt-2">
+              Event attendance, ticketing, and refunds are governed by the host’s policies and applicable law. Grant
+              Access facilitates discovery and booking but does not guarantee third-party event outcomes.
+            </p>
+          </section>
+          <section>
+            <h2 class="text-mist font-semibold text-lg">3. Content you share</h2>
+            <p class="mt-2">
+              You retain ownership of posts and media you upload. You grant Grant Access a license to display and
+              operate the service (hosting, moderation, backups). Do not upload unlawful or infringing content.
+            </p>
+          </section>
+          <section>
+            <h2 class="text-mist font-semibold text-lg">4. Health & safety</h2>
+            <p class="mt-2">
+              Training and performance features are informational. Consult qualified professionals before changing
+              your training regimen. Grant Access is not a medical provider.
+            </p>
+          </section>
+          <section>
+            <h2 class="text-mist font-semibold text-lg">5. Contact</h2>
+            <p class="mt-2">Questions: <span class="text-mist">[support@grantaccess.app]</span></p>
+          </section>
+        </div>
+      </div>
+    </main>
+    <footer class="mx-auto max-w-5xl px-5 pb-12 pt-8 text-xs text-dim border-t border-line mt-8">
+      <p>© <span id="y"></span> Grant Access</p>
+    </footer>
+    <script>document.getElementById("y").textContent = new Date().getFullYear();</script>
+    <script src="shared/site-transition.js"></script>
+  </body>
+</html>

@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase';
+import type { AccessibilityPrefsCloud } from '../lib/accessibilityPrefs';
 
 /** Stored in `user_settings.preferences` (JSON). */
 export type UserPrefsDoc = {
@@ -13,6 +14,7 @@ export type UserPrefsDoc = {
     event_reminders?: boolean;
     community_mentions?: boolean;
   };
+  accessibility?: AccessibilityPrefsCloud;
 };
 
 export const DEFAULT_USER_PREFS: UserPrefsDoc = {
@@ -33,6 +35,7 @@ function mergePrefs(base: UserPrefsDoc, patch: Partial<UserPrefsDoc>): UserPrefs
   return {
     privacy: { ...base.privacy, ...patch.privacy },
     notification_channels: { ...base.notification_channels, ...patch.notification_channels },
+    accessibility: { ...base.accessibility, ...patch.accessibility },
   };
 }
 
@@ -73,7 +76,8 @@ export async function fetchUserPrefsDoc(userId: string): Promise<UserPrefsDoc> {
   const p = raw as Record<string, unknown>;
   const privacy = (p.privacy as UserPrefsDoc['privacy']) ?? {};
   const notification_channels = (p.notification_channels as UserPrefsDoc['notification_channels']) ?? {};
-  return mergePrefs(DEFAULT_USER_PREFS, { privacy, notification_channels });
+  const accessibility = (p.accessibility as UserPrefsDoc['accessibility']) ?? {};
+  return mergePrefs(DEFAULT_USER_PREFS, { privacy, notification_channels, accessibility });
 }
 
 /** Merge a partial patch, persist with retries. Fetches current row first so nested keys are not dropped. */
@@ -87,7 +91,8 @@ export async function patchUserPrefsDoc(userId: string, patch: Partial<UserPrefs
     const privacy = (raw.privacy as UserPrefsDoc['privacy']) ?? {};
     const notification_channels =
       (raw.notification_channels as UserPrefsDoc['notification_channels']) ?? {};
-    base = mergePrefs(DEFAULT_USER_PREFS, { privacy, notification_channels });
+    const accessibility = (raw.accessibility as UserPrefsDoc['accessibility']) ?? {};
+    base = mergePrefs(DEFAULT_USER_PREFS, { privacy, notification_channels, accessibility });
   }
   const merged = mergePrefs(base, patch);
   return upsertWithRetry(userId, merged as unknown as Record<string, unknown>);

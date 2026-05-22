@@ -123,4 +123,24 @@ export async function restorePurchases(): Promise<CustomerInfo | null> {
   }
 }
 
+/**
+ * Binds RevenueCat to the Supabase user id so App Store, Play, and Web Billing
+ * share one customer record (required for single subscription across platforms).
+ */
+export async function identifyRevenueCatUser(appUserId: string | null): Promise<void> {
+  const Purchases = tryPurchases();
+  if (!Purchases) return;
+  const ready = await initRevenueCat();
+  if (!ready) return;
+  try {
+    if (!appUserId?.trim()) {
+      await Purchases.logOut();
+      return;
+    }
+    await Purchases.logIn(appUserId.trim());
+  } catch (e) {
+    if (__DEV__) console.warn('[RevenueCat] identify user failed', e);
+  }
+}
+
 export { ENTITLEMENT_PREMIUM };

@@ -10,14 +10,17 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { isPremiumDemoEmail } from '../auth/demoAccounts';
 import {
-  customerHasPremium,
-  fetchCustomerInfo,
   initRevenueCat,
   restorePurchases,
+  customerHasPremium,
+  fetchCustomerInfo,
+  identifyRevenueCatUser,
 } from './revenueCat';
 import { getSupabase } from '../lib/supabase';
 import { syncDaltonVerifiedFromProfileIfPremium } from '../auth/userMetadataSupabase';
 import { PremiumSubscriptionThanksModal } from '../components/PremiumSubscriptionThanksModal';
+import { resolvePremiumAccess } from './resolvePremiumAccess';
+import { useStripeCheckoutReturn } from './useStripeCheckoutReturn';
 
 type SubscriptionContextValue = {
   isPro: boolean;
@@ -32,7 +35,7 @@ type SubscriptionContextValue = {
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { sessionEmail } = useAuth();
+  const { sessionEmail, user } = useAuth();
   const [isPro, setIsPro] = useState(false);
   const [busy, setBusy] = useState(true);
   const [premiumThanksVisible, setPremiumThanksVisible] = useState(false);
@@ -59,9 +62,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       if (s) await syncDaltonVerifiedFromProfileIfPremium(s, true);
       return;
     }
-    await initRevenueCat();
-    const info = await fetchCustomerInfo();
-    const pro = customerHasPremium(info);
+    const pro = await resolvePremiumAccess();
     setIsPro(pro);
     if (pro) {
       const s = getSupabase();
@@ -69,6 +70,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
     setBusy(false);
   }, [sessionEmail]);
+
+  const onStripeReturn = useCallback(
+    (kind: 'success' | 'cancel') => {
+      void refresh().then(() => {
+        if (kind === 'success') setPremiumThanksVisible(true);
+      });
+    },
+    [refresh],
+  );
+
+  useStripeCheckoutReturn(onStripeReturn);
 
   const restore = useCallback(async (): Promise<boolean> => {
     setBusy(true);
@@ -102,6 +114,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void identifyRevenueCatUser(user?.id ?? null);
+  }, [user?.id]);
 
   const value = useMemo(
     () => ({ isPro, busy, refresh, restore, notifyNewPremiumFromPaywall }),
