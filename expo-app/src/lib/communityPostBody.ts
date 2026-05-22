@@ -10,20 +10,23 @@ export function parsePostBody(body: string | null): { displayBody: string; event
   return { displayBody, eventId: m[1] };
 }
 
-/** Prefer real name parts, then display_name; avoid showing email-local as the primary label when we have better data. */
+/**
+ * Prefer saved display name (OAuth / signup form / edits), then legal name parts, then @username.
+ * Matches profile headline behavior so feed names stay in sync with Supabase `profiles.display_name`.
+ */
 export function formatAuthorDisplayName(
   p: Pick<ProfileRow, 'display_name' | 'first_name' | 'last_name' | 'username'> | null | undefined,
 ): string {
-  const u = (p as any)?.username;
-  if (typeof u === 'string' && u.trim()) return `@${u.trim()}`;
-  const first = p?.first_name?.trim();
-  const last = p?.last_name?.trim();
-  const combined = [first, last].filter(Boolean).join(' ').trim();
-  if (combined) return combined;
   const dn = p?.display_name?.trim();
   if (dn) {
     if (dn.includes('@')) return dn.split('@')[0]?.trim() || 'Member';
     return dn;
   }
+  const first = p?.first_name?.trim();
+  const last = p?.last_name?.trim();
+  const combined = [first, last].filter(Boolean).join(' ').trim();
+  if (combined) return combined;
+  const u = (p as { username?: string | null })?.username;
+  if (typeof u === 'string' && u.trim()) return `@${u.trim()}`;
   return 'Member';
 }

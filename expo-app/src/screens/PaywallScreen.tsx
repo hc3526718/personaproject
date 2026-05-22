@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
+import { StripePremiumPaywall } from '../components/StripePremiumPaywall';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
@@ -14,9 +15,10 @@ type Props = NativeStackScreenProps<ProfileStackParamList, 'Paywall'>;
 
 export function PaywallScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { busy, refresh, restore, notifyNewPremiumFromPaywall } = useSubscription();
+  const { busy, refresh, restore, notifyNewPremiumFromPaywall, isPro } = useSubscription();
   const [presenting, setPresenting] = useState(false);
   const paywallBusy = useRef(false);
+  const isWeb = Platform.OS === 'web';
 
   const showRevenueCatPaywall = useCallback(async () => {
     if (paywallBusy.current) return;
@@ -34,13 +36,56 @@ export function PaywallScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      if (isWeb) return undefined;
       void showRevenueCatPaywall();
-    }, [showRevenueCatPaywall]),
+    }, [isWeb, showRevenueCatPaywall]),
   );
 
   const openCustomerCenter = async () => {
     await presentRevenueCatCustomerCenter();
   };
+
+  if (isWeb) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <View style={styles.topBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            hitSlop={12}
+            onPress={() => navigation.goBack()}
+            style={styles.iconHit}
+          >
+            <FontAwesome name="chevron-left" size={22} color={DS.color.gold} />
+          </Pressable>
+          <Text style={styles.topTitle}>Premium</Text>
+          <View style={{ width: 28 }} />
+        </View>
+
+        <ScrollView contentContainerStyle={styles.webScroll} keyboardShouldPersistTaps="handled">
+          {busy ? (
+            <View style={styles.webLoader}>
+              <AppLoadingIndicator />
+            </View>
+          ) : isPro ? (
+            <View style={styles.webActive}>
+              <FontAwesome name="check-circle" size={48} color={DS.color.gold} />
+              <Text style={styles.activeTitle}>You have Premium</Text>
+              <Text style={styles.lead}>
+                Your subscription is active on this account. Open Dalton on any device while signed in
+                with the same email to use premium features.
+              </Text>
+              <Pressable style={styles.linkBtn} onPress={() => void refresh()}>
+                <Text style={styles.linkTxt}>Refresh status</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <StripePremiumPaywall />
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -73,9 +118,14 @@ export function PaywallScreen({ navigation }: Props) {
             <Pressable style={styles.linkBtn} onPress={() => void openCustomerCenter()}>
               <Text style={styles.linkTxt}>Manage subscription</Text>
             </Pressable>
-            <Pressable style={styles.linkBtn} onPress={() => void restore().then((gained) => {
-              if (gained) notifyNewPremiumFromPaywall(true);
-            })}>
+            <Pressable
+              style={styles.linkBtn}
+              onPress={() =>
+                void restore().then((gained) => {
+                  if (gained) notifyNewPremiumFromPaywall(true);
+                })
+              }
+            >
               <Text style={styles.linkTxt}>Restore purchases</Text>
             </Pressable>
           </>
@@ -98,7 +148,28 @@ const styles = StyleSheet.create({
   topTitle: {
     fontFamily: DS.font.bodyMedium,
     fontSize: 16,
-    color: DS.color.mist,
+    color: DS.color.screenTitle,
+  },
+  webScroll: {
+    flexGrow: 1,
+    paddingBottom: DS.space.xxl,
+  },
+  webLoader: {
+    flex: 1,
+    minHeight: 280,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webActive: {
+    alignItems: 'center',
+    paddingHorizontal: DS.space.xl,
+    paddingTop: DS.space.xxl,
+    gap: DS.space.md,
+  },
+  activeTitle: {
+    fontFamily: DS.font.heading,
+    fontSize: 28,
+    color: DS.color.white,
   },
   center: {
     flex: 1,

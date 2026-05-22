@@ -55,7 +55,7 @@ export function DaltonBootRiveDisplay({
   const h = flat.height ?? 280;
 
   return (
-    <View style={[styles.outer, style, { backgroundColor: BOOT_PAGE_BACKGROUND }]}>
+    <View style={[styles.outer, style, { backgroundColor: BOOT_PAGE_BACKGROUND, overflow: 'hidden' }]}>
       {createElement('iframe', {
         src: uri,
         title: 'Dalton animation',

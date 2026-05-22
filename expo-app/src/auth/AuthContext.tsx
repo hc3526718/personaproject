@@ -214,7 +214,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (Platform.OS === 'web') {
           const oauth = await completeWebOAuthSessionIfNeeded(supabase);
           if (oauth.error) {
-            authAlert('Google sign in', oauth.error);
+            const { data: afterOAuth } = await supabase.auth.getSession();
+            if (!afterOAuth.session) {
+              authAlert('Google sign in', oauth.error);
+            }
           }
         }
         const { data, error } = await supabase.auth.getSession();

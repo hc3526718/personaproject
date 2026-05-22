@@ -1,0 +1,330 @@
+{
+  "appName": "Dalton Access",
+  "themeId": "dalton-dark",
+  "locales": [
+    "en"
+  ],
+  "locale": "en",
+  "device": "iphone",
+  "orientation": "portrait",
+  "appIcon": "/app-icon.png",
+  "slidesByDevice": {
+    "iphone": [
+      {
+        "id": "s_mpbi8has_0",
+        "layout": "hero",
+        "label": {
+          "en": "DALTON ACCESS"
+        },
+        "headline": {
+          "en": "Speak with the community "
+        },
+        "screenshot": "/screenshots/uploaded/8c7b1f7b443c8510.png",
+        "transforms": {
+          "device": {
+            "x": 157.98787796372142,
+            "y": 747.5561104920434,
+            "width": 1013.6355043227666,
+            "height": 2064.96,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      },
+      {
+        "id": "s_mpbi8has_2",
+        "layout": "device-top",
+        "label": {
+          "en": "MESSAGING"
+        },
+        "headline": {
+          "en": "Verified coach\ninsights & communication"
+        },
+        "screenshot": "/screenshots/uploaded/fa3e8bfdb2ffdce3.png",
+        "inverted": true,
+        "transforms": {
+          "caption": {
+            "x": 100.79436987489532,
+            "y": 2064.96,
+            "width": 1108.8,
+            "height": 803.0400000000001,
+            "rotation": 0,
+            "zIndex": 4
+          },
+          "device": {
+            "x": 157.98787796372142,
+            "y": -133.01983599664993,
+            "width": 1013.6355043227666,
+            "height": 2064.96,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      },
+      {
+        "id": "s_mpbi8has_3",
+        "layout": "device-bottom",
+        "label": {
+          "en": "EVENTS"
+        },
+        "headline": {
+          "en": "Book to attend coached events"
+        },
+        "screenshot": "/screenshots/uploaded/f905a9f774918393.png",
+        "transforms": {
+          "device": {
+            "x": 153.18224783861672,
+            "y": 697.623698748953,
+            "width": 1013.6355043227666,
+            "height": 2064.96,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      },
+      {
+        "id": "s_mpbi8has_4",
+        "layout": "two-devices",
+        "label": {
+          "en": "SPONSORS"
+        },
+        "headline": {
+          "en": "Partner with\nDalton & beyond"
+        },
+        "screenshot": "/screenshots/uploaded/a33518e51e81b2fa.png",
+        "screenshotSecondary": "/screenshots/uploaded/c6a5132e806ab547.png",
+        "transforms": {
+          "caption": {
+            "x": 105.60000000000001,
+            "y": 229.44,
+            "width": 1108.8,
+            "height": 803.04,
+            "rotation": 0,
+            "zIndex": 4
+          },
+          "deviceSecondary": {
+            "x": 21.718232627198397,
+            "y": 675.8861278788172,
+            "width": 871.2,
+            "height": 1774.7929549902153,
+            "rotation": -5,
+            "zIndex": 2
+          },
+          "device": {
+            "x": 482.1224159844053,
+            "y": 961.7872602502092,
+            "width": 912.27195389049,
+            "height": 1858.4640000000002,
+            "rotation": 4,
+            "zIndex": 3
+          }
+        }
+      },
+      {
+        "id": "s_mpbi8has_5",
+        "layout": "device-top",
+        "label": {
+          "en": "MEDIA"
+        },
+        "headline": {
+          "en": "Post training\n& podcasts content series'"
+        },
+        "screenshot": "/screenshots/uploaded/21e8a29f8eef32c3.png",
+        "transforms": {
+          "caption": {
+            "x": 120.01689037531406,
+            "y": 2064.96,
+            "width": 1108.8,
+            "height": 803.0400000000001,
+            "rotation": 0,
+            "zIndex": 4
+          },
+          "device": {
+            "x": 172.40476833903546,
+            "y": -123.40857574644046,
+            "width": 1013.6355043227666,
+            "height": 2064.96,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      }
+    ],
+    "android": [
+      {
+        "id": "s_mpbi8has_7",
+        "layout": "hero",
+        "label": {
+          "en": "DALTON ACCESS"
+        },
+        "headline": {
+          "en": "Your sport\ncommunity"
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/01.png"
+      },
+      {
+        "id": "s_mpbi8has_8",
+        "layout": "device-bottom",
+        "label": {
+          "en": "COMMUNITY"
+        },
+        "headline": {
+          "en": "Talk with athletes\nlike you"
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/02.png"
+      },
+      {
+        "id": "s_mpbi8has_9",
+        "layout": "device-top",
+        "label": {
+          "en": "COACHING"
+        },
+        "headline": {
+          "en": "Verified coach\ninsights"
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/03.png",
+        "inverted": true
+      },
+      {
+        "id": "s_mpbi8has_a",
+        "layout": "device-bottom",
+        "label": {
+          "en": "EVENTS"
+        },
+        "headline": {
+          "en": "Book Dalton\nevents"
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/04.png"
+      },
+      {
+        "id": "s_mpbi8has_b",
+        "layout": "two-devices",
+        "label": {
+          "en": "SPONSORS"
+        },
+        "headline": {
+          "en": "Partner with\nDalton & beyond"
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/05.png",
+        "screenshotSecondary": "/screenshots/android/phone/{locale}/06.png"
+      },
+      {
+        "id": "s_mpbi8has_c",
+        "layout": "device-top",
+        "label": {
+          "en": "MEDIA"
+        },
+        "headline": {
+          "en": "Pitch training\n& podcasts"
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/06.png"
+      },
+      {
+        "id": "s_mpbi8has_d",
+        "layout": "no-device",
+        "label": {
+          "en": "AND MORE"
+        },
+        "headline": {
+          "en": "Messaging\nCoaches\nEvents\nSponsors\nMedia"
+        },
+        "screenshot": ""
+      }
+    ],
+    "ipad": [
+      {
+        "id": "s_mpbi8has_e",
+        "layout": "hero",
+        "label": {
+          "en": "DALTON ACCESS"
+        },
+        "headline": {
+          "en": "Built for\nathletes."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/01.png"
+      },
+      {
+        "id": "s_mpbi8has_f",
+        "layout": "device-bottom",
+        "label": {
+          "en": "COMMUNITY"
+        },
+        "headline": {
+          "en": "Connect on\nthe big screen."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/02.png"
+      },
+      {
+        "id": "s_mpbi8has_g",
+        "layout": "device-top",
+        "label": {
+          "en": "COACHING"
+        },
+        "headline": {
+          "en": "Grow with\nverified coaches."
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/03.png",
+        "inverted": true
+      }
+    ],
+    "android-7": [
+      {
+        "id": "s_mpbi8has_h",
+        "layout": "hero",
+        "label": {
+          "en": "DALTON ACCESS"
+        },
+        "headline": {
+          "en": "Sport community\nin your pocket."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/01.png"
+      },
+      {
+        "id": "s_mpbi8has_i",
+        "layout": "split-landscape",
+        "label": {
+          "en": "EVENTS"
+        },
+        "headline": {
+          "en": "Meet talent\nin your sport."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/04.png"
+      }
+    ],
+    "android-10": [
+      {
+        "id": "s_mpbi8has_j",
+        "layout": "hero",
+        "label": {
+          "en": "DALTON ACCESS"
+        },
+        "headline": {
+          "en": "Dalton Access\nfor tablets."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/01.png"
+      },
+      {
+        "id": "s_mpbi8has_k",
+        "layout": "split-landscape",
+        "label": {
+          "en": "EVENTS"
+        },
+        "headline": {
+          "en": "Meet talent\nin your sport."
+        },
+        "screenshot": "/screenshots/android/phone/{locale}/04.png"
+      }
+    ],
+    "feature-graphic": [
+      {
+        "id": "s_mpbi8has_l",
+        "layout": "feature-graphic",
+        "label": {},
+        "headline": {
+          "en": "Sport community · Coach insights · Events · Sponsors · Media"
+        },
+        "screenshot": ""
+      }
+    ]
+  }
+}

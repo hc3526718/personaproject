@@ -22,7 +22,7 @@ Premium resolution (`resolvePremiumAccess.ts`):
 ## 1. RevenueCat dashboard
 
 1. **Project** — note Project ID (`EXPO_PUBLIC_REVENUECAT_PROJECT_ID` for tooling only).  
-2. **Entitlement** — identifier must match `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID` (default: `premium`).  
+2. **Entitlement** — App Store products use **Grant Access Pro**; the app and webhook accept both `premium` and `Grant Access Pro` (see `EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID`).  
 3. **iOS app** — App Store Connect bundle id; public SDK key → `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` (`appl_…`).  
 4. **Android app** — Play Console app; public SDK key → `EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID` (`goog_…`).  
 5. **Offering** — lookup key e.g. `Official Offering` → optional `EXPO_PUBLIC_REVENUECAT_OFFERING_IDENTIFIER`.  

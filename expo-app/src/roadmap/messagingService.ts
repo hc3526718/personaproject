@@ -1,3 +1,11 @@
+import {
+  getScreenshotConversationIdForPeer,
+  getScreenshotMessagesForConversation,
+  isScreenshotSampleConversationId,
+  isScreenshotSamplePeerId,
+  mergeScreenshotConversationSummaries,
+} from '../data/appStoreScreenshotSamples';
+import { isAppStoreScreenshotMode } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import type { ConversationRow, MessageRow } from './types';
 
@@ -12,6 +20,9 @@ export type ConversationSummary = {
 
 /** Requires `get_or_create_dm` in backend/rpc_get_or_create_dm.sql + conversation RLS. */
 export async function getOrCreateConversationId(peerUserId: string): Promise<string | null> {
+  if (isAppStoreScreenshotMode() && isScreenshotSamplePeerId(peerUserId)) {
+    return getScreenshotConversationIdForPeer(peerUserId);
+  }
   const supabase = getSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase.rpc('get_or_create_dm', { other_user_id: peerUserId });
@@ -21,12 +32,16 @@ export async function getOrCreateConversationId(peerUserId: string): Promise<str
 
 export async function listConversationSummaries(userId: string): Promise<ConversationSummary[]> {
   const supabase = getSupabase();
-  if (!supabase) return [];
+  if (!supabase) {
+    return isAppStoreScreenshotMode() ? mergeScreenshotConversationSummaries([]) : [];
+  }
   const { data: mine, error: e1 } = await supabase
     .from('conversation_participants')
     .select('conversation_id')
     .eq('user_id', userId);
-  if (e1 || !mine?.length) return [];
+  if (e1 || !mine?.length) {
+    return isAppStoreScreenshotMode() ? mergeScreenshotConversationSummaries([]) : [];
+  }
   const convIds = [...new Set(mine.map((m: { conversation_id: string }) => m.conversation_id))];
   const { data: allParts, error: e2 } = await supabase
     .from('conversation_participants')
@@ -86,7 +101,8 @@ export async function listConversationSummaries(userId: string): Promise<Convers
     });
   }
   summaries.sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''));
-  return summaries;
+  if (!isAppStoreScreenshotMode()) return summaries;
+  return mergeScreenshotConversationSummaries(summaries);
 }
 
 export async function listMyConversations(userId: string): Promise<ConversationRow[]> {
@@ -99,7 +115,23 @@ export async function listMyConversations(userId: string): Promise<ConversationR
   }));
 }
 
-export async function listMessages(conversationId: string, limit = 50): Promise<MessageRow[]> {
+export async function listMessages(
+  conversationId: string,
+  limit = 50,
+  viewingUserId?: string,
+): Promise<MessageRow[]> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleConversationId(conversationId)) {
+    let uid = viewingUserId;
+    if (!uid) {
+      const supabase = getSupabase();
+      if (supabase) {
+        const { data } = await supabase.auth.getUser();
+        uid = data.user?.id;
+      }
+    }
+    if (!uid) uid = '00000000-0000-4000-8000-000000000099';
+    return getScreenshotMessagesForConversation(conversationId, uid, limit);
+  }
   const supabase = getSupabase();
   if (!supabase) return [];
   const { data, error } = await supabase
@@ -117,6 +149,9 @@ export async function sendTextMessage(
   senderId: string,
   body: string,
 ): Promise<MessageRow | null> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleConversationId(conversationId)) {
+    return null;
+  }
   const supabase = getSupabase();
   if (!supabase) return null;
   const trimmed = body.trim();

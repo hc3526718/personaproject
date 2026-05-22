@@ -8,6 +8,7 @@ export type CommunityStackParamList = {
   CommunitySearchResults: { query?: string };
   /** Read-only profile for another member (from feed tap). */
   PublicProfile: { userId: string };
+  FollowUserList: { userId: string; mode: 'followers' | 'following' };
   /** Local share log (gold icons) for posts shared from the community tab. */
   ShareActivity: undefined;
   Notifications: undefined;
@@ -26,10 +27,11 @@ export type MediaStackParamList = {
   MediaLibrary: undefined;
   MediaSearch: undefined;
   MediaSearchResults: { query?: string } | undefined;
-  MediaPlayer: { title?: string };
+  MediaPlayer: { title?: string; mediaId?: string };
   SavedMedia: undefined;
   MediaCommunityFeed: undefined;
   CreateMediaContent: undefined;
+  MediaProposalWizard: undefined;
 };
 
 export type BookingConfirmParams = {
@@ -73,6 +75,8 @@ export type EventsStackParamList = {
 export type SponsorsStackParamList = {
   SponsorListings: undefined;
   BrandPartner: { pageId?: string } | undefined;
+  SponsorProposalWizard: undefined;
+  MySponsorProposals: undefined;
 };
 
 export type ProfileStackParamList = {
@@ -88,7 +92,11 @@ export type ProfileStackParamList = {
   PrivacyVisibility: undefined;
   NotificationPrefs: undefined;
   FollowRequests: undefined;
+  /** Same stack as profile so follower/following lists can open member profiles. */
+  PublicProfile: { userId: string };
+  FollowUserList: { userId: string; mode: 'followers' | 'following' };
   Support: undefined;
+  HelpCentre: undefined;
   Legal: undefined;
   EditBasic: undefined;
   EditProfilePhoto: undefined;
@@ -103,6 +111,9 @@ export type ProfileStackParamList = {
   MasterPartnerOffers: undefined;
   CreatePartnerOffer: undefined;
   MasterUserAccounts: undefined;
+  MasterProposalQueue: undefined;
+  MasterProposalDetail: { proposalId: string };
+  MyProposals: undefined;
 };
 
 /** Shown before sign-in — no tab bar. */

@@ -19,12 +19,16 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { webhookCors as cors } from '../_shared/cors.ts';
 
-const ENTITLEMENT_ID = (Deno.env.get('REVENUECAT_ENTITLEMENT_ID') ?? 'premium').trim() || 'premium';
+const PREMIUM_ENTITLEMENT_IDS = (
+  Deno.env.get('REVENUECAT_ENTITLEMENT_IDS') ??
+  Deno.env.get('REVENUECAT_ENTITLEMENT_ID') ??
+  'premium,Grant Access Pro'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 const GRANT_EVENTS = new Set([
   'INITIAL_PURCHASE',
@@ -61,7 +65,7 @@ async function setPremium(
 
 function hasPremiumEntitlement(entitlementIds: unknown): boolean {
   if (!Array.isArray(entitlementIds)) return false;
-  return entitlementIds.some((id) => String(id) === ENTITLEMENT_ID);
+  return entitlementIds.some((id) => PREMIUM_ENTITLEMENT_IDS.includes(String(id)));
 }
 
 function verifyAuthorization(req: Request): boolean {

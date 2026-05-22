@@ -53,7 +53,7 @@ import {
 } from '../roadmap/liveDataService';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
-import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
+import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
 import type { EventRow } from '../roadmap/types';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
@@ -357,12 +357,20 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
       setBookings([]);
       return;
     }
-    const [evs, bks] = await Promise.all([
-      listAllEvents(100),
-      listBookingsWithEventsForUser(user.id),
-    ]);
-    setDbEvents(evs);
-    setBookings(bks);
+    try {
+      const [evs, bks] = await Promise.all([
+        listAllEvents(100),
+        listBookingsWithEventsForUser(user.id),
+      ]);
+      setDbEvents(evs);
+      setBookings(bks);
+      const { cacheBookedEvents } = await import('../lib/offline/eventsOffline');
+      await cacheBookedEvents(user.id, bks);
+    } catch {
+      const { loadCachedBookedEvents } = await import('../lib/offline/eventsOffline');
+      const cached = await loadCachedBookedEvents(user.id);
+      if (cached?.length) setBookings(cached);
+    }
   }, [demoSession, user, refreshSavedKeys]);
 
   const { refreshing, onRefresh } = useRefreshWithMinimum(reloadData, 4000);
@@ -437,22 +445,16 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
             style={styles.eventsIconBtnSm}
             hitSlop={8}
             onPress={() => {
-              if (!premiumEventTools) {
-                void (async () => {
-                  const { premiumActivated } = await presentRevenueCatPaywall();
-                  await refreshSubscription();
-                  if (premiumActivated) notifyNewPremiumFromPaywall(true);
-                })();
-                return;
-              }
-              if (!user?.daltonVerified) {
-                Alert.alert(
-                  'Dalton verified',
-                  'Verification is required before you can publish events.',
-                );
-                return;
-              }
-              navigation.navigate('CreateEvent');
+              void (async () => {
+                const allowed = await gatePremiumFeatureAccess({
+                  navigation,
+                  isPro,
+                  user,
+                  refreshSubscription,
+                  notifyNewPremiumFromPaywall,
+                });
+                if (allowed === 'allowed') navigation.navigate('CreateEvent');
+              })();
             }}
           >
             <FontAwesome name="plus" size={15} color={DS.color.text} />
@@ -472,13 +474,13 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
             </Pressable>
           ) : null}
           <Pressable
-            style={styles.eventsIconBtnSm}
+            style={styles.eventsIconBtnSearch}
             hitSlop={8}
             onPress={() => navigation.navigate('EventsSearch')}
             accessibilityRole="button"
             accessibilityLabel="Search events"
           >
-            <FontAwesome name="search" size={17} color={DS.color.text} />
+            <FontAwesome name="search" size={18} color={DS.color.text} />
           </Pressable>
         </View>
       </View>
@@ -866,6 +868,15 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const supabaseEventId = route.params?.supabaseEventId;
   const [dbEvent, setDbEvent] = useState<EventRow | null>(null);
 
+  const storageKeyEarly =
+    route.params?.eventStorageKey ??
+    unifiedEventSlug({
+      source: route.params?.supabaseEventId ? 'db' : 'html',
+      id: route.params?.supabaseEventId,
+      title: route.params?.title ?? 'event',
+      dateHint: route.params?.dateShort ?? '',
+    });
+
   useFocusEffect(
     useCallback(() => {
       if (!supabaseEventId) {
@@ -881,6 +892,21 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         alive = false;
       };
     }, [supabaseEventId]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return undefined;
+      void (async () => {
+        const { rememberSeenEvent } = await import('../lib/offline/eventsOffline');
+        await rememberSeenEvent(user.id, {
+          eventStorageKey: storageKeyEarly,
+          title: route.params?.title ?? 'Event',
+          imageUri: route.params?.imageUri,
+        });
+      })();
+      return undefined;
+    }, [user?.id, storageKeyEarly, route.params?.title, route.params?.imageUri]),
   );
 
   const displayTitle = dbEvent?.title ?? title;
@@ -1677,6 +1703,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  eventsIconBtnSearch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: DS.color.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   bellCircle: {
     width: 40,
     height: 40,
@@ -1697,7 +1731,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eventsBody: {
-    padding: DS.space.lg,
+    paddingHorizontal: DS.space.base,
+    paddingTop: DS.space.md,
     flexGrow: 1,
   },
   sectionKicker: {
@@ -1859,29 +1894,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   evFilterChip: {
-    height: 44,
-    minWidth: 110,
-    paddingHorizontal: DS.space.base,
+    paddingHorizontal: DS.space.lg,
+    paddingVertical: DS.space.sm + 2,
     borderRadius: DS.radius.pill,
-    backgroundColor: '#121212',
+    backgroundColor: DS.color.surfaceAlt,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: DS.color.borderHairlineLight,
+    minWidth: 110,
     alignItems: 'center',
     justifyContent: 'center',
   },
   evFilterChipOn: {
+    backgroundColor: DS.color.gold,
     borderColor: DS.color.gold,
-    backgroundColor: DS.color.goldTint10,
-    borderWidth: 1,
   },
   evFilterChipTxt: {
-    fontSize: 12,
+    color: DS.color.text,
     fontWeight: '600',
-    color: DS.color.textMuted,
-    letterSpacing: 0.5,
+    fontSize: 14,
   },
   evFilterChipTxtOn: {
-    color: DS.color.gold,
+    color: DS.color.background,
   },
   evDiscoverKicker: {
     fontFamily: DS.font.bodyMedium,

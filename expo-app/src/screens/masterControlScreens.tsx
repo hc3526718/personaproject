@@ -15,6 +15,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
+import { AppleHeroButton } from '../components/AppleHeroButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AppButton } from '../components/ui/AppButton';
 import { DS } from '../designSystem';
@@ -35,7 +36,7 @@ type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<Prof
 
 export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, signInWithGoogle, logout } = useAuth();
   const supabase = getSupabase();
   const [step, setStep] = useState(0);
   const [password, setPassword] = useState('');
@@ -45,6 +46,7 @@ export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
   /** Apple/Google-only accounts have no password identity — re-verify with email OTP instead. */
   const [gateLoading, setGateLoading] = useState(true);
   const [hasPasswordIdentity, setHasPasswordIdentity] = useState(true);
+  const [hasGoogleIdentity, setHasGoogleIdentity] = useState(false);
 
   const email = user?.email?.trim() ?? '';
 
@@ -62,7 +64,9 @@ export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
       if (cancelled) return;
       const ids = data.user?.identities ?? [];
       const emailIdentity = ids.some((i) => i.provider === 'email');
+      const googleIdentity = ids.some((i) => i.provider === 'google');
       setHasPasswordIdentity(emailIdentity);
+      setHasGoogleIdentity(googleIdentity);
       if (!emailIdentity && (data.user?.email ?? user?.email ?? '').trim().length > 0) {
         setStep(1);
       } else {
@@ -86,6 +90,25 @@ export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
     }
     setStep(1);
   }, [supabase, email, password]);
+
+  const runGoogleReverify = useCallback(async () => {
+    if (!supabase || !user?.id) return;
+    const expectedUserId = user.id;
+    setBusy(true);
+    const ok = await signInWithGoogle();
+    setBusy(false);
+    if (!ok) return;
+    const { data } = await supabase.auth.getUser();
+    if (data.user?.id !== expectedUserId) {
+      Alert.alert(
+        'Wrong Google account',
+        'Use the same Google account linked to this Dalton profile, then open Master control again.',
+      );
+      await logout();
+      return;
+    }
+    setStep(2);
+  }, [supabase, user?.id, signInWithGoogle, logout]);
 
   const sendEmailCode = useCallback(async () => {
     if (!supabase || !email) return;
@@ -143,7 +166,9 @@ export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
 
   const leadText = hasPasswordIdentity
     ? 'Three steps: password, email one-time code, then your 6-digit master PIN (stored hashed on the server).'
-    : 'Google and Apple sign-in do not use an account password here. Confirm access with a code sent to your email, then enter your 6-digit master PIN.';
+    : hasGoogleIdentity
+      ? 'Google sign-in accounts can re-verify with Google (or use a code sent to your email), then enter your 6-digit master PIN.'
+      : 'Google and Apple sign-in do not use an account password here. Confirm access with a code sent to your email, then enter your 6-digit master PIN.';
 
   if (gateLoading) {
     return (
@@ -185,7 +210,17 @@ export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
         ) : null}
         {step === 1 ? (
           <View style={styles.card}>
-            <Text style={styles.label}>Email code</Text>
+            <Text style={styles.label}>Confirm it&apos;s you</Text>
+            {hasGoogleIdentity ? (
+              <AppleHeroButton style={{ marginBottom: DS.space.md }} onPress={() => void runGoogleReverify()} loading={busy}>
+                Continue with Google
+              </AppleHeroButton>
+            ) : null}
+            {hasGoogleIdentity ? (
+              <Text style={[styles.lead, { marginBottom: DS.space.md }]}>
+                Or verify by email instead:
+              </Text>
+            ) : null}
             <AppButton
               label={busy ? 'Sending…' : 'Send code to email'}
               onPress={() => void sendEmailCode()}
@@ -265,6 +300,11 @@ export function MasterControlHubScreen({ navigation }: PProps<'MasterControlHub'
         <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterUserAccounts')}>
           <FontAwesome name="users" size={18} color={DS.color.gold} />
           <Text style={styles.menuTxt}>Accounts & deletion</Text>
+          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+        </Pressable>
+        <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterProposalQueue')}>
+          <FontAwesome name="inbox" size={18} color={DS.color.gold} />
+          <Text style={styles.menuTxt}>Review proposals</Text>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
         <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterSetPin')}>

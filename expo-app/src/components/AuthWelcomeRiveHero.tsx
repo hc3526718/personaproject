@@ -40,7 +40,7 @@ export function AuthWelcomeRiveHero({ height = 220 }: Props) {
         <>
           {!riveVisible ? (
             <View style={styles.loaderOverlay}>
-              <AppLoadingIndicator />
+              <AppLoadingIndicator size={40} />
             </View>
           ) : null}
           <View style={[styles.riveWrap, !riveVisible && styles.riveHidden]}>

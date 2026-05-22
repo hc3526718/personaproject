@@ -23,9 +23,8 @@ import { DS } from '../designSystem';
 import type { EventsStackParamList } from '../navigation/types';
 import { insertCommunityEvent } from '../roadmap/liveDataService';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
-import { customerHasPremium, fetchCustomerInfo } from '../subscriptions/revenueCat';
+import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { endsAtAfterDuration, parseEventStartIso } from '../lib/eventFormParse';
 import { getSupabase } from '../lib/supabase';
 
@@ -102,18 +101,16 @@ export function CreateEventScreen({ navigation }: Props) {
       if (tierOk) return undefined;
       let cancelled = false;
       void (async () => {
-        const { premiumActivated } = await presentRevenueCatPaywall();
-        if (cancelled) return;
-        await refreshSubscription();
-        if (cancelled) return;
-        const info = await fetchCustomerInfo();
-        const proNow = customerHasPremium(info);
-        const admin = user?.role === 'admin' || user?.role === 'super_admin';
-        if (!proNow && !admin) {
-          navigation.goBack();
-          return;
+        const allowed = await gatePremiumFeatureAccess({
+          navigation,
+          isPro,
+          user,
+          refreshSubscription,
+          notifyNewPremiumFromPaywall,
+        });
+        if (cancelled || allowed !== 'allowed') {
+          if (!cancelled) navigation.goBack();
         }
-        if (premiumActivated) notifyNewPremiumFromPaywall(true);
       })();
       return () => {
         cancelled = true;

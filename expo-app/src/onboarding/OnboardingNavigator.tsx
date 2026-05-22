@@ -20,6 +20,7 @@ import { useAuth } from '../auth/AuthContext';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { DS } from '../designSystem';
+import { capitalizeProfileTag, capitalizeProfileTags } from '../lib/capitalizeProfileTags';
 import { getSupabase } from '../lib/supabase';
 import type { OnboardingStackParamList } from '../navigation/types';
 import { BOOT_USE_RIVE, getDaltonBootRiveDisplayMode } from '../constants/riveBoot';
@@ -446,8 +447,8 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
         last_name: draft.lastName.trim(),
         display_name: displayName,
         persona_role: draft.personaRole,
-        sports: draft.sports,
-        primary_sport: draft.primarySport || (draft.sports[0] ?? null),
+        sports: capitalizeProfileTags(draft.sports),
+        primary_sport: capitalizeProfileTag(draft.primarySport || (draft.sports[0] ?? '')),
         discovery_source: draft.discoverySource,
         onboarding_completed_at: new Date().toISOString(),
       },

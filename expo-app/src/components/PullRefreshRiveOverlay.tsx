@@ -15,7 +15,7 @@ export function PullRefreshRiveOverlay({
   return (
     <View pointerEvents="none" style={[styles.overlay, { paddingTop: topInset }]}>
       <View style={styles.box}>
-        <AppLoadingIndicator />
+        <AppLoadingIndicator size={40} />
       </View>
     </View>
   );

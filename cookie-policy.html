@@ -27,18 +27,9 @@
       }
     </style>
   </head>
-  <body class="min-h-screen antialiased">
-    <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
-      <div class="mx-auto max-w-5xl px-5 py-5 flex items-center justify-between gap-4">
-        <a href="/" class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</a>
-        <nav class="flex items-center gap-3 text-sm">
-          <a class="text-mist hover:text-white" href="/privacy">Privacy</a>
-          <a class="text-mist hover:text-white" href="/terms">Terms</a>
-          <a class="text-gold" href="/app">App</a>
-        </nav>
-      </div>
-    </header>
-    <main class="mx-auto max-w-5xl px-5 py-10">
+  <body class="min-h-screen antialiased dalton-marketing">
+    <div id="dalton-staggered-menu"></div>
+    <main class="mx-auto max-w-5xl px-5 pt-20 pb-10">
       <div class="rounded-3xl border border-line bg-panel p-6 md:p-10">
         <p class="font-bebas text-gold tracking-[0.24em] text-sm">COOKIE POLICY</p>
         <h1 class="font-bebas text-4xl md:text-5xl text-mist mt-2">Cookies & similar technologies</h1>
@@ -76,6 +67,7 @@
       <p>© <span id="y"></span> Grant Access</p>
     </footer>
     <script>document.getElementById("y").textContent = new Date().getFullYear();</script>
+    <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-transition.js"></script>
   </body>
 </html>

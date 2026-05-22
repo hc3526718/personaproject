@@ -50,30 +50,11 @@
     }
   </style>
 </head>
-<body class="min-h-screen antialiased">
+<body class="min-h-screen antialiased dalton-marketing">
   <div class="grain"></div>
+  <div id="dalton-staggered-menu"></div>
 
-  <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
-    <div class="mx-auto max-w-6xl px-5 py-5 flex items-center justify-between gap-4">
-      <a href="/" class="flex items-baseline gap-3">
-        <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
-        <span class="text-dim text-xs tracking-wide">How it works</span>
-      </a>
-      <nav class="hidden md:flex items-center gap-5 text-sm">
-        <a class="text-mist hover:text-white transition-colors" href="/how">How</a>
-        <a class="text-dim hover:text-mist transition-colors" href="/features">Features</a>
-        <a class="text-dim hover:text-mist transition-colors" href="/impact">Impact</a>
-        <a class="text-dim hover:text-mist transition-colors" href="/privacy">Privacy</a>
-        <a class="text-dim hover:text-mist transition-colors" href="/terms">Terms</a>
-      </nav>
-      <div class="flex items-center gap-3">
-        <a href="/app" class="hidden sm:inline-flex px-4 py-2 rounded-xl border border-gold/40 text-gold text-sm hover:bg-gold/10 transition-colors">View demo</a>
-        <a href="/app" class="inline-flex px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold hover:opacity-90 transition-opacity">Open web app</a>
-      </div>
-    </div>
-  </header>
-
-  <main class="mx-auto max-w-6xl px-5 py-10 md:py-14">
+  <main class="mx-auto max-w-6xl px-5 pt-20 pb-10 md:pt-24 md:pb-14">
     <p class="font-bebas text-gold tracking-[0.26em] text-sm">A SYSTEM THAT COMPOUNDS</p>
     <h1 class="font-bebas text-mist tracking-wide text-5xl md:text-6xl leading-[0.95] mt-3">
       Train with intention.<br/>Connect with standards.<br/>Turn consistency into opportunity.
@@ -128,6 +109,7 @@
   </footer>
 
   <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
+  <script src="shared/marketing-chrome.js"></script>
   <script src="shared/site-transition.js"></script>
 </body>
 </html>

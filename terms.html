@@ -52,25 +52,11 @@
       }
     </style>
   </head>
-  <body class="min-h-screen antialiased">
+  <body class="min-h-screen antialiased dalton-marketing">
     <div class="grain"></div>
+    <div id="dalton-staggered-menu"></div>
 
-    <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
-      <div class="mx-auto max-w-5xl px-5 py-5 flex items-center justify-between gap-4">
-        <a href="/" class="group flex items-baseline gap-3">
-          <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
-          <span class="text-dim text-xs tracking-wide group-hover:text-mist transition-colors">Legal</span>
-        </a>
-        <nav class="flex items-center gap-3 text-sm">
-          <a class="text-dim hover:text-mist transition-colors" href="/privacy">Privacy</a>
-          <a class="text-mist hover:text-white transition-colors" href="/terms">Terms</a>
-          <span class="text-dim/60">·</span>
-          <a class="text-gold hover:opacity-90 transition-opacity" href="/app">Demo</a>
-        </nav>
-      </div>
-    </header>
-
-    <main class="mx-auto max-w-5xl px-5 py-10">
+    <main class="mx-auto max-w-5xl px-5 pt-20 pb-10">
       <div class="rounded-3xl border border-line bg-panel p-6 md:p-10">
         <p class="font-bebas text-gold tracking-[0.24em] text-sm">TERMS OF SERVICE</p>
         <h1 class="font-bebas text-4xl md:text-6xl tracking-wide text-mist mt-2">Built for athletes. Written clearly.</h1>
@@ -184,6 +170,7 @@
     <script>
       document.getElementById("y").textContent = new Date().getFullYear();
     </script>
+    <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-transition.js"></script>
   </body>
 </html>

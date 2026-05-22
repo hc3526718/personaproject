@@ -1,5 +1,21 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import {
+  getScreenshotEventById,
+  getScreenshotOfferPageById,
+  getScreenshotSampleCommunityPosts,
+  getScreenshotSampleEvents,
+  getScreenshotSampleMediaAssets,
+  getScreenshotSampleOfferPages,
+  mergeScreenshotCommunityPosts,
+  mergeScreenshotEvents,
+  mergeScreenshotMedia,
+  mergeScreenshotSubscriptionPages,
+  isScreenshotSampleEventId,
+  isScreenshotSampleMediaId,
+  isScreenshotSampleOfferPageId,
+} from '../data/appStoreScreenshotSamples';
 import { formatAuthorDisplayName } from '../lib/communityPostBody';
+import { isAppStoreScreenshotMode } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import type {
   EventRow,
@@ -149,13 +165,23 @@ export async function enrichPostWithAuthor(row: PostRow): Promise<CommunityPostF
 
 export async function listRecentCommunityPosts(limit = 30): Promise<CommunityPostFeedRow[]> {
   const supabase = getSupabase();
-  if (!supabase) return [];
+  if (!supabase) {
+    return isAppStoreScreenshotMode()
+      ? (getScreenshotSampleCommunityPosts() as CommunityPostFeedRow[]).slice(0, limit)
+      : [];
+  }
   const { data: posts, error } = await supabase
     .from('posts')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (error || !posts?.length) return [];
+  if (error) return [];
+  if (!posts?.length) {
+    if (isAppStoreScreenshotMode()) {
+      return (getScreenshotSampleCommunityPosts() as CommunityPostFeedRow[]).slice(0, limit);
+    }
+    return [];
+  }
   const rows = posts as PostRow[];
   const authorIds = [...new Set(rows.map((p) => p.author_id))];
   const { data: profs } = await supabase
@@ -192,7 +218,9 @@ export async function listRecentCommunityPosts(limit = 30): Promise<CommunityPos
       author_avatar_url: pr?.avatar_url ?? null,
     };
   });
-  return await attachMediaForPosts(withAuthors);
+  const withMedia = await attachMediaForPosts(withAuthors);
+  if (!isAppStoreScreenshotMode()) return withMedia;
+  return (mergeScreenshotCommunityPosts(withMedia) as CommunityPostFeedRow[]).slice(0, limit);
 }
 
 export async function insertCommunityPost(authorId: string, body: string): Promise<PostRow | null> {
@@ -227,9 +255,14 @@ function escapeIlike(s: string): string {
 /** Full-text-ish search on post body (live Supabase). */
 export async function searchCommunityPosts(query: string, limit = 40): Promise<CommunityPostFeedRow[]> {
   const supabase = getSupabase();
-  if (!supabase) return [];
   const q = query.trim();
   if (!q) return [];
+  if (!supabase) {
+    if (!isAppStoreScreenshotMode()) return [];
+    const samples = getScreenshotSampleCommunityPosts() as CommunityPostFeedRow[];
+    const qLower = q.toLowerCase();
+    return samples.filter((row) => (row.body ?? '').toLowerCase().includes(qLower)).slice(0, limit);
+  }
   const pattern = `%${escapeIlike(q)}%`;
   const { data: posts, error } = await supabase
     .from('posts')
@@ -237,18 +270,25 @@ export async function searchCommunityPosts(query: string, limit = 40): Promise<C
     .ilike('body', pattern)
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (error || !posts?.length) return [];
+  if (error) return [];
+  const qLower = q.toLowerCase();
+  if (!posts?.length) {
+    if (!isAppStoreScreenshotMode()) return [];
+    const samples = getScreenshotSampleCommunityPosts() as CommunityPostFeedRow[];
+    return samples.filter((row) => (row.body ?? '').toLowerCase().includes(qLower)).slice(0, limit);
+  }
   const rows = posts as PostRow[];
   const authorIds = [...new Set(rows.map((p) => p.author_id))];
   const { data: profs } = await supabase
     .from('profiles')
-    .select('id, display_name, first_name, last_name, avatar_url')
+    .select('id, display_name, first_name, last_name, username, avatar_url')
     .in('id', authorIds);
   type Prof = {
     id: string;
     display_name: string | null;
     first_name: string | null;
     last_name: string | null;
+    username?: string | null;
     avatar_url: string | null;
   };
   const map = new Map(
@@ -259,6 +299,7 @@ export async function searchCommunityPosts(query: string, limit = 40): Promise<C
           display_name: r.display_name,
           first_name: r.first_name,
           last_name: r.last_name,
+          username: (r as Prof).username,
         }),
         avatar_url: r.avatar_url,
       },
@@ -272,11 +313,20 @@ export async function searchCommunityPosts(query: string, limit = 40): Promise<C
       author_avatar_url: pr?.avatar_url ?? null,
     };
   });
-  return await attachMediaForPosts(withAuthors);
+  const withMedia = await attachMediaForPosts(withAuthors);
+  if (!isAppStoreScreenshotMode()) return withMedia;
+  const merged = mergeScreenshotCommunityPosts(withMedia) as CommunityPostFeedRow[];
+  return merged.filter((row) => (row.body ?? '').toLowerCase().includes(qLower)).slice(0, limit);
 }
 
 export async function getEventsByIds(ids: string[]): Promise<Map<string, Pick<EventRow, 'id' | 'title'>>> {
   const out = new Map<string, Pick<EventRow, 'id' | 'title'>>();
+  if (isAppStoreScreenshotMode()) {
+    for (const id of ids) {
+      const ev = getScreenshotEventById(id);
+      if (ev) out.set(id, { id: ev.id, title: ev.title });
+    }
+  }
   const supabase = getSupabase();
   if (!supabase || ids.length === 0) return out;
   const unique = [...new Set(ids)];
@@ -289,31 +339,47 @@ export async function getEventsByIds(ids: string[]): Promise<Map<string, Pick<Ev
 }
 
 export async function listUpcomingEvents(limit = 30): Promise<EventRow[]> {
+  const sortAsc = (rows: EventRow[]) =>
+    [...rows].sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   const supabase = getSupabase();
-  if (!supabase) return [];
+  if (!supabase) {
+    return isAppStoreScreenshotMode() ? sortAsc(getScreenshotSampleEvents()).slice(0, limit) : [];
+  }
   const { data, error } = await supabase
     .from('events')
     .select('*')
     .order('starts_at', { ascending: true })
     .limit(limit);
-  if (error || !data) return [];
-  return data as EventRow[];
+  if (error) return isAppStoreScreenshotMode() ? sortAsc(getScreenshotSampleEvents()).slice(0, limit) : [];
+  const rows = (data ?? []) as EventRow[];
+  const merged = isAppStoreScreenshotMode() ? mergeScreenshotEvents(rows) : rows;
+  return sortAsc(merged).slice(0, limit);
 }
 
 /** All events for browse / filters (newest first — client can re-sort). */
 export async function listAllEvents(limit = 80): Promise<EventRow[]> {
+  const sortDesc = (rows: EventRow[]) =>
+    [...rows].sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime());
   const supabase = getSupabase();
-  if (!supabase) return [];
+  if (!supabase) {
+    return isAppStoreScreenshotMode() ? sortDesc(getScreenshotSampleEvents()).slice(0, limit) : [];
+  }
   const { data, error } = await supabase
     .from('events')
     .select('*')
     .order('starts_at', { ascending: false })
     .limit(limit);
-  if (error || !data) return [];
-  return data as EventRow[];
+  if (error) return isAppStoreScreenshotMode() ? sortDesc(getScreenshotSampleEvents()).slice(0, limit) : [];
+  const rows = (data ?? []) as EventRow[];
+  const merged = isAppStoreScreenshotMode() ? mergeScreenshotEvents(rows) : rows;
+  return sortDesc(merged).slice(0, limit);
 }
 
 export async function getEventById(id: string): Promise<EventRow | null> {
+  if (isAppStoreScreenshotMode()) {
+    const sample = getScreenshotEventById(id);
+    if (sample) return sample;
+  }
   const supabase = getSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
@@ -357,6 +423,7 @@ export async function insertCommunityEvent(row: InsertCommunityEventInput): Prom
 }
 
 export async function deleteCommunityEvent(eventId: string): Promise<boolean> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleEventId(eventId)) return false;
   const supabase = getSupabase();
   if (!supabase) return false;
   const { error } = await supabase.from('events').delete().eq('id', eventId);
@@ -365,17 +432,27 @@ export async function deleteCommunityEvent(eventId: string): Promise<boolean> {
 
 export async function listSubscriptionOfferPages(limit = 100): Promise<SubscriptionOfferPageRow[]> {
   const supabase = getSupabase();
-  if (!supabase) return [];
+  if (!supabase) {
+    return isAppStoreScreenshotMode() ? getScreenshotSampleOfferPages().slice(0, limit) : [];
+  }
   const { data, error } = await supabase
     .from('subscription_offer_pages')
     .select('*')
     .order('sort_order', { ascending: true })
     .limit(limit);
-  if (error || !data) return [];
-  return data as SubscriptionOfferPageRow[];
+  if (error) {
+    return isAppStoreScreenshotMode() ? getScreenshotSampleOfferPages().slice(0, limit) : [];
+  }
+  const rows = (data ?? []) as SubscriptionOfferPageRow[];
+  if (!isAppStoreScreenshotMode()) return rows;
+  return mergeScreenshotSubscriptionPages(rows).slice(0, limit);
 }
 
 export async function getSubscriptionOfferPageById(id: string): Promise<SubscriptionOfferPageRow | null> {
+  if (isAppStoreScreenshotMode()) {
+    const sample = getScreenshotOfferPageById(id);
+    if (sample) return sample;
+  }
   const supabase = getSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase
@@ -420,6 +497,7 @@ export async function insertSubscriptionOfferPage(
 }
 
 export async function deleteSubscriptionOfferPage(id: string): Promise<boolean> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleOfferPageId(id)) return false;
   const supabase = getSupabase();
   if (!supabase) return false;
   const { error } = await supabase.from('subscription_offer_pages').delete().eq('id', id);
@@ -427,6 +505,7 @@ export async function deleteSubscriptionOfferPage(id: string): Promise<boolean> 
 }
 
 export async function deleteMediaAsset(assetId: string): Promise<boolean> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleMediaId(assetId)) return false;
   const supabase = getSupabase();
   if (!supabase) return false;
   const { error } = await supabase.from('media_assets').delete().eq('id', assetId);
@@ -436,14 +515,20 @@ export async function deleteMediaAsset(assetId: string): Promise<boolean> {
 /** Latest media visible under RLS (public + own + master). */
 export async function listBrowseMediaAssets(limit = 80): Promise<MediaAssetRow[]> {
   const supabase = getSupabase();
-  if (!supabase) return [];
+  if (!supabase) {
+    return isAppStoreScreenshotMode() ? getScreenshotSampleMediaAssets().slice(0, limit) : [];
+  }
   const { data, error } = await supabase
     .from('media_assets')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (error || !data) return [];
-  return data as MediaAssetRow[];
+  if (error) {
+    return isAppStoreScreenshotMode() ? getScreenshotSampleMediaAssets().slice(0, limit) : [];
+  }
+  const rows = (data ?? []) as MediaAssetRow[];
+  if (!isAppStoreScreenshotMode()) return rows;
+  return mergeScreenshotMedia(rows).slice(0, limit);
 }
 
 export async function listProfilesBrief(

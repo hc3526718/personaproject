@@ -4,7 +4,7 @@ import { DS } from '../designSystem';
 function buildSteps(includePassword: boolean): string[] {
   const unlockLine = includePassword
     ? 'Unlock with your account password, then the email verification code, then your 6-digit Master PIN.'
-    : 'If you use Google or Apple sign-in, skip the password: confirm with the email verification code, then your 6-digit Master PIN.';
+    : 'If you use Google sign-in, you can re-verify with Google from Master verification (or use the email code). Then enter your 6-digit Master PIN.';
   return [
     'Your account must have Master access enabled on your Dalton profile (admin / database).',
     'In the app, open Profile → Master control.',

@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppleHeroButton } from './AppleHeroButton';
 import { DS } from '../designSystem';
+import { capitalizeProfileTag, capitalizeProfileTags } from '../lib/capitalizeProfileTags';
 import { getSupabase } from '../lib/supabase';
 import { DISCOVERY_OPTIONS, PERSONA_OPTIONS, SPORT_OPTIONS } from '../onboarding/onboardingCopy';
 import {
@@ -157,8 +158,8 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
         last_name: ln,
         display_name: displayName,
         persona_role: personaRole,
-        sports,
-        primary_sport: primarySport.trim(),
+        sports: capitalizeProfileTags(sports),
+        primary_sport: capitalizeProfileTag(primarySport.trim()),
         discovery_source: discoverySource,
         onboarding_completed_at: new Date().toISOString(),
       },

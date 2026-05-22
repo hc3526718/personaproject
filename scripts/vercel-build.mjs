@@ -52,7 +52,19 @@ function runExpoExport() {
   }
 }
 
+function runMarketingUiBuild() {
+  const marketingDir = join(root, 'marketing-ui');
+  console.log('[vercel-build] Building marketing-ui (StaggeredMenu + CardSwap)');
+  execSync('npm install && npm run build', {
+    cwd: marketingDir,
+    env: process.env,
+    stdio: 'inherit',
+    encoding: 'utf8',
+  });
+}
+
 async function main() {
+  runMarketingUiBuild();
   runExpoExport();
 
   await mkdir(outDir, { recursive: true });

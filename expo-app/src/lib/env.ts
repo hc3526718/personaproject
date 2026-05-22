@@ -121,3 +121,9 @@ export function getMasterDeleteUserEdgeUrl(): string {
   const base = getSupabaseUrl().replace(/\/$/, '');
   return `${base}/functions/v1/master-delete-user`;
 }
+
+/** Self-serve account deletion (JWT + confirm phrase DELETE). */
+export function getDeleteOwnAccountEdgeUrl(): string {
+  const base = getSupabaseUrl().replace(/\/$/, '');
+  return `${base}/functions/v1/delete-own-account`;
+}

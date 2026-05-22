@@ -81,3 +81,8 @@ Use [capacitor.config.json](capacitor.config.json) as a starting point; run `npx
 ## iOS / Android safe areas
 
 Layouts use generous top padding (`pt-12` etc.). The **Flows** chip and fallback dock use `env(safe-area-inset-*)` from [shared/theme.css](shared/theme.css). On real devices, verify nothing is clipped under notches or home indicators.
+
+## MCP (Cursor / IDE): Ruflo + reasoning notes
+
+- **Ruflo** ([ruvnet/ruflo](https://github.com/ruvnet/ruflo)) is registered as an MCP server in `.vscode/mcp.json` and `config/mcporter.json` (`npx ruflo@latest mcp start`).
+- See **[docs/MCP_RUFLO_AND_REASONING.md](docs/MCP_RUFLO_AND_REASONING.md)** for setup notes and a concise synthesis of **[gstack](https://github.com/garrytan/gstack)** patterns useful for future reasoning-based product work.

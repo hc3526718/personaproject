@@ -25,17 +25,9 @@
       .article.hidden { display: none; }
     </style>
   </head>
-  <body class="min-h-screen antialiased">
-    <header class="sticky top-0 z-20 border-b border-line bg-ink/80 backdrop-blur-xl">
-      <div class="mx-auto max-w-4xl px-5 py-4 flex items-center justify-between gap-4">
-        <a href="/" class="flex items-center gap-3">
-          <img src="/showcase/dalton_logo.png" alt="" class="h-9 w-9 rounded-lg" width="36" height="36" />
-          <span class="font-bebas text-gold text-sm tracking-[0.22em]">GRANT ACCESS</span>
-        </a>
-        <a href="/app" class="px-4 py-2 rounded-xl bg-gold text-ink text-sm font-semibold">Login</a>
-      </div>
-    </header>
-    <main class="mx-auto max-w-4xl px-5 py-10">
+  <body class="min-h-screen antialiased dalton-marketing">
+    <div id="dalton-staggered-menu"></div>
+    <main class="mx-auto max-w-4xl px-5 pt-20 pb-10">
       <p class="font-bebas text-gold tracking-[0.24em] text-sm">HELP CENTRE</p>
       <h1 class="font-bebas text-4xl md:text-5xl text-mist mt-2">How can we help?</h1>
       <div class="mt-6 relative">
@@ -93,6 +85,7 @@
       if (q) searchEl.value = q;
       renderArticles(searchEl.value);
     </script>
+    <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-transition.js"></script>
   </body>
 </html>

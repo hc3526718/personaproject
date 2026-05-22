@@ -112,6 +112,10 @@ async function tryImplicitSessionFromReturnUrl(
   return !error;
 }
 
+function isPkceVerifierMissingError(message: string): boolean {
+  return /code verifier not found/i.test(message);
+}
+
 /** Read PKCE `code` from the current browser URL (OAuth callback on web). */
 export function readOAuthCodeFromWebLocation(): string | null {
   if (typeof window === 'undefined') return null;
@@ -128,6 +132,9 @@ export function cleanupWebAuthUrlAfterSignIn(): void {
   window.history.replaceState({}, document.title, nextPath);
 }
 
+let webOAuthExchangePromise: Promise<{ exchanged: boolean; error?: string }> | null =
+  null;
+
 /**
  * Exchange OAuth callback `code` for a session on web.
  * Must run before stripping `?code=` from the URL.
@@ -138,20 +145,44 @@ export async function completeWebOAuthSessionIfNeeded(
   if (Platform.OS !== 'web' || typeof window === 'undefined') {
     return { exchanged: false };
   }
-  const returnUrl = window.location.href;
-  const code = parseOAuthCodeFromReturnUrl(returnUrl);
-  if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { exchanged: true, error: error.message };
-    cleanupWebAuthUrlAfterSignIn();
-    return { exchanged: true };
+  if (webOAuthExchangePromise) return webOAuthExchangePromise;
+
+  webOAuthExchangePromise = (async () => {
+    const returnUrl = window.location.href;
+    const code = parseOAuthCodeFromReturnUrl(returnUrl);
+    if (code) {
+      const { data: existing } = await supabase.auth.getSession();
+      if (existing.session) {
+        cleanupWebAuthUrlAfterSignIn();
+        return { exchanged: true };
+      }
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        if (isPkceVerifierMissingError(error.message)) {
+          const { data: after } = await supabase.auth.getSession();
+          if (after.session) {
+            cleanupWebAuthUrlAfterSignIn();
+            return { exchanged: true };
+          }
+        }
+        return { exchanged: true, error: error.message };
+      }
+      cleanupWebAuthUrlAfterSignIn();
+      return { exchanged: true };
+    }
+    const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, returnUrl);
+    if (implicitOk) {
+      cleanupWebAuthUrlAfterSignIn();
+      return { exchanged: true };
+    }
+    return { exchanged: false };
+  })();
+
+  try {
+    return await webOAuthExchangePromise;
+  } finally {
+    webOAuthExchangePromise = null;
   }
-  const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, returnUrl);
-  if (implicitOk) {
-    cleanupWebAuthUrlAfterSignIn();
-    return { exchanged: true };
-  }
-  return { exchanged: false };
 }
 
 export async function signInWithGoogleOAuth(

@@ -17,12 +17,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { deleteOwnAccount } from '../auth/accountDeletionService';
 import { syncDaltonVerifiedFromProfileIfPremium } from '../auth/userMetadataSupabase';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import { isSupabaseConfigured } from '../lib/env';
+import { formatAuthorDisplayName } from '../lib/communityPostBody';
 import { getSupabase } from '../lib/supabase';
 import type { ProfileStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
@@ -30,6 +32,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import type { ProfileRow } from '../roadmap/types';
 import { fetchProfileByUserId } from '../roadmap/profileService';
+import { getFollowCounts } from '../roadmap/followService';
+import { uploadProfileImage } from '../lib/profileImageUpload';
 import {
   checkUsernameAvailable,
   isValidUsernameFormat,
@@ -42,6 +46,42 @@ type SectionDetailRoute = RouteProp<ProfileStackParamList, 'EditProfileSectionDe
 
 function isLiveUser(user: { id: string } | null | undefined): boolean {
   return Boolean(isSupabaseConfigured() && user?.id && !user.id.startsWith('demo-'));
+}
+
+function sportDedupeKeys(
+  primarySport: string | null | undefined,
+  sports: string[] | null | undefined,
+): Set<string> {
+  const s = new Set<string>();
+  const add = (x?: string | null) => {
+    const t = x?.trim().toLowerCase();
+    if (t) s.add(t);
+  };
+  add(primarySport);
+  for (const x of sports ?? []) add(x);
+  return s;
+}
+
+/** Drop interests that duplicate primary / competing sport chips; title-case labels. */
+function interestsForProfileDisplay(
+  interests: string[] | null | undefined,
+  primarySport: string | null | undefined,
+  sports: string[] | null | undefined,
+): string[] {
+  const exclude = sportDedupeKeys(primarySport, sports);
+  const out: string[] = [];
+  for (const raw of interests ?? []) {
+    const t = raw.trim();
+    if (!t) continue;
+    if (exclude.has(t.toLowerCase())) continue;
+    const cap = t
+      .split(/[\s_-]+/)
+      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
+      .filter(Boolean)
+      .join(' ');
+    if (cap) out.push(cap);
+  }
+  return out;
 }
 
 function computeProfileCompletion(p: ProfileRow | null): { pct: number; hint: string } {
@@ -68,6 +108,8 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
   const { user } = useAuth();
   const { isPro } = useSubscription();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [bannerZoomOpen, setBannerZoomOpen] = useState(false);
   const live = isLiveUser(user);
 
   useFocusEffect(
@@ -75,11 +117,19 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
       let alive = true;
       void (async () => {
         if (!live || !user?.id) {
-          if (alive) setProfile(null);
+          if (alive) {
+            setProfile(null);
+            setFollowCounts({ followers: 0, following: 0 });
+          }
           return;
         }
-        const row = await fetchProfileByUserId(user.id);
-        if (alive) setProfile(row);
+        const [row, counts] = await Promise.all([
+          fetchProfileByUserId(user.id),
+          getFollowCounts(user.id),
+        ]);
+        if (!alive) return;
+        setProfile(row);
+        setFollowCounts(counts);
       })();
       return () => {
         alive = false;
@@ -87,12 +137,17 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
     }, [live, user?.id]),
   );
 
-  const displayName =
-    (profile?.display_name?.trim() ||
-      `${profile?.first_name ?? ''} ${profile?.last_name ?? ''}`.trim() ||
-      user?.email?.split('@')[0] ||
-      'Member')
-      .toUpperCase();
+  const displayName = useMemo(() => {
+    if (!profile) return user?.email?.split('@')[0] ?? 'Member';
+    const label = formatAuthorDisplayName(profile);
+    if (label !== 'Member') return label;
+    return user?.email?.split('@')[0] ?? 'Member';
+  }, [profile, user?.email]);
+
+  const interestLabels = useMemo(
+    () => interestsForProfileDisplay(profile?.interests, profile?.primary_sport, profile?.sports),
+    [profile?.interests, profile?.primary_sport, profile?.sports],
+  );
 
   const hasCustomAvatar = Boolean(profile?.avatar_url?.trim());
   const avatarSource = hasCustomAvatar
@@ -113,21 +168,26 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
         contentContainerStyle={[styles.profileScroll, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
+        <View
           style={[
             styles.profileBannerBleed,
             { marginTop: -insets.top, height: 228 + Math.max(insets.top, 0) },
           ]}
-          onPress={() => {
-            // Banner uploads will be wired to Storage later. For now, keep empty.
-          }}
+          pointerEvents="box-none"
         >
-          {bannerSource ? (
-            <Image source={bannerSource} style={styles.bannerImgBleed} resizeMode="cover" />
-          ) : (
-            <View style={styles.bannerEmpty} />
-          )}
-          <View style={styles.bannerScrim} />
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => {
+              if (bannerSource) setBannerZoomOpen(true);
+            }}
+          >
+            {bannerSource ? (
+              <Image source={bannerSource} style={styles.bannerImgBleed} resizeMode="cover" />
+            ) : (
+              <View style={styles.bannerEmpty} />
+            )}
+          </Pressable>
+          <View style={styles.bannerScrim} pointerEvents="none" />
           <Pressable
             style={[styles.bannerSettingsFAB, { top: insets.top + 36 }]}
             hitSlop={8}
@@ -143,7 +203,7 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
             <FontAwesome name="camera" size={14} color={DS.color.background} />
             <Text style={styles.bannerEditTxt}> Edit banner</Text>
           </Pressable>
-        </Pressable>
+        </View>
         <View style={[styles.avatarWrap, !hasCustomAvatar && styles.avatarWrapPlaceholder]}>
           <View style={!hasCustomAvatar ? styles.avatarRing : styles.avatarInnerPlain}>
             <Image source={avatarSource} style={styles.avatar} />
@@ -184,6 +244,30 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
           ) : null}
         </View>
 
+        {live && user?.id ? (
+          <View style={styles.followStatsRow}>
+            <Pressable
+              onPress={() => navigation.navigate('FollowUserList', { userId: user.id, mode: 'followers' })}
+              hitSlop={8}
+            >
+              <Text style={styles.followStatsTxt}>
+                <Text style={styles.followStatsNum}>{followCounts.followers}</Text>
+                {' Followers'}
+              </Text>
+            </Pressable>
+            <Text style={styles.followStatsSep}> · </Text>
+            <Pressable
+              onPress={() => navigation.navigate('FollowUserList', { userId: user.id, mode: 'following' })}
+              hitSlop={8}
+            >
+              <Text style={styles.followStatsTxt}>
+                <Text style={styles.followStatsNum}>{followCounts.following}</Text>
+                {' Following'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <Text style={[styles.sectionTitleKicker, styles.sectionBlockFirst]}>BIO</Text>
         <Pressable style={styles.sectionCard} onPress={() => navigation.navigate('EditProfileSections')}>
           <Text style={styles.sectionBody}>
@@ -195,9 +279,9 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
         <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>INTERESTS</Text>
         <Pressable style={styles.sectionCard} onPress={() => navigation.navigate('EditProfileSections')}>
           <Text style={styles.sectionBody}>
-            {profile?.interests?.length ? profile.interests.join(' • ') : 'Nothing added yet.'}
+            {interestLabels.length ? interestLabels.join(' • ') : 'Nothing added yet.'}
           </Text>
-          {!profile?.interests?.length ? <Text style={styles.sectionCta}>Add interests →</Text> : null}
+          {!interestLabels.length ? <Text style={styles.sectionCta}>Add interests →</Text> : null}
         </Pressable>
 
         <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>HIGHLIGHTS</Text>
@@ -212,6 +296,14 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
           <Text style={styles.sectionMuted}>Optional but recommended.</Text>
         </View>
       </ScrollView>
+
+      <Modal visible={bannerZoomOpen} transparent animationType="fade" onRequestClose={() => setBannerZoomOpen(false)}>
+        <Pressable style={styles.bannerZoomBackdrop} onPress={() => setBannerZoomOpen(false)}>
+          {bannerSource ? (
+            <Image source={bannerSource} style={styles.bannerZoomImg} resizeMode="contain" />
+          ) : null}
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -302,8 +394,20 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
         ]
       : []),
     {
+      title: 'Help centre',
+      sub: 'Guides & troubleshooting (works offline)',
+      icon: 'book' as const,
+      onPress: () => navigation.navigate('HelpCentre'),
+    },
+    {
+      title: 'My proposals',
+      sub: 'Media & sponsor submission status',
+      icon: 'file-text-o' as const,
+      onPress: () => navigation.navigate('MyProposals'),
+    },
+    {
       title: 'Support',
-      sub: 'Help center and contact',
+      sub: 'Contact the Dalton team',
       icon: 'life-ring' as const,
       onPress: () => navigation.navigate('Support'),
     },
@@ -356,13 +460,74 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
         </Pressable>
         <Pressable
           style={styles.deleteAccountWrap}
-          onPress={() =>
+          onPress={() => {
+            if (!isSupabaseConfigured() || !user || user.id.startsWith('demo-')) {
+              Alert.alert(
+                'Delete account',
+                'Sign in with a live account to delete it here, or contact Support.',
+              );
+              return;
+            }
+            const confirmDelete = async (phrase: string) => {
+              const client = getSupabase();
+              if (!client) return;
+              const { data } = await client.auth.getSession();
+              const token = data.session?.access_token;
+              if (!token) {
+                Alert.alert('Delete account', 'Session expired. Sign in again and retry.');
+                return;
+              }
+              const result = await deleteOwnAccount(token, phrase);
+              if (result.ok) {
+                await logout();
+                Alert.alert('Account deleted', 'Your account has been removed.');
+              } else {
+                Alert.alert('Could not delete account', result.message);
+              }
+            };
             Alert.alert(
               'Delete account',
-              'To remove your account, contact support from the Support screen. This action is not completed in-app yet.',
-              [{ text: 'OK' }],
-            )
-          }
+              'This permanently deletes your account and profile data. Subscriptions must be cancelled in the App Store or Google Play separately.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Continue',
+                  style: 'destructive',
+                  onPress: () => {
+                    if (Platform.OS === 'ios') {
+                      Alert.prompt(
+                        'Type DELETE to confirm',
+                        'This cannot be undone.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: (text) => void confirmDelete(text ?? ''),
+                          },
+                        ],
+                        'plain-text',
+                        '',
+                      );
+                    } else {
+                      Alert.alert(
+                        'Final confirmation',
+                        'Delete your account permanently?',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete forever',
+                            style: 'destructive',
+                            onPress: () => void confirmDelete('DELETE'),
+                          },
+                        ],
+                      );
+                    }
+                  },
+                },
+              ],
+            );
+          }}
         >
           <Text style={styles.deleteAccountTxt}>Delete Account</Text>
         </Pressable>
@@ -456,6 +621,12 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
       else Alert.alert('Save failed', error.message);
       return;
     }
+    await supabase.auth.updateUser({
+      data: {
+        display_name: displayName.trim(),
+        full_name: displayName.trim(),
+      },
+    });
     setToast(true);
   };
 
@@ -598,14 +769,88 @@ const HEADLINE_BADGES = [
 
 export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'>) {
   const insets = useSafeAreaInsets();
-  const [cropMode, setCropMode] = useState(false);
+  const { user } = useAuth();
+  const supabase = getSupabase();
+  const live = isLiveUser(user);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        if (!live || !user?.id) return;
+        const p = await fetchProfileByUserId(user.id);
+        if (!alive) return;
+        const url = p?.avatar_url?.trim() || null;
+        setAvatarUri(url);
+        setLocalPreview(url);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [live, user?.id]),
+  );
 
   useEffect(() => {
     if (!toast) return undefined;
     const t = setTimeout(() => setToast(false), 3000);
     return () => clearTimeout(t);
   }, [toast]);
+
+  const pickPhoto = useCallback(async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to choose a profile photo.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+    if (!res.canceled && res.assets[0]?.uri) setLocalPreview(res.assets[0].uri);
+  }, []);
+
+  const savePhoto = useCallback(async () => {
+    if (!supabase || !user?.id || !live || !localPreview) return;
+    setBusy(true);
+    let url = localPreview;
+    if (!localPreview.startsWith('http')) {
+      const uploaded = await uploadProfileImage(user.id, localPreview, 'avatar');
+      if (!uploaded) {
+        setBusy(false);
+        Alert.alert('Upload failed', 'Could not upload profile photo.');
+        return;
+      }
+      url = uploaded;
+    }
+    const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id);
+    setBusy(false);
+    if (error) {
+      Alert.alert('Save failed', error.message);
+      return;
+    }
+    setAvatarUri(url);
+    setToast(true);
+  }, [live, localPreview, supabase, user?.id]);
+
+  const removePhoto = useCallback(async () => {
+    if (!supabase || !user?.id || !live) return;
+    const { error } = await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
+    if (error) {
+      Alert.alert('Remove failed', error.message);
+      return;
+    }
+    setAvatarUri(null);
+    setLocalPreview(null);
+    setToast(true);
+  }, [live, supabase, user?.id]);
+
+  const displayUri = localPreview || avatarUri || PHOTO_EDIT_URI;
 
   return (
     <View style={styles.root}>
@@ -623,39 +868,29 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
         <View style={styles.photoHero}>
           <View style={styles.photoGoldRing}>
             <View style={styles.photoInnerCircle}>
-              <Image source={{ uri: PHOTO_EDIT_URI }} style={styles.photoInnerImg} />
-              {cropMode ? <View style={styles.photoCropOverlay} pointerEvents="none" /> : null}
+              <Image source={{ uri: displayUri }} style={styles.photoInnerImg} />
             </View>
           </View>
-          <Pressable style={styles.photoCameraFab}>
+          <Pressable style={styles.photoCameraFab} onPress={() => void pickPhoto()}>
             <FontAwesome name="camera" size={16} color={DS.color.background} />
           </Pressable>
         </View>
-        <Text style={styles.photoHintTitle}>Current profile photo</Text>
-        <Text style={styles.photoHintSub}>Recommended: Square image, at least 400×400px</Text>
 
-        <Pressable style={styles.photoActionRow}>
-          <FontAwesome name="upload" size={18} color={DS.color.gold} />
-          <Text style={styles.photoActionLabel}>Upload New Photo</Text>
-        </Pressable>
-        <Pressable style={styles.photoActionRow}>
+        <Pressable style={styles.photoActionRow} onPress={() => void pickPhoto()}>
           <FontAwesome name="picture-o" size={18} color={DS.color.gold} />
-          <Text style={styles.photoActionLabel}>Choose from Gallery</Text>
+          <Text style={styles.photoActionLabel}>Choose from gallery</Text>
         </Pressable>
-        <Pressable
-          style={[styles.photoActionRow, cropMode && styles.photoActionRowActive]}
-          onPress={() => setCropMode((c) => !c)}
-        >
-          <FontAwesome name="expand" size={18} color={DS.color.gold} />
-          <Text style={styles.photoActionLabel}>{cropMode ? 'Apply Crop' : 'Crop Photo'}</Text>
-        </Pressable>
-        <Pressable style={styles.photoRemoveRow}>
+        <Pressable style={styles.photoRemoveRow} onPress={() => void removePhoto()}>
           <FontAwesome name="trash" size={18} color={DS.color.error} />
-          <Text style={styles.photoRemoveLabel}>Remove Photo</Text>
+          <Text style={styles.photoRemoveLabel}>Remove photo</Text>
         </Pressable>
 
-        <AppleHeroButton style={styles.saveBtnSpaced} onPress={() => setToast(true)}>
-          Save changes
+        <AppleHeroButton
+          style={styles.saveBtnSpaced}
+          disabled={busy || !localPreview}
+          onPress={() => void savePhoto()}
+        >
+          {busy ? 'Saving…' : 'Save changes'}
         </AppleHeroButton>
         <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -964,6 +1199,28 @@ export function EditProfileSectionsScreen({ navigation }: PProps<'EditProfileSec
   );
 }
 
+function profileSectionLines(value: unknown): string {
+  if (!Array.isArray(value)) return '';
+  return value
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object' && 'title' in item) {
+        return String((item as { title?: string }).title ?? '').trim();
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function profileLinesToArray(text: string): string[] {
+  return text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 30);
+}
+
 export function EditProfileSectionDetailScreen({
   navigation,
 }: PProps<'EditProfileSectionDetail'>) {
@@ -978,8 +1235,9 @@ export function EditProfileSectionDetailScreen({
   const [bannerUrl, setBannerUrl] = useState('');
   const [bioText, setBioText] = useState('');
   const [interestCsv, setInterestCsv] = useState('');
-  const [highlightsJson, setHighlightsJson] = useState('[]');
-  const [resultsJson, setResultsJson] = useState('[]');
+  const [highlightsText, setHighlightsText] = useState('');
+  const [resultsText, setResultsText] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -998,8 +1256,8 @@ export function EditProfileSectionDetailScreen({
         setBannerUrl(p?.banner_url?.trim() || '');
         setBioText(p?.bio?.trim() || '');
         setInterestCsv((p?.interests ?? []).join(', '));
-        setHighlightsJson(JSON.stringify(p?.highlights ?? [], null, 2));
-        setResultsJson(JSON.stringify(p?.recent_results ?? [], null, 2));
+        setHighlightsText(profileSectionLines(p?.highlights));
+        setResultsText(profileSectionLines(p?.recent_results));
       })();
       return () => {
         alive = false;
@@ -1030,29 +1288,71 @@ export function EditProfileSectionDetailScreen({
         const { error } = await supabase.from('profiles').update({ bio: v || null }).eq('id', user.id);
         if (error) throw new Error(error.message);
       } else if (slug === 'interests') {
+        const excludeSports = sportDedupeKeys(profile?.primary_sport, profile?.sports);
         const interests = interestCsv
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean)
-          .slice(0, 30);
+          .filter((t) => !excludeSports.has(t.toLowerCase()))
+          .slice(0, 30)
+          .map((t) =>
+            t
+              .split(/[\s_-]+/)
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+              .join(' '),
+          );
         const { error } = await supabase.from('profiles').update({ interests }).eq('id', user.id);
         if (error) throw new Error(error.message);
       } else if (slug === 'highlights') {
-        const parsed = JSON.parse(highlightsJson || '[]');
-        if (!Array.isArray(parsed)) throw new Error('Highlights must be a JSON array.');
-        const { error } = await supabase.from('profiles').update({ highlights: parsed }).eq('id', user.id);
+        const highlights = profileLinesToArray(highlightsText);
+        const { error } = await supabase.from('profiles').update({ highlights }).eq('id', user.id);
         if (error) throw new Error(error.message);
       } else if (slug === 'recentResults') {
-        const parsed = JSON.parse(resultsJson || '[]');
-        if (!Array.isArray(parsed)) throw new Error('Recent results must be a JSON array.');
-        const { error } = await supabase.from('profiles').update({ recent_results: parsed }).eq('id', user.id);
+        const recent_results = profileLinesToArray(resultsText);
+        const { error } = await supabase.from('profiles').update({ recent_results }).eq('id', user.id);
         if (error) throw new Error(error.message);
       }
       setToast(true);
     } catch (e) {
       Alert.alert('Save failed', e instanceof Error ? e.message : 'Could not save.');
     }
-  }, [bannerUrl, bioText, highlightsJson, interestCsv, live, resultsJson, slug, supabase, user?.id]);
+  }, [
+    bannerUrl,
+    bioText,
+    highlightsText,
+    interestCsv,
+    live,
+    profile?.primary_sport,
+    profile?.sports,
+    resultsText,
+    slug,
+    supabase,
+    user?.id,
+  ]);
+
+  const pickBannerImage = useCallback(async () => {
+    if (!user?.id || !live) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to choose a banner image.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [3, 1],
+      quality: 0.9,
+    });
+    if (res.canceled || !res.assets[0]?.uri) return;
+    setUploadingImage(true);
+    const url = await uploadProfileImage(user.id, res.assets[0].uri, 'banner');
+    setUploadingImage(false);
+    if (!url) {
+      Alert.alert('Upload failed', 'Could not upload banner. Try again.');
+      return;
+    }
+    setBannerUrl(url);
+  }, [live, user?.id]);
 
   return (
     <View style={styles.root}>
@@ -1070,17 +1370,21 @@ export function EditProfileSectionDetailScreen({
       >
         {slug === 'banner' ? (
           <>
-            <Text style={styles.sectionDetailMuted}>
-              Optional. Paste an image URL for now (upload UI can come later). Leave blank for no banner.
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={bannerUrl}
-              onChangeText={setBannerUrl}
-              placeholder="https://..."
-              placeholderTextColor={DS.color.textMuted}
-              autoCapitalize="none"
-            />
+            {bannerUrl.trim() ? (
+              <Image source={{ uri: bannerUrl.trim() }} style={styles.bannerEditPreview} resizeMode="cover" />
+            ) : (
+              <View style={styles.bannerEditPreviewEmpty} />
+            )}
+            <Pressable
+              style={styles.bannerEditGoldCell}
+              onPress={() => void pickBannerImage()}
+              disabled={uploadingImage}
+            >
+              <FontAwesome name="camera" size={16} color={DS.color.background} />
+              <Text style={styles.bannerEditGoldCellText}>
+                {uploadingImage ? 'Uploading…' : 'Edit banner'}
+              </Text>
+            </Pressable>
           </>
         ) : null}
 
@@ -1114,20 +1418,15 @@ export function EditProfileSectionDetailScreen({
 
         {slug === 'highlights' ? (
           <>
-            <Text style={styles.sectionDetailMuted}>
-              Optional but recommended. For now this is stored as JSON (array). Example:
-              {'\n'}
-              {'[{"title":"Race day","url":"https://..."}]'}
-            </Text>
+            <Text style={styles.sectionDetailMuted}>One highlight per line (shown on your profile).</Text>
             <TextInput
               style={[styles.input, styles.bioLongInput]}
               multiline
               textAlignVertical="top"
-              value={highlightsJson}
-              onChangeText={setHighlightsJson}
-              placeholder="[]"
+              value={highlightsText}
+              onChangeText={setHighlightsText}
+              placeholder={'National champion 2024\nTeam GB selection'}
               placeholderTextColor={DS.color.textMuted}
-              autoCapitalize="none"
             />
           </>
         ) : null}
@@ -1135,17 +1434,16 @@ export function EditProfileSectionDetailScreen({
         {slug === 'recentResults' ? (
           <>
             <Text style={styles.sectionDetailMuted}>
-              Optional but recommended. Stored as JSON array. Use fields that match your sport (primary sport: {profile?.primary_sport ?? '—'}).
+              One result per line. Primary sport: {profile?.primary_sport ?? '—'}
             </Text>
             <TextInput
               style={[styles.input, styles.bioLongInput]}
               multiline
               textAlignVertical="top"
-              value={resultsJson}
-              onChangeText={setResultsJson}
-              placeholder="[]"
+              value={resultsText}
+              onChangeText={setResultsText}
+              placeholder={'100m — 10.12s\nLong jump — 7.45m'}
               placeholderTextColor={DS.color.textMuted}
-              autoCapitalize="none"
             />
           </>
         ) : null}
@@ -1190,6 +1488,53 @@ const styles = StyleSheet.create({
   },
   bannerImgBleed: { ...StyleSheet.absoluteFillObject },
   bannerEmpty: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000000' },
+  bannerEditPreview: {
+    width: '100%',
+    height: 140,
+    borderRadius: DS.radius.xl,
+    marginBottom: DS.space.md,
+    backgroundColor: DS.color.surface,
+  },
+  bannerEditPreviewEmpty: {
+    width: '100%',
+    height: 140,
+    borderRadius: DS.radius.xl,
+    marginBottom: DS.space.md,
+    backgroundColor: DS.color.input,
+  },
+  bannerEditGoldCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DS.space.sm,
+    backgroundColor: DS.color.gold,
+    paddingVertical: 14,
+    borderRadius: DS.radius.xl,
+    marginBottom: DS.space.md,
+  },
+  bannerEditGoldCellText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    fontWeight: '700',
+    color: DS.color.background,
+  },
+  bannerEditPill: {
+    position: 'absolute',
+    bottom: DS.space.md,
+    right: DS.space.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: DS.color.gold,
+    paddingHorizontal: DS.space.base,
+    paddingVertical: 8,
+    borderRadius: DS.radius.pill,
+  },
+  bannerEditTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 13,
+    fontWeight: '700',
+    color: DS.color.background,
+  },
   bannerSettingsFAB: {
     position: 'absolute',
     right: DS.space.md,
@@ -1289,6 +1634,40 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: DS.space.md,
     marginTop: DS.space.md,
+  },
+  followStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: DS.space.lg,
+    flexWrap: 'wrap',
+  },
+  followStatsTxt: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+  },
+  followStatsNum: {
+    fontFamily: DS.font.bodyBold,
+    fontSize: 14,
+    color: DS.color.text,
+  },
+  followStatsSep: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    marginHorizontal: DS.space.xs,
+  },
+  bannerZoomBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: DS.space.lg,
+  },
+  bannerZoomImg: {
+    width: '100%',
+    height: '70%',
   },
   bioCard: {
     width: '100%',

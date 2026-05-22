@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,8 +10,11 @@ import { getSupabase } from '../lib/supabase';
 import type { EventsStackParamList } from '../navigation/types';
 import { listAllEvents } from '../roadmap/liveDataService';
 import type { EventRow } from '../roadmap/types';
-import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
-import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
+import {
+  hasPremiumOrAdminTier,
+  navigateToPremiumPaywall,
+} from '../subscriptions/navigateToPremiumPaywall';
+import { presentPremiumPaywall } from '../subscriptions/presentPremiumPaywall';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 
 type Props = NativeStackScreenProps<EventsStackParamList, 'HostScanPickEvent'>;
@@ -27,7 +30,11 @@ export function HostScanPickEventScreen({ navigation }: Props) {
   useLayoutEffect(() => {
     if (premiumGate) return;
     void (async () => {
-      const { premiumActivated } = await presentRevenueCatPaywall();
+      if (Platform.OS === 'web') {
+        navigateToPremiumPaywall(navigation);
+        return;
+      }
+      const { premiumActivated } = await presentPremiumPaywall(navigation);
       await refreshSubscription();
       if (premiumActivated) notifyNewPremiumFromPaywall(true);
       if (navigation.canGoBack()) navigation.goBack();

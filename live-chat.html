@@ -12,14 +12,9 @@
       #chat-panel { min-height: 420px; }
     </style>
   </head>
-  <body class="min-h-screen antialiased flex flex-col">
-    <header class="border-b border-line bg-ink/80 backdrop-blur-xl">
-      <div class="mx-auto max-w-3xl px-5 py-4 flex items-center justify-between">
-        <a href="/help-center" class="text-dim text-sm hover:text-mist">← Help centre</a>
-        <a href="/app" class="text-sm font-semibold text-ink bg-gold px-4 py-2 rounded-xl">Login</a>
-      </div>
-    </header>
-    <main class="flex-1 mx-auto w-full max-w-3xl px-5 py-8 flex flex-col">
+  <body class="min-h-screen antialiased flex flex-col dalton-marketing">
+    <div id="dalton-staggered-menu"></div>
+    <main class="flex-1 mx-auto w-full max-w-3xl px-5 pt-20 pb-8 flex flex-col">
       <p class="font-bebas text-gold tracking-[0.24em] text-sm">LIVE CHAT</p>
       <h1 class="font-bebas text-3xl text-mist mt-1">Grant Access assistant</h1>
       <p class="text-dim text-sm mt-2 mb-6">
@@ -72,5 +67,6 @@
         messages.scrollTop = messages.scrollHeight;
       });
     </script>
+    <script src="shared/marketing-chrome.js"></script>
   </body>
 </html>

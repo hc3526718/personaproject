@@ -39,6 +39,7 @@ import {
   NotificationsScreen,
 } from '../screens/communityScreens';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
+import { FollowUserListScreen } from '../screens/FollowUserListScreen';
 import { ShareActivityScreen } from '../screens/ShareActivityScreen';
 import {
   MediaCommunityFeedScreen,
@@ -60,6 +61,12 @@ import { HostScanPickEventScreen } from '../screens/HostScanPickEventScreen';
 import { HostEventDashboardScreen } from '../screens/HostEventDashboardScreen';
 import { CreateEventScreen } from '../screens/CreateEventScreen';
 import { CreateMediaContentScreen } from '../screens/CreateMediaContentScreen';
+import { MediaProposalWizard } from '../screens/proposals/MediaProposalWizard';
+import { SponsorProposalWizard } from '../screens/proposals/SponsorProposalWizard';
+import { MasterProposalQueueScreen } from '../screens/proposals/MasterProposalQueueScreen';
+import { MasterProposalDetailScreen } from '../screens/proposals/MasterProposalDetailScreen';
+import { MyProposalsScreen, MySponsorProposalsScreen } from '../screens/proposals/MyProposalsScreen';
+import { HelpCentreScreen } from '../screens/HelpCentreScreen';
 import { StaffCheckInScreen } from '../screens/StaffCheckInScreen';
 import { SponsorListingsScreen } from '../screens/sponsorScreens';
 import {
@@ -136,6 +143,7 @@ function CommunityStackNavigator() {
       <CommunityStack.Screen name="CommunitySearch" component={CommunitySearchScreen} />
       <CommunityStack.Screen name="CommunitySearchResults" component={CommunitySearchResultsScreen} />
       <CommunityStack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <CommunityStack.Screen name="FollowUserList" component={FollowUserListScreen} />
       <CommunityStack.Screen name="ShareActivity" component={ShareActivityScreen} />
       <CommunityStack.Screen name="Notifications" component={NotificationsScreen} />
       <CommunityStack.Screen name="MessagesInbox" component={MessagesInboxScreen} />
@@ -161,6 +169,7 @@ function MediaStackNavigator() {
       <MediaStack.Screen name="SavedMedia" component={SavedMediaScreen} />
       <MediaStack.Screen name="MediaCommunityFeed" component={MediaCommunityFeedScreen} />
       <MediaStack.Screen name="CreateMediaContent" component={CreateMediaContentScreen} />
+      <MediaStack.Screen name="MediaProposalWizard" component={MediaProposalWizard} />
     </MediaStack.Navigator>
   );
 }
@@ -197,6 +206,8 @@ function SponsorsStackNavigator() {
     >
       <SponsorsStack.Screen name="SponsorListings" component={SponsorListingsScreen} />
       <SponsorsStack.Screen name="BrandPartner" component={BrandPartnerScreen} />
+      <SponsorsStack.Screen name="SponsorProposalWizard" component={SponsorProposalWizard} />
+      <SponsorsStack.Screen name="MySponsorProposals" component={MySponsorProposalsScreen} />
     </SponsorsStack.Navigator>
   );
 }
@@ -222,7 +233,10 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="PrivacyVisibility" component={PrivacyVisibilityScreen} />
       <ProfileStack.Screen name="NotificationPrefs" component={NotificationPrefsScreen} />
       <ProfileStack.Screen name="FollowRequests" component={FollowRequestsScreen} />
+      <ProfileStack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <ProfileStack.Screen name="FollowUserList" component={FollowUserListScreen} />
       <ProfileStack.Screen name="Support" component={SupportScreen} />
+      <ProfileStack.Screen name="HelpCentre" component={HelpCentreScreen} />
       <ProfileStack.Screen name="Legal" component={LegalScreen} />
       <ProfileStack.Screen name="EditBasic" component={EditBasicScreen} />
       <ProfileStack.Screen name="EditProfilePhoto" component={EditProfilePhotoScreen} />
@@ -235,6 +249,9 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="MasterPartnerOffers" component={MasterPartnerOffersScreen} />
       <ProfileStack.Screen name="CreatePartnerOffer" component={CreatePartnerOfferScreen} />
       <ProfileStack.Screen name="MasterUserAccounts" component={MasterUserAccountsScreen} />
+      <ProfileStack.Screen name="MasterProposalQueue" component={MasterProposalQueueScreen} />
+      <ProfileStack.Screen name="MasterProposalDetail" component={MasterProposalDetailScreen} />
+      <ProfileStack.Screen name="MyProposals" component={MyProposalsScreen} />
     </ProfileStack.Navigator>
   );
 }

@@ -1,5 +1,5 @@
-import * as Sentry from '@sentry/react-native';
 import { useEffect } from 'react';
+import { wrapWithSentry } from './src/monitoring/sentryBoot';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { hideNativeSplash, scheduleNativeSplashFailsafe } from './src/boot/nativeSplashGate';
@@ -81,7 +81,7 @@ function App() {
   );
 }
 
-export default Sentry.wrap(App);
+export default wrapWithSentry(App);
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: DS.color.background },

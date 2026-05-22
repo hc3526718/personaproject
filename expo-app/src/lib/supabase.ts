@@ -1,9 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from './env';
 import { supabaseAuthStorage } from './supabaseAuthStorage';
-
-const isWeb = Platform.OS === 'web';
 
 let client: SupabaseClient | null = null;
 let cachedUrl = '';
@@ -33,7 +30,8 @@ export function getSupabase(): SupabaseClient | null {
         storage: supabaseAuthStorage,
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: isWeb,
+        // Web OAuth callback is handled explicitly in oauthSupabase.ts (avoids double PKCE exchange).
+        detectSessionInUrl: false,
         flowType: 'pkce',
       },
     });

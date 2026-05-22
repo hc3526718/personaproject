@@ -22,9 +22,8 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
-import { customerHasPremium, fetchCustomerInfo } from '../subscriptions/revenueCat';
+import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 
 type Props = NativeStackScreenProps<MediaStackParamList, 'CreateMediaContent'>;
 
@@ -48,18 +47,16 @@ export function CreateMediaContentScreen({ navigation }: Props) {
       if (tierOk) return undefined;
       let cancelled = false;
       void (async () => {
-        const { premiumActivated } = await presentRevenueCatPaywall();
-        if (cancelled) return;
-        await refreshSubscription();
-        if (cancelled) return;
-        const info = await fetchCustomerInfo();
-        const proNow = customerHasPremium(info);
-        const admin = user?.role === 'admin' || user?.role === 'super_admin';
-        if (!proNow && !admin) {
-          navigation.goBack();
-          return;
+        const allowed = await gatePremiumFeatureAccess({
+          navigation,
+          isPro,
+          user,
+          refreshSubscription,
+          notifyNewPremiumFromPaywall,
+        });
+        if (cancelled || allowed !== 'allowed') {
+          if (!cancelled) navigation.goBack();
         }
-        if (premiumActivated) notifyNewPremiumFromPaywall(true);
       })();
       return () => {
         cancelled = true;
@@ -182,7 +179,6 @@ export function CreateMediaContentScreen({ navigation }: Props) {
         <FormField
           label="Description"
           required
-          hint={`Minimum ${DESC_MIN} characters (${description.trim().length}/${DESC_MIN})`}
           error={
             description.length > 0 && description.trim().length < DESC_MIN
               ? `Need ${DESC_MIN - description.trim().length} more characters`
@@ -215,7 +211,6 @@ export function CreateMediaContentScreen({ navigation }: Props) {
 
         <FormField
           label="Search tags"
-          hint="Optional — comma-separated keywords for discovery."
         >
           <TextInput
             value={searchTags}

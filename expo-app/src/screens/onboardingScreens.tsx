@@ -19,6 +19,7 @@ import { useAuth } from '../auth/AuthContext';
 import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
+import { openLegalPage } from '../lib/legalUrls';
 import type { AuthStackParamList } from '../navigation/types';
 
 type Props<K extends keyof AuthStackParamList> = NativeStackScreenProps<AuthStackParamList, K>;
@@ -85,8 +86,14 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
           </View>
         </AppleHeroButton>
         <Text style={styles.legal}>
-          By continuing, you agree to our <Text style={styles.gold}>Terms</Text> and{' '}
-          <Text style={styles.gold}>Privacy Policy</Text>
+          By continuing, you agree to our{' '}
+          <Text style={styles.gold} onPress={() => void openLegalPage('/terms')}>
+            Terms
+          </Text>{' '}
+          and{' '}
+          <Text style={styles.gold} onPress={() => void openLegalPage('/privacy')}>
+            Privacy Policy
+          </Text>
         </Text>
       </View>
     </View>

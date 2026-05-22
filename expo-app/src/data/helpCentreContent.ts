@@ -91,7 +91,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Delete my account',
     keywords: ['gdpr', 'remove', 'deletion', 'support'],
     body:
-      'Account deletion is requested through Support (Settings → Support → Contact us) until in-app deletion is available. Include the email on your account.',
+      'Settings → Delete Account removes your profile and sign-in permanently (type DELETE to confirm). Cancel App Store or Google Play subscriptions separately in your device subscription settings.',
   },
   {
     id: 'troubleshoot',

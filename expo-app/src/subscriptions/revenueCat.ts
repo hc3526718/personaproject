@@ -5,6 +5,13 @@ import { getRevenueCatEntitlementId } from '../lib/env';
 
 const ENTITLEMENT_PREMIUM = getRevenueCatEntitlementId();
 
+/** RC dashboard may use `premium` or `Grant Access Pro` — treat both as premium. */
+const PREMIUM_ENTITLEMENT_KEYS = [
+  ENTITLEMENT_PREMIUM,
+  'Grant Access Pro',
+  'premium',
+].filter((k, i, arr) => arr.indexOf(k) === i);
+
 function getRevenueCatKeysForPlatform(): { ios: string; android: string } {
   const fromEnvIos = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS?.trim() ?? '';
   const fromEnvAndroid = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID?.trim() ?? '';
@@ -110,7 +117,8 @@ export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
 
 export function customerHasPremium(info: CustomerInfo | null): boolean {
   if (!info) return false;
-  return Boolean(info.entitlements.active[ENTITLEMENT_PREMIUM]);
+  const active = info.entitlements.active;
+  return PREMIUM_ENTITLEMENT_KEYS.some((key) => Boolean(active[key]));
 }
 
 export async function restorePurchases(): Promise<CustomerInfo | null> {

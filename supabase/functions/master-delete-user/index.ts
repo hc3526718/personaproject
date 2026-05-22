@@ -17,11 +17,7 @@
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from '../_shared/cors.ts';
 
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
@@ -34,6 +30,7 @@ async function sha256Hex(input: string): Promise<string> {
 type Body = { target_user_id?: string; pin?: string };
 
 Deno.serve(async (req) => {
+  const cors = corsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: cors });
   }

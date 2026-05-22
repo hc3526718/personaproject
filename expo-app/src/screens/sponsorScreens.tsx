@@ -22,8 +22,7 @@ import type { SubscriptionOfferPageRow } from '../roadmap/types';
 import type { SponsorsStackParamList } from '../navigation/types';
 import { useAuth } from '../auth/AuthContext';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
-import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
+import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 
 type SProps<K extends keyof SponsorsStackParamList> = NativeStackScreenProps<
   SponsorsStackParamList,
@@ -37,7 +36,6 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
-  const tierOk = hasPremiumOrAdminTier(isPro, user?.role) || Boolean(user?.masterControl);
   const [items, setItems] = useState<SubscriptionOfferPageRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,19 +69,26 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
           <Pressable
             style={styles.roundIconBtnSm}
             hitSlop={8}
+            onPress={() => navigation.navigate('MySponsorProposals')}
+            accessibilityLabel="My sponsor proposals"
+          >
+            <FontAwesome name="list-alt" size={15} color={DS.color.text} />
+          </Pressable>
+          <Pressable
+            style={styles.roundIconBtnSm}
+            hitSlop={8}
             onPress={() => {
-              if (!tierOk) {
-                void (async () => {
-                  const { premiumActivated } = await presentRevenueCatPaywall();
-                  await refreshSubscription();
-                  if (premiumActivated) notifyNewPremiumFromPaywall(true);
-                })();
-                return;
-              }
-              Alert.alert(
-                'Partner with Dalton',
-                'Sponsor placements are coordinated by the Dalton team. Use Support in your profile to reach us about partnership opportunities.',
-              );
+              void (async () => {
+                const allowed = await gatePremiumFeatureAccess({
+                  navigation,
+                  isPro,
+                  user,
+                  refreshSubscription,
+                  notifyNewPremiumFromPaywall,
+                });
+                if (allowed !== 'allowed') return;
+                navigation.navigate('SponsorProposalWizard');
+              })();
             }}
           >
             <FontAwesome name="plus" size={15} color={DS.color.text} />
@@ -170,7 +175,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   padded: {
-    padding: DS.space.lg,
+    paddingHorizontal: DS.space.base,
+    paddingTop: DS.space.md,
   },
   sponsorCard: {
     flexDirection: 'row',

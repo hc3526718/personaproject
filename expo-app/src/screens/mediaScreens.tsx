@@ -17,10 +17,13 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { useAuth } from '../auth/AuthContext';
-import { canCreateVerifiedContent } from '../creator/creatorAccess';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
-import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
+import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
+import {
+  listContinueWatching,
+  listFullyWatchedIds,
+  setMediaWatchProgress,
+} from '../lib/mediaWatchProgress';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
 import {
@@ -201,14 +204,19 @@ export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
-  const tierOk =
-    hasPremiumOrAdminTier(isPro, user?.role) || Boolean(user?.masterControl);
-  const canCreate = canCreateVerifiedContent(isPro, user);
   const [b, setB] = useState(0);
   const [browseAssets, setBrowseAssets] = useState<MediaAssetRow[]>([]);
+  const [continueItems, setContinueItems] = useState<Awaited<ReturnType<typeof listContinueWatching>>>([]);
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const loadBrowse = useCallback(async () => {
-    const rows = await listBrowseMediaAssets(80);
+    const [rows, cont, watched] = await Promise.all([
+      listBrowseMediaAssets(80),
+      listContinueWatching(),
+      listFullyWatchedIds(),
+    ]);
     setBrowseAssets(rows);
+    setContinueItems(cont);
+    setWatchedIds(watched);
   }, []);
   const { refreshing, onRefresh } = useRefreshWithMinimum(
     useCallback(async () => {
@@ -232,22 +240,27 @@ export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
             style={styles.roundIconBtnSm}
             hitSlop={8}
             onPress={() => {
-              if (!tierOk) {
-                void (async () => {
-                  const { premiumActivated } = await presentRevenueCatPaywall();
-                  await refreshSubscription();
-                  if (premiumActivated) notifyNewPremiumFromPaywall(true);
-                })();
-                return;
-              }
-              if (!canCreate) {
-                Alert.alert('Creator access', 'Dalton verification is required to upload media.');
-                return;
-              }
-              navigation.navigate('CreateMediaContent');
+              void (async () => {
+                const allowed = await gatePremiumFeatureAccess({
+                  navigation,
+                  isPro,
+                  user,
+                  refreshSubscription,
+                  notifyNewPremiumFromPaywall,
+                });
+                if (allowed === 'allowed') navigation.navigate('MediaProposalWizard');
+              })();
             }}
           >
             <FontAwesome name="plus" size={15} color={DS.color.text} />
+          </Pressable>
+          <Pressable
+            style={styles.roundIconBtnSm}
+            hitSlop={8}
+            onPress={() => navigation.navigate('SavedMedia')}
+            accessibilityLabel="Saved library"
+          >
+            <FontAwesome name="bookmark" size={16} color={DS.color.text} />
           </Pressable>
           <Pressable
             style={styles.roundIconBtn}
@@ -353,20 +366,67 @@ export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
             })
           )}
         </View>
-        <Text style={styles.browseLabel}>Continue Watching</Text>
-        <Pressable
-          style={styles.continueCard}
-          onPress={() => navigation.navigate('MediaPlayer', { title: 'Olympic Lifting Masterclass' })}
-        >
-          <Image source={{ uri: THUMB }} style={styles.continueThumb} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.continueTitle}>Olympic Lifting Masterclass</Text>
-            <Text style={styles.muted}>18:20 remaining</Text>
-            <View style={styles.progressTrack}>
-              <View style={styles.progressFill} />
+        {continueItems.length > 0 ? (
+          <>
+            <Text style={styles.browseLabel}>Continue Watching</Text>
+            {continueItems.map((item) => (
+              <Pressable
+                key={item.mediaId}
+                style={styles.continueCard}
+                onPress={() =>
+                  navigation.navigate('MediaPlayer', {
+                    title: item.title,
+                    mediaId: item.mediaId,
+                  })
+                }
+              >
+                <Image
+                  source={{ uri: item.thumb || THUMB }}
+                  style={styles.continueThumb}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.continueTitle}>{item.title}</Text>
+                  <Text style={styles.muted}>
+                    {Math.round((1 - item.progress) * 100)}% remaining
+                  </Text>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${item.progress * 100}%` }]} />
+                  </View>
+                </View>
+              </Pressable>
+            ))}
+          </>
+        ) : browseAssets.length > 0 && watchedIds.size >= browseAssets.length ? (
+          <>
+            <Text style={styles.browseLabel}>Recommended for you</Text>
+            <View style={styles.grid2}>
+              {browseAssets.slice(0, 4).map((asset) => {
+                const thumb = asset.thumbnail_url || asset.public_url || THUMB;
+                const label =
+                  asset.storage_path?.split('/').pop() || asset.kind.toUpperCase();
+                return (
+                  <Pressable
+                    key={`rec-${asset.id}`}
+                    style={styles.gridCell}
+                    onPress={() =>
+                      navigation.navigate('MediaPlayer', {
+                        title: label,
+                        mediaId: asset.id,
+                      })
+                    }
+                  >
+                    <View style={styles.thumbWrap}>
+                      <Image source={{ uri: thumb }} style={styles.thumbImg} />
+                    </View>
+                    <Text style={styles.thumbTitle} numberOfLines={2}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-          </View>
-        </Pressable>
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -798,8 +858,26 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
 export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) {
   const insets = useSafeAreaInsets();
   const title = route.params?.title ?? 'Advanced Boxing Combinations for Power';
+  const mediaId = route.params?.mediaId ?? `demo:${title}`;
   const meta = playerMeta(title);
   const playerNotice = (msg: string) => Alert.alert('Grant Access', msg);
+
+  useEffect(() => {
+    void setMediaWatchProgress({
+      mediaId,
+      title,
+      thumb: PLAYER_STILL,
+      progress: 0.35,
+    });
+    return () => {
+      void setMediaWatchProgress({
+        mediaId,
+        title,
+        thumb: PLAYER_STILL,
+        progress: 0.35,
+      });
+    };
+  }, [mediaId, title]);
 
   return (
     <View style={styles.root}>
@@ -1360,7 +1438,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: {
-    width: '35%',
     height: '100%',
     borderRadius: 2,
     backgroundColor: DS.color.gold,
