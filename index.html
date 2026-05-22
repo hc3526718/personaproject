@@ -49,14 +49,11 @@
       background-size: 260px 260px;
     }
     #dalton-card-swap {
-      position: relative;
-      min-height: 520px;
       width: 100%;
-      max-width: 480px;
-      margin: 0 auto;
+      min-height: 280px;
     }
-    @media (max-width: 767px) {
-      #dalton-card-swap { min-height: 400px; }
+    @media (min-width: 1024px) {
+      #dalton-card-swap { min-height: 300px; }
     }
   </style>
 </head>
@@ -95,16 +92,9 @@
           </div>
         </div>
 
-        <div class="lg:col-span-6">
-          <p class="font-bebas text-gold tracking-[0.24em] text-sm mb-4 text-center lg:text-left">IN THE APP</p>
-          <div class="showcase-stack mx-auto max-w-md lg:max-w-none">
-            <div class="showcase-phone s1"><img src="/showcase/01.png" alt="Community feed" loading="lazy" /></div>
-            <div class="showcase-phone s2"><img src="/showcase/02.png" alt="Messages inbox" loading="lazy" /></div>
-            <div class="showcase-phone s3"><img src="/showcase/03.png" alt="Events list" loading="lazy" /></div>
-            <div class="showcase-phone s4"><img src="/showcase/04.png" alt="Sponsors" loading="lazy" /></div>
-            <div class="showcase-phone s5"><img src="/showcase/05.png" alt="Media browse" loading="lazy" /></div>
-            <div class="showcase-phone s6"><img src="/showcase/06.png" alt="Partner detail" loading="lazy" /></div>
-          </div>
+        <div class="lg:col-span-6 flex flex-col items-center lg:items-start w-full">
+          <p class="font-bebas text-gold tracking-[0.24em] text-sm mb-4 text-center lg:text-left w-full">IN THE APP</p>
+          <div id="dalton-card-swap" class="w-full max-w-[380px] lg:max-w-[420px]"></div>
         </div>
       </div>
     </section>

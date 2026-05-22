@@ -1,8 +1,8 @@
 import { createRoot } from 'react-dom/client';
 import StaggeredMenu from './StaggeredMenu';
-import CardSwap, { Card } from './CardSwap';
+import ScreenshotCarousel from './ScreenshotCarousel';
 import './StaggeredMenu.css';
-import './CardSwap.css';
+import './ScreenshotCarousel.css';
 
 const MENU_ITEMS = [
   { label: 'Home', ariaLabel: 'Go to home page', link: '/' },
@@ -42,33 +42,17 @@ function mountStaggeredMenu() {
   );
 }
 
-function mountCardSwap() {
+function mountScreenshotCarousel() {
   const el = document.getElementById('dalton-card-swap');
   if (!el) return;
-  const w = Math.min(420, el.clientWidth || 420);
-  const h = Math.min(520, Math.round(w * 1.15));
   createRoot(el).render(
-    <CardSwap
-      width={w}
-      height={h}
-      cardDistance={48}
-      verticalDistance={56}
-      delay={4000}
-      pauseOnHover={false}
-      easing="elastic"
-    >
-      {SHOWCASE_IMAGES.map((img) => (
-        <Card key={img.src}>
-          <img src={img.src} alt={img.alt} loading="lazy" />
-        </Card>
-      ))}
-    </CardSwap>,
+    <ScreenshotCarousel images={SHOWCASE_IMAGES} intervalMs={4000} slideWidth={118} slideHeight={242} gap={18} />,
   );
 }
 
 function boot() {
   mountStaggeredMenu();
-  mountCardSwap();
+  mountScreenshotCarousel();
 }
 
 if (document.readyState === 'loading') {

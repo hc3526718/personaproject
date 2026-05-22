@@ -1,4 +1,4 @@
-/** Loads StaggeredMenu (+ CardSwap on pages with #dalton-card-swap). */
+/** Loads StaggeredMenu (+ screenshot carousel on pages with #dalton-card-swap). */
 (function loadMarketingUi() {
   if (document.querySelector('link[data-dalton-marketing-ui]')) return;
   const css = document.createElement('link');
