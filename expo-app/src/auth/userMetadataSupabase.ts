@@ -24,14 +24,11 @@ export async function ensureDefaultDaltonVerifiedMetadata(supabase: SupabaseClie
 }
 
 /**
- * When a user has an active Premium entitlement, mirror that into `auth.users.raw_user_meta_data`
- * so the client session shows "Dalton verified" (used as a gate for creator tools in this build).
+ * When a user has active Premium (`is_pro`), mirror Dalton verified into auth metadata for the session.
+ * Server trigger `subscription_state_sync_dalton_verified` also sets `profiles.dalton_verified`.
  *
- * If `subscription_state` has a row with `is_pro = false`, metadata is not updated (avoids spoofing
- * when the server mirror disagrees). When no row exists yet (webhook not wired), caller `isPro`
- * still drives the sync as before.
- *
- * Note: enforce premium on sensitive paths server-side (RevenueCat webhook → `subscription_state`, RLS).
+ * One-way rule: every premium user becomes verified; verified users are not auto-premium.
+ * Subscription expiry sets `is_pro = false` but does not clear `dalton_verified`.
  */
 export async function syncDaltonVerifiedFromProfileIfPremium(
   supabase: SupabaseClient,

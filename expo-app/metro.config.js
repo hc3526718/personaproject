@@ -1,7 +1,13 @@
+const path = require('node:path');
 const { getDefaultConfig } = require('expo/metro-config');
 
-/** Web export output — do not watch during `expo start` (crashes if dist is empty/partial). */
-const BLOCK_DIRS = [/[/\\]dist[/\\].*/, /[/\\]\.expo-shared[/\\].*/];
+/** Block only this app's export output — not `node_modules/react-native-web/dist`. */
+function blockAppOutputDir(dirName) {
+  const abs = path.join(__dirname, dirName).replace(/\\/g, '/');
+  const escaped = abs.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`${escaped}(/|$)`);
+}
+const BLOCK_DIRS = [blockAppOutputDir('dist'), blockAppOutputDir('.expo-shared')];
 
 function buildBaseConfig(projectRoot) {
   const base = getDefaultConfig(projectRoot);

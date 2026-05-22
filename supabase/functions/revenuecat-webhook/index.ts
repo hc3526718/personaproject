@@ -47,7 +47,15 @@ async function setPremium(
   isPro: boolean,
   raw: unknown,
 ): Promise<void> {
-  const entitlementIds = isPro ? [ENTITLEMENT_ID] : [];
+  let entitlementIds: string[] = [];
+  if (isPro) {
+    const fromEvent = (raw as { event?: { entitlement_ids?: unknown } })?.event?.entitlement_ids;
+    if (Array.isArray(fromEvent) && fromEvent.length > 0) {
+      entitlementIds = fromEvent.map(String);
+    } else {
+      entitlementIds = [PREMIUM_ENTITLEMENT_IDS[0] ?? 'premium'];
+    }
+  }
   await admin.from('subscription_state').upsert(
     {
       user_id: userId,
@@ -58,6 +66,7 @@ async function setPremium(
     },
     { onConflict: 'user_id' },
   );
+  // Premium implies verified; expiration does not revoke verification (staff-only).
   if (isPro) {
     await admin.from('profiles').update({ dalton_verified: true }).eq('id', userId);
   }

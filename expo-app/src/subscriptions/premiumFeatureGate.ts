@@ -11,8 +11,8 @@ export const AWAITING_DALTON_VERIFICATION_MESSAGE =
 export type PremiumGateResult = 'allowed' | 'blocked';
 
 /**
- * Gate creator/premium tools: paywall first (premium subscription), then Dalton verification.
- * `dalton_verified` alone does not bypass the paywall.
+ * Gate creator/premium tools: paywall first (`is_pro`), then Dalton verification.
+ * Verified without premium still hits the paywall; premium always becomes verified (DB trigger + webhooks).
  */
 export async function gatePremiumFeatureAccess(opts: {
   navigation: NavigationProp<ParamListBase>;

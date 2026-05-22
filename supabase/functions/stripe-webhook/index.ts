@@ -41,6 +41,7 @@ async function setPremium(
     { onConflict: 'user_id' },
   );
 
+  // Premium implies verified; expiry does not revoke verification (staff-only).
   if (isPro) {
     await admin.from('profiles').update({ dalton_verified: true }).eq('id', userId);
   }
