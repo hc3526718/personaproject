@@ -55,10 +55,51 @@
     @media (min-width: 1024px) {
       #dalton-card-swap { min-height: 300px; }
     }
+    /* Visible before React marketing bundle mounts */
+    .dalton-header-fallback {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 45;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      pointer-events: none;
+    }
+    .dalton-header-fallback a,
+    .dalton-header-fallback button {
+      pointer-events: auto;
+    }
+    body:has(#dalton-staggered-menu .staggered-menu-wrapper) .dalton-header-fallback {
+      display: none;
+    }
+    .dalton-screenshot-fallback {
+      display: block;
+      width: 100%;
+      max-width: 280px;
+      margin: 0 auto;
+      border-radius: 1.1rem;
+      border: 1px solid rgba(200, 168, 75, 0.35);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    }
+    #dalton-card-swap:has(.screenshot-carousel) .dalton-screenshot-fallback {
+      display: none;
+    }
   </style>
 </head>
 <body class="min-h-screen antialiased dalton-marketing">
   <div class="grain"></div>
+  <header class="dalton-header-fallback" id="dalton-header-fallback" aria-label="Site navigation">
+    <a href="/" class="flex items-center gap-2">
+      <img src="/showcase/dalton_logo.png" alt="Grant Access" width="110" height="40" class="h-10 w-auto object-contain" />
+    </a>
+    <nav class="flex items-center gap-4 text-sm font-semibold text-mist">
+      <a href="/help-center" class="hover:text-gold transition-colors hidden sm:inline">Help</a>
+      <a href="/app" class="px-4 py-2 rounded-xl bg-gold text-ink text-xs font-semibold hover:opacity-90 transition-opacity">Login</a>
+    </nav>
+  </header>
   <div id="dalton-staggered-menu" aria-hidden="false"></div>
 
   <main>
@@ -93,8 +134,15 @@
         </div>
 
         <div class="lg:col-span-6 flex flex-col items-center lg:items-start w-full">
-          <p class="font-bebas text-gold tracking-[0.24em] text-sm mb-4 text-center lg:text-left w-full">IN THE APP</p>
-          <div id="dalton-card-swap" class="w-full max-w-[380px] lg:max-w-[420px]"></div>
+          <div id="dalton-card-swap" class="w-full max-w-[380px] lg:max-w-[420px]">
+            <img
+              src="/showcase/01.png"
+              alt="Grant Access app preview"
+              class="dalton-screenshot-fallback"
+              width="280"
+              height="560"
+            />
+          </div>
         </div>
       </div>
     </section>
