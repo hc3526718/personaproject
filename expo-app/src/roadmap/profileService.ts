@@ -26,6 +26,36 @@ export async function ensureProfileRow(userId: string, emailHint: string | null)
   );
 }
 
+export async function updateProfileBasics(
+  userId: string,
+  patch: {
+    first_name: string;
+    last_name: string;
+    display_name: string;
+    username: string;
+    sports: string[];
+  },
+): Promise<{ ok: true; profile: ProfileRow } | { ok: false; error: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: 'Not connected.' };
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      first_name: patch.first_name,
+      last_name: patch.last_name,
+      display_name: patch.display_name,
+      username: patch.username,
+      sports: patch.sports,
+    })
+    .eq('id', userId)
+    .select('*')
+    .single();
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? 'Could not save profile.' };
+  }
+  return { ok: true, profile: data as ProfileRow };
+}
+
 export async function updateProfileAllowMessagesFrom(
   userId: string,
   value: 'everyone' | 'followers_only' | 'friends_only',

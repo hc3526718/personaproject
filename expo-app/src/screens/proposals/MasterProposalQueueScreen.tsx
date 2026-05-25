@@ -54,7 +54,18 @@ export function MasterProposalQueueScreen({ navigation }: Props) {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Proposal review" onBack={() => navigation.goBack()} largeTitle />
+      <ScreenHeader
+        title="Proposal review"
+        onBack={() => navigation.goBack()}
+        largeTitle
+        right={
+          user?.masterControl ? (
+            <Pressable hitSlop={10} onPress={() => navigation.navigate('MasterControlHub')}>
+              <FontAwesome name="cog" size={20} color={DS.color.gold} />
+            </Pressable>
+          ) : null
+        }
+      />
       {loading ? (
         <AppLoadingIndicator style={{ marginTop: DS.space.xl }} />
       ) : (

@@ -31,7 +31,7 @@ import { useSubscription } from '../subscriptions/SubscriptionContext';
 import * as ImagePicker from 'expo-image-picker';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import type { ProfileRow } from '../roadmap/types';
-import { fetchProfileByUserId } from '../roadmap/profileService';
+import { fetchProfileByUserId, updateProfileBasics } from '../roadmap/profileService';
 import { getFollowCounts } from '../roadmap/followService';
 import { uploadProfileImage } from '../lib/profileImageUpload';
 import {
@@ -350,12 +350,6 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
             icon: 'inbox' as const,
             onPress: () => void openMasterGated('MasterProposalQueue'),
           },
-          {
-            title: 'Master control',
-            sub: 'Partner pages, account tools — PIN gated',
-            icon: 'key' as const,
-            onPress: () => void openMasterGated('MasterControlHub'),
-          },
         ]
       : [];
   const adminRow =
@@ -624,7 +618,7 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     if (!supabase || !user?.id || !live) {
-      setToast(true);
+      Alert.alert('Sign in required', 'Connect with your live account to save profile changes.');
       return;
     }
     const ok = await checkUsernameAvailable(supabase, normalizedUsername, user.id);
@@ -632,22 +626,22 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
       setErrors({ username: 'That username is already taken' });
       return;
     }
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        display_name: displayName,
-        username: normalizedUsername,
-        sports: sport?.trim() ? [sport.trim()] : [],
-      })
-      .eq('id', user.id);
-    if (error) {
-      if (error.code === '23505') setErrors({ username: 'That username was just claimed' });
-      else Alert.alert('Save failed', error.message);
+    const saved = await updateProfileBasics(user.id, {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      display_name: displayName,
+      username: normalizedUsername,
+      sports: sport?.trim() ? [sport.trim()] : [],
+    });
+    if (!saved.ok) {
+      if (saved.error.includes('duplicate') || saved.error.includes('unique')) {
+        setErrors({ username: 'That username was just claimed' });
+      } else {
+        Alert.alert('Save failed', saved.error);
+      }
       return;
     }
-    await supabase.auth.updateUser({
+    const { error: authErr } = await supabase.auth.updateUser({
       data: {
         display_name: displayName,
         full_name: displayName,
@@ -655,7 +649,11 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
         last_name: lastName.trim(),
       },
     });
+    if (authErr) {
+      Alert.alert('Profile saved', `Your profile was updated, but auth metadata sync failed: ${authErr.message}`);
+    }
     setToast(true);
+    navigation.goBack();
   };
 
   useEffect(() => {
@@ -1128,7 +1126,7 @@ export function EditProfileSectionsScreen({ navigation }: PProps<'EditProfileSec
     {
       key: 'basic',
       title: 'Basic Info',
-      sub: 'Display name, username, sport',
+      sub: 'First name, surname, username, sport',
       icon: 'id-card-o',
       status:
         profile?.first_name?.trim() && profile?.last_name?.trim() && profile?.username?.trim()

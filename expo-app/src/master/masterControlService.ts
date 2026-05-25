@@ -1,12 +1,25 @@
 import { getMasterDeleteUserEdgeUrl, getSupabaseAnonKey } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 
-export async function verifyMasterPin(pin: string): Promise<boolean> {
+export async function verifyMasterPin(
+  pin: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const supabase = getSupabase();
-  if (!supabase) return false;
+  if (!supabase) return { ok: false, message: 'Supabase is not configured.' };
   const { data, error } = await supabase.rpc('verify_master_pin', { pin });
-  if (error) return false;
-  return data === true;
+  if (error) {
+    const msg = error.message ?? 'Could not verify PIN.';
+    if (msg.includes('404') || error.code === 'PGRST202') {
+      return {
+        ok: false,
+        message:
+          'Master PIN verification is not available on the server. Apply migration 020_fix_verify_master_pin_grant.sql in Supabase, then reload the API schema.',
+      };
+    }
+    return { ok: false, message: msg };
+  }
+  if (data === true) return { ok: true };
+  return { ok: false, message: 'Incorrect PIN.' };
 }
 
 /** Requires deployed Edge Function `master-delete-user` + `SUPABASE_SERVICE_ROLE_KEY` secret. */

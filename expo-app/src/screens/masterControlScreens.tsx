@@ -48,13 +48,10 @@ export function MasterGateScreen({ navigation, route }: PProps<'MasterGate'>) {
       return;
     }
     setBusy(true);
-    const ok = await verifyMasterPin(digits);
+    const result = await verifyMasterPin(digits);
     setBusy(false);
-    if (!ok) {
-      Alert.alert(
-        'Incorrect PIN',
-        'This PIN is assigned to your master account in Supabase. Contact Dalton if you need it reset.',
-      );
+    if (!result.ok) {
+      Alert.alert('PIN', result.message);
       return;
     }
     await setMasterGateUnlocked(user.id);
