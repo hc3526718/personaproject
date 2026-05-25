@@ -10,8 +10,8 @@ import { DS } from '../designSystem';
  * - Android: https://rive.app/docs/runtimes/android/android
  *
  * Boot / pull-to-refresh Rive:
- * - **embed** (default everywhere): Rive Cloud WebView (`DALTON_RIVE_EMBED_DEFAULT` or `EXPO_PUBLIC_RIVE_EMBED_URL`).
- * - **bundled**: set `EXPO_PUBLIC_RIVE_USE_BUNDLED=1` — native `dalton_animated_logo.riv` via `rive-react-native` (dev client / EAS only).
+ * - **bundled** (default): local `dalton_animated_logo.riv` — native `rive-react-native`, web `@rive-app/react-canvas` (no grey embed iframe).
+ * - **embed**: set `EXPO_PUBLIC_RIVE_FORCE_EMBED=1` — Rive Cloud WebView (Expo Go fallback when embed not disabled).
  * - **native-url**: `EXPO_PUBLIC_RIVE_URL` + `EXPO_PUBLIC_RIVE_USE_NATIVE_URL=1` for HTTPS-hosted `.riv` in the native player.
  */
 export const DALTON_BOOT_RIVE = require('../../assets/dalton_animated_logo.riv');
@@ -70,11 +70,8 @@ export function getDaltonBootRiveEmbedUri(): string {
 export type DaltonBootRiveDisplayMode = 'native-url' | 'embed' | 'bundled';
 
 export function getDaltonBootRiveDisplayMode(): DaltonBootRiveDisplayMode {
-  if (!BOOT_USE_RIVE) return 'embed';
-  if (Platform.OS === 'web') return 'embed';
-  if (RIVE_FORCE_EMBED) {
-    return 'embed';
-  }
+  if (!BOOT_USE_RIVE) return 'bundled';
+  if (RIVE_FORCE_EMBED) return 'embed';
   const expoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
   if (expoGo) {
     return RIVE_EMBED_DISABLED ? 'bundled' : 'embed';
@@ -88,10 +85,10 @@ export function getDaltonBootRiveDisplayMode(): DaltonBootRiveDisplayMode {
   ) {
     return 'native-url';
   }
-  if (RIVE_EMBED_DISABLED || useBundledRiveFile()) {
+  if (RIVE_EMBED_DISABLED || useBundledRiveFile() || Platform.OS === 'web') {
     return 'bundled';
   }
-  return 'embed';
+  return 'bundled';
 }
 
 export function getDaltonBootRiveAsset(): { url: string } | { source: number } {

@@ -90,7 +90,13 @@ export function DaltonBootRiveDisplay({
 
   if (!BOOT_USE_RIVE) return null;
   if (expoGo && mode === 'bundled') {
-    return null;
+    return (
+      <DaltonBootRivePlayer
+        style={style}
+        onError={onNativeError}
+        onVisualReady={onBootVisualReady}
+      />
+    );
   }
 
   const bg = BOOT_PAGE_BACKGROUND;

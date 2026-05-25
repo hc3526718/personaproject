@@ -41,54 +41,10 @@ export function DaltonBootRivePlayer({ style, onError, onVisualReady }: Props) {
     const asset = getDaltonBootRiveAsset();
     const layout = daltonRiveLayoutProps();
 
-    // #region agent log
-    (async () => {
-      let resolvedUri: string | undefined;
-      let resolvedType: string | undefined;
-      try {
-        const expoAsset = require('expo-asset') as typeof import('expo-asset');
-        if ('source' in asset) {
-          const a = expoAsset.Asset.fromModule(asset.source);
-          if (!a.localUri) {
-            // Ensure downloads when needed (Android)
-            await a.downloadAsync();
-          }
-          resolvedUri = a.localUri ?? a.uri;
-          resolvedType = 'bundled-module';
-        } else if ('url' in asset) {
-          resolvedUri = asset.url;
-          resolvedType = 'url';
-        }
-      } catch (e) {
-        resolvedUri = undefined;
-        resolvedType = `resolve_failed:${e instanceof Error ? e.name : 'unknown'}`;
-      }
-      fetch('http://127.0.0.1:7386/ingest/bab823b9-460d-4f52-948e-3e1cf5b36c4f', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6e09fa' },
-        body: JSON.stringify({
-          sessionId: '6e09fa',
-          runId: 'pre-fix',
-          hypothesisId: 'H3',
-          location: 'src/components/DaltonBootRivePlayer.tsx:DaltonBootRivePlayer',
-          message: 'native player asset resolved',
-          data: {
-            assetKind: 'source' in asset ? 'source' : 'url',
-            bundledModuleId: 'source' in asset ? asset.source : undefined,
-            resolvedType,
-            resolvedUri,
-            layout,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    })();
-    // #endregion
-
     return (
       <Rive
         {...asset}
-        style={style}
+        style={[style, { backgroundColor: 'transparent' }]}
         autoplay
         fit={mod.Fit.Contain}
         alignment={mod.Alignment.Center}
