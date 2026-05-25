@@ -78,8 +78,8 @@ Stripe MCP shows account **Dalton Access** with test recurring prices. Map them 
 ```powershell
 npx supabase secrets set STRIPE_SECRET_KEY=sk_test_... --project-ref txehbzyntvqpkkegjrwp
 npx supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_... --project-ref txehbzyntvqpkkegjrwp
-npx supabase secrets set STRIPE_PRICE_MONTHLY_ID=price_1TXSERRiVFlZ45SIaDXL6xpx --project-ref txehbzyntvqpkkegjrwp
-npx supabase secrets set STRIPE_PRICE_ANNUAL_ID=price_1TXSEORiVFlZ45SINHhHucgV --project-ref txehbzyntvqpkkegjrwp
+npx supabase secrets set STRIPE_PRICE_MONTHLY_ID=price_1TXP2BRiVFlZ45SI385a4Hs1 --project-ref txehbzyntvqpkkegjrwp
+npx supabase secrets set STRIPE_PRICE_ANNUAL_ID=price_1TXP46RiVFlZ45SIKs5TENQk --project-ref txehbzyntvqpkkegjrwp
 ```
 
 **Verify digests** (does not print secret values):

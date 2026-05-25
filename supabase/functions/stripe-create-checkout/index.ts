@@ -135,10 +135,23 @@ Deno.serve(async (req) => {
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'checkout_failed';
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    });
+    const stripeErr = e as { type?: string; code?: string; message?: string; statusCode?: number };
+    const msg = stripeErr?.message ?? (e instanceof Error ? e.message : 'checkout_failed');
+    const hint =
+      stripeErr?.code === 'resource_missing' && /test mode|live mode/i.test(msg)
+        ? 'stripe_mode_mismatch'
+        : undefined;
+    const status =
+      typeof stripeErr?.statusCode === 'number' && stripeErr.statusCode >= 400 && stripeErr.statusCode < 500
+        ? stripeErr.statusCode
+        : 500;
+    return new Response(
+      JSON.stringify({
+        error: msg,
+        code: stripeErr?.code ?? 'checkout_failed',
+        hint,
+      }),
+      { status, headers: { ...cors, 'Content-Type': 'application/json' } },
+    );
   }
 });

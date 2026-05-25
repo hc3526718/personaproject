@@ -10,11 +10,21 @@
 import { createHash } from 'node:crypto';
 
 const EXPECTED = {
+  /** Test-mode prices (Stripe Dashboard → Test mode ON). */
   STRIPE_PRICE_MONTHLY_ID: {
+    value: 'price_1TXP2BRiVFlZ45SI385a4Hs1',
+    digest: '98849ccee5ac96cdce32c22985f6b625ed829674b9b4274b3592d9016233625d',
+  },
+  STRIPE_PRICE_ANNUAL_ID: {
+    value: 'price_1TXP46RiVFlZ45SIKs5TENQk',
+    digest: '37df5147aaa60516863dae8ea3795806841123d6303824607aa36e8dc1ff2bea',
+  },
+  /** Live-mode prices (only if STRIPE_SECRET_KEY is sk_live_). */
+  STRIPE_PRICE_MONTHLY_ID_LIVE: {
     value: 'price_1TXSERRiVFlZ45SIaDXL6xpx',
     digest: 'a0527f2836134d9f09be1b70b4d0009685acb3d466c5f44f78708c237335a5ef',
   },
-  STRIPE_PRICE_ANNUAL_ID: {
+  STRIPE_PRICE_ANNUAL_ID_LIVE: {
     value: 'price_1TXSEORiVFlZ45SINHhHucgV',
     digest: 'e28bf818c4745e0611a0760f27d95ace6e2deee203a97ed6c69f83467c6a0fed',
   },
@@ -59,10 +69,23 @@ console.log('Supabase project ref: txehbzyntvqpkkegjrwp\n');
 
 let allOk = true;
 for (const [name, cfg] of Object.entries(EXPECTED)) {
+  if (name.endsWith('_LIVE')) continue;
   const envVal = process.env[name] ?? cfg.value ?? '';
   const ok = check(name, envVal, cfg.digest);
   if (ok === false) allOk = false;
 }
+
+const monthlyDigest = EXPECTED.STRIPE_PRICE_MONTHLY_ID.digest;
+const annualDigest = EXPECTED.STRIPE_PRICE_ANNUAL_ID.digest;
+const liveMonthly = EXPECTED.STRIPE_PRICE_MONTHLY_ID_LIVE.digest;
+const liveAnnual = EXPECTED.STRIPE_PRICE_ANNUAL_ID_LIVE.digest;
+console.log('\nSupabase price ID mode check (read digests from `supabase secrets list`):');
+console.log(
+  '  If monthly digest matches TEST row → test prices configured (correct for sk_test_).',
+);
+console.log(
+  '  If monthly digest matches LIVE row → live prices with sk_test_ will fail checkout.',
+);
 
 if (!process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_WEBHOOK_SECRET) {
   console.log(

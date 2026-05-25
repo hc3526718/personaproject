@@ -16,14 +16,14 @@ const DEFAULT_PLANS: StripePlanDisplay[] = [
   {
     key: 'monthly',
     title: 'Monthly',
-    priceLine: 'Billed monthly',
-    description: 'Full premium access on web and mobile (same account).',
+    priceLine: '£11.99 / month',
+    description: 'Full premium access on web and mobile. Cancel anytime.',
   },
   {
     key: 'annual',
     title: 'Annual',
-    priceLine: 'Billed yearly',
-    description: 'Best value — one subscription across all your devices.',
+    priceLine: '£99.99 / year',
+    description: 'Best value — one subscription across all your devices. Cancel anytime.',
     badge: 'Best value',
   },
 ];
@@ -78,7 +78,23 @@ export async function startStripeCheckout(plan: StripePlanKey): Promise<StartStr
   });
 
   if (error) {
-    return { ok: false, error: error.message || 'Could not start checkout.' };
+    let detail = error.message || 'Could not start checkout.';
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const body = (await ctx.json()) as { error?: string; hint?: string; code?: string };
+        if (body?.error) {
+          detail = body.error;
+          if (body.hint === 'stripe_mode_mismatch') {
+            detail +=
+              ' Use Stripe test mode end-to-end: sk_test_ secret and test price IDs in Supabase secrets.';
+          }
+        }
+      } catch {
+        /* keep generic message */
+      }
+    }
+    return { ok: false, error: detail };
   }
 
   const url = typeof data?.url === 'string' ? data.url : '';
