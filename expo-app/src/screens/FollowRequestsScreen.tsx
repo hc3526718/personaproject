@@ -20,6 +20,7 @@ import { DS } from '../designSystem';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
 import { isSupabaseConfigured } from '../lib/env';
+import { resolveProfileAvatarSource } from '../lib/profileAvatar';
 import type { ProfileStackParamList } from '../navigation/types';
 import {
   acceptFollowRequest,
@@ -32,9 +33,6 @@ import {
 } from '../roadmap/followService';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'FollowRequests'>;
-
-const PLACEHOLDER =
-  'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=200&auto=format&fit=crop';
 
 export function FollowRequestsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -139,9 +137,7 @@ export function FollowRequestsScreen({ navigation }: Props) {
               incoming.map((r) => (
                 <View key={r.id} style={styles.card}>
                   <Image
-                    source={{
-                      uri: r.requester_avatar_url?.trim() ? r.requester_avatar_url : PLACEHOLDER,
-                    }}
+                    source={resolveProfileAvatarSource(r.requester_avatar_url)}
                     style={styles.avatar}
                   />
                   <View style={styles.cardMid}>

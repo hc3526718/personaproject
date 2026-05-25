@@ -88,7 +88,11 @@ export type MessageRow = {
   conversation_id: string;
   sender_id: string;
   body: string | null;
+  media_asset_id?: string | null;
   created_at: string;
+  /** Joined from `media_assets` when listing messages. */
+  media_public_url?: string | null;
+  media_kind?: 'image' | 'video' | 'file' | null;
 };
 
 export type SubscriptionStateRow = {

@@ -41,48 +41,17 @@ import {
 } from '../profile/usernameProfile';
 import { useUsernameAvailability } from '../profile/useUsernameAvailability';
 import { isMasterGateUnlocked } from '../master/masterGateStorage';
+import {
+  interestsForProfileDisplay,
+  PROFILE_EMPTY_BIO,
+  PROFILE_EMPTY_INTERESTS,
+} from '../lib/profileDisplay';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 type SectionDetailRoute = RouteProp<ProfileStackParamList, 'EditProfileSectionDetail'>;
 
 function isLiveUser(user: { id: string } | null | undefined): boolean {
   return Boolean(isSupabaseConfigured() && user?.id && !user.id.startsWith('demo-'));
-}
-
-function sportDedupeKeys(
-  primarySport: string | null | undefined,
-  sports: string[] | null | undefined,
-): Set<string> {
-  const s = new Set<string>();
-  const add = (x?: string | null) => {
-    const t = x?.trim().toLowerCase();
-    if (t) s.add(t);
-  };
-  add(primarySport);
-  for (const x of sports ?? []) add(x);
-  return s;
-}
-
-/** Drop interests that duplicate primary / competing sport chips; title-case labels. */
-function interestsForProfileDisplay(
-  interests: string[] | null | undefined,
-  primarySport: string | null | undefined,
-  sports: string[] | null | undefined,
-): string[] {
-  const exclude = sportDedupeKeys(primarySport, sports);
-  const out: string[] = [];
-  for (const raw of interests ?? []) {
-    const t = raw.trim();
-    if (!t) continue;
-    if (exclude.has(t.toLowerCase())) continue;
-    const cap = t
-      .split(/[\s_-]+/)
-      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
-      .filter(Boolean)
-      .join(' ');
-    if (cap) out.push(cap);
-  }
-  return out;
 }
 
 function computeProfileCompletion(p: ProfileRow | null): { pct: number; hint: string } {
@@ -269,29 +238,29 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
           </View>
         ) : null}
 
-        <Text style={[styles.sectionTitleKicker, styles.sectionBlockFirst]}>BIO</Text>
+        <Text style={[styles.sectionTitleKicker, styles.sectionBlockFirst]}>About</Text>
         <Pressable style={styles.sectionCard} onPress={() => navigation.navigate('EditProfileSections')}>
           <Text style={styles.sectionBody}>
-            {profile?.bio?.trim() ? profile.bio.trim() : 'Nothing added yet.'}
+            {profile?.bio?.trim() ? profile.bio.trim() : PROFILE_EMPTY_BIO}
           </Text>
           {!profile?.bio?.trim() ? <Text style={styles.sectionCta}>Add bio →</Text> : null}
         </Pressable>
 
-        <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>INTERESTS</Text>
+        <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>Interests</Text>
         <Pressable style={styles.sectionCard} onPress={() => navigation.navigate('EditProfileSections')}>
           <Text style={styles.sectionBody}>
-            {interestLabels.length ? interestLabels.join(' • ') : 'Nothing added yet.'}
+            {interestLabels.length ? interestLabels.join(' · ') : PROFILE_EMPTY_INTERESTS}
           </Text>
           {!interestLabels.length ? <Text style={styles.sectionCta}>Add interests →</Text> : null}
         </Pressable>
 
-        <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>HIGHLIGHTS</Text>
+        <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>Highlights</Text>
         <View style={styles.sectionCard}>
           <Text style={styles.sectionBody}>Nothing added yet.</Text>
           <Text style={styles.sectionMuted}>Optional but recommended.</Text>
         </View>
 
-        <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>RECENT RESULTS</Text>
+        <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>Recent results</Text>
         <View style={styles.sectionCard}>
           <Text style={styles.sectionBody}>Nothing added yet.</Text>
           <Text style={styles.sectionMuted}>Optional but recommended.</Text>
@@ -1765,9 +1734,9 @@ const styles = StyleSheet.create({
   },
   sectionTitleKicker: {
     fontFamily: DS.font.bodyBold,
-    fontSize: 12,
+    fontSize: 13,
     color: DS.color.textMuted,
-    letterSpacing: 2,
+    letterSpacing: 0.3,
   },
   sectionBlockFirst: {
     marginTop: DS.space.xl,

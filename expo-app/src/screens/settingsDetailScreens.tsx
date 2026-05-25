@@ -746,16 +746,29 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
 
         <Text style={styles.cardKickerSpaced}>Display</Text>
         <View style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Larger Text</Text>
-              <Text style={styles.toggleSub}>Scale text up to improve readability.</Text>
+          <View style={styles.toggleRowCol}>
+            <Text style={styles.toggleTitle}>Larger Text</Text>
+            <Text style={styles.toggleSub}>
+              Scale text up to improve readability. Locks at 1×, 2×, or 3×.
+            </Text>
+            <View style={styles.textScaleRow}>
+              {([1, 2, 3] as const).map((level) => {
+                const active = prefs.textScaleLevel === level;
+                return (
+                  <Pressable
+                    key={level}
+                    style={[styles.textScaleChip, active && styles.textScaleChipActive]}
+                    onPress={() =>
+                      void patch({ textScaleLevel: level, largerText: level > 1 }, `${level}× text`)
+                    }
+                  >
+                    <Text style={[styles.textScaleChipTxt, active && styles.textScaleChipTxtActive]}>
+                      {level}×
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Switch
-              value={prefs.largerText}
-              onValueChange={(v) => void patch({ largerText: v }, 'Larger Text')}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
           </View>
           <View style={styles.hairline} />
           <View style={styles.toggleRow}>
@@ -965,6 +978,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: DS.space.md,
     paddingVertical: DS.space.sm,
+  },
+  toggleRowCol: {
+    paddingVertical: DS.space.sm,
+  },
+  textScaleRow: {
+    flexDirection: 'row',
+    gap: DS.space.sm,
+    marginTop: DS.space.md,
+  },
+  textScaleChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: DS.color.borderWhite5,
+    alignItems: 'center',
+  },
+  textScaleChipActive: {
+    backgroundColor: DS.color.gold,
+    borderColor: DS.color.gold,
+  },
+  textScaleChipTxt: {
+    fontFamily: DS.font.bodyBold,
+    fontSize: 15,
+    color: DS.color.textMuted,
+  },
+  textScaleChipTxtActive: {
+    color: DS.color.background,
   },
   toggleTitle: {
     fontSize: 15,

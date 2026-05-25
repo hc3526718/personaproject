@@ -82,12 +82,24 @@ import {
   type InAppNotification,
 } from '../roadmap/notificationsService';
 import {
+  blockUser,
+  clearConversationMessages,
   getOrCreateConversationId,
   listConversationSummaries,
   listMessages,
+  sendMediaMessage,
   sendTextMessage,
   type ConversationSummary,
 } from '../roadmap/messagingService';
+import { fetchProfileByUserId } from '../roadmap/profileService';
+import {
+  clampComposerMedia,
+  MAX_COMPOSER_VIDEO_MS,
+  pickerAssetIsVideo,
+  pickerVideoDurationMs,
+  type ComposerMedia,
+} from '../lib/mediaComposer';
+import { resolveProfileAvatarSource, isDaltonDefaultAvatarSource } from '../lib/profileAvatar';
 import type { MessageRow, SubscriptionOfferPageRow } from '../roadmap/types';
 import type { CommunityStackParamList, SponsorsStackParamList } from '../navigation/types';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
@@ -193,9 +205,6 @@ function HighlightBody({ text, query }: { text: string; query: string }) {
 }
 
 const FILTERS = ['All', 'Sprints', 'Jumps', 'Youth', 'Academy'] as const;
-
-const FEED_AVATAR_PLACEHOLDER =
-  'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?q=80&w=200&auto=format&fit=crop';
 
 function formatRelativePostTime(iso: string): string {
   const t = new Date(iso).getTime();
@@ -361,12 +370,11 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   const renderFeedPost = useCallback(
     (p: CommunityPostFeedRow) => {
       const { displayBody, eventId } = parsePostBody(p.body);
-      const av = p.author_avatar_url?.trim();
       return (
         <PostCard
           postId={p.id}
           authorId={p.author_id}
-          avatar={av ? { uri: av } : DALTON_LOGO_FINAL_IMG}
+          avatar={resolveProfileAvatarSource(p.author_avatar_url)}
           name={p.author_display_name?.trim() || 'Member'}
           time={formatRelativePostTime(p.created_at)}
           body={displayBody}
@@ -1692,13 +1700,12 @@ export function CommunitySearchResultsScreen({
         {useLiveSearch && !searchLoading
           ? visibleLivePosts.map((p) => {
               const { displayBody, eventId } = parsePostBody(p.body);
-              const av = p.author_avatar_url?.trim();
               return (
                 <PostCard
                   key={p.id}
                   postId={p.id}
                   authorId={p.author_id}
-                  avatar={av ? { uri: av } : DALTON_LOGO_FINAL_IMG}
+                  avatar={resolveProfileAvatarSource(p.author_avatar_url)}
                   name={p.author_display_name?.trim() || 'Member'}
                   time={formatRelativePostTime(p.created_at)}
                   body={displayBody}
@@ -2110,7 +2117,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
 type InboxRowUi = {
   id: string;
   name: string;
-  avatar: string;
+  peerAvatarUrl: string | null;
   time: string;
   preview: string;
   previewMuted?: boolean;
@@ -2265,7 +2272,7 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
       return {
         id: `live-${t.conversation_id}`,
         name: t.peer_display_name?.trim() || 'Member',
-        avatar: t.peer_avatar_url?.trim() ? t.peer_avatar_url : FEED_AVATAR_PLACEHOLDER,
+        peerAvatarUrl: t.peer_avatar_url ?? null,
         time: t.last_at ? formatRelativePostTime(t.last_at) : '',
         preview: t.last_body ?? 'No messages yet',
         previewMuted: !t.last_body,
@@ -2337,7 +2344,14 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
             }
           >
             <View style={styles.inboxAvatarWrap}>
-              <Image source={{ uri: t.avatar }} style={styles.inboxAvatar} />
+              <Image
+                source={resolveProfileAvatarSource(t.peerAvatarUrl)}
+                style={[
+                  styles.inboxAvatar,
+                  isDaltonDefaultAvatarSource(resolveProfileAvatarSource(t.peerAvatarUrl)) &&
+                    styles.inboxAvatarGoldRing,
+                ]}
+              />
               {t.online ? <View style={styles.inboxOnlineDot} /> : null}
             </View>
             <View style={styles.inboxMid}>
@@ -2365,9 +2379,6 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
     </View>
   );
 }
-
-const COACH_AVATAR =
-  'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg';
 
 const COACH_THREAD: { from: 'them' | 'me'; text: string; time: string; read?: 'double' | 'single' }[] = [
   {
@@ -2431,18 +2442,27 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
     title === 'Coach Williams' &&
     !conversationIdParam &&
     !peerUserId;
-  const avatar = paramAvatar?.trim()
-    ? paramAvatar
-    : isCoachDemo
-      ? COACH_AVATAR
-      : 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg';
 
+  const [peerAvatarUrl, setPeerAvatarUrl] = useState<string | null>(paramAvatar?.trim() || null);
   const [liveMessages, setLiveMessages] = useState<MessageRow[]>([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(Boolean(conversationIdParam || peerUserId));
+  const [attachBusy, setAttachBusy] = useState(false);
+  const [chatSearch, setChatSearch] = useState('');
+  const [showChatSearch, setShowChatSearch] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(
     conversationIdParam,
   );
+
+  const avatarSource = resolveProfileAvatarSource(peerAvatarUrl);
+
+  useEffect(() => {
+    if (!peerUserId) return;
+    void (async () => {
+      const row = await fetchProfileByUserId(peerUserId);
+      if (row?.avatar_url?.trim()) setPeerAvatarUrl(row.avatar_url.trim());
+    })();
+  }, [peerUserId]);
 
   useEffect(() => {
     setActiveConversationId(conversationIdParam);
@@ -2568,6 +2588,111 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
     }
   }, [cidFinal, user, draft, showBanner, markDiscussedProposalId]);
 
+  const openThreadMenu = useCallback(() => {
+    if (!isLive || !cidFinal) return;
+    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+      {
+        text: 'Search chat',
+        onPress: () => setShowChatSearch(true),
+      },
+      {
+        text: 'Clear chat',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Clear chat?',
+            'All messages in this conversation will be removed for everyone in the thread.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Clear',
+                style: 'destructive',
+                onPress: () => {
+                  void (async () => {
+                    const ok = await clearConversationMessages(cidFinal);
+                    if (ok) {
+                      setLiveMessages([]);
+                      showBanner('Chat cleared', '');
+                    } else {
+                      Alert.alert('Could not clear', 'Try again when you are back online.');
+                    }
+                  })();
+                },
+              },
+            ],
+          );
+        },
+      },
+    ];
+    if (peerUserId && user?.id) {
+      buttons.push({
+        text: 'Block user',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Block user?',
+            'They will not be able to message you and this thread will be hidden from new messages.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Block',
+                style: 'destructive',
+                onPress: () => {
+                  void (async () => {
+                    const ok = await blockUser(user.id, peerUserId);
+                    if (ok) {
+                      showBanner('User blocked', '');
+                      navigation.goBack();
+                    }
+                  })();
+                },
+              },
+            ],
+          );
+        },
+      });
+    }
+    buttons.push({ text: 'Cancel', style: 'cancel' });
+    Alert.alert('Conversation', undefined, buttons);
+  }, [isLive, cidFinal, peerUserId, user?.id, navigation, showBanner]);
+
+  const pickAttachment = useCallback(async () => {
+    if (!isLive || !cidFinal || !user?.id || attachBusy) return;
+    if (Platform.OS !== 'web') {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      allowsMultipleSelection: false,
+      quality: 0.92,
+      videoMaxDuration: Math.floor(MAX_COMPOSER_VIDEO_MS / 1000),
+    });
+    if (res.canceled || !res.assets[0]) return;
+    const a = res.assets[0];
+    let media: ComposerMedia | null = null;
+    if (pickerAssetIsVideo(a)) {
+      const durMs = pickerVideoDurationMs(a) ?? MAX_COMPOSER_VIDEO_MS;
+      if (durMs > MAX_COMPOSER_VIDEO_MS) {
+        Alert.alert('Video too long', 'Videos must be 30 seconds or shorter.');
+        return;
+      }
+      media = { kind: 'video', uri: a.uri, durationMs: durMs, mimeType: a.mimeType ?? undefined };
+    } else if (a.uri) {
+      media = { kind: 'image', uri: a.uri, mimeType: a.mimeType ?? undefined };
+    }
+    if (!media) return;
+    setAttachBusy(true);
+    const sent = await sendMediaMessage(cidFinal, user.id, clampComposerMedia([media])[0]!);
+    setAttachBusy(false);
+    if (sent) {
+      setLiveMessages((prev) => [...prev, sent]);
+      showBanner('Sent', media.kind === 'video' ? 'Video sent.' : 'Photo sent.');
+    } else {
+      Alert.alert('Send failed', 'Could not attach this file.');
+    }
+  }, [isLive, cidFinal, user?.id, attachBusy, showBanner]);
+
   const bubbles =
     isLive || isScreenshotThread
       ? liveMessages.map((m) => ({
@@ -2575,10 +2700,17 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           text: m.body ?? '',
           time: formatRelativePostTime(m.created_at),
           read: (m.sender_id === user!.id ? 'double' : undefined) as 'double' | 'single' | undefined,
+          mediaUrl: m.media_public_url?.trim() || null,
+          mediaKind: m.media_kind ?? null,
         }))
       : isCoachDemo
-        ? COACH_THREAD
+        ? COACH_THREAD.map((m) => ({ ...m, mediaUrl: null as string | null, mediaKind: null }))
         : [];
+
+  const needle = chatSearch.trim().toLowerCase();
+  const visibleBubbles = needle
+    ? bubbles.filter((m) => m.text.toLowerCase().includes(needle))
+    : bubbles;
 
   return (
     <View style={styles.root}>
@@ -2593,7 +2725,13 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
             navigation.navigate('PublicProfile', { userId: peerUserId });
           }}
         >
-          <Image source={{ uri: avatar }} style={styles.threadHeaderAvatar} />
+          <Image
+            source={avatarSource}
+            style={[
+              styles.threadHeaderAvatar,
+              isDaltonDefaultAvatarSource(avatarSource) && styles.threadHeaderAvatarGoldRing,
+            ]}
+          />
         </Pressable>
         <View style={styles.threadHeaderMid}>
           <Text style={styles.threadHeaderName} numberOfLines={1}>
@@ -2603,29 +2741,25 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
             {isLive || isScreenshotThread ? 'Messages' : 'Online'}
           </Text>
         </View>
-        <View style={styles.threadHeaderActions}>
-          <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
-            <FontAwesome name="phone" size={16} color={DS.color.gold} />
-          </Pressable>
-          <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
-            <FontAwesome name="video-camera" size={16} color={DS.color.gold} />
-          </Pressable>
-          <Pressable
-            hitSlop={8}
-            style={styles.threadHeaderIcon}
-            disabled={!peerUserId}
-            onPress={() => {
-              if (!peerUserId) return;
-              navigation.navigate('PublicProfile', { userId: peerUserId });
-            }}
-          >
-            <FontAwesome name="user" size={18} color={DS.color.gold} />
-          </Pressable>
-          <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
-            <FontAwesome name="bell-slash" size={16} color={DS.color.gold} />
+        <Pressable hitSlop={10} style={styles.threadHeaderMenuBtn} onPress={openThreadMenu}>
+          <FontAwesome name="ellipsis-v" size={18} color={DS.color.gold} />
+        </Pressable>
+      </View>
+      {showChatSearch ? (
+        <View style={styles.threadSearchBar}>
+          <TextInput
+            style={styles.threadSearchInput}
+            placeholder="Search in conversation…"
+            placeholderTextColor={DS.color.textMuted}
+            value={chatSearch}
+            onChangeText={setChatSearch}
+            autoFocus
+          />
+          <Pressable hitSlop={8} onPress={() => { setShowChatSearch(false); setChatSearch(''); }}>
+            <FontAwesome name="times" size={18} color={DS.color.textMuted} />
           </Pressable>
         </View>
-      </View>
+      ) : null}
       <ScrollView
         contentContainerStyle={[styles.threadBody, { paddingBottom: DS.space.lg }]}
         showsVerticalScrollIndicator={false}
@@ -2643,18 +2777,40 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         <View style={styles.threadDayPillWrap}>
           <Text style={styles.threadDayPill}>Today</Text>
         </View>
-        {bubbles.map((m, i) =>
+        {visibleBubbles.map((m, i) =>
           m.from === 'them' ? (
             <View key={`${i}-t`} style={styles.threadMsgThem}>
               <View style={styles.bubbleThem}>
-                <Text style={styles.bubbleText}>{m.text}</Text>
+                {m.mediaUrl && m.mediaKind === 'image' ? (
+                  <Image source={{ uri: m.mediaUrl }} style={styles.bubbleMedia} resizeMode="cover" />
+                ) : null}
+                {m.mediaUrl && m.mediaKind === 'video' ? (
+                  <Video
+                    source={{ uri: m.mediaUrl }}
+                    style={styles.bubbleMedia}
+                    resizeMode={ResizeMode.COVER}
+                    useNativeControls
+                  />
+                ) : null}
+                {m.text ? <Text style={styles.bubbleText}>{m.text}</Text> : null}
               </View>
               <Text style={styles.bubbleMetaThem}>{m.time}</Text>
             </View>
           ) : (
             <View key={`${i}-m`} style={styles.threadMsgMe}>
               <View style={styles.bubbleMe}>
-                <Text style={styles.bubbleTextDark}>{m.text}</Text>
+                {m.mediaUrl && m.mediaKind === 'image' ? (
+                  <Image source={{ uri: m.mediaUrl }} style={styles.bubbleMedia} resizeMode="cover" />
+                ) : null}
+                {m.mediaUrl && m.mediaKind === 'video' ? (
+                  <Video
+                    source={{ uri: m.mediaUrl }}
+                    style={styles.bubbleMedia}
+                    resizeMode={ResizeMode.COVER}
+                    useNativeControls
+                  />
+                ) : null}
+                {m.text ? <Text style={styles.bubbleTextDark}>{m.text}</Text> : null}
               </View>
               <View style={styles.bubbleMetaMeRow}>
                 <Text style={styles.bubbleMetaMe}>{m.time}</Text>
@@ -2669,8 +2825,17 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         )}
       </ScrollView>
       <View style={[styles.composeBar, { paddingBottom: Math.max(insets.bottom, DS.space.md) }]}>
-        <Pressable hitSlop={8} style={styles.composePlus}>
-          <FontAwesome name="plus" size={20} color={DS.color.gold} />
+        <Pressable
+          hitSlop={8}
+          style={[styles.composePlus, attachBusy ? { opacity: 0.5 } : null]}
+          onPress={() => void pickAttachment()}
+          disabled={!isLive || attachBusy}
+        >
+          {attachBusy ? (
+            <AppLoadingIndicator size={20} />
+          ) : (
+            <FontAwesome name="plus" size={20} color={DS.color.gold} />
+          )}
         </Pressable>
         <TextInput
           style={styles.composeInputRounded}
@@ -4195,6 +4360,10 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 24,
   },
+  inboxAvatarGoldRing: {
+    borderWidth: 2,
+    borderColor: DS.color.gold,
+  },
   inboxOnlineDot: {
     position: 'absolute',
     bottom: 0,
@@ -4272,6 +4441,42 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+  },
+  threadHeaderAvatarGoldRing: {
+    borderWidth: 2,
+    borderColor: DS.color.gold,
+  },
+  threadHeaderMenuBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: DS.color.goldTint10,
+    borderWidth: 1,
+    borderColor: DS.color.goldTint30,
+  },
+  threadSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+    paddingHorizontal: DS.space.base,
+    paddingVertical: DS.space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DS.color.borderWhite5,
+  },
+  threadSearchInput: {
+    flex: 1,
+    fontFamily: DS.font.body,
+    fontSize: 15,
+    color: DS.color.text,
+    paddingVertical: DS.space.sm,
+  },
+  bubbleMedia: {
+    width: 220,
+    height: 160,
+    borderRadius: DS.radius.lg,
+    marginBottom: DS.space.xs,
   },
   threadHeaderMid: {
     flex: 1,

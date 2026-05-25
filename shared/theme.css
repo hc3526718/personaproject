@@ -3,6 +3,7 @@
  * Individual pages keep Tailwind CDN configs; this aligns custom CSS and future refactors.
  */
 :root {
+  --dalton-text-scale: 1;
   --demo-bg: #0a0a0a;
   --demo-surface: #1c1c1c;
   --demo-surface-alt: #1a1a1a;
@@ -84,4 +85,25 @@
 
 body.demo-dock-padded {
   padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+html.dalton-a11y-text-lg body {
+  font-size: calc(16px * var(--dalton-text-scale, 1));
+}
+
+html.dalton-a11y-contrast body {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.dalton-a11y-mono .text-gold,
+html.dalton-a11y-mono .bg-gold {
+  color: #000000 !important;
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+html.dalton-a11y-mono .border-gold\/30,
+html.dalton-a11y-mono .border-line {
+  border-color: rgba(255, 255, 255, 0.45) !important;
 }

@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -14,11 +13,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
-import { AppleHeroButton } from '../components/AppleHeroButton';
+import { MemberProfileView } from '../components/profile/MemberProfileView';
 import { DS } from '../designSystem';
-import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import { formatAuthorDisplayName } from '../lib/communityPostBody';
 import { isSupabaseConfigured } from '../lib/env';
+import { isExpoWeb, webPageShellStyle } from '../layout/webLayout';
 import type { CommunityStackParamList, ProfileStackParamList } from '../navigation/types';
 import { useAuth } from '../auth/AuthContext';
 import { fetchProfileByUserId } from '../roadmap/profileService';
@@ -70,22 +69,29 @@ export function PublicProfileScreen({ navigation, route }: Props) {
     }, [load]),
   );
 
-  const headerTitle = profile ? formatAuthorDisplayName(profile) : 'Profile';
-
   const bannerSource =
     profile?.banner_url?.trim()
       ? ({ uri: profile.banner_url.trim() } as const)
       : null;
 
-  const displayLine = useMemo(() => {
-    if (!profile) return headerTitle;
+  const displayName = useMemo(() => {
+    if (!profile) return 'Profile';
     const label = formatAuthorDisplayName(profile);
     if (label !== 'Member') return label;
     return profile.username?.trim() ? `@${profile.username.trim()}` : 'Member';
-  }, [profile, headerTitle]);
+  }, [profile]);
+
+  const messageDisplayName = useMemo(() => {
+    if (!profile) return displayName;
+    const label = formatAuthorDisplayName(profile);
+    if (label !== 'Member') return label;
+    return profile.username?.trim() ? `@${profile.username.trim()}` : 'Member';
+  }, [profile, displayName]);
 
   const canFollow =
     Boolean(user?.id && !user.id.startsWith('demo-') && user.id !== userId && userId.length > 10);
+
+  const showVerifiedBadge = Boolean(profile?.dalton_verified);
 
   const openMessage = async () => {
     if (!canFollow || !user?.id) return;
@@ -102,7 +108,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
           screen: 'MessageThread',
           params: {
             peerUserId: userId,
-            name: displayLine,
+            name: messageDisplayName,
             avatarUrl: profile?.avatar_url?.trim() || undefined,
           },
         } as never,
@@ -111,7 +117,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
     }
     navigation.navigate('MessageThread' as never, {
       peerUserId: userId,
-      name: displayLine,
+      name: messageDisplayName,
       avatarUrl: profile?.avatar_url?.trim() || undefined,
     } as never);
   };
@@ -135,107 +141,63 @@ export function PublicProfileScreen({ navigation, route }: Props) {
     setFollowBusy(false);
   };
 
+  const demoUser = Boolean(user?.id?.startsWith('demo-'));
+
   return (
-    <View style={styles.root}>
-      <View style={[styles.top, { paddingTop: insets.top + DS.space.md }]}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.backHit}>
-          <FontAwesome name="arrow-left" size={20} color={DS.color.gold} />
-        </Pressable>
-        <Text style={styles.title} numberOfLines={1}>
-          {headerTitle}
-        </Text>
-        <View style={{ width: 28 }} />
-      </View>
+    <View style={[styles.root, webPageShellStyle()]}>
       {loading ? (
-        <AppLoadingIndicator style={{ marginTop: 32 }} />
+        <View style={[styles.loadingWrap, { paddingTop: insets.top + DS.space.xl }]}>
+          <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.backFab}>
+            <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
+          </Pressable>
+          <AppLoadingIndicator style={{ marginTop: 32 }} />
+        </View>
       ) : (
         <ScrollView
-          contentContainerStyle={[styles.body, { paddingBottom: 48 + insets.bottom }]}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingBottom: 48 + insets.bottom, paddingTop: insets.top },
+          ]}
           showsVerticalScrollIndicator={false}
         >
           <Pressable
-            style={[styles.bannerBleed, { marginHorizontal: -DS.space.lg }]}
-            onPress={() => {
-              if (bannerSource) setBannerZoomOpen(true);
-            }}
+            onPress={() => navigation.goBack()}
+            hitSlop={10}
+            style={[styles.backFab, { top: insets.top + DS.space.sm }]}
           >
-            {bannerSource ? (
-              <Image source={bannerSource} style={styles.bannerImg} resizeMode="cover" />
-            ) : (
-              <View style={styles.bannerPlaceholder} />
-            )}
+            <FontAwesome name="arrow-left" size={18} color="#FFFFFF" />
           </Pressable>
 
-          <View style={styles.avatarWrap}>
-            <Image
-              source={profile?.avatar_url?.trim() ? { uri: profile.avatar_url.trim() } : DALTON_LOGO_FINAL_IMG}
-              style={styles.avatar}
-            />
-          </View>
-
-          {canFollow ? (
-            <View style={styles.actionRow}>
-              <AppleHeroButton
-                loading={followBusy}
-                onPress={() => void toggleFollow()}
-                style={styles.followGoldBtn}
-              >
-                {following ? 'Following' : 'Follow'}
-              </AppleHeroButton>
-              <Pressable style={styles.messageBtn} onPress={() => void openMessage()}>
-                <FontAwesome name="envelope" size={16} color={DS.color.gold} />
-                <Text style={styles.messageBtnTxt}>Message</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          <Text style={styles.name}>{displayLine}</Text>
-          {profile?.username?.trim() ? (
-            <Text style={styles.handle}>@{profile.username.trim()}</Text>
-          ) : null}
-          {profile?.persona_role ? (
-            <Text style={styles.role}>{profile.persona_role}</Text>
-          ) : null}
-          {profile?.sports?.length ? (
-            <Text style={styles.meta}>{profile.sports.join(' · ')}</Text>
-          ) : null}
-
-          <View style={styles.followStatsRow}>
-            <Pressable
-              onPress={() => navigation.navigate('FollowUserList', { userId, mode: 'followers' })}
-              disabled={Boolean(user?.id && user.id.startsWith('demo-'))}
-              hitSlop={8}
-            >
-              <Text style={styles.followStatsTxt}>
-                <Text style={styles.followStatsNum}>{followCounts.followers}</Text>
-                {' Followers'}
-              </Text>
-            </Pressable>
-            <Text style={styles.followStatsSep}> · </Text>
-            <Pressable
-              onPress={() => navigation.navigate('FollowUserList', { userId, mode: 'following' })}
-              disabled={Boolean(user?.id && user.id.startsWith('demo-'))}
-              hitSlop={8}
-            >
-              <Text style={styles.followStatsTxt}>
-                <Text style={styles.followStatsNum}>{followCounts.following}</Text>
-                {' Following'}
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardKicker}>ABOUT</Text>
-            <Text style={styles.bio}>
-              {profile?.bio?.trim() ||
-                profile?.discovery_source?.trim() ||
-                'This athlete is part of the Dalton Access community.'}
-            </Text>
-          </View>
+          <MemberProfileView
+            profile={profile}
+            displayName={displayName}
+            followCounts={followCounts}
+            mode="public"
+            showVerifiedBadge={showVerifiedBadge}
+            onBannerPress={() => {
+              if (bannerSource) setBannerZoomOpen(true);
+            }}
+            onFollowersPress={() =>
+              navigation.navigate('FollowUserList', { userId, mode: 'followers' })
+            }
+            onFollowingPress={() =>
+              navigation.navigate('FollowUserList', { userId, mode: 'following' })
+            }
+            canFollow={canFollow}
+            following={following}
+            followBusy={followBusy}
+            onToggleFollow={() => void toggleFollow()}
+            onMessage={() => void openMessage()}
+          />
         </ScrollView>
       )}
 
-      <Modal visible={bannerZoomOpen} transparent animationType="fade" onRequestClose={() => setBannerZoomOpen(false)}>
+      <Modal
+        visible={bannerZoomOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBannerZoomOpen(false)}
+      >
         <Pressable style={styles.bannerZoomBackdrop} onPress={() => setBannerZoomOpen(false)}>
           {bannerSource ? (
             <Image source={bannerSource} style={styles.bannerZoomImg} resizeMode="contain" />
@@ -248,147 +210,26 @@ export function PublicProfileScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: DS.color.background },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: DS.space.base,
-    paddingBottom: DS.space.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: DS.color.borderWhite5,
-  },
-  backHit: { padding: DS.space.xs },
-  title: {
+  loadingWrap: {
     flex: 1,
-    textAlign: 'center',
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 16,
-    color: DS.color.text,
+    paddingHorizontal: DS.space.lg,
   },
-  body: { paddingHorizontal: DS.space.lg },
-  bannerBleed: {
-    height: 140,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    overflow: 'hidden',
-    marginBottom: DS.space.md,
-    backgroundColor: DS.color.surface,
+  scroll: {
+    paddingHorizontal: DS.space.lg,
+    ...(isExpoWeb() ? { alignItems: 'center' as const } : {}),
   },
-  bannerImg: { width: '100%', height: '100%' },
-  bannerPlaceholder: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  avatarWrap: { alignItems: 'center', marginTop: -56, marginBottom: DS.space.sm },
-  avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 2,
-    borderColor: DS.color.gold,
-    backgroundColor: DS.color.background,
-  },
-  actionRow: {
-    flexDirection: 'row',
+  backFab: {
+    position: 'absolute',
+    left: DS.space.lg,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: DS.space.md,
-    paddingHorizontal: DS.space.xl,
-    marginBottom: DS.space.md,
-  },
-  followGoldBtn: {
-    backgroundColor: DS.color.gold,
-    borderColor: DS.color.gold,
-    minHeight: 44,
-    flex: 1,
-  },
-  messageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: DS.space.xs,
-    paddingVertical: DS.space.sm,
-    paddingHorizontal: DS.space.md,
-    borderRadius: DS.radius.lg,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     borderWidth: 1,
-    borderColor: DS.color.goldTint30,
-    minHeight: 44,
-  },
-  messageBtnTxt: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 14,
-    color: DS.color.gold,
-  },
-  name: {
-    fontFamily: DS.font.heading,
-    fontSize: 22,
-    color: DS.color.text,
-    textAlign: 'center',
-    letterSpacing: 1,
-  },
-  handle: {
-    marginTop: 4,
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 14,
-    color: DS.color.gold,
-    textAlign: 'center',
-  },
-  role: {
-    marginTop: DS.space.xs,
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 13,
-    color: DS.color.gold,
-    textAlign: 'center',
-  },
-  meta: {
-    marginTop: DS.space.sm,
-    fontFamily: DS.font.body,
-    fontSize: 13,
-    color: DS.color.textMuted,
-    textAlign: 'center',
-  },
-  followStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: DS.space.md,
-    flexWrap: 'wrap',
-  },
-  followStatsTxt: {
-    fontFamily: DS.font.body,
-    fontSize: 14,
-    color: DS.color.textMuted,
-  },
-  followStatsNum: {
-    fontFamily: DS.font.bodyBold,
-    fontSize: 14,
-    color: DS.color.text,
-  },
-  followStatsSep: {
-    fontFamily: DS.font.body,
-    fontSize: 14,
-    color: DS.color.textMuted,
-    marginHorizontal: DS.space.xs,
-  },
-  card: {
-    marginTop: DS.space.xl,
-    padding: DS.space.lg,
-    borderRadius: DS.radius.lg,
-    backgroundColor: DS.color.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DS.color.borderWhite5,
-  },
-  cardKicker: {
-    fontFamily: DS.font.bodyBold,
-    fontSize: 11,
-    letterSpacing: 2,
-    color: DS.color.gold,
-    marginBottom: DS.space.sm,
-  },
-  bio: {
-    fontFamily: DS.font.body,
-    fontSize: 14,
-    color: DS.color.textMuted,
-    lineHeight: 22,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   bannerZoomBackdrop: {
     flex: 1,
@@ -396,6 +237,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: DS.space.lg,
+    ...(isExpoWeb() ? { maxWidth: 900, alignSelf: 'center' as const, width: '100%' as const } : {}),
   },
   bannerZoomImg: {
     width: '100%',

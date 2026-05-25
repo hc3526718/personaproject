@@ -39,6 +39,36 @@
         />
       </div>
       <div id="chips" class="flex flex-wrap gap-2 mt-4"></div>
+
+      <section class="mt-8 rounded-2xl border border-line bg-panel p-5" aria-labelledby="a11y-preview-title">
+        <h2 id="a11y-preview-title" class="text-mist font-semibold text-lg">Accessibility preview</h2>
+        <p class="text-dim text-sm mt-1 leading-relaxed">
+          Same options as the app (Settings → Accessibility). Changes apply to this page for preview; sign in on web to sync prefs to your account.
+        </p>
+        <div class="mt-4 space-y-4">
+          <div>
+            <p class="text-mist text-sm font-medium">Larger text</p>
+            <p class="text-dim text-xs mt-0.5">Locks at 1×, 2×, or 3×</p>
+            <div class="flex gap-2 mt-2" id="a11y-text-scale"></div>
+          </div>
+          <label class="flex items-center justify-between gap-3 cursor-pointer">
+            <span>
+              <span class="text-mist text-sm font-medium block">Differentiate without color</span>
+              <span class="text-dim text-xs">Monochrome UI with stronger borders</span>
+            </span>
+            <input type="checkbox" id="a11y-mono" class="w-5 h-5 accent-[#c8a84b]" />
+          </label>
+          <label class="flex items-center justify-between gap-3 cursor-pointer">
+            <span>
+              <span class="text-mist text-sm font-medium block">Sufficient contrast</span>
+              <span class="text-dim text-xs">True black background, brighter text</span>
+            </span>
+            <input type="checkbox" id="a11y-contrast" class="w-5 h-5 accent-[#c8a84b]" />
+          </label>
+        </div>
+        <p class="mt-4 text-sm text-mist" id="a11y-sample">Sample body text at your selected scale.</p>
+      </section>
+
       <div id="articles" class="mt-8 space-y-4"></div>
       <div class="mt-10 rounded-2xl border border-gold/30 bg-panel p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -84,6 +114,62 @@
       const q = params.get("q");
       if (q) searchEl.value = q;
       renderArticles(searchEl.value);
+
+      const A11Y_KEY = "dalton_accessibility_prefs_v2";
+      function loadA11y() {
+        try {
+          return JSON.parse(localStorage.getItem(A11Y_KEY) || "{}");
+        } catch {
+          return {};
+        }
+      }
+      function saveA11y(p) {
+        localStorage.setItem(A11Y_KEY, JSON.stringify(p));
+        applyA11y(p);
+      }
+      function applyA11y(p) {
+        const level = [1, 2, 3].includes(p.textScaleLevel) ? p.textScaleLevel : p.largerText ? 2 : 1;
+        const scale = level >= 3 ? 1.42 : level >= 2 ? 1.28 : 1;
+        document.documentElement.style.setProperty("--dalton-text-scale", String(scale));
+        document.documentElement.classList.toggle("dalton-a11y-text-lg", scale > 1.05);
+        document.documentElement.classList.toggle("dalton-a11y-mono", !!p.differentiateWithoutColor);
+        document.documentElement.classList.toggle("dalton-a11y-contrast", !!p.sufficientContrast);
+        const sample = document.getElementById("a11y-sample");
+        if (sample) sample.style.fontSize = Math.round(14 * scale) + "px";
+      }
+      const a11y = { textScaleLevel: 1, differentiateWithoutColor: false, sufficientContrast: false, ...loadA11y() };
+      const scaleHost = document.getElementById("a11y-text-scale");
+      [1, 2, 3].forEach((n) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip flex-1 text-center";
+        b.textContent = n + "×";
+        b.onclick = () => {
+          a11y.textScaleLevel = n;
+          a11y.largerText = n > 1;
+          saveA11y(a11y);
+          paintScale();
+        };
+        scaleHost.appendChild(b);
+      });
+      function paintScale() {
+        scaleHost.querySelectorAll("button").forEach((btn, i) => {
+          btn.classList.toggle("active", i + 1 === a11y.textScaleLevel);
+        });
+      }
+      document.getElementById("a11y-mono").checked = !!a11y.differentiateWithoutColor;
+      document.getElementById("a11y-contrast").checked = !!a11y.sufficientContrast;
+      document.getElementById("a11y-mono").onchange = (e) => {
+        a11y.differentiateWithoutColor = e.target.checked;
+        saveA11y(a11y);
+      };
+      document.getElementById("a11y-contrast").onchange = (e) => {
+        a11y.sufficientContrast = e.target.checked;
+        saveA11y(a11y);
+      };
+      if (!a11y.textScaleLevel) a11y.textScaleLevel = a11y.largerText ? 2 : 1;
+      paintScale();
+      applyA11y(a11y);
     </script>
     <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-transition.js"></script>

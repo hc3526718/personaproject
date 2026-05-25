@@ -17,6 +17,8 @@ export type UserPrefsDoc = {
     master_proposals?: boolean;
   };
   accessibility?: AccessibilityPrefsCloud;
+  /** UUIDs the signed-in user has blocked from messaging. */
+  blocked_user_ids?: string[];
 };
 
 export const DEFAULT_USER_PREFS: UserPrefsDoc = {
@@ -39,6 +41,7 @@ function mergePrefs(base: UserPrefsDoc, patch: Partial<UserPrefsDoc>): UserPrefs
     privacy: { ...base.privacy, ...patch.privacy },
     notification_channels: { ...base.notification_channels, ...patch.notification_channels },
     accessibility: { ...base.accessibility, ...patch.accessibility },
+    blocked_user_ids: patch.blocked_user_ids ?? base.blocked_user_ids,
   };
 }
 
@@ -80,7 +83,15 @@ export async function fetchUserPrefsDoc(userId: string): Promise<UserPrefsDoc> {
   const privacy = (p.privacy as UserPrefsDoc['privacy']) ?? {};
   const notification_channels = (p.notification_channels as UserPrefsDoc['notification_channels']) ?? {};
   const accessibility = (p.accessibility as UserPrefsDoc['accessibility']) ?? {};
-  return mergePrefs(DEFAULT_USER_PREFS, { privacy, notification_channels, accessibility });
+  const blocked_user_ids = Array.isArray(p.blocked_user_ids)
+    ? (p.blocked_user_ids as string[]).filter((id) => typeof id === 'string')
+    : undefined;
+  return mergePrefs(DEFAULT_USER_PREFS, {
+    privacy,
+    notification_channels,
+    accessibility,
+    ...(blocked_user_ids ? { blocked_user_ids } : {}),
+  });
 }
 
 /** Merge a partial patch, persist with retries. Fetches current row first so nested keys are not dropped. */
@@ -95,7 +106,15 @@ export async function patchUserPrefsDoc(userId: string, patch: Partial<UserPrefs
     const notification_channels =
       (raw.notification_channels as UserPrefsDoc['notification_channels']) ?? {};
     const accessibility = (raw.accessibility as UserPrefsDoc['accessibility']) ?? {};
-    base = mergePrefs(DEFAULT_USER_PREFS, { privacy, notification_channels, accessibility });
+    const blocked_user_ids = Array.isArray(raw.blocked_user_ids)
+      ? (raw.blocked_user_ids as string[]).filter((id) => typeof id === 'string')
+      : undefined;
+    base = mergePrefs(DEFAULT_USER_PREFS, {
+      privacy,
+      notification_channels,
+      accessibility,
+      ...(blocked_user_ids ? { blocked_user_ids } : {}),
+    });
   }
   const merged = mergePrefs(base, patch);
   return upsertWithRetry(userId, merged as unknown as Record<string, unknown>);

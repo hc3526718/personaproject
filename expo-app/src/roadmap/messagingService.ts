@@ -5,8 +5,11 @@ import {
   isScreenshotSamplePeerId,
   mergeScreenshotConversationSummaries,
 } from '../data/appStoreScreenshotSamples';
+import { uploadMessageMedia } from '../lib/messageMediaUpload';
+import type { ComposerMedia } from '../lib/mediaComposer';
 import { isAppStoreScreenshotMode } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
+import { fetchUserPrefsDoc, patchUserPrefsDoc } from './userSettingsService';
 import type { ConversationRow, MessageRow } from './types';
 
 export type ConversationSummary = {
@@ -150,12 +153,24 @@ export async function listMessages(
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('messages')
-    .select('*')
+    .select('*, media_assets(public_url, kind)')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
-  return [...(data as MessageRow[])].reverse();
+  const rows = (data as Record<string, unknown>[]).map((row) => {
+    const rawAsset = row.media_assets;
+    const asset = Array.isArray(rawAsset)
+      ? (rawAsset[0] as { public_url?: string | null; kind?: string | null } | undefined)
+      : (rawAsset as { public_url?: string | null; kind?: string | null } | null);
+    const { media_assets: _drop, ...rest } = row;
+    return {
+      ...(rest as MessageRow),
+      media_public_url: asset?.public_url ?? null,
+      media_kind: (asset?.kind as MessageRow['media_kind']) ?? null,
+    };
+  });
+  return rows.reverse();
 }
 
 export async function sendTextMessage(
@@ -177,4 +192,62 @@ export async function sendTextMessage(
     .single();
   if (error || !data) return null;
   return data as MessageRow;
+}
+
+export async function sendMediaMessage(
+  conversationId: string,
+  senderId: string,
+  media: ComposerMedia,
+  caption?: string,
+): Promise<MessageRow | null> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleConversationId(conversationId)) {
+    return null;
+  }
+  const uploaded = await uploadMessageMedia(senderId, conversationId, media);
+  if (!uploaded) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const body = (caption ?? '').trim() || (media.kind === 'video' ? 'Video' : 'Photo');
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      body,
+      media_asset_id: uploaded.assetId,
+    })
+    .select('*')
+    .single();
+  if (error || !data) return null;
+  return {
+    ...(data as MessageRow),
+    media_public_url: uploaded.publicUrl,
+    media_kind: media.kind,
+  };
+}
+
+/** Delete all messages in a conversation (participant policy). */
+export async function clearConversationMessages(conversationId: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase.from('messages').delete().eq('conversation_id', conversationId);
+  return !error;
+}
+
+export async function listBlockedUserIds(userId: string): Promise<string[]> {
+  const doc = await fetchUserPrefsDoc(userId);
+  return doc.blocked_user_ids ?? [];
+}
+
+export async function blockUser(userId: string, blockedUserId: string): Promise<boolean> {
+  if (!userId || !blockedUserId || userId === blockedUserId) return false;
+  const doc = await fetchUserPrefsDoc(userId);
+  const set = new Set(doc.blocked_user_ids ?? []);
+  set.add(blockedUserId);
+  return patchUserPrefsDoc(userId, { blocked_user_ids: [...set] });
+}
+
+export async function isUserBlocked(viewerId: string, peerUserId: string): Promise<boolean> {
+  const ids = await listBlockedUserIds(viewerId);
+  return ids.includes(peerUserId);
 }

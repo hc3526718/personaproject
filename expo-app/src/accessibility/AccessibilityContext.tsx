@@ -17,7 +17,12 @@ import {
   saveAccessibilityPrefs,
   type AccessibilityPrefs,
 } from '../lib/accessibilityPrefs';
-import { buildAccessibleColors, textScaleForPrefs, type AccessibleColors } from '../lib/accessibilityTheme';
+import {
+  applyAccessibilityWebSurface,
+  buildAccessibleColors,
+  textScaleForPrefs,
+  type AccessibleColors,
+} from '../lib/accessibilityTheme';
 import { fetchUserPrefsDoc, patchUserPrefsDoc } from '../roadmap/userSettingsService';
 import { isSupabaseConfigured } from '../lib/env';
 
@@ -60,6 +65,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     }
     setPrefs(local);
     applyTextDefaults(local);
+    applyAccessibilityWebSurface(local);
     setReady(true);
   }, [user?.id]);
 
@@ -73,6 +79,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
       const next = await saveAccessibilityPrefs(patch);
       setPrefs(next);
       applyTextDefaults(next);
+      applyAccessibilityWebSurface(next);
       if (isSupabaseConfigured() && user?.id) {
         void patchUserPrefsDoc(user.id, { accessibility: prefsToCloud(next) });
       }
@@ -89,6 +96,7 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     const next = await saveAccessibilityPrefs(cloud);
     setPrefs(next);
     applyTextDefaults(next);
+    applyAccessibilityWebSurface(next);
   }, [user?.id]);
 
   useEffect(() => {
@@ -97,6 +105,10 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
 
   const colors = useMemo(() => buildAccessibleColors(prefs), [prefs]);
   const textScale = useMemo(() => textScaleForPrefs(prefs), [prefs]);
+
+  useEffect(() => {
+    applyAccessibilityWebSurface(prefs);
+  }, [prefs]);
 
   const value = useMemo(
     () => ({

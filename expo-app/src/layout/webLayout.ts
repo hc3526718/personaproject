@@ -3,6 +3,9 @@ import { Platform, type ViewStyle } from 'react-native';
 /** Legacy narrow column — prefer full-width web shell below. */
 export const WEB_MAX_CONTENT_WIDTH = 520;
 
+/** Centered column for profile hero + sections on web. */
+export const WEB_PROFILE_MAX_WIDTH = 640;
+
 export function isExpoWeb(): boolean {
   return Platform.OS === 'web';
 }

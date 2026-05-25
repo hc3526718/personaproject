@@ -1,5 +1,8 @@
 /** Loads StaggeredMenu + screenshot carousel (pages with #dalton-staggered-menu / #dalton-card-swap). */
 (function loadMarketingUi() {
+  if (typeof window !== 'undefined' && typeof window.process === 'undefined') {
+    window.process = { env: { NODE_ENV: 'production' } };
+  }
   if (window.__daltonMarketingUiLoading) return;
   window.__daltonMarketingUiLoading = true;
 
