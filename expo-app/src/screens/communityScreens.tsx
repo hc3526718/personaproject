@@ -40,6 +40,7 @@ import { webCommunityFeedPaneStyle, webPageShellStyle } from '../layout/webLayou
 import { CommunityWebTrendingPanel } from '../components/CommunityWebTrendingPanel';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
+import { PostFeedMedia } from '../components/PostFeedMedia';
 import { canSubmitCommunityPost } from '../roadmap/communityPolicy';
 import { getSupabase } from '../lib/supabase';
 import { parsePostBody } from '../lib/communityPostBody';
@@ -887,61 +888,12 @@ function PostCard({
       <RichTextMentions text={body ?? ''} />
     );
 
-  const mediaItems = useMemo(
-    () => (media ?? []).filter((m) => m.kind === 'image' || m.kind === 'video'),
-    [media],
+  const mediaSection = (
+    <PostFeedMedia
+      items={(media ?? []).filter((m) => m.kind === 'image' || m.kind === 'video')}
+      fallbackImageUri={imageUri}
+    />
   );
-  const [carouselW, setCarouselW] = useState(0);
-  const scrollRef = useRef<ScrollView | null>(null);
-  const onCarouselLayout = useCallback(
-    (e: LayoutChangeEvent) => {
-      const w = e.nativeEvent.layout.width;
-      if (w && w !== carouselW) setCarouselW(w);
-    },
-    [carouselW],
-  );
-
-  const mediaSection =
-    mediaItems.length > 0 ? (
-      <View onLayout={onCarouselLayout} style={styles.postCarouselWrap}>
-        <ScrollView
-          ref={(r) => {
-            scrollRef.current = r;
-          }}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-        >
-          {mediaItems.map((m, idx) => (
-            <View
-              key={`${m.kind}-${m.uri}`}
-              style={[styles.postCarouselItem, carouselW ? { width: carouselW } : null]}
-            >
-              {m.kind === 'image' ? (
-                <Image source={{ uri: m.uri }} style={styles.postCarouselMedia} />
-              ) : (
-                <Video
-                  source={{ uri: m.uri }}
-                  style={styles.postCarouselMedia}
-                  resizeMode={ResizeMode.COVER}
-                  shouldPlay={idx === 0}
-                  isLooping={false}
-                  onPlaybackStatusUpdate={(st) => {
-                    if (!('didJustFinish' in st)) return;
-                    if (st.didJustFinish && scrollRef.current && carouselW) {
-                      const next = Math.min(mediaItems.length - 1, idx + 1);
-                      scrollRef.current.scrollTo({ x: next * carouselW, animated: true });
-                    }
-                  }}
-                />
-              )}
-            </View>
-          ))}
-        </ScrollView>
-      </View>
-    ) : imageUri ? (
-      <Image source={{ uri: imageUri }} style={styles.postImage} />
-    ) : null;
 
   const goEvent = useCallback(() => {
     if (!eventId) return;

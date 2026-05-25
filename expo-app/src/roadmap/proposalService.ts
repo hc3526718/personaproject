@@ -102,7 +102,13 @@ export async function submitContentProposal(input: {
     }
     return { ok: false, error: msg };
   }
-  return { ok: true, id: data.id as string };
+
+  const proposalId = data.id as string;
+  void supabase.functions
+    .invoke('notify-masters-proposal', { body: { proposal_id: proposalId } })
+    .catch(() => undefined);
+
+  return { ok: true, id: proposalId };
 }
 
 export async function listMyProposals(): Promise<ContentProposalRow[]> {

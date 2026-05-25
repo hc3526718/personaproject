@@ -331,8 +331,14 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     user?.masterControl === true
       ? [
           {
+            title: 'Master intake',
+            sub: 'Review sponsorship, media & event proposals',
+            icon: 'inbox' as const,
+            onPress: () => navigation.navigate('MasterProposalQueue'),
+          },
+          {
             title: 'Master control',
-            sub: 'Partner pages, account tools — gated',
+            sub: 'Partner pages, account tools — PIN gated',
             icon: 'key' as const,
             onPress: () => navigation.navigate('MasterControlHub'),
           },

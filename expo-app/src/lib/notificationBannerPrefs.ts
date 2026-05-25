@@ -13,6 +13,8 @@ export type InAppNotifyPrefs = {
   eventBooking: boolean;
   eventCreation: boolean;
   mediaCreation: boolean;
+  /** Master accounts: incoming proposals */
+  masterProposals: boolean;
   system: boolean;
 };
 
@@ -25,6 +27,7 @@ export const IN_APP_NOTIFY_LABELS: Record<InAppNotifyCategory, string> = {
   eventBooking: 'Event booking',
   eventCreation: 'Event creation',
   mediaCreation: 'Media creation',
+  masterProposals: 'Master proposals',
   system: 'System & other',
 };
 
@@ -36,6 +39,7 @@ export const DEFAULT_NOTIFY_PREFS: InAppNotifyPrefs = {
   eventBooking: true,
   eventCreation: true,
   mediaCreation: true,
+  masterProposals: true,
   system: true,
 };
 
@@ -47,6 +51,7 @@ const KEYS: (keyof InAppNotifyPrefs)[] = [
   'eventBooking',
   'eventCreation',
   'mediaCreation',
+  'masterProposals',
   'system',
 ];
 
@@ -117,6 +122,9 @@ export function classifyInAppNotification(n: InAppNotification): InAppNotifyCate
     /\bhashtag\b/i.test(t)
   ) {
     return 'postInteraction';
+  }
+  if (/\b(proposal|sponsorship|master review|master intake)\b/i.test(t)) {
+    return 'masterProposals';
   }
 
   return 'system';

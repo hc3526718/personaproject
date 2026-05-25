@@ -13,6 +13,8 @@ export type UserPrefsDoc = {
     email?: boolean;
     event_reminders?: boolean;
     community_mentions?: boolean;
+    /** Master accounts: sponsorship / media / event proposals */
+    master_proposals?: boolean;
   };
   accessibility?: AccessibilityPrefsCloud;
 };
@@ -28,6 +30,7 @@ export const DEFAULT_USER_PREFS: UserPrefsDoc = {
     email: true,
     event_reminders: true,
     community_mentions: false,
+    master_proposals: true,
   },
 };
 

@@ -488,6 +488,11 @@ function MainTabNavigator() {
       <Tab.Screen
         name="Profile"
         component={ProfileStackNavigator}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate('Profile', { screen: 'AthleteProfile' });
+          },
+        })}
         options={{
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="user-o" size={Math.max(14, size - 2)} color={color} />

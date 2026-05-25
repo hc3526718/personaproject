@@ -36,10 +36,23 @@ export function PaywallScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
-      if (isWeb) return undefined;
+      if (isWeb) {
+        if (!busy && isPro) {
+          navigation.replace('AthleteProfile');
+        }
+        return undefined;
+      }
       void showRevenueCatPaywall();
-    }, [isWeb, showRevenueCatPaywall]),
+    }, [isWeb, busy, isPro, navigation, showRevenueCatPaywall]),
   );
+
+  const exitPaywall = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('AthleteProfile');
+  }, [navigation]);
 
   const openCustomerCenter = async () => {
     await presentRevenueCatCustomerCenter();
@@ -53,7 +66,7 @@ export function PaywallScreen({ navigation }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Go back"
             hitSlop={12}
-            onPress={() => navigation.goBack()}
+            onPress={exitPaywall}
             style={styles.iconHit}
           >
             <FontAwesome name="chevron-left" size={22} color={DS.color.gold} />
@@ -94,7 +107,7 @@ export function PaywallScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Go back"
           hitSlop={12}
-          onPress={() => navigation.goBack()}
+          onPress={exitPaywall}
           style={styles.iconHit}
         >
           <FontAwesome name="chevron-left" size={22} color={DS.color.gold} />

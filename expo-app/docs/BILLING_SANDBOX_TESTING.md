@@ -90,13 +90,46 @@ $env:STRIPE_WEBHOOK_SECRET = "whsec_..."
 node scripts/verify-stripe-supabase-secrets.mjs
 ```
 
-Confirmed via Supabase CLI: **monthly/annual price IDs** in secrets match `price_1TXSERRiVFlZ45SIaDXL6xpx` and `price_1TXSEORiVFlZ45SINHhHucgV`. Stripe MCP reports those prices with `livemode: true` — use **`sk_test_`** in Supabase for sandbox checkout (test-mode API keys only see test objects; price IDs must exist in **test** mode in Stripe Dashboard).
+**Test-mode price IDs** (Stripe Dashboard with **Test mode ON**): monthly `price_1TXP2BRiVFlZ45SI385a4Hs1`, annual `price_1TXP46RiVFlZ45SIKs5TENQk`.  
+**Live-mode price IDs** (different IDs): `price_1TXSERRiVFlZ45SIaDXL6xpx` / `price_1TXSEORiVFlZ45SINHhHucgV`.  
+Checkout fails with HTTP 500 if `STRIPE_SECRET_KEY` is `sk_test_` but secrets still point at **live** price IDs (or the reverse).
 
 **Dashboard:** Developers → Webhooks → endpoint  
 `https://txehbzyntvqpkkegjrwp.supabase.co/functions/v1/stripe-webhook`  
 Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
 
+### Two different Stripe destinations (do not mix secrets)
+
+| Destination | URL | Signing secret goes to |
+|-------------|-----|------------------------|
+| **Your Supabase app** | `…/functions/v1/stripe-webhook` | Supabase secret `STRIPE_WEBHOOK_SECRET` |
+| **RevenueCat** (connected platform) | RevenueCat’s URL on `stripe.revenuecat.com` etc. | RevenueCat dashboard only — **not** Supabase |
+
+Stripe can show **“delivery to connected platform successful”** for RevenueCat while your Supabase endpoint still returns **`invalid_signature`** if `STRIPE_WEBHOOK_SECRET` is wrong or copied from the wrong place.
+
+**If verify script shows `STRIPE_WEBHOOK_SECRET: MATCH` but Stripe resend still returns `invalid_signature`:** you almost certainly have **two webhook endpoints** (or test vs live) with **different** `whsec_` values. Open the **failed delivery** in Stripe and note the **Endpoint** (`we_…`). Reveal the secret on **that** endpoint only — not another endpoint that happens to use the same URL. Prefer **Send test event** on that endpoint over resending a very old delivery.
+
+**Fix `invalid_signature`:** Stripe → **Test mode ON** → **Developers → Webhooks** → open the endpoint whose URL is exactly `https://txehbzyntvqpkkegjrwp.supabase.co/functions/v1/stripe-webhook` → **Signing secret** → Reveal → copy `whsec_…` →:
+
+```powershell
+npx supabase secrets set STRIPE_WEBHOOK_SECRET="whsec_PASTE_FROM_THAT_ENDPOINT_ONLY" --project-ref txehbzyntvqpkkegjrwp
+```
+
+Then on that same endpoint → **Event deliveries** → failed event → **Resend**. Success = **200** and `subscription_state.updated_at` becomes “just now”.
+
+**Do not use** the signing secret from `stripe listen` unless you are only testing via CLI forwarding.
+
+### Where to see test payment analytics
+
+| Where | What you see |
+|-------|----------------|
+| **Stripe** (Test mode ON) | **Payments**, **Customers**, **Subscriptions**, **Developers → Webhooks → Event deliveries** |
+| **RevenueCat** | App Store / Play / RC Web Billing purchases — **not** every direct Supabase Checkout unless RC Stripe sync is configured |
+| **Supabase** | Table `subscription_state` (`is_pro`, `updated_at`, `raw`) after **your** webhook returns 200 |
+
 **Do not** use Supabase “Invoke function” for `stripe-webhook` — that always returns `missing_signature` (expected).
+
+If Stripe shows `SubtleCryptoProvider cannot be used in a synchronous context`, the Edge function must use `constructEventAsync` (not `constructEvent`) — redeploy `stripe-webhook`.
 
 **CLI test:**
 

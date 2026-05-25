@@ -74,11 +74,17 @@ Deno.serve(async (req) => {
   }
 
   const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
-  const webhookSecret = (Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '').trim();
+  const webhookSecrets = [
+    Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '',
+    Deno.env.get('STRIPE_WEBHOOK_SECRET_ALT') ?? '',
+  ]
+    .flatMap((s) => s.split(','))
+    .map((s) => s.trim())
+    .filter((s) => s.startsWith('whsec_'));
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-  if (!stripeKey || !webhookSecret || !supabaseUrl || !serviceKey) {
+  if (!stripeKey || webhookSecrets.length === 0 || !supabaseUrl || !serviceKey) {
     return new Response(JSON.stringify({ error: 'server_misconfigured' }), {
       status: 500,
       headers: { ...cors, 'Content-Type': 'application/json' },
@@ -95,14 +101,33 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.text();
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-  } catch {
-    return new Response(JSON.stringify({ error: 'invalid_signature' }), {
-      status: 400,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    });
+  let event: Stripe.Event | null = null;
+  let lastVerifyError = 'signature_verification_failed';
+  for (const secret of webhookSecrets) {
+    try {
+      // Deno Edge requires async crypto (SubtleCrypto); sync constructEvent throws.
+      event = await stripe.webhooks.constructEventAsync(body, signature, secret);
+      lastVerifyError = '';
+      break;
+    } catch (err) {
+      lastVerifyError = err instanceof Error ? err.message : lastVerifyError;
+    }
+  }
+  if (!event) {
+    console.error('[stripe-webhook] signature_verification_failed', lastVerifyError);
+    const wrongSecret =
+      /signature|No signatures found/i.test(lastVerifyError) &&
+      !/SubtleCryptoProvider|constructEventAsync/i.test(lastVerifyError);
+    return new Response(
+      JSON.stringify({
+        error: wrongSecret ? 'invalid_signature' : 'signature_verification_failed',
+        stripe_message: lastVerifyError,
+        hint: wrongSecret
+          ? 'Use the Signing secret from the exact Stripe webhook endpoint (we_…) that delivered this event. Test and live modes have different secrets.'
+          : 'Webhook verification failed on the server. Redeploy stripe-webhook if this persists after a fix.',
+      }),
+      { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } },
+    );
   }
 
   const admin = createClient(supabaseUrl, serviceKey, {

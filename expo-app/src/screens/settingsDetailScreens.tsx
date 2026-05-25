@@ -25,6 +25,7 @@ const BANNER_TOGGLE_ORDER: InAppNotifyCategory[] = [
   'eventBooking',
   'eventCreation',
   'mediaCreation',
+  'masterProposals',
   'system',
 ];
 
@@ -35,6 +36,7 @@ const BANNER_TOGGLE_SUB: Partial<Record<InAppNotifyCategory, string>> = {
   eventBooking: 'Reservations & booking confirmations.',
   eventCreation: 'New events you publish for your profile.',
   mediaCreation: 'Media uploads & publishing confirmations.',
+  masterProposals: 'Sponsorship, media, and event proposals sent to you.',
   system: 'Anything that does not match the categories above.',
 };
 import type { AllowMessagesFrom } from '../messaging/messagingPrefs';
@@ -433,7 +435,9 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
   const [email, setEmail] = useState(true);
   const [events, setEvents] = useState(true);
   const [community, setCommunity] = useState(false);
+  const [masterProposals, setMasterProposals] = useState(true);
   const [bannerPrefs, setBannerPrefs] = useState<InAppNotifyPrefs>(DEFAULT_NOTIFY_PREFS);
+  const isMaster = user?.masterControl === true;
 
   useFocusEffect(
     useCallback(() => {
@@ -446,6 +450,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
           if (ch?.email != null) setEmail(ch.email);
           if (ch?.event_reminders != null) setEvents(ch.event_reminders);
           if (ch?.community_mentions != null) setCommunity(ch.community_mentions);
+          if (ch?.master_proposals != null) setMasterProposals(ch.master_proposals);
         }
       })();
     }, [user?.id]),
@@ -458,13 +463,21 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
         email: boolean;
         event_reminders: boolean;
         community_mentions: boolean;
+        master_proposals: boolean;
       }>,
-      rollback: { push: boolean; email: boolean; events: boolean; community: boolean },
+      rollback: {
+        push: boolean;
+        email: boolean;
+        events: boolean;
+        community: boolean;
+        masterProposals: boolean;
+      },
     ) => {
       if (patch.push != null) setPush(patch.push);
       if (patch.email != null) setEmail(patch.email);
       if (patch.event_reminders != null) setEvents(patch.event_reminders);
       if (patch.community_mentions != null) setCommunity(patch.community_mentions);
+      if (patch.master_proposals != null) setMasterProposals(patch.master_proposals);
 
       if (!user?.id || user.id.startsWith('demo-')) {
         showBanner('Saved here only', 'Sign in to sync notification preferences to your account.');
@@ -477,6 +490,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
           setEmail(rollback.email);
           setEvents(rollback.events);
           setCommunity(rollback.community);
+          setMasterProposals(rollback.masterProposals);
           showBanner('Could not save', 'Check your connection. Restored your previous choices.');
         } else {
           showBanner('Saved', 'Notification preferences updated.');
@@ -503,7 +517,9 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Text style={styles.toggleTitle}>Push notifications</Text>
             <Switch
               value={push}
-              onValueChange={(v) => patchNotifyChannel({ push: v }, { push, email, events, community })}
+              onValueChange={(v) =>
+                patchNotifyChannel({ push: v }, { push, email, events, community, masterProposals })
+              }
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
@@ -512,7 +528,9 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Text style={styles.toggleTitle}>Email digest</Text>
             <Switch
               value={email}
-              onValueChange={(v) => patchNotifyChannel({ email: v }, { push, email, events, community })}
+              onValueChange={(v) =>
+                patchNotifyChannel({ email: v }, { push, email, events, community, masterProposals })
+              }
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
@@ -522,7 +540,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Switch
               value={events}
               onValueChange={(v) =>
-                patchNotifyChannel({ event_reminders: v }, { push, email, events, community })
+                patchNotifyChannel({ event_reminders: v }, { push, email, events, community, masterProposals })
               }
               trackColor={{ true: DS.color.goldTint30 }}
             />
@@ -533,11 +551,34 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Switch
               value={community}
               onValueChange={(v) =>
-                patchNotifyChannel({ community_mentions: v }, { push, email, events, community })
+                patchNotifyChannel({ community_mentions: v }, { push, email, events, community, masterProposals })
               }
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
+          {isMaster ? (
+            <>
+              <View style={styles.hairline} />
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.toggleTitle}>Master proposals</Text>
+                  <Text style={styles.toggleSub}>
+                    Push & email when creators submit sponsorship, media, or event proposals.
+                  </Text>
+                </View>
+                <Switch
+                  value={masterProposals}
+                  onValueChange={(v) =>
+                    patchNotifyChannel(
+                      { master_proposals: v },
+                      { push, email, events, community, masterProposals },
+                    )
+                  }
+                  trackColor={{ true: DS.color.goldTint30 }}
+                />
+              </View>
+            </>
+          ) : null}
         </View>
 
         <Text style={styles.cardKickerSpaced}>In-app banners</Text>
@@ -557,7 +598,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
-          {BANNER_TOGGLE_ORDER.map((key) => (
+          {BANNER_TOGGLE_ORDER.filter((key) => isMaster || key !== 'masterProposals').map((key) => (
             <View key={key}>
               <View style={styles.hairline} />
               <View style={styles.toggleRow}>
