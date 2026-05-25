@@ -131,7 +131,16 @@ Largest file (~4.9k lines). Do **not** one-shot refactor.
 3. ✅ `AppNavigator` — `NavigationContainer` theme, tab bar tints, all stack `contentStyle`
 4. ✅ `AccessibilityScreen` — dogfood toggles with themed chips/cards
 
-**Next PR:** `communityScreens` feed + inbox + thread style factories.
+**Next PR:** `profileScreens` + remaining settings/detail screens (Phase 2b).
+
+### Phase 2 — community screens — **implemented**
+
+1. ✅ `src/screens/community/createCommunityStyles.ts` — `createCommunityStyles(c)` (~1.9k lines)
+2. ✅ `CommunityThemeProvider` + `useCommunityTheme()` in `CommunityStylesContext.tsx`
+3. ✅ `AppNavigator` — `CommunityStackNavigator` wrapped in provider
+4. ✅ `communityScreens.tsx` — module `StyleSheet` removed; all screens/components use `useCommunityTheme()`; JSX icons/placeholders use `colors.*`; demo notifications built via `buildNotificationDemoRows()` with themed body styles
+
+**Verify:** Settings → Accessibility → toggle mono/contrast/text scale while on feed, inbox, thread, create post, search, notifications.
 
 ---
 

@@ -46,7 +46,7 @@ function mountScreenshotCarousel() {
   const el = document.getElementById('dalton-card-swap');
   if (!el) return;
   createRoot(el).render(
-    <ScreenshotCarousel images={SHOWCASE_IMAGES} intervalMs={3500} slideWidth={132} slideHeight={270} gap={20} />,
+    <ScreenshotCarousel images={SHOWCASE_IMAGES} intervalMs={4000} slideWidth={124} slideHeight={252} />,
   );
 }
 

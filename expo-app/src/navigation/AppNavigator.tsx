@@ -15,6 +15,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useAccessibility } from '../accessibility/AccessibilityContext';
 import { DS } from '../designSystem';
 import { useThemedStackScreenOptions } from '../theme/useThemeStyles';
+import { CommunityThemeProvider } from '../screens/community/CommunityStylesContext';
 import { getSupabase } from '../lib/supabase';
 import { ensureProfileRow } from '../roadmap/profileService';
 import { OAuthProfileSetupModal } from '../components/OAuthProfileSetupModal';
@@ -123,6 +124,7 @@ const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 function CommunityStackNavigator() {
   const screenOptions = useThemedStackScreenOptions();
   return (
+    <CommunityThemeProvider>
     <CommunityStack.Navigator screenOptions={screenOptions}>
       <CommunityStack.Screen name="CommunityFeed" component={CommunityFeedScreen} />
       <CommunityStack.Screen name="CreateCommunityPost" component={CreateCommunityPostScreen} />
@@ -137,6 +139,7 @@ function CommunityStackNavigator() {
       <CommunityStack.Screen name="BrandPartner" component={BrandPartnerScreen} />
       <CommunityStack.Screen name="DemoHub" component={DemoHubScreen} />
     </CommunityStack.Navigator>
+    </CommunityThemeProvider>
   );
 }
 

@@ -48,12 +48,19 @@
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
       background-size: 260px 260px;
     }
+    #dalton-staggered-menu {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      pointer-events: none;
+    }
     #dalton-card-swap {
       width: 100%;
-      min-height: 280px;
+      min-height: 300px;
+      overflow: visible;
     }
     @media (min-width: 1024px) {
-      #dalton-card-swap { min-height: 300px; }
+      #dalton-card-swap { min-height: 320px; }
     }
     /* Visible before React marketing bundle mounts */
     .dalton-header-fallback {
@@ -61,7 +68,7 @@
       top: 0;
       left: 0;
       right: 0;
-      z-index: 45;
+      z-index: 55;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -75,14 +82,63 @@
     body:has(#dalton-staggered-menu .staggered-menu-wrapper) .dalton-header-fallback {
       display: none;
     }
-    .dalton-screenshot-fallback {
-      display: block;
-      width: 100%;
-      max-width: 280px;
-      margin: 0 auto;
-      border-radius: 1.1rem;
+    .dalton-menu-fallback {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.75rem;
       border: 1px solid rgba(200, 168, 75, 0.35);
+      background: rgba(255, 255, 255, 0.06);
+      color: #d4d0c8;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    .dalton-menu-fallback__icon {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 3px;
+      width: 16px;
+    }
+    .dalton-menu-fallback__icon span {
+      display: block;
+      height: 2px;
+      border-radius: 2px;
+      background: #c8a84b;
+    }
+    .dalton-screenshot-fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      width: 100%;
+      max-width: 460px;
+      margin: 0 auto;
+      min-height: 280px;
+      overflow: visible;
+    }
+    .dalton-screenshot-fallback img {
+      display: block;
+      border-radius: 1rem;
+      border: 1px solid rgba(200, 168, 75, 0.28);
       box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      object-fit: cover;
+    }
+    .dalton-screenshot-fallback img:nth-child(1),
+    .dalton-screenshot-fallback img:nth-child(3) {
+      width: 96px;
+      height: 196px;
+      opacity: 0.72;
+      filter: blur(1px) brightness(0.58);
+      transform: rotate(-4deg);
+    }
+    .dalton-screenshot-fallback img:nth-child(2) {
+      width: 118px;
+      height: 240px;
+      border-color: rgba(200, 168, 75, 0.55);
+      z-index: 2;
     }
     #dalton-card-swap:has(.screenshot-carousel) .dalton-screenshot-fallback {
       display: none;
@@ -95,8 +151,12 @@
     <a href="/" class="flex items-center gap-2">
       <img src="/showcase/dalton_logo.png" alt="Grant Access" width="110" height="40" class="h-10 w-auto object-contain" />
     </a>
-    <nav class="flex items-center gap-4 text-sm font-semibold text-mist">
+    <nav class="flex items-center gap-3 text-sm font-semibold text-mist">
       <a href="/help-center" class="hover:text-gold transition-colors hidden sm:inline">Help</a>
+      <button type="button" class="dalton-menu-fallback" aria-label="Open menu">
+        <span class="dalton-menu-fallback__icon" aria-hidden="true"><span></span><span></span><span></span></span>
+        Menu
+      </button>
       <a href="/app" class="px-4 py-2 rounded-xl bg-gold text-ink text-xs font-semibold hover:opacity-90 transition-opacity">Login</a>
     </nav>
   </header>
@@ -134,14 +194,12 @@
         </div>
 
         <div class="lg:col-span-6 flex flex-col items-center lg:items-start w-full">
-          <div id="dalton-card-swap" class="w-full max-w-[380px] lg:max-w-[420px]">
-            <img
-              src="/showcase/01.png"
-              alt="Grant Access app preview"
-              class="dalton-screenshot-fallback"
-              width="280"
-              height="560"
-            />
+          <div id="dalton-card-swap" class="w-full max-w-[480px]">
+            <div class="dalton-screenshot-fallback" aria-hidden="true">
+              <img src="/showcase/06.png" alt="" width="96" height="196" />
+              <img src="/showcase/01.png" alt="Grant Access app preview" width="118" height="240" />
+              <img src="/showcase/02.png" alt="" width="96" height="196" />
+            </div>
           </div>
         </div>
       </div>
