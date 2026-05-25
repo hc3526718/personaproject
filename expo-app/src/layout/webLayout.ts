@@ -23,12 +23,13 @@ export function webContentShellStyle(): ViewStyle {
   return webPageShellStyle();
 }
 
-/** Community feed column on web (half of split row, paging scroll). */
+/** Community feed on web — full width (no trending sidebar). */
 export function webCommunityFeedPaneStyle(): ViewStyle {
   if (!isExpoWeb()) return { flex: 1 };
   return {
     flex: 1,
-    minWidth: 320,
+    width: '100%',
+    maxWidth: '100%',
     alignSelf: 'stretch',
   };
 }

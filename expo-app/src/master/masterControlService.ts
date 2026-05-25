@@ -1,11 +1,66 @@
-import { getMasterDeleteUserEdgeUrl, getSupabaseAnonKey } from '../lib/env';
+import { getMasterDeleteUserEdgeUrl, getSupabaseAnonKey, getVerifyMasterPinEdgeUrl } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 
+/** Verify master PIN via Edge Function (avoids PostgREST RPC 404). Falls back to RPC if needed. */
 export async function verifyMasterPin(
   pin: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const supabase = getSupabase();
   if (!supabase) return { ok: false, message: 'Supabase is not configured.' };
+
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token;
+  if (!token) return { ok: false, message: 'Sign in required.' };
+
+  try {
+    const res = await fetch(getVerifyMasterPinEdgeUrl(), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: getSupabaseAnonKey(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ pin }),
+    });
+    const txt = await res.text();
+    if (res.status === 404) {
+      return verifyMasterPinRpc(supabase, pin);
+    }
+    if (!res.ok) {
+      let msg = txt || res.statusText;
+      try {
+        const j = JSON.parse(txt) as { error?: string };
+        if (j.error) msg = j.error;
+      } catch {
+        /* ignore */
+      }
+      if (msg === 'invalid_pin' || msg.includes('invalid')) {
+        return { ok: false, message: 'Incorrect PIN.' };
+      }
+      if (msg === 'server_misconfigured') {
+        return {
+          ok: false,
+          message:
+            'Master PIN service is not deployed. Run: supabase functions deploy verify-master-pin',
+        };
+      }
+      return { ok: false, message: msg };
+    }
+    const parsed = JSON.parse(txt) as { valid?: boolean };
+    if (parsed.valid === true) return { ok: true };
+    return { ok: false, message: 'Incorrect PIN.' };
+  } catch (e) {
+    return {
+      ok: false,
+      message: e instanceof Error ? e.message : 'Could not verify PIN.',
+    };
+  }
+}
+
+async function verifyMasterPinRpc(
+  supabase: NonNullable<ReturnType<typeof getSupabase>>,
+  pin: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
   const { data, error } = await supabase.rpc('verify_master_pin', { pin });
   if (error) {
     const msg = error.message ?? 'Could not verify PIN.';
@@ -13,7 +68,7 @@ export async function verifyMasterPin(
       return {
         ok: false,
         message:
-          'Master PIN verification is not available on the server. Apply migration 020_fix_verify_master_pin_grant.sql in Supabase, then reload the API schema.',
+          'Master PIN verification is unavailable. Deploy the verify-master-pin Edge Function in Supabase.',
       };
     }
     return { ok: false, message: msg };

@@ -40,7 +40,6 @@ import {
 } from '../data/appStoreScreenshotSamples';
 import { isAppStoreScreenshotMode, isSupabaseConfigured } from '../lib/env';
 import { webCommunityFeedPaneStyle, webPageShellStyle } from '../layout/webLayout';
-import { CommunityWebTrendingPanel } from '../components/CommunityWebTrendingPanel';
 import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import { PostFeedMedia } from '../components/PostFeedMedia';
@@ -385,13 +384,6 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     [eventTitleMap, removePost],
   );
 
-  const openTopicSearch = useCallback(
-    (topic: string) => {
-      navigation.navigate('CommunitySearchResults', { query: topic.trim() || 'community' });
-    },
-    [navigation],
-  );
-
   const feedPane = feedIsWeb && !demoCommunityAudience ? (
     <View style={[styles.feedWebColumn, webCommunityFeedPaneStyle()]}>
       {feedLoading ? (
@@ -443,14 +435,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
         </View>
       </View>
       {feedPane ? (
-        <View style={styles.feedWebSplit}>
-          {feedPane}
-          <CommunityWebTrendingPanel
-            posts={feedPosts}
-            onSelectTopic={openTopicSearch}
-            paddingBottom={124 + insets.bottom}
-          />
-        </View>
+        feedPane
       ) : (
         <ScrollView
           contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
@@ -3384,8 +3369,6 @@ const styles = StyleSheet.create({
   feedWebColumn: {
     flex: 1,
     width: '100%',
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: DS.color.borderWhite5,
   },
   feedListWebSnap: {
     flexGrow: 1,

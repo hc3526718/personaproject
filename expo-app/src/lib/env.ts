@@ -122,6 +122,12 @@ export function getMasterDeleteUserEdgeUrl(): string {
   return `${base}/functions/v1/master-delete-user`;
 }
 
+/** Master PIN check (JWT + PIN). Deploy `verify-master-pin` Edge Function. */
+export function getVerifyMasterPinEdgeUrl(): string {
+  const base = getSupabaseUrl().replace(/\/$/, '');
+  return `${base}/functions/v1/verify-master-pin`;
+}
+
 /** Self-serve account deletion (JWT + confirm phrase DELETE). */
 export function getDeleteOwnAccountEdgeUrl(): string {
   const base = getSupabaseUrl().replace(/\/$/, '');

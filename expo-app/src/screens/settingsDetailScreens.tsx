@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import { getSupabase } from '../lib/supabase';
+import { getSignInMethods } from '../lib/authSignInMethods';
 import { getDaltonWebUrl } from '../lib/env';
 import {
   DEFAULT_NOTIFY_PREFS,
@@ -57,6 +58,42 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
   const showBanner = useActionBanner();
   const isDemo = !user?.id || user.id.startsWith('demo-');
   const [signingOutOthers, setSigningOutOthers] = useState(false);
+  const [hasEmailPassword, setHasEmailPassword] = useState<boolean | null>(null);
+  const [oauthLabel, setOauthLabel] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        if (isDemo) {
+          if (alive) {
+            setHasEmailPassword(false);
+            setOauthLabel(null);
+          }
+          return;
+        }
+        const methods = await getSignInMethods();
+        if (!alive) return;
+        if (!methods) {
+          setHasEmailPassword(null);
+          setOauthLabel(null);
+          return;
+        }
+        setHasEmailPassword(methods.hasEmailPassword);
+        if (!methods.hasEmailPassword) {
+          if (methods.hasGoogle && methods.hasApple) setOauthLabel('Google and Apple');
+          else if (methods.hasGoogle) setOauthLabel('Google');
+          else if (methods.hasApple) setOauthLabel('Apple');
+          else setOauthLabel('your sign-in provider');
+        } else {
+          setOauthLabel(null);
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [isDemo]),
+  );
 
   const onSignOutOthers = useCallback(() => {
     if (isDemo) {
@@ -109,20 +146,29 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
             placeholderTextColor={DS.color.textMuted}
             editable={false}
           />
-          <Text style={styles.labelSmSpaced}>Password</Text>
-          <Pressable
-            style={styles.rowBtn}
-            onPress={() => {
-              if (isDemo) {
-                showBanner('Sign in required', 'Password changes work for live accounts only.');
-                return;
-              }
-              navigation.navigate('ChangePassword');
-            }}
-          >
-            <Text style={styles.rowBtnText}>Change password</Text>
-            <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
-          </Pressable>
+          {hasEmailPassword ? (
+            <>
+              <Text style={styles.labelSmSpaced}>Password</Text>
+              <Pressable
+                style={styles.rowBtn}
+                onPress={() => {
+                  if (isDemo) {
+                    showBanner('Sign in required', 'Password changes work for live accounts only.');
+                    return;
+                  }
+                  navigation.navigate('ChangePassword');
+                }}
+              >
+                <Text style={styles.rowBtnText}>Change password</Text>
+                <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+              </Pressable>
+            </>
+          ) : hasEmailPassword === false && oauthLabel ? (
+            <Text style={[styles.toggleSub, { marginTop: DS.space.md }]}>
+              You signed in with {oauthLabel}. Passwords are managed by that provider — there is
+              nothing to change here.
+            </Text>
+          ) : null}
         </View>
 
         <Text style={styles.cardKickerSpaced}>Two-factor authentication</Text>
@@ -175,6 +221,33 @@ export function ChangePasswordScreen({ navigation }: PProps<'ChangePassword'>) {
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        if (!user?.id || user.id.startsWith('demo-')) {
+          if (alive) setAllowed(false);
+          return;
+        }
+        const methods = await getSignInMethods();
+        if (!alive) return;
+        const ok = methods?.hasEmailPassword === true;
+        setAllowed(ok);
+        if (!ok) {
+          Alert.alert(
+            'Not available',
+            'Password changes apply only to email-and-password accounts. Google and Apple sign-in manage passwords separately.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }],
+          );
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [navigation, user?.id]),
+  );
 
   const submit = useCallback(() => {
     if (busy) return;
@@ -220,10 +293,16 @@ export function ChangePasswordScreen({ navigation }: PProps<'ChangePassword'>) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.bodyMuted}>
-          Choose a new password. We recommend a unique password you do not use elsewhere — at least 8
-          characters with letters and a number.
-        </Text>
+        {allowed === false ? (
+          <Text style={styles.bodyMuted}>
+            This screen is only for accounts created with email and password.
+          </Text>
+        ) : (
+          <Text style={styles.bodyMuted}>
+            Choose a new password. We recommend a unique password you do not use elsewhere — at least 8
+            characters with letters and a number.
+          </Text>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.labelSm}>New password</Text>
@@ -253,9 +332,9 @@ export function ChangePasswordScreen({ navigation }: PProps<'ChangePassword'>) {
         </View>
 
         <Pressable
-          style={[styles.primaryBtn, busy && { opacity: 0.6 }]}
+          style={[styles.primaryBtn, (busy || allowed !== true) && { opacity: 0.6 }]}
           onPress={submit}
-          disabled={busy}
+          disabled={busy || allowed !== true}
         >
           {busy ? (
             <AppLoadingIndicator size={24} />
