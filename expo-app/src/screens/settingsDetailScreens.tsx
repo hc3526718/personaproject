@@ -45,6 +45,10 @@ import { getAllowMessagesFrom, setAllowMessagesFrom } from '../messaging/messagi
 import { syncAllowMessagesFromRemote } from '../messaging/dmPolicySync';
 import type { ProfileStackParamList } from '../navigation/types';
 import { useAccessibility } from '../accessibility/AccessibilityContext';
+import { ScreenShell } from '../theme/ScreenShell';
+import { ThemedText } from '../theme/ThemedText';
+import type { AccessibleColors } from '../lib/accessibilityTheme';
+import { useThemeStyles } from '../theme/useThemeStyles';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
 import { fetchProfileByUserId } from '../roadmap/profileService';
@@ -703,7 +707,8 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
 export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
   const insets = useSafeAreaInsets();
   const showBanner = useActionBanner();
-  const { prefs, ready, updatePrefs } = useAccessibility();
+  const { prefs, ready, updatePrefs, colors } = useAccessibility();
+  const themed = useThemeStyles(createAccessibilityScreenStyles);
 
   const patch = async (partial: Parameters<typeof updatePrefs>[0], label: string) => {
     await updatePrefs(partial);
@@ -713,56 +718,62 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
 
   if (!ready) {
     return (
-      <View style={styles.root}>
+      <ScreenShell>
         <ScreenHeader title="Accessibility" onBack={() => navigation.goBack()} largeTitle />
         <View style={[styles.padded, { paddingBottom: 32 + insets.bottom }]}>
-          <Text style={styles.bodyMuted}>Loading…</Text>
+          <ThemedText variant="muted">Loading…</ThemedText>
         </View>
-      </View>
+      </ScreenShell>
     );
   }
 
   return (
-    <View style={styles.root}>
+    <ScreenShell>
       <ScreenHeader title="Accessibility" onBack={() => navigation.goBack()} largeTitle />
       <ScrollView
         contentContainerStyle={[styles.padded, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.bodyMuted}>
+        <ThemedText variant="muted" style={{ marginBottom: DS.space.md }}>
           Preferences sync to your account when signed in, so iOS, Android, and web stay aligned.
-          Grant Access uses a dark interface by default.
-        </Text>
+          Grant Access uses a dark interface by default. Changes below update this screen immediately.
+        </ThemedText>
 
-        <View style={styles.card}>
+        <View style={[styles.card, themed.card]}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Dark interface</Text>
-              <Text style={styles.toggleSub}>Always on — optimized for low-light viewing.</Text>
+              <ThemedText style={styles.toggleTitle}>Dark interface</ThemedText>
+              <ThemedText variant="muted" style={styles.toggleSub}>
+                Always on — optimized for low-light viewing.
+              </ThemedText>
             </View>
-            <FontAwesome name="check-circle" size={22} color={DS.color.gold} />
+            <FontAwesome name="check-circle" size={22} color={colors.gold} />
           </View>
         </View>
 
-        <Text style={styles.cardKickerSpaced}>Display</Text>
-        <View style={styles.card}>
+        <ThemedText variant="muted" style={[styles.cardKickerSpaced, themed.kicker]}>
+          Display
+        </ThemedText>
+        <View style={[styles.card, themed.card]}>
           <View style={styles.toggleRowCol}>
-            <Text style={styles.toggleTitle}>Larger Text</Text>
-            <Text style={styles.toggleSub}>
+            <ThemedText style={styles.toggleTitle}>Larger Text</ThemedText>
+            <ThemedText variant="muted" style={styles.toggleSub}>
               Scale text up to improve readability. Locks at 1×, 2×, or 3×.
-            </Text>
+            </ThemedText>
             <View style={styles.textScaleRow}>
               {([1, 2, 3] as const).map((level) => {
                 const active = prefs.textScaleLevel === level;
                 return (
                   <Pressable
                     key={level}
-                    style={[styles.textScaleChip, active && styles.textScaleChipActive]}
+                    style={[themed.textScaleChip, active && themed.textScaleChipActive]}
                     onPress={() =>
                       void patch({ textScaleLevel: level, largerText: level > 1 }, `${level}× text`)
                     }
                   >
-                    <Text style={[styles.textScaleChipTxt, active && styles.textScaleChipTxtActive]}>
+                    <Text
+                      style={[themed.textScaleChipTxt, active && themed.textScaleChipTxtActive]}
+                    >
                       {level}×
                     </Text>
                   </Pressable>
@@ -770,34 +781,70 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
               })}
             </View>
           </View>
-          <View style={styles.hairline} />
+          <View style={[styles.hairline, { backgroundColor: colors.borderHairline }]} />
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Differentiate Without Color</Text>
-              <Text style={styles.toggleSub}>Icons, labels, and borders in addition to color.</Text>
+              <ThemedText style={styles.toggleTitle}>Differentiate Without Color</ThemedText>
+              <ThemedText variant="muted" style={styles.toggleSub}>
+                Icons, labels, and borders in addition to color.
+              </ThemedText>
             </View>
             <Switch
               value={prefs.differentiateWithoutColor}
               onValueChange={(v) => void patch({ differentiateWithoutColor: v }, 'Differentiate Without Color')}
-              trackColor={{ true: DS.color.goldTint30 }}
+              trackColor={{ true: colors.goldTint30 }}
             />
           </View>
-          <View style={styles.hairline} />
+          <View style={[styles.hairline, { backgroundColor: colors.borderHairline }]} />
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Sufficient Contrast</Text>
-              <Text style={styles.toggleSub}>Increase contrast between text/icons and backgrounds.</Text>
+              <ThemedText style={styles.toggleTitle}>Sufficient Contrast</ThemedText>
+              <ThemedText variant="muted" style={styles.toggleSub}>
+                Increase contrast between text/icons and backgrounds.
+              </ThemedText>
             </View>
             <Switch
               value={prefs.sufficientContrast}
               onValueChange={(v) => void patch({ sufficientContrast: v }, 'Sufficient Contrast')}
-              trackColor={{ true: DS.color.goldTint30 }}
+              trackColor={{ true: colors.goldTint30 }}
             />
           </View>
         </View>
       </ScrollView>
-    </View>
+    </ScreenShell>
   );
+}
+
+function createAccessibilityScreenStyles(c: AccessibleColors) {
+  return {
+    card: {
+      backgroundColor: DS.apple.fillSecondary,
+      borderColor: c.emphasisBorder ?? DS.apple.separator,
+    },
+    kicker: {
+      color: c.textMuted,
+    },
+    textScaleChip: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: DS.radius.lg,
+      borderWidth: 1,
+      borderColor: c.emphasisBorder ?? c.borderWhite5,
+      alignItems: 'center' as const,
+    },
+    textScaleChipActive: {
+      backgroundColor: c.gold,
+      borderColor: c.gold,
+    },
+    textScaleChipTxt: {
+      fontFamily: DS.font.bodyBold,
+      fontSize: 15,
+      color: c.textMuted,
+    },
+    textScaleChipTxtActive: {
+      color: c.background,
+    },
+  };
 }
 
 export function SupportScreen({ navigation }: PProps<'Support'>) {

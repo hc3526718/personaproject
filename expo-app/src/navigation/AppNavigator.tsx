@@ -12,7 +12,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
+import { useAccessibility } from '../accessibility/AccessibilityContext';
 import { DS } from '../designSystem';
+import { useThemedStackScreenOptions } from '../theme/useThemeStyles';
 import { getSupabase } from '../lib/supabase';
 import { ensureProfileRow } from '../roadmap/profileService';
 import { OAuthProfileSetupModal } from '../components/OAuthProfileSetupModal';
@@ -118,26 +120,10 @@ const EventsStack = createNativeStackNavigator<EventsStackParamList>();
 const SponsorsStack = createNativeStackNavigator<SponsorsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 
-const navTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: DS.color.background,
-    card: DS.color.background,
-    text: DS.color.text,
-    border: DS.color.borderHairline,
-    primary: DS.color.gold,
-  },
-};
-
 function CommunityStackNavigator() {
+  const screenOptions = useThemedStackScreenOptions();
   return (
-    <CommunityStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: DS.color.background },
-      }}
-    >
+    <CommunityStack.Navigator screenOptions={screenOptions}>
       <CommunityStack.Screen name="CommunityFeed" component={CommunityFeedScreen} />
       <CommunityStack.Screen name="CreateCommunityPost" component={CreateCommunityPostScreen} />
       <CommunityStack.Screen name="CommunitySearch" component={CommunitySearchScreen} />
@@ -155,13 +141,9 @@ function CommunityStackNavigator() {
 }
 
 function MediaStackNavigator() {
+  const screenOptions = useThemedStackScreenOptions();
   return (
-    <MediaStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: DS.color.background },
-      }}
-    >
+    <MediaStack.Navigator screenOptions={screenOptions}>
       <MediaStack.Screen name="MediaLibrary" component={MediaLibraryScreen} />
       <MediaStack.Screen name="MediaSearch" component={MediaSearchScreen} />
       <MediaStack.Screen name="MediaSearchResults" component={MediaSearchResultsScreen} />
@@ -175,13 +157,9 @@ function MediaStackNavigator() {
 }
 
 function EventsStackNavigator() {
+  const screenOptions = useThemedStackScreenOptions();
   return (
-    <EventsStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: DS.color.background },
-      }}
-    >
+    <EventsStack.Navigator screenOptions={screenOptions}>
       <EventsStack.Screen name="UpcomingEvents" component={UpcomingEventsScreen} />
       <EventsStack.Screen name="EventsSearch" component={EventsSearchScreen} />
       <EventsStack.Screen name="EventDetails" component={EventDetailsScreen} />
@@ -197,13 +175,9 @@ function EventsStackNavigator() {
 }
 
 function SponsorsStackNavigator() {
+  const screenOptions = useThemedStackScreenOptions();
   return (
-    <SponsorsStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: DS.color.background },
-      }}
-    >
+    <SponsorsStack.Navigator screenOptions={screenOptions}>
       <SponsorsStack.Screen name="SponsorListings" component={SponsorListingsScreen} />
       <SponsorsStack.Screen name="BrandPartner" component={BrandPartnerScreen} />
       <SponsorsStack.Screen name="SponsorProposalWizard" component={SponsorProposalWizard} />
@@ -213,14 +187,9 @@ function SponsorsStackNavigator() {
 }
 
 function ProfileStackNavigator() {
+  const screenOptions = useThemedStackScreenOptions();
   return (
-    <ProfileStack.Navigator
-      initialRouteName="AthleteProfile"
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: DS.color.background },
-      }}
-    >
+    <ProfileStack.Navigator initialRouteName="AthleteProfile" screenOptions={screenOptions}>
       <ProfileStack.Screen name="AthleteProfile" component={AthleteProfileScreen} />
       <ProfileStack.Screen name="Paywall" component={PaywallScreen} />
       <ProfileStack.Screen name="AdminTools" component={AdminToolsScreen} />
@@ -256,14 +225,9 @@ function ProfileStackNavigator() {
 }
 
 function AuthStackNavigator() {
+  const screenOptions = useThemedStackScreenOptions();
   return (
-    <AuthStack.Navigator
-      initialRouteName="WelcomeHub"
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: DS.color.background },
-      }}
-    >
+    <AuthStack.Navigator initialRouteName="WelcomeHub" screenOptions={screenOptions}>
       <AuthStack.Screen name="WelcomeHub" component={WelcomeHubScreen} />
       <AuthStack.Screen name="GrantAccess" component={GrantAccessScreen} />
       <AuthStack.Screen name="LogIn" component={LogInScreen} />
@@ -273,16 +237,6 @@ function AuthStackNavigator() {
     </AuthStack.Navigator>
   );
 }
-
-const mainTabBarBase = {
-  backgroundColor: DS.color.tabBarRaised,
-  borderTopColor: DS.color.borderWhite5,
-  borderTopWidth: StyleSheet.hairlineWidth,
-  borderTopLeftRadius: 16,
-  borderTopRightRadius: 16,
-  overflow: 'hidden' as const,
-  elevation: 20,
-};
 
 const TAB_BAR_CONTENT_MIN = 56;
 const TAB_BAR_TOP_PAD = 12;
@@ -357,8 +311,10 @@ function AuthenticatedShell() {
     void refreshGate();
   }, [refreshGate]);
 
+  const { colors } = useAccessibility();
+
   if (gate === 'loading') {
-    return <View style={{ flex: 1, backgroundColor: DS.color.background }} />;
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
   if (gate === 'onboarding') {
     return (
@@ -389,15 +345,22 @@ function AuthenticatedShell() {
 
 function MainTabNavigator() {
   const insets = useSafeAreaInsets();
+  const { colors } = useAccessibility();
   const tabBarStyleVisible = useMemo(
     () => ({
-      ...mainTabBarBase,
+      backgroundColor: DS.color.tabBarRaised,
+      borderTopColor: colors.borderWhite5,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      overflow: 'hidden' as const,
+      elevation: 20,
       minHeight: TAB_BAR_CONTENT_MIN + insets.bottom + TAB_BAR_EXTRA_BOTTOM,
       paddingTop: TAB_BAR_TOP_PAD,
       paddingBottom: insets.bottom + TAB_BAR_EXTRA_BOTTOM,
       paddingHorizontal: DS.space.xs,
     }),
-    [insets.bottom],
+    [insets.bottom, colors.borderWhite5],
   );
 
   return (
@@ -405,10 +368,13 @@ function MainTabNavigator() {
       initialRouteName="Community"
       screenOptions={{
         headerShown: false,
-        sceneStyle: Platform.OS === 'web' ? { ...webPageShellStyle(), backgroundColor: DS.color.background } : undefined,
+        sceneStyle:
+          Platform.OS === 'web'
+            ? { ...webPageShellStyle(), backgroundColor: colors.background }
+            : { backgroundColor: colors.background },
         tabBarStyle: tabBarStyleVisible,
-        tabBarActiveTintColor: DS.color.gold,
-        tabBarInactiveTintColor: DS.color.textMuted,
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
@@ -506,6 +472,21 @@ function MainTabNavigator() {
 
 export function AppNavigator() {
   const { isAuthenticated } = useAuth();
+  const { colors } = useAccessibility();
+  const navTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        background: colors.background,
+        card: colors.background,
+        text: colors.text,
+        border: colors.borderHairline,
+        primary: colors.gold,
+      },
+    }),
+    [colors],
+  );
   return (
     <WebAppFrame>
       <NavigationContainer theme={navTheme}>

@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, type PressableProps, type ViewStyle } from 'react-native';
 import { AppLoadingIndicator } from './AppLoadingIndicator';
 import { DS } from '../designSystem';
+import type { AccessibleColors } from '../lib/accessibilityTheme';
+import { useThemeStyles } from '../theme/useThemeStyles';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'social';
 
@@ -10,13 +12,9 @@ type Props = Omit<PressableProps, 'style' | 'children'> & {
   variant?: Variant;
   style?: ViewStyle | ViewStyle[];
   loading?: boolean;
-  /** iOS-style large action; set false for compact rows */
   large?: boolean;
 };
 
-/**
- * Apple / HeroUI-adjacent controls on the Dalton dark canvas — rounded, high contrast, clear hit targets.
- */
 export function AppleHeroButton({
   children,
   variant = 'primary',
@@ -26,6 +24,7 @@ export function AppleHeroButton({
   large = true,
   ...rest
 }: Props) {
+  const styles = useThemeStyles(createAppleHeroButtonStyles);
   const minH = large ? DS.apple.controlHeight : 44;
   return (
     <Pressable
@@ -67,53 +66,55 @@ export function AppleHeroButton({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: DS.space.lg,
-  },
-  primary: {
-    backgroundColor: DS.color.gold,
-  },
-  secondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: DS.color.goldTint90,
-  },
-  ghost: {
-    backgroundColor: DS.apple.fillSecondary,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: DS.apple.separator,
-  },
-  social: {
-    backgroundColor: DS.color.surface,
-    borderWidth: 1,
-    borderColor: DS.apple.separator,
-  },
-  pressed: {
-    opacity: 0.88,
-  },
-  disabled: {
-    opacity: 0.45,
-  },
-  label: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-  labelPrimary: {
-    color: DS.color.background,
-  },
-  labelSecondary: {
-    color: DS.color.gold,
-  },
-  labelGhost: {
-    color: DS.color.text,
-  },
-  labelSocial: {
-    color: DS.color.text,
-    fontWeight: '600',
-  },
-});
+function createAppleHeroButtonStyles(c: AccessibleColors) {
+  return {
+    base: {
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: DS.space.lg,
+    },
+    primary: {
+      backgroundColor: c.gold,
+    },
+    secondary: {
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      borderColor: c.goldTint30,
+    },
+    ghost: {
+      backgroundColor: DS.apple.fillSecondary,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: DS.apple.separator,
+    },
+    social: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: DS.apple.separator,
+    },
+    pressed: {
+      opacity: 0.88,
+    },
+    disabled: {
+      opacity: 0.45,
+    },
+    label: {
+      fontFamily: DS.font.bodyMedium,
+      fontSize: 17,
+      fontWeight: '600' as const,
+      letterSpacing: 0.2,
+    },
+    labelPrimary: {
+      color: c.background,
+    },
+    labelSecondary: {
+      color: c.gold,
+    },
+    labelGhost: {
+      color: c.text,
+    },
+    labelSocial: {
+      color: c.text,
+      fontWeight: '600' as const,
+    },
+  };
+}

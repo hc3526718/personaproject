@@ -8,9 +8,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../designSystem';
+import type { AccessibleColors } from '../lib/accessibilityTheme';
+import { useThemeStyles } from '../theme/useThemeStyles';
 
 type ShowOptions = { onPress?: () => void; durationMs?: number };
 
@@ -20,6 +22,7 @@ const ActionBannerContext = createContext<ShowFn>(() => {});
 
 export function ActionBannerProvider({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const styles = useThemeStyles(createActionBannerStyles);
   const translateY = useRef(new Animated.Value(-140)).current;
   const [visible, setVisible] = useState(false);
   const [title, setTitle] = useState('');
@@ -102,40 +105,47 @@ export function useActionBanner(): ShowFn {
   return useContext(ActionBannerContext);
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 50,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12 },
-      android: { elevation: 14 },
-      default: {},
-    }),
-  },
-  card: {
-    width: '92%',
-    maxWidth: 520,
-    backgroundColor: 'rgba(16,16,16,0.94)',
-    borderRadius: DS.radius.xl,
-    paddingVertical: DS.space.md,
-    paddingHorizontal: DS.space.base,
-    borderWidth: 1,
-    borderColor: DS.color.goldTint30,
-  },
-  title: {
-    fontFamily: DS.font.bodyBold,
-    fontSize: 15,
-    color: DS.color.text,
-    marginBottom: 4,
-  },
-  body: {
-    fontFamily: DS.font.body,
-    fontSize: 13,
-    lineHeight: 18,
-    color: DS.color.textMuted,
-  },
-});
+function createActionBannerStyles(c: AccessibleColors) {
+  return {
+    wrap: {
+      position: 'absolute' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      alignItems: 'center' as const,
+      zIndex: 50,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 12,
+        },
+        android: { elevation: 14 },
+        default: {},
+      }),
+    },
+    card: {
+      width: '92%' as const,
+      maxWidth: 520,
+      backgroundColor: c.panelStrong ?? c.surfaceAlt,
+      borderRadius: DS.radius.xl,
+      paddingVertical: DS.space.md,
+      paddingHorizontal: DS.space.base,
+      borderWidth: 1,
+      borderColor: c.emphasisBorder ?? c.goldTint30,
+    },
+    title: {
+      fontFamily: DS.font.bodyBold,
+      fontSize: 15,
+      color: c.text,
+      marginBottom: 4,
+    },
+    body: {
+      fontFamily: DS.font.body,
+      fontSize: 13,
+      lineHeight: 18,
+      color: c.textMuted,
+    },
+  };
+}
