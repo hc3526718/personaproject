@@ -18,6 +18,8 @@ export type CommunityStackParamList = {
     conversationId?: string;
     peerUserId?: string;
     avatarUrl?: string;
+    /** When set, sending a message marks the linked proposal as discussed (master review). */
+    markDiscussedProposalId?: string;
   };
   BrandPartner: { pageId?: string } | undefined;
   DemoHub: undefined;
@@ -106,8 +108,7 @@ export type ProfileStackParamList = {
     slug: 'banner' | 'bio' | 'interests' | 'highlights' | 'recentResults';
   };
   MasterControlHub: undefined;
-  MasterGate: undefined;
-  MasterSetPin: undefined;
+  MasterGate: { returnTo?: 'MasterControlHub' | 'MasterProposalQueue' } | undefined;
   MasterPartnerOffers: undefined;
   CreatePartnerOffer: undefined;
   MasterUserAccounts: undefined;

@@ -1,14 +1,6 @@
 import { getMasterDeleteUserEdgeUrl, getSupabaseAnonKey } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 
-export async function setMasterPin(pin: string): Promise<{ ok: true } | { ok: false; message: string }> {
-  const supabase = getSupabase();
-  if (!supabase) return { ok: false, message: 'Supabase not configured' };
-  const { error } = await supabase.rpc('set_master_pin', { pin });
-  if (error) return { ok: false, message: error.message };
-  return { ok: true };
-}
-
 export async function verifyMasterPin(pin: string): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;

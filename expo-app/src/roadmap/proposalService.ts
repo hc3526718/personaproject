@@ -16,6 +16,12 @@ export type ContentProposalRow = {
   reviewed_at: string | null;
   reviewed_by: string | null;
   discussion_unlocked: boolean;
+  discussed_at: string | null;
+  show_author_modal: boolean;
+  author_modal_ack_at: string | null;
+  followup_notes: string | null;
+  followup_asset_urls: string[];
+  followup_submitted_at: string | null;
   created_at: string;
   updated_at: string;
   author_display_name?: string | null;
@@ -35,6 +41,16 @@ function mapRow(raw: Record<string, unknown>): ContentProposalRow {
     reviewed_at: typeof raw.reviewed_at === 'string' ? raw.reviewed_at : null,
     reviewed_by: typeof raw.reviewed_by === 'string' ? raw.reviewed_by : null,
     discussion_unlocked: raw.discussion_unlocked === true,
+    discussed_at: typeof raw.discussed_at === 'string' ? raw.discussed_at : null,
+    show_author_modal: raw.show_author_modal === true,
+    author_modal_ack_at:
+      typeof raw.author_modal_ack_at === 'string' ? raw.author_modal_ack_at : null,
+    followup_notes: typeof raw.followup_notes === 'string' ? raw.followup_notes : null,
+    followup_asset_urls: Array.isArray(raw.followup_asset_urls)
+      ? (raw.followup_asset_urls as string[])
+      : [],
+    followup_submitted_at:
+      typeof raw.followup_submitted_at === 'string' ? raw.followup_submitted_at : null,
     created_at: String(raw.created_at),
     updated_at: String(raw.updated_at),
     author_display_name:
@@ -157,6 +173,18 @@ export async function fetchProposalById(id: string): Promise<ContentProposalRow 
   return mapRow(data as Record<string, unknown>);
 }
 
+export async function masterMarkProposalDiscussed(
+  proposalId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: 'Not connected.' };
+  const { error } = await supabase.rpc('master_mark_proposal_discussed', {
+    p_proposal_id: proposalId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 export async function masterOpenProposal(proposalId: string): Promise<{ ok: boolean; error?: string }> {
   const supabase = getSupabase();
   if (!supabase) return { ok: false, error: 'Not connected.' };
@@ -180,12 +208,66 @@ export async function masterReviewProposal(
   if (error) {
     const msg = error.message;
     if (msg.includes('not_opened')) {
-      return { ok: false, error: 'Open the proposal document before approving or rejecting.' };
+      return { ok: false, error: 'Open the submitted document before approving or rejecting.' };
+    }
+    if (msg.includes('not_discussed')) {
+      return {
+        ok: false,
+        error: 'Message the applicant before approving or rejecting.',
+      };
     }
     if (msg.includes('already_reviewed')) {
       return { ok: false, error: 'This proposal has already been reviewed.' };
     }
     return { ok: false, error: msg };
   }
+  return { ok: true };
+}
+
+export async function listAuthorPendingOutcomeProposals(): Promise<ContentProposalRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.id) return [];
+
+  const { data, error } = await supabase
+    .from('content_proposals')
+    .select('*')
+    .eq('author_id', user.id)
+    .eq('show_author_modal', true)
+    .in('status', ['approved', 'rejected'])
+    .order('reviewed_at', { ascending: false });
+
+  if (error || !data) return [];
+  return data.map((r) => mapRow(r as Record<string, unknown>));
+}
+
+export async function ackProposalAuthorModal(proposalId: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { error } = await supabase.rpc('ack_proposal_author_modal', {
+    p_proposal_id: proposalId,
+  });
+  return !error;
+}
+
+export async function submitProposalFollowup(
+  proposalId: string,
+  notes: string,
+  assetUrls: string[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: 'Not connected.' };
+  const { error } = await supabase.rpc('submit_proposal_followup', {
+    p_proposal_id: proposalId,
+    p_notes: notes,
+    p_asset_urls: assetUrls,
+  });
+  if (error) return { ok: false, error: error.message };
+  void supabase.functions
+    .invoke('submit-proposal-followup', { body: { proposal_id: proposalId } })
+    .catch(() => undefined);
   return { ok: true };
 }

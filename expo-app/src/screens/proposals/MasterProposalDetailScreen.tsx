@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Linking,
@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,11 +33,17 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
   const [reviewing, setReviewing] = useState(false);
   const [documentOpened, setDocumentOpened] = useState(false);
 
+  const hasAttachments = useMemo(
+    () => (row?.attachment_urls?.length ?? 0) > 0,
+    [row?.attachment_urls],
+  );
+  const discussed = Boolean(row?.discussed_at);
+
   const reload = useCallback(async () => {
     setLoading(true);
     const p = await fetchProposalById(proposalId);
     setRow(p);
-    setDocumentOpened(Boolean(p?.opened_at));
+    setDocumentOpened(Boolean(p?.opened_at) || (p?.attachment_urls?.length ?? 0) === 0);
     setLoading(false);
   }, [proposalId]);
 
@@ -44,22 +51,15 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
     void reload();
   }, [reload]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
+
   const openDocument = useCallback(async () => {
+    if (!hasAttachments) return;
     const urls = row?.attachment_urls ?? [];
-    if (urls.length === 0) {
-      const opened = await masterOpenProposal(proposalId);
-      if (!opened.ok) {
-        Alert.alert('Could not open', opened.error);
-        return;
-      }
-      setDocumentOpened(true);
-      await reload();
-      Alert.alert(
-        'Proposal opened',
-        'No attachment files were included. You may now approve or reject based on the summary below.',
-      );
-      return;
-    }
     const url = urls[0]!;
     const can = await Linking.canOpenURL(url);
     if (!can) {
@@ -74,12 +74,34 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
     setDocumentOpened(true);
     await Linking.openURL(url);
     await reload();
-  }, [proposalId, reload, row?.attachment_urls]);
+  }, [hasAttachments, proposalId, reload, row?.attachment_urls]);
+
+  const messageApplicant = useCallback(() => {
+    if (!row?.author_id) return;
+    navigation.getParent()?.navigate(
+      'Community' as never,
+      {
+        screen: 'MessageThread',
+        params: {
+          peerUserId: row.author_id,
+          name: row.author_display_name ?? 'Applicant',
+          markDiscussedProposalId: proposalId,
+        },
+      } as never,
+    );
+  }, [navigation, proposalId, row?.author_display_name, row?.author_id]);
 
   const decide = useCallback(
     async (decision: 'approved' | 'rejected') => {
-      if (!documentOpened) {
-        Alert.alert('Open document first', 'Review the submitted document before deciding.');
+      if (hasAttachments && !documentOpened) {
+        Alert.alert('Open document first', 'Review the submitted attachment before deciding.');
+        return;
+      }
+      if (!discussed) {
+        Alert.alert(
+          'Contact applicant first',
+          'Message the person who submitted this proposal before you approve or reject.',
+        );
         return;
       }
       setReviewing(true);
@@ -91,13 +113,11 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
       }
       Alert.alert(
         decision === 'approved' ? 'Approved' : 'Rejected',
-        decision === 'approved' && row?.kind === 'sponsor'
-          ? 'The applicant can continue the conversation in Messages.'
-          : 'Decision saved. This proposal cannot be changed.',
+        'The applicant will be notified in the app.',
         [{ text: 'OK', onPress: () => navigation.goBack() }],
       );
     },
-    [documentOpened, navigation, proposalId, row?.kind],
+    [discussed, documentOpened, hasAttachments, navigation, proposalId],
   );
 
   if (loading || !row) {
@@ -109,7 +129,7 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const canDecide = row.status === 'pending' && documentOpened;
+  const canDecide = row.status === 'pending' && discussed && (!hasAttachments || documentOpened);
 
   return (
     <View style={styles.root}>
@@ -118,7 +138,9 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.kind}>{row.kind.toUpperCase()} · {row.status}</Text>
+        <Text style={styles.kind}>
+          {row.kind.toUpperCase()} · {row.status}
+        </Text>
         <Text style={styles.author}>{row.author_display_name ?? 'Member'}</Text>
 
         {Object.entries(row.payload).map(([k, v]) => (
@@ -128,23 +150,34 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
           </View>
         ))}
 
-        <Pressable style={styles.openDocBtn} onPress={() => void openDocument()}>
-          <FontAwesome name="file-text-o" size={18} color={DS.color.background} />
-          <Text style={styles.openDocTxt}>
-            {documentOpened ? 'Re-open submitted document' : 'Open submitted document'}
+        <Pressable style={styles.messageBtn} onPress={messageApplicant}>
+          <FontAwesome name="comments" size={18} color={DS.color.gold} />
+          <Text style={styles.messageBtnTxt}>
+            {discussed ? 'Message applicant again' : 'Message applicant (required)'}
           </Text>
         </Pressable>
 
-        {!documentOpened ? (
+        {hasAttachments ? (
+          <Pressable style={styles.openDocBtn} onPress={() => void openDocument()}>
+            <FontAwesome name="file-text-o" size={18} color={DS.color.background} />
+            <Text style={styles.openDocTxt}>
+              {documentOpened ? 'Re-open submitted document' : 'Open submitted document (required)'}
+            </Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.hint}>No attachment on this proposal — document review is not required.</Text>
+        )}
+
+        {!discussed ? (
           <Text style={styles.hint}>
-            Approve ✓ and Reject ✗ unlock after you open the applicant&apos;s document.
+            Approve and reject unlock after you message the applicant{hasAttachments ? ' and open their document' : ''}.
           </Text>
         ) : null}
 
         {row.status !== 'pending' ? (
           <Text style={styles.decided}>
-            Reviewed {row.reviewed_at ? new Date(row.reviewed_at).toLocaleString() : ''} — decision
-            is final.
+            Reviewed {row.reviewed_at ? new Date(row.reviewed_at).toLocaleString() : ''} — decision is
+            final.
           </Text>
         ) : null}
       </ScrollView>
@@ -198,6 +231,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: DS.color.text,
     lineHeight: 22,
+  },
+  messageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DS.space.sm,
+    borderWidth: 1,
+    borderColor: DS.color.goldTint30,
+    paddingVertical: 14,
+    borderRadius: DS.radius.xl,
+    marginTop: DS.space.md,
+  },
+  messageBtnTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 15,
+    color: DS.color.gold,
   },
   openDocBtn: {
     flexDirection: 'row',

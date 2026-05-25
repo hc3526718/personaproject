@@ -97,9 +97,9 @@ import {
   MasterControlHubScreen,
   MasterGateScreen,
   MasterPartnerOffersScreen,
-  MasterSetPinScreen,
   MasterUserAccountsScreen,
 } from '../screens/masterControlScreens';
+import { ProposalOutcomeHost } from '../components/ProposalOutcomeHost';
 import {
   CreatePasswordScreen,
   ForgotPasswordScreen,
@@ -245,7 +245,6 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="EditProfileSectionDetail" component={EditProfileSectionDetailScreen} />
       <ProfileStack.Screen name="MasterControlHub" component={MasterControlHubScreen} />
       <ProfileStack.Screen name="MasterGate" component={MasterGateScreen} />
-      <ProfileStack.Screen name="MasterSetPin" component={MasterSetPinScreen} />
       <ProfileStack.Screen name="MasterPartnerOffers" component={MasterPartnerOffersScreen} />
       <ProfileStack.Screen name="CreatePartnerOffer" component={CreatePartnerOfferScreen} />
       <ProfileStack.Screen name="MasterUserAccounts" component={MasterUserAccountsScreen} />
@@ -373,7 +372,9 @@ function AuthenticatedShell() {
   }
   return (
     <>
-      <MainTabNavigator />
+      <ProposalOutcomeHost>
+        <MainTabNavigator />
+      </ProposalOutcomeHost>
       <OAuthProfileSetupModal
         visible={oauthProfileSetupOpen}
         onCompleted={() => {

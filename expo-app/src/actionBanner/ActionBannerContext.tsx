@@ -12,7 +12,9 @@ import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../designSystem';
 
-type ShowFn = (title: string, body?: string) => void;
+type ShowOptions = { onPress?: () => void; durationMs?: number };
+
+type ShowFn = (title: string, body?: string, options?: ShowOptions) => void;
 
 const ActionBannerContext = createContext<ShowFn>(() => {});
 
@@ -22,6 +24,7 @@ export function ActionBannerProvider({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState<string | undefined>(undefined);
+  const onPressRef = useRef<(() => void) | undefined>(undefined);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduceMotionRef = useRef(false);
 
@@ -36,10 +39,11 @@ export function ActionBannerProvider({ children }: { children: ReactNode }) {
   }, [translateY]);
 
   const show = useCallback(
-    (t: string, b?: string) => {
+    (t: string, b?: string, options?: ShowOptions) => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
       setTitle(t);
       setBody(b);
+      onPressRef.current = options?.onPress;
       setVisible(true);
       translateY.stopAnimation(() => {});
       if (reduceMotionRef.current) {
@@ -52,7 +56,7 @@ export function ActionBannerProvider({ children }: { children: ReactNode }) {
           friction: 14,
         }).start();
       }
-      hideTimer.current = setTimeout(() => hide(), 3200);
+      hideTimer.current = setTimeout(() => hide(), options?.durationMs ?? 3200);
     },
     [hide, translateY],
   );
@@ -76,7 +80,15 @@ export function ActionBannerProvider({ children }: { children: ReactNode }) {
             { paddingTop: insets.top + 8, transform: [{ translateY }] },
           ]}
         >
-          <TouchableOpacity activeOpacity={0.94} style={styles.card} onPress={hide}>
+          <TouchableOpacity
+            activeOpacity={0.94}
+            style={styles.card}
+            onPress={() => {
+              const fn = onPressRef.current;
+              hide();
+              fn?.();
+            }}
+          >
             <Text style={styles.title}>{title}</Text>
             {body ? <Text style={styles.body}>{body}</Text> : null}
           </TouchableOpacity>

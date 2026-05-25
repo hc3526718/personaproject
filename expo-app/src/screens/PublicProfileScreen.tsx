@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -28,6 +29,7 @@ import {
   isUserFollowing,
   unfollowUserDirect,
 } from '../roadmap/followService';
+import { resolveCanMessagePeer } from '../roadmap/messagingGateService';
 
 type Props =
   | NativeStackScreenProps<CommunityStackParamList, 'PublicProfile'>
@@ -84,6 +86,35 @@ export function PublicProfileScreen({ navigation, route }: Props) {
 
   const canFollow =
     Boolean(user?.id && !user.id.startsWith('demo-') && user.id !== userId && userId.length > 10);
+
+  const openMessage = async () => {
+    if (!canFollow || !user?.id) return;
+    const gate = await resolveCanMessagePeer(user.id, userId);
+    if (!gate.ok) {
+      Alert.alert('Cannot message', gate.message);
+      return;
+    }
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.navigate(
+        'Community' as never,
+        {
+          screen: 'MessageThread',
+          params: {
+            peerUserId: userId,
+            name: displayLine,
+            avatarUrl: profile?.avatar_url?.trim() || undefined,
+          },
+        } as never,
+      );
+      return;
+    }
+    navigation.navigate('MessageThread' as never, {
+      peerUserId: userId,
+      name: displayLine,
+      avatarUrl: profile?.avatar_url?.trim() || undefined,
+    } as never);
+  };
 
   const toggleFollow = async () => {
     if (!canFollow || !user?.id || followBusy) return;
@@ -143,7 +174,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
           </View>
 
           {canFollow ? (
-            <View style={styles.followBtnWrap}>
+            <View style={styles.actionRow}>
               <AppleHeroButton
                 loading={followBusy}
                 onPress={() => void toggleFollow()}
@@ -151,6 +182,10 @@ export function PublicProfileScreen({ navigation, route }: Props) {
               >
                 {following ? 'Following' : 'Follow'}
               </AppleHeroButton>
+              <Pressable style={styles.messageBtn} onPress={() => void openMessage()}>
+                <FontAwesome name="envelope" size={16} color={DS.color.gold} />
+                <Text style={styles.messageBtnTxt}>Message</Text>
+              </Pressable>
             </View>
           ) : null}
 
@@ -253,8 +288,11 @@ const styles = StyleSheet.create({
     borderColor: DS.color.gold,
     backgroundColor: DS.color.background,
   },
-  followBtnWrap: {
-    alignSelf: 'stretch',
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DS.space.md,
     paddingHorizontal: DS.space.xl,
     marginBottom: DS.space.md,
   },
@@ -262,6 +300,23 @@ const styles = StyleSheet.create({
     backgroundColor: DS.color.gold,
     borderColor: DS.color.gold,
     minHeight: 44,
+    flex: 1,
+  },
+  messageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.xs,
+    paddingVertical: DS.space.sm,
+    paddingHorizontal: DS.space.md,
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: DS.color.goldTint30,
+    minHeight: 44,
+  },
+  messageBtnTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    color: DS.color.gold,
   },
   name: {
     fontFamily: DS.font.heading,

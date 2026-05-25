@@ -6,9 +6,9 @@ Product names in repo: **Grant Access** (user-facing brand on welcome/auth) and 
 
 ## Routing app coverage (GeoJSON)
 
-**File:** [`../app-store/routing-app-coverage.geojson`](../app-store/routing-app-coverage.geojson)
+**File:** `[../app-store/routing-app-coverage.geojson](../app-store/routing-app-coverage.geojson)`
 
-- Format: single root **`MultiPolygon`** (required by Apple).
+- Format: single root `**MultiPolygon`** (required by Apple).
 - **Polygon 1:** simplified Great Britain (England, Scotland, Wales).
 - **Polygon 2:** simplified Ireland (Republic + cross-border event area).
 
@@ -84,14 +84,12 @@ Apple asks whether your app uses encryption. Most apps that only use **HTTPS (TL
 
 ### What to answer in App Store Connect
 
-1. **Does your app use encryption?**  
-   **Yes** — the app uses HTTPS to talk to Supabase, RevenueCat, Stripe, OAuth providers, etc.
-
-2. **Is it exempt?**  
-   Typically **Yes** — exemption type **(e)(1)** or the questionnaire wording *“app uses only standard encryption / exempt”* (Apple’s exact labels change slightly by year).
-
-3. **`ITSAppUsesNonExemptEncryption` in `Info.plist`**  
-   For exempt apps, set **`false`** (or rely on Expo / EAS to set export compliance). Meaning: you are **not** using non-exempt cryptography beyond what Apple allows without annual BIS paperwork.
+1. **Does your app use encryption?**
+  **Yes** — the app uses HTTPS to talk to Supabase, RevenueCat, Stripe, OAuth providers, etc.
+2. **Is it exempt?**
+  Typically **Yes** — exemption type **(e)(1)** or the questionnaire wording *“app uses only standard encryption / exempt”* (Apple’s exact labels change slightly by year).
+3. `**ITSAppUsesNonExemptEncryption` in `Info.plist`**
+  For exempt apps, set `**false**` (or rely on Expo / EAS to set export compliance). Meaning: you are **not** using non-exempt cryptography beyond what Apple allows without annual BIS paperwork.
 
 ### When you need more than the checkbox
 
@@ -117,19 +115,21 @@ Official reference: [Apple — Complying with encryption export regulations](htt
 
 These are **questionnaires**, not files you upload (unless Apple requests a document).
 
-| Area | What Apple / stores ask | Grant Access guidance |
-|------|-------------------------|------------------------|
-| **Export compliance** | Encryption (above) | Standard HTTPS exemption |
-| **Content rights** | You own or licensed all app content | Yes for your UI; user-generated content needs Terms + moderation |
-| **Age rating** | Violence, UGC, messaging, purchases | Likely **12+** or **13+** with UGC/messaging; complete the questionnaire honestly |
-| **UGC** | Moderation, reporting, blocking | In-app post reports; master moderation tools |
-| **Account deletion** | Required if accounts exist | Provide in-app path + support URL |
-| **Privacy Nutrition Labels** | Data linked to user | Map Supabase auth, analytics (Sentry if enabled), RevenueCat, push tokens |
-| **Digital purchases** | IAP vs external payment | RevenueCat subscriptions; Stripe on web per your setup |
-| **Business / permits** | Rare for fitness apps | No special “permit” unless you sell regulated services; **event ticketing** may need consumer terms/refunds in your legal pages |
-| **UK / EU** | Trader status, DSA, GDPR | Privacy policy + support contact on website; GDPR lawful basis in privacy policy |
 
-**No separate “permit file”** is uploaded to Apple for a standard fitness/community app. Keep **Terms**, **Privacy**, and **Support URL** live at `EXPO_PUBLIC_DALTON_WEB_URL` (e.g. https://dalton-access.vercel.app).
+| Area                         | What Apple / stores ask             | Grant Access guidance                                                                                                           |
+| ---------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Export compliance**        | Encryption (above)                  | Standard HTTPS exemption                                                                                                        |
+| **Content rights**           | You own or licensed all app content | Yes for your UI; user-generated content needs Terms + moderation                                                                |
+| **Age rating**               | Violence, UGC, messaging, purchases | Likely **12+** or **13+** with UGC/messaging; complete the questionnaire honestly                                               |
+| **UGC**                      | Moderation, reporting, blocking     | In-app post reports; master moderation tools                                                                                    |
+| **Account deletion**         | Required if accounts exist          | Provide in-app path + support URL                                                                                               |
+| **Privacy Nutrition Labels** | Data linked to user                 | Map Supabase auth, analytics (Sentry if enabled), RevenueCat, push tokens                                                       |
+| **Digital purchases**        | IAP vs external payment             | RevenueCat subscriptions; Stripe on web per your setup                                                                          |
+| **Business / permits**       | Rare for fitness apps               | No special “permit” unless you sell regulated services; **event ticketing** may need consumer terms/refunds in your legal pages |
+| **UK / EU**                  | Trader status, DSA, GDPR            | Privacy policy + support contact on website; GDPR lawful basis in privacy policy                                                |
+
+
+**No separate “permit file”** is uploaded to Apple for a standard fitness/community app. Keep **Terms**, **Privacy**, and **Support URL** live at `EXPO_PUBLIC_DALTON_WEB_URL` (e.g. [https://dalton-access.vercel.app](https://dalton-access.vercel.app)).
 
 ---
 
@@ -139,12 +139,14 @@ These are **questionnaires**, not files you upload (unless Apple requests a docu
 
 Align declarations with **what users actually get** on first run and in **Profile → Settings → Accessibility**:
 
-| Feature | In-app today | App Store declaration suggestion |
-|---------|----------------|----------------------------------|
-| **Larger Text** | Toggle in Settings; scales text via `maxFontSizeMultiplier`; syncs to `user_settings` | **Supported** |
-| **Dark Interface** | Dark UI by default (informational row in Settings) | **Supported** |
-| **Differentiate Without Color Alone** | Toggle; stronger borders/labels when enabled; cloud sync | **Supported** (expand affordances over time) |
-| **Sufficient Contrast** | Toggle; higher-contrast palette when enabled; cloud sync | **Supported** |
+
+| Feature                               | In-app today                                                                          | App Store declaration suggestion             |
+| ------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Larger Text**                       | Toggle in Settings; scales text via `maxFontSizeMultiplier`; syncs to `user_settings` | **Supported**                                |
+| **Dark Interface**                    | Dark UI by default (informational row in Settings)                                    | **Supported**                                |
+| **Differentiate Without Color Alone** | Toggle; stronger borders/labels when enabled; cloud sync                              | **Supported** (expand affordances over time) |
+| **Sufficient Contrast**               | Toggle; higher-contrast palette when enabled; cloud sync                              | **Supported**                                |
+
 
 **Do not declare** (removed from Settings until implemented): VoiceOver, Voice Control, Light Interface, Reduced Motion, Captions.
 
@@ -178,11 +180,12 @@ The screenshot editor README already notes: use PNG/JPG; avoid formats with unex
 
 ## Quick checklist before submit
 
-- [ ] `routing-app-coverage.geojson` uploaded **if** Connect requests it
-- [ ] Title, subtitle, keywords, description, promotional text pasted
-- [ ] Export compliance answered (HTTPS exempt)
-- [ ] Age rating + privacy labels
-- [ ] Support URL, marketing URL, privacy policy URL
-- [ ] Screenshots **opaque**, correct device sizes
-- [ ] Accessibility section matches Settings toggles
-- [ ] `EXPO_PUBLIC_*` secrets on EAS for production build ([TESTFLIGHT.md](./TESTFLIGHT.md))
+- `routing-app-coverage.geojson` uploaded **if** Connect requests it
+- Title, subtitle, keywords, description, promotional text pasted
+- Export compliance answered (HTTPS exempt)
+- Age rating + privacy labels
+- Support URL, marketing URL, privacy policy URL
+- Screenshots **opaque**, correct device sizes
+- Accessibility section matches Settings toggles
+- `EXPO_PUBLIC_`* secrets on EAS for production build ([TESTFLIGHT.md](./TESTFLIGHT.md))
+

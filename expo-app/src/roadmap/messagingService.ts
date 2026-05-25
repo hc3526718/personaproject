@@ -26,8 +26,22 @@ export async function getOrCreateConversationId(peerUserId: string): Promise<str
   const supabase = getSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase.rpc('get_or_create_dm', { other_user_id: peerUserId });
-  if (error || data == null) return null;
+  if (error) {
+    const msg = error.message ?? '';
+    if (msg.includes('dm_not_allowed')) return null;
+    return null;
+  }
+  if (data == null) return null;
   return typeof data === 'string' ? data : String(data);
+}
+
+/** Surfaces server-side DM policy (`can_message_peer` RPC). */
+export async function canMessagePeer(peerUserId: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc('can_message_peer', { other_user_id: peerUserId });
+  if (error) return false;
+  return data === true;
 }
 
 export async function listConversationSummaries(userId: string): Promise<ConversationSummary[]> {

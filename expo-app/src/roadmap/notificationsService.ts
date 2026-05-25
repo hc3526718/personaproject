@@ -21,7 +21,15 @@ export async function registerDevicePushToken(
   return !error;
 }
 
-export type InAppNotification = { id: string; title: string; body: string; read_at: string | null; created_at: string };
+export type InAppNotification = {
+  id: string;
+  title: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+  link_type?: string | null;
+  link_id?: string | null;
+};
 
 /** Requires `in_app_notifications` in `backend/roadmap_extensions.sql` + RLS in `rls_policies.sql`. */
 export async function listInAppNotifications(userId: string, limit = 50): Promise<InAppNotification[]> {
@@ -29,7 +37,7 @@ export async function listInAppNotifications(userId: string, limit = 50): Promis
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('in_app_notifications')
-    .select('id, title, body, read_at, created_at')
+    .select('id, title, body, read_at, created_at, link_type, link_id')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);

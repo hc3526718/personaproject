@@ -40,6 +40,7 @@ import {
   normalizeUsernameTyping,
 } from '../profile/usernameProfile';
 import { useUsernameAvailability } from '../profile/useUsernameAvailability';
+import { isMasterGateUnlocked } from '../master/masterGateStorage';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 type SectionDetailRoute = RouteProp<ProfileStackParamList, 'EditProfileSectionDetail'>;
@@ -327,6 +328,19 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     icon: 'star' as const,
     onPress: () => navigation.navigate('Paywall'),
   };
+  const openMasterGated = useCallback(
+    async (returnTo: 'MasterControlHub' | 'MasterProposalQueue') => {
+      if (!user?.id) return;
+      const unlocked = await isMasterGateUnlocked(user.id);
+      if (unlocked) {
+        navigation.navigate(returnTo);
+      } else {
+        navigation.navigate('MasterGate', { returnTo });
+      }
+    },
+    [navigation, user?.id],
+  );
+
   const masterRows =
     user?.masterControl === true
       ? [
@@ -334,13 +348,13 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
             title: 'Master intake',
             sub: 'Review sponsorship, media & event proposals',
             icon: 'inbox' as const,
-            onPress: () => navigation.navigate('MasterProposalQueue'),
+            onPress: () => void openMasterGated('MasterProposalQueue'),
           },
           {
             title: 'Master control',
             sub: 'Partner pages, account tools — PIN gated',
             icon: 'key' as const,
-            onPress: () => navigation.navigate('MasterControlHub'),
+            onPress: () => void openMasterGated('MasterControlHub'),
           },
         ]
       : [];
@@ -563,16 +577,17 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
   const { user } = useAuth();
   const supabase = getSupabase();
   const live = isLiveUser(user);
-  const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [sport, setSport] = useState<string>('');
   const [sportOpen, setSportOpen] = useState(false);
   const [toast, setToast] = useState(false);
-  const [errors, setErrors] = useState<{ displayName?: string; username?: string }>({});
+  const [errors, setErrors] = useState<{ firstName?: string; lastName?: string; username?: string }>({});
 
   const availability = useUsernameAvailability(supabase, user?.id, username, false);
 
-  const clearFieldError = (key: 'displayName' | 'username') => {
+  const clearFieldError = (key: 'firstName' | 'lastName' | 'username') => {
     setErrors((e) => {
       const next = { ...e };
       delete next[key];
@@ -587,7 +602,8 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
         if (!live || !user?.id) return;
         const p = await fetchProfileByUserId(user.id);
         if (!alive || !p) return;
-        setDisplayName(p.display_name?.trim() || '');
+        setFirstName(p.first_name?.trim() || '');
+        setLastName(p.last_name?.trim() || '');
         setUsername(p.username?.trim() || '');
         setSport((p.sports ?? [])[0] || '');
       })();
@@ -599,7 +615,9 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
 
   const onSave = async () => {
     const next: typeof errors = {};
-    if (!displayName.trim()) next.displayName = 'Display name is required';
+    if (!firstName.trim()) next.firstName = 'First name is required';
+    if (!lastName.trim()) next.lastName = 'Surname is required';
+    const displayName = [firstName.trim(), lastName.trim()].filter(Boolean).join(' ');
     const normalizedUsername = normalizeUsernameTyping(username);
     if (!normalizedUsername) next.username = 'Username is required';
     else if (!isValidUsernameFormat(normalizedUsername)) next.username = 'Use letters, numbers, and underscores only';
@@ -617,7 +635,9 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
     const { error } = await supabase
       .from('profiles')
       .update({
-        display_name: displayName.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        display_name: displayName,
         username: normalizedUsername,
         sports: sport?.trim() ? [sport.trim()] : [],
       })
@@ -629,8 +649,10 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
     }
     await supabase.auth.updateUser({
       data: {
-        display_name: displayName.trim(),
-        full_name: displayName.trim(),
+        display_name: displayName,
+        full_name: displayName,
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
       },
     });
     setToast(true);
@@ -662,19 +684,36 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
           showsVerticalScrollIndicator={false}
         >
           <Text style={[styles.label, styles.editFirstLabel]}>
-            Display Name <Text style={styles.reqStar}>*</Text>
+            First name <Text style={styles.reqStar}>*</Text>
           </Text>
           <TextInput
-            style={[styles.input, errors.displayName ? styles.inputError : null]}
-            placeholder="Enter your display name"
+            style={[styles.input, errors.firstName ? styles.inputError : null]}
+            placeholder="First name"
             placeholderTextColor={DS.color.textMuted}
-            value={displayName}
+            value={firstName}
+            autoCapitalize="words"
             onChangeText={(t) => {
-              setDisplayName(t);
-              clearFieldError('displayName');
+              setFirstName(t);
+              clearFieldError('firstName');
             }}
           />
-          {errors.displayName ? <Text style={styles.fieldError}>{errors.displayName}</Text> : null}
+          {errors.firstName ? <Text style={styles.fieldError}>{errors.firstName}</Text> : null}
+
+          <Text style={[styles.label, styles.labelSpaced]}>
+            Surname <Text style={styles.reqStar}>*</Text>
+          </Text>
+          <TextInput
+            style={[styles.input, errors.lastName ? styles.inputError : null]}
+            placeholder="Surname"
+            placeholderTextColor={DS.color.textMuted}
+            value={lastName}
+            autoCapitalize="words"
+            onChangeText={(t) => {
+              setLastName(t);
+              clearFieldError('lastName');
+            }}
+          />
+          {errors.lastName ? <Text style={styles.fieldError}>{errors.lastName}</Text> : null}
 
           <Text style={[styles.label, styles.labelSpaced]}>
             Username/Handle <Text style={styles.reqStar}>*</Text>
@@ -1091,7 +1130,10 @@ export function EditProfileSectionsScreen({ navigation }: PProps<'EditProfileSec
       title: 'Basic Info',
       sub: 'Display name, username, sport',
       icon: 'id-card-o',
-      status: profile?.display_name?.trim() && profile?.username?.trim() ? 'complete' : 'partial',
+      status:
+        profile?.first_name?.trim() && profile?.last_name?.trim() && profile?.username?.trim()
+          ? 'complete'
+          : 'partial',
       onPress: () => navigation.navigate('EditBasic'),
     },
     {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -15,7 +15,6 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
-import { AppleHeroButton } from '../components/AppleHeroButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AppButton } from '../components/ui/AppButton';
 import { DS } from '../designSystem';
@@ -28,120 +27,18 @@ import {
   listSubscriptionOfferPages,
 } from '../roadmap/liveDataService';
 import type { SubscriptionOfferPageRow } from '../roadmap/types';
-import { masterDeleteUserAccount, setMasterPin, verifyMasterPin } from '../master/masterControlService';
+import { masterDeleteUserAccount, verifyMasterPin } from '../master/masterControlService';
 import { clearMasterGate, isMasterGateUnlocked, setMasterGateUnlocked } from '../master/masterGateStorage';
-import { MasterControlRecoverySteps } from '../components/MasterControlRecoverySteps';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 
-export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
+/** PIN-only unlock. Master flag and PIN hash are set in Supabase SQL only. */
+export function MasterGateScreen({ navigation, route }: PProps<'MasterGate'>) {
   const insets = useSafeAreaInsets();
-  const { user, signInWithGoogle, logout } = useAuth();
-  const supabase = getSupabase();
-  const [step, setStep] = useState(0);
-  const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
+  const { user } = useAuth();
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
-  /** Apple/Google-only accounts have no password identity — re-verify with email OTP instead. */
-  const [gateLoading, setGateLoading] = useState(true);
-  const [hasPasswordIdentity, setHasPasswordIdentity] = useState(true);
-  const [hasGoogleIdentity, setHasGoogleIdentity] = useState(false);
-
-  const email = user?.email?.trim() ?? '';
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!supabase) {
-        if (!cancelled) {
-          setHasPasswordIdentity(true);
-          setGateLoading(false);
-        }
-        return;
-      }
-      const { data } = await supabase.auth.getUser();
-      if (cancelled) return;
-      const ids = data.user?.identities ?? [];
-      const emailIdentity = ids.some((i) => i.provider === 'email');
-      const googleIdentity = ids.some((i) => i.provider === 'google');
-      setHasPasswordIdentity(emailIdentity);
-      setHasGoogleIdentity(googleIdentity);
-      if (!emailIdentity && (data.user?.email ?? user?.email ?? '').trim().length > 0) {
-        setStep(1);
-      } else {
-        setStep(0);
-      }
-      setGateLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, user?.email, user?.id]);
-
-  const runPassword = useCallback(async () => {
-    if (!supabase || !email) return;
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) {
-      Alert.alert('Password', error.message);
-      return;
-    }
-    setStep(1);
-  }, [supabase, email, password]);
-
-  const runGoogleReverify = useCallback(async () => {
-    if (!supabase || !user?.id) return;
-    const expectedUserId = user.id;
-    setBusy(true);
-    const ok = await signInWithGoogle();
-    setBusy(false);
-    if (!ok) return;
-    const { data } = await supabase.auth.getUser();
-    if (data.user?.id !== expectedUserId) {
-      Alert.alert(
-        'Wrong Google account',
-        'Use the same Google account linked to this Dalton profile, then open Master control again.',
-      );
-      await logout();
-      return;
-    }
-    setStep(2);
-  }, [supabase, user?.id, signInWithGoogle, logout]);
-
-  const sendEmailCode = useCallback(async () => {
-    if (!supabase || !email) return;
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
-    });
-    setBusy(false);
-    if (error) Alert.alert('Email code', error.message);
-    else Alert.alert('Check email', 'Enter the 6-digit code from your inbox.');
-  }, [supabase, email]);
-
-  const verifyEmailCode = useCallback(async () => {
-    if (!supabase || !email) return;
-    const token = otp.replace(/\D/g, '').trim();
-    if (token.length < 6) {
-      Alert.alert('Code', 'Enter the 6-digit code from email.');
-      return;
-    }
-    setBusy(true);
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email',
-    });
-    setBusy(false);
-    if (error) {
-      Alert.alert('Verification', error.message);
-      return;
-    }
-    setStep(2);
-  }, [supabase, email, otp]);
+  const returnTo = route.params?.returnTo ?? 'MasterControlHub';
 
   const verifyPinStep = useCallback(async () => {
     if (!user?.id) return;
@@ -155,107 +52,53 @@ export function MasterGateScreen({ navigation }: PProps<'MasterGate'>) {
     setBusy(false);
     if (!ok) {
       Alert.alert(
-        'PIN',
-        'Incorrect PIN. Use Master → Change PIN if you have not created one yet.',
+        'Incorrect PIN',
+        'This PIN is assigned to your master account in Supabase. Contact Dalton if you need it reset.',
       );
       return;
     }
     await setMasterGateUnlocked(user.id);
-    navigation.replace('MasterControlHub');
-  }, [user?.id, pin, navigation]);
+    if (returnTo === 'MasterProposalQueue') {
+      navigation.replace('MasterProposalQueue');
+    } else {
+      navigation.replace('MasterControlHub');
+    }
+  }, [navigation, pin, returnTo, user?.id]);
 
-  const leadText = hasPasswordIdentity
-    ? 'Three steps: password, email one-time code, then your 6-digit master PIN (stored hashed on the server).'
-    : hasGoogleIdentity
-      ? 'Google sign-in accounts can re-verify with Google (or use a code sent to your email), then enter your 6-digit master PIN.'
-      : 'Google and Apple sign-in do not use an account password here. Confirm access with a code sent to your email, then enter your 6-digit master PIN.';
-
-  if (gateLoading) {
+  if (!user?.masterControl) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top, flex: 1 }]}>
-        <ScreenHeader title="Master verification" onBack={() => navigation.goBack()} />
-        <View style={styles.loadingGate}>
-          <AppLoadingIndicator />
-        </View>
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <ScreenHeader title="Master PIN" onBack={() => navigation.goBack()} />
+        <Text style={[styles.lead, styles.pad]}>This area is restricted.</Text>
       </View>
     );
   }
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Master verification" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Master PIN" onBack={() => navigation.goBack()} />
       <ScrollView
         contentContainerStyle={[styles.pad, { paddingBottom: insets.bottom + 40 }]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.lead}>{leadText}</Text>
-        <MasterControlRecoverySteps
-          style={{ marginBottom: DS.space.lg }}
-          includesPasswordGate={hasPasswordIdentity}
-        />
-        {step === 0 && hasPasswordIdentity ? (
-          <View style={styles.card}>
-            <Text style={styles.label}>Account password</Text>
-            <TextInput
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Password"
-              placeholderTextColor={DS.color.textMuted}
-              style={styles.input}
-              autoCapitalize="none"
-            />
-            <AppButton label={busy ? 'Checking…' : 'Continue'} onPress={() => void runPassword()} loading={busy} />
-          </View>
-        ) : null}
-        {step === 1 ? (
-          <View style={styles.card}>
-            <Text style={styles.label}>Confirm it&apos;s you</Text>
-            {hasGoogleIdentity ? (
-              <AppleHeroButton style={{ marginBottom: DS.space.md }} onPress={() => void runGoogleReverify()} loading={busy}>
-                Continue with Google
-              </AppleHeroButton>
-            ) : null}
-            {hasGoogleIdentity ? (
-              <Text style={[styles.lead, { marginBottom: DS.space.md }]}>
-                Or verify by email instead:
-              </Text>
-            ) : null}
-            <AppButton
-              label={busy ? 'Sending…' : 'Send code to email'}
-              onPress={() => void sendEmailCode()}
-              variant="secondary"
-            />
-            <TextInput
-              value={otp}
-              onChangeText={setOtp}
-              placeholder="6-digit code"
-              placeholderTextColor={DS.color.textMuted}
-              keyboardType="number-pad"
-              style={[styles.input, { marginTop: DS.space.md }]}
-            />
-            <AppButton
-              label={busy ? 'Verifying…' : 'Verify email'}
-              onPress={() => void verifyEmailCode()}
-              loading={busy}
-            />
-          </View>
-        ) : null}
-        {step === 2 ? (
-          <View style={styles.card}>
-            <Text style={styles.label}>Master PIN</Text>
-            <TextInput
-              value={pin}
-              onChangeText={setPin}
-              placeholder="6-digit PIN"
-              placeholderTextColor={DS.color.textMuted}
-              keyboardType="number-pad"
-              secureTextEntry
-              style={styles.input}
-            />
-            <AppButton label={busy ? 'Checking…' : 'Unlock'} onPress={() => void verifyPinStep()} loading={busy} />
-          </View>
-        ) : null}
+        <Text style={styles.lead}>
+          Enter the 6-digit PIN assigned to your master account. Master access is enabled and PINs are
+          managed in Supabase only — not in the app.
+        </Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>Master PIN</Text>
+          <TextInput
+            value={pin}
+            onChangeText={setPin}
+            placeholder="6-digit PIN"
+            placeholderTextColor={DS.color.textMuted}
+            keyboardType="number-pad"
+            secureTextEntry
+            maxLength={6}
+            style={styles.input}
+          />
+          <AppButton label={busy ? 'Checking…' : 'Unlock'} onPress={() => void verifyPinStep()} loading={busy} />
+        </View>
       </ScrollView>
     </View>
   );
@@ -271,7 +114,7 @@ export function MasterControlHubScreen({ navigation }: PProps<'MasterControlHub'
       void (async () => {
         if (!user?.id || user.masterControl !== true) return;
         const ok = await isMasterGateUnlocked(user.id);
-        if (alive && !ok) navigation.replace('MasterGate');
+        if (alive && !ok) navigation.replace('MasterGate', { returnTo: 'MasterControlHub' });
       })();
       return () => {
         alive = false;
@@ -307,78 +150,17 @@ export function MasterControlHubScreen({ navigation }: PProps<'MasterControlHub'
           <Text style={styles.menuTxt}>Review proposals</Text>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
-        <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterSetPin')}>
-          <FontAwesome name="lock" size={18} color={DS.color.gold} />
-          <Text style={styles.menuTxt}>Change 6-digit PIN</Text>
-          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
-        </Pressable>
         <Pressable
           style={[styles.menuRow, { marginTop: DS.space.lg }]}
           onPress={() => {
             void clearMasterGate();
-            Alert.alert('Locked', 'Master tools require verification again.');
+            Alert.alert('Locked', 'Master tools require your PIN again.');
           }}
         >
           <FontAwesome name="sign-out" size={18} color={DS.color.textMuted} />
           <Text style={[styles.menuTxt, { color: DS.color.textMuted }]}>Lock master session</Text>
         </Pressable>
       </ScrollView>
-    </View>
-  );
-}
-
-export function MasterSetPinScreen({ navigation }: PProps<'MasterSetPin'>) {
-  const insets = useSafeAreaInsets();
-  const [a, setA] = useState('');
-  const [b, setB] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const save = async () => {
-    const p1 = a.replace(/\D/g, '');
-    const p2 = b.replace(/\D/g, '');
-    if (p1.length !== 6 || p2.length !== 6) {
-      Alert.alert('PIN', 'Use exactly 6 digits.');
-      return;
-    }
-    if (p1 !== p2) {
-      Alert.alert('PIN', 'PINs do not match.');
-      return;
-    }
-    setBusy(true);
-    const res = await setMasterPin(p1);
-    setBusy(false);
-    if (!res.ok) Alert.alert('Could not save', res.message);
-    else {
-      Alert.alert('Saved', 'Your master PIN is stored securely on the server.');
-      navigation.goBack();
-    }
-  };
-
-  return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Master PIN" onBack={() => navigation.goBack()} />
-      <View style={[styles.pad, { gap: DS.space.md }]}>
-        <Text style={styles.lead}>Choose a 6-digit PIN for master actions and unlock.</Text>
-        <TextInput
-          secureTextEntry
-          keyboardType="number-pad"
-          value={a}
-          onChangeText={setA}
-          placeholder="PIN"
-          placeholderTextColor={DS.color.textMuted}
-          style={styles.input}
-        />
-        <TextInput
-          secureTextEntry
-          keyboardType="number-pad"
-          value={b}
-          onChangeText={setB}
-          placeholder="Confirm PIN"
-          placeholderTextColor={DS.color.textMuted}
-          style={styles.input}
-        />
-        <AppButton label={busy ? 'Saving…' : 'Save PIN'} onPress={() => void save()} loading={busy} />
-      </View>
     </View>
   );
 }
@@ -615,7 +397,6 @@ export function MasterUserAccountsScreen({ navigation }: PProps<'MasterUserAccou
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: DS.color.background },
-  loadingGate: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: DS.space.xl },
   pad: { padding: DS.space.lg },
   padH: { paddingHorizontal: DS.space.lg },
   lead: { fontFamily: DS.font.body, fontSize: 14, color: DS.color.textMuted, lineHeight: 21 },

@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../../auth/AuthContext';
+import { isMasterGateUnlocked } from '../../master/masterGateStorage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,8 +19,25 @@ type Props = NativeStackScreenProps<ProfileStackParamList, 'MasterProposalQueue'
 
 export function MasterProposalQueueScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [rows, setRows] = useState<ContentProposalRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        if (!user?.id || user.masterControl !== true) return;
+        const ok = await isMasterGateUnlocked(user.id);
+        if (alive && !ok) {
+          navigation.replace('MasterGate', { returnTo: 'MasterProposalQueue' });
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [navigation, user?.id, user?.masterControl]),
+  );
 
   const load = useCallback(async () => {
     setLoading(true);

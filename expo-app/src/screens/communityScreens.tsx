@@ -31,6 +31,9 @@ import { BrandLogo } from '../components/BrandLogo';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootTitleText } from '../designSystem';
 import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
+import { listFollowingProfiles } from '../roadmap/followService';
+import { resolveCanMessagePeer } from '../roadmap/messagingGateService';
+import { formatAuthorDisplayName } from '../lib/communityPostBody';
 import {
   isScreenshotSampleConversationId,
   SCREENSHOT_INBOX_EXTRAS,
@@ -89,6 +92,7 @@ import {
 import type { MessageRow, SubscriptionOfferPageRow } from '../roadmap/types';
 import type { CommunityStackParamList, SponsorsStackParamList } from '../navigation/types';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
+import { requestProposalOutcomeModal } from '../lib/proposalOutcomeBridge';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
@@ -1896,6 +1900,8 @@ type NotifRowUi = {
   body: ReactNode;
   avatar?: string;
   icon?: 'calendar' | 'trophy';
+  linkType?: string | null;
+  linkId?: string | null;
 };
 
 export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
@@ -1910,19 +1916,59 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
   const isDemoUser = Boolean(user?.id.startsWith('demo-'));
   const useServerNotifs = liveMode && user && !isDemoUser;
 
-  useEffect(() => {
-    if (!useServerNotifs) {
+  const reloadNotifs = useCallback(() => {
+    if (!useServerNotifs || !user?.id) {
       setLiveNotifs(null);
       return;
     }
-    let cancelled = false;
-    void listInAppNotifications(user.id).then((rows) => {
-      if (!cancelled) setLiveNotifs(rows);
-    });
+    void listInAppNotifications(user.id).then(setLiveNotifs);
+  }, [useServerNotifs, user?.id]);
+
+  useEffect(() => {
+    reloadNotifs();
+  }, [reloadNotifs]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reloadNotifs();
+    }, [reloadNotifs]),
+  );
+
+  useEffect(() => {
+    if (!useServerNotifs || !user?.id) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const channel = supabase
+      .channel(`in-app-notifs-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'in_app_notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void listInAppNotifications(user.id).then(setLiveNotifs);
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'in_app_notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          void listInAppNotifications(user.id).then(setLiveNotifs);
+        },
+      )
+      .subscribe();
     return () => {
-      cancelled = true;
+      void supabase.removeChannel(channel);
     };
-  }, [useServerNotifs, user]);
+  }, [useServerNotifs, user?.id]);
 
   const demoVisible: NotifRowUi[] = (demoDismissed ? [] : NOTIFICATION_ROWS).map((r) => ({
     id: r.id,
@@ -1945,16 +1991,19 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
         </>
       ),
       icon: 'calendar' as const,
+      linkType: n.link_type,
+      linkId: n.link_id,
     })) ?? [];
 
+  const showDemoNotifs = !liveMode || isAppStoreScreenshotMode();
   const visible: NotifRowUi[] =
     useServerNotifs && liveNotifs !== null
       ? serverVisible
       : useServerNotifs && liveNotifs === null
         ? []
-        : liveMode
-          ? []
-          : demoVisible;
+        : showDemoNotifs
+          ? demoVisible
+          : [];
 
   const notificationsLoading = useServerNotifs && liveNotifs === null;
   const showNotificationsEmpty = !notificationsLoading && visible.length === 0;
@@ -2000,6 +2049,9 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
             );
           }
         });
+        if (row.linkType === 'proposal_outcome' && row.linkId) {
+          requestProposalOutcomeModal(row.linkId);
+        }
         return;
       }
       setReadIds((prev) => new Set(prev).add(row.id));
@@ -2070,98 +2122,6 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
   );
 }
 
-type InboxThread = {
-  id: string;
-  name: string;
-  avatar: string;
-  time: string;
-  preview: string;
-  previewMuted?: boolean;
-  online?: boolean;
-  unread?: number;
-  selected?: boolean;
-};
-
-const INBOX_THREADS: InboxThread[] = [
-  {
-    id: '1',
-    name: 'Coach Williams',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-8.jpg',
-    time: '2m',
-    preview: 'Great progress on your technique today! Keep it up 💪',
-    online: true,
-    unread: 3,
-    selected: true,
-  },
-  {
-    id: '2',
-    name: 'Sarah Chen',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-5.jpg',
-    time: '15m',
-    preview: 'Thanks! See you at practice tomorrow 🏃‍♀️',
-    online: true,
-    previewMuted: true,
-  },
-  {
-    id: '3',
-    name: 'Marcus Johnson',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg',
-    time: '1h',
-    preview: 'Did you see the new training schedule?',
-    selected: true,
-    unread: 1,
-  },
-  {
-    id: '4',
-    name: 'Emma Rodriguez',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-7.jpg',
-    time: '3h',
-    preview: "You: Perfect! I'll be there at 6 AM",
-    online: true,
-    previewMuted: true,
-  },
-  {
-    id: '5',
-    name: 'Jake Thompson',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-9.jpg',
-    time: 'Yesterday',
-    preview: 'You: Good luck at the meet this weekend!',
-    previewMuted: true,
-  },
-  {
-    id: '6',
-    name: 'Lisa Park',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-6.jpg',
-    time: 'Yesterday',
-    preview: 'The warm-up routine really helped today',
-    previewMuted: true,
-  },
-  {
-    id: '7',
-    name: 'David Martinez',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-3.jpg',
-    time: '2 days ago',
-    preview: 'Can you share that sprint drill video?',
-    previewMuted: true,
-  },
-  {
-    id: '8',
-    name: 'Rachel Kim',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-1.jpg',
-    time: '3 days ago',
-    preview: "You: Sure! I'll send it over tonight",
-    previewMuted: true,
-  },
-  {
-    id: '9',
-    name: 'Training Group',
-    avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-4.jpg',
-    time: '1 week ago',
-    preview: "Sarah: Don't forget Saturday's team workout!",
-    previewMuted: true,
-  },
-];
-
 type InboxRowUi = {
   id: string;
   name: string;
@@ -2211,48 +2171,109 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
     }, [reloadInboxThreads]),
   );
 
+  useEffect(() => {
+    if (!liveMsgs || !user?.id) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const channel = supabase
+      .channel(`inbox-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => {
+          void reloadInboxThreads();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [liveMsgs, reloadInboxThreads, user?.id]);
+
   const { refreshing, onRefresh } = useRefreshWithMinimum(reloadInboxThreads, 4000);
 
   const [filter, setFilter] = useState('');
+  const openThreadToPeer = useCallback(
+    async (peerUserId: string, name: string, avatarUrl?: string | null) => {
+      if (!user?.id) return;
+      const gate = await resolveCanMessagePeer(user.id, peerUserId);
+      if (!gate.ok) {
+        Alert.alert('Cannot message', gate.message);
+        return;
+      }
+      navigation.navigate('MessageThread', {
+        name,
+        peerUserId,
+        avatarUrl: avatarUrl?.trim() || undefined,
+      });
+    },
+    [navigation, user?.id],
+  );
+
   const newMessageDemo = useCallback(() => {
-    Alert.alert(
-      'New message',
-      liveMsgs
-        ? 'Below are shortcuts to test messaging policies. Recipient search will open here in a future update.'
-        : 'Sign in with your account to start real conversations.',
-      [
+    if (!user?.id || user.id.startsWith('demo-')) {
+      Alert.alert('New message', 'Sign in with your account to start real conversations.');
+      return;
+    }
+    if (!liveMsgs) {
+      Alert.alert('New message', 'Connect Supabase to use live messaging.');
+      return;
+    }
+    if (isAppStoreScreenshotMode()) {
+      Alert.alert('New message', 'Screenshot shortcuts', [
         {
-          text: 'Marcus (not following)',
+          text: 'Marcus (policy demo)',
           onPress: () => {
             const gate = assertCanMessageRecipient({
               recipientPref: 'followers_only',
               isFollowingRecipient: false,
             });
             if (!gate.ok) {
-              Alert.alert(
-                'Cannot send',
-                'This user does not accept messages from people they do not follow. Follow them first.',
-              );
+              Alert.alert('Cannot send', 'Recipient requires a follow relationship.');
               return;
             }
             navigation.navigate('MessageThread', { name: 'Marcus Johnson' });
           },
         },
         {
-          text: 'Coach (you follow)',
-          onPress: () => {
-            const gate = assertCanMessageRecipient({
-              recipientPref: 'followers_only',
-              isFollowingRecipient: true,
-            });
-            if (!gate.ok) return;
-            navigation.navigate('MessageThread', { name: 'Coach Williams' });
-          },
+          text: 'Coach (screenshot)',
+          onPress: () => navigation.navigate('MessageThread', { name: 'Coach Williams' }),
         },
         { text: 'Cancel', style: 'cancel' },
-      ],
-    );
-  }, [navigation, liveMsgs]);
+      ]);
+      return;
+    }
+    void (async () => {
+      const following = await listFollowingProfiles(user.id);
+      if (!following.length) {
+        Alert.alert(
+          'New message',
+          'Follow someone first, then open their profile and tap Message — or message from a proposal thread.',
+        );
+        return;
+      }
+      const picks = following.slice(0, 10);
+      Alert.alert(
+        'New message',
+        'Choose someone you follow:',
+        [
+          ...picks.map((p) => ({
+            text:
+              p.display_name?.trim() ||
+              (p.username?.trim() ? `@${p.username.trim()}` : 'Member'),
+            onPress: () =>
+              void openThreadToPeer(
+                p.id,
+                p.display_name?.trim() ||
+                  (p.username?.trim() ? `@${p.username.trim()}` : 'Member'),
+                p.avatar_url,
+              ),
+          })),
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      );
+    })();
+  }, [liveMsgs, navigation, openThreadToPeer, user?.id]);
   const threads = useMemo(() => {
     const liveRows: InboxRowUi[] = liveThreads.map((t) => {
       const extras = SCREENSHOT_INBOX_EXTRAS[t.conversation_id] ?? {};
@@ -2309,6 +2330,11 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
         showsVerticalScrollIndicator={false}
         refreshControl={liveMsgs ? pullRefreshControl(refreshing, onRefresh) : undefined}
       >
+        {liveMsgs && threads.length === 0 ? (
+          <Text style={styles.inboxEmpty}>
+            No conversations yet. Tap the compose icon or open a profile and tap Message.
+          </Text>
+        ) : null}
         {threads.map((t) => (
           <Pressable
             key={t.id}
@@ -2410,9 +2436,16 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
   const showBanner = useActionBanner();
   const conversationIdParam = route.params?.conversationId;
   const peerUserId = route.params?.peerUserId;
-  const title = route.params?.name ?? 'Coach Williams';
+  const markDiscussedProposalId = route.params?.markDiscussedProposalId;
+  const title =
+    route.params?.name ??
+    (isAppStoreScreenshotMode() ? 'Coach Williams' : 'Conversation');
   const paramAvatar = route.params?.avatarUrl;
-  const isCoachDemo = title === 'Coach Williams' && !conversationIdParam && !peerUserId;
+  const isCoachDemo =
+    isAppStoreScreenshotMode() &&
+    title === 'Coach Williams' &&
+    !conversationIdParam &&
+    !peerUserId;
   const avatar = paramAvatar?.trim()
     ? paramAvatar
     : isCoachDemo
@@ -2455,19 +2488,34 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         }
         if (peerUserId) {
           setLoading(true);
+          const gate = await resolveCanMessagePeer(user.id, peerUserId);
+          if (!gate.ok) {
+            setLoading(false);
+            Alert.alert('Cannot message', gate.message, [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
+            return;
+          }
           const cid = await getOrCreateConversationId(peerUserId);
-          if (cid) {
-            setActiveConversationId(cid);
-            try {
-              const msgs = await listMessages(cid, 100, user.id);
-              setLiveMessages(msgs);
-              const { cacheMessageThread } = await import('../lib/offline/messagesOffline');
-              await cacheMessageThread(cid, msgs);
-            } catch {
-              const { loadCachedMessageThread } = await import('../lib/offline/messagesOffline');
-              const cached = await loadCachedMessageThread(cid);
-              if (cached) setLiveMessages(cached);
-            }
+          if (!cid) {
+            setLoading(false);
+            Alert.alert(
+              'Cannot message',
+              'This user does not accept messages from you.',
+              [{ text: 'OK', onPress: () => navigation.goBack() }],
+            );
+            return;
+          }
+          setActiveConversationId(cid);
+          try {
+            const msgs = await listMessages(cid, 100, user.id);
+            setLiveMessages(msgs);
+            const { cacheMessageThread } = await import('../lib/offline/messagesOffline');
+            await cacheMessageThread(cid, msgs);
+          } catch {
+            const { loadCachedMessageThread } = await import('../lib/offline/messagesOffline');
+            const cached = await loadCachedMessageThread(cid);
+            if (cached) setLiveMessages(cached);
           }
           setLoading(false);
         } else {
@@ -2525,18 +2573,15 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
     if (m) {
       setDraft('');
       setLiveMessages((prev) => [...prev, m]);
+      if (markDiscussedProposalId) {
+        const { masterMarkProposalDiscussed } = await import('../roadmap/proposalService');
+        await masterMarkProposalDiscussed(markDiscussedProposalId);
+      }
       showBanner('Sent', 'Message delivered.');
     } else {
       Alert.alert('Send failed', 'Could not send this message. Check your connection and try again.');
     }
-  }, [cidFinal, user, draft, showBanner]);
-
-  const demoBubbles = isCoachDemo
-    ? COACH_THREAD
-    : [
-        { from: 'them' as const, text: `Hey — good to connect, ${title}.`, time: 'Now' },
-        { from: 'me' as const, text: 'Sounds good!', time: 'Now', read: 'double' as const },
-      ];
+  }, [cidFinal, user, draft, showBanner, markDiscussedProposalId]);
 
   const bubbles =
     isLive || isScreenshotThread
@@ -2546,7 +2591,9 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           time: formatRelativePostTime(m.created_at),
           read: (m.sender_id === user!.id ? 'double' : undefined) as 'double' | 'single' | undefined,
         }))
-      : demoBubbles;
+      : isCoachDemo
+        ? COACH_THREAD
+        : [];
 
   return (
     <View style={styles.root}>
@@ -2554,7 +2601,15 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
           <FontAwesome name="arrow-left" size={20} color={DS.color.gold} />
         </Pressable>
-        <Image source={{ uri: avatar }} style={styles.threadHeaderAvatar} />
+        <Pressable
+          disabled={!peerUserId}
+          onPress={() => {
+            if (!peerUserId) return;
+            navigation.navigate('PublicProfile', { userId: peerUserId });
+          }}
+        >
+          <Image source={{ uri: avatar }} style={styles.threadHeaderAvatar} />
+        </Pressable>
         <View style={styles.threadHeaderMid}>
           <Text style={styles.threadHeaderName} numberOfLines={1}>
             {title}
@@ -2570,7 +2625,15 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
             <FontAwesome name="video-camera" size={16} color={DS.color.gold} />
           </Pressable>
-          <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
+          <Pressable
+            hitSlop={8}
+            style={styles.threadHeaderIcon}
+            disabled={!peerUserId}
+            onPress={() => {
+              if (!peerUserId) return;
+              navigation.navigate('PublicProfile', { userId: peerUserId });
+            }}
+          >
             <FontAwesome name="user" size={18} color={DS.color.gold} />
           </Pressable>
           <Pressable hitSlop={8} style={styles.threadHeaderIcon}>
@@ -2584,6 +2647,13 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
       >
         {loading && (isLive || isScreenshotThread) ? (
           <AppLoadingIndicator style={{ marginVertical: 16 }} />
+        ) : null}
+        {!loading && bubbles.length === 0 ? (
+          <Text style={styles.threadEmpty}>
+            {isLive || isScreenshotThread
+              ? 'No messages yet. Say hello.'
+              : 'Open Messages or a profile and tap Message to start a conversation.'}
+          </Text>
         ) : null}
         <View style={styles.threadDayPillWrap}>
           <Text style={styles.threadDayPill}>Today</Text>
@@ -4173,6 +4243,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: DS.color.textMuted,
   },
+  inboxEmpty: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    textAlign: 'center',
+    marginTop: DS.space.xl,
+    paddingHorizontal: DS.space.xl,
+    lineHeight: 20,
+  },
   inboxPreview: {
     fontFamily: DS.font.body,
     fontSize: 14,
@@ -4239,6 +4318,14 @@ const styles = StyleSheet.create({
   threadDayPillWrap: {
     alignItems: 'center',
     marginBottom: DS.space.md,
+  },
+  threadEmpty: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    textAlign: 'center',
+    marginVertical: DS.space.lg,
+    paddingHorizontal: DS.space.lg,
   },
   threadDayPill: {
     fontFamily: DS.font.body,
