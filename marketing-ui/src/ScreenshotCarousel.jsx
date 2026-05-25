@@ -2,192 +2,179 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import './ScreenshotCarousel.css';
 
-/** Shortest circular distance: -2 exit left, -1 left, 0 active, 1 right, 2 enter right. */
-function offsetFromActive(index, active, length) {
-  let d = index - active;
-  const half = length / 2;
-  if (d >= half) d -= length;
-  if (d < -half) d += length;
-  return d;
+function mod(n, len) {
+  return ((n % len) + len) % len;
 }
 
-const SLOT_X = {
-  '-2': -168,
-  '-1': -82,
-  0: 0,
-  1: 82,
-  2: 168,
+const REST = {
+  left: { x: -210, scale: 0.82, opacity: 0.72, blur: 2, bright: 0.55, rotate: -4, z: 2 },
+  center: { x: 0, scale: 1, opacity: 1, blur: 0, bright: 1, rotate: 0, z: 4 },
+  right: { x: 210, scale: 0.82, opacity: 0.72, blur: 2, bright: 0.55, rotate: 4, z: 2 },
 };
 
-function stateForOffset(d) {
-  if (d === 0) {
-    return {
-      x: SLOT_X[0],
-      y: 0,
-      scale: 1,
-      rotateZ: 0,
-      filter: 'blur(0px) brightness(1)',
-      opacity: 1,
-      zIndex: 4,
-      active: true,
-    };
-  }
-  if (d === -1 || d === 1) {
-    return {
-      x: SLOT_X[d],
-      y: 8,
-      scale: 0.86,
-      rotateZ: d * -5,
-      filter: 'blur(2px) brightness(0.58)',
-      opacity: 0.9,
-      zIndex: d === -1 ? 2 : 3,
-      active: false,
-    };
-  }
-  if (d === -2) {
-    return {
-      x: SLOT_X[-2],
-      y: 10,
-      scale: 0.74,
-      rotateZ: 6,
-      filter: 'blur(4px) brightness(0.4)',
-      opacity: 0,
-      zIndex: 1,
-      active: false,
-    };
-  }
-  if (d === 2) {
-    return {
-      x: SLOT_X[1] + 36,
-      y: 8,
-      scale: 0.84,
-      rotateZ: -5,
-      filter: 'blur(2px) brightness(0.58)',
-      opacity: 0.88,
-      zIndex: 3,
-      active: false,
-    };
-  }
-  return {
-    x: SLOT_X[d] ?? 0,
-    y: 12,
-    scale: 0.7,
-    rotateZ: 0,
-    filter: 'blur(4px) brightness(0.35)',
-    opacity: 0,
-    zIndex: 0,
-    active: false,
-  };
+function applyRest(el, slot, active) {
+  if (!el) return;
+  const r = REST[slot];
+  el.classList.toggle('screenshot-carousel__slide--active', active);
+  gsap.set(el, {
+    xPercent: -50,
+    yPercent: -50,
+    x: r.x,
+    y: 0,
+    scale: r.scale,
+    rotateZ: r.rotate,
+    opacity: r.opacity,
+    zIndex: r.z,
+    filter: `blur(${r.blur}px) brightness(${r.bright})`,
+  });
 }
 
 export default function ScreenshotCarousel({
   images = [],
-  intervalMs = 4000,
-  slideWidth = 124,
-  slideHeight = 252,
+  intervalMs = 4500,
 }) {
-  const [active, setActive] = useState(0);
+  const [centerIdx, setCenterIdx] = useState(0);
   const containerRef = useRef(null);
-  const slideRefs = useRef([]);
+  const leftRef = useRef(null);
+  const centerRef = useRef(null);
+  const rightRef = useRef(null);
+  const animatingRef = useRef(false);
   const len = images.length;
 
-  const applySlideStates = useCallback(
-    (activeIndex, animate) => {
-      const duration = animate ? 0.9 : 0;
-      const ease = 'power3.inOut';
+  const leftIdx = mod(centerIdx - 1, len);
+  const rightIdx = mod(centerIdx + 1, len);
 
-      slideRefs.current.forEach((el, i) => {
-        if (!el) return;
-        const d = offsetFromActive(i, activeIndex, len);
-        const target = stateForOffset(d);
-        const visible = Math.abs(d) <= 2;
-
-        el.classList.toggle('screenshot-carousel__slide--active', target.active);
-        el.style.visibility = visible ? 'visible' : 'hidden';
-        el.style.pointerEvents = visible ? 'auto' : 'none';
-
-        const vars = {
-          xPercent: -50,
-          yPercent: -50,
-          x: target.x,
-          y: target.y,
-          scale: target.scale,
-          rotateZ: target.rotateZ,
-          filter: target.filter,
-          opacity: target.opacity,
-          zIndex: target.zIndex,
-          duration,
-          ease,
-          overwrite: 'auto',
-        };
-
-        if (!animate) {
-          gsap.set(el, vars);
-          return;
-        }
-
-        if (d === 2) {
-          gsap.fromTo(
-            el,
-            {
-              xPercent: -50,
-              yPercent: -50,
-              x: SLOT_X[1] + 72,
-              y: target.y,
-              scale: 0.72,
-              rotateZ: -8,
-              filter: 'blur(5px) brightness(0.42)',
-              opacity: 0,
-              zIndex: target.zIndex,
-            },
-            vars,
-          );
-          return;
-        }
-
-        if (d === -2) {
-          gsap.to(el, {
-            ...vars,
-            opacity: 0,
-            x: SLOT_X[-2] - 24,
-            scale: 0.68,
-            filter: 'blur(5px) brightness(0.35)',
-          });
-          return;
-        }
-
-        gsap.to(el, vars);
-      });
-    },
-    [len],
-  );
-
-  const didMount = useRef(false);
+  const layoutRest = useCallback(() => {
+    applyRest(leftRef.current, 'left', false);
+    applyRest(centerRef.current, 'center', true);
+    applyRest(rightRef.current, 'right', false);
+  }, []);
 
   useEffect(() => {
-    applySlideStates(active, didMount.current);
-    didMount.current = true;
-  }, [active, applySlideStates]);
+    if (animatingRef.current) return;
+    layoutRest();
+  }, [centerIdx, layoutRest, len]);
+
+  const advance = useCallback(() => {
+    if (len < 2 || animatingRef.current) return;
+    const left = leftRef.current;
+    const center = centerRef.current;
+    const right = rightRef.current;
+    if (!left || !center || !right) return;
+
+    animatingRef.current = true;
+    const nextCenter = mod(centerIdx + 1, len);
+    const nextLeft = mod(nextCenter - 1, len);
+    const nextRight = mod(nextCenter + 1, len);
+
+    const tl = gsap.timeline({
+      defaults: { ease: 'power2.inOut', duration: 1.15 },
+      onComplete: () => {
+        const setImg = (el, item) => {
+          const img = el?.querySelector('img');
+          if (img && item) {
+            img.src = item.src;
+            img.alt = item.alt;
+          }
+        };
+        setImg(left, images[nextLeft]);
+        setImg(center, images[nextCenter]);
+        setImg(right, images[nextRight]);
+        setCenterIdx(nextCenter);
+        animatingRef.current = false;
+        requestAnimationFrame(() => {
+          applyRest(left, 'left', false);
+          applyRest(center, 'center', true);
+          applyRest(right, 'right', false);
+        });
+      },
+    });
+
+    tl.to(
+      left,
+      {
+        x: REST.left.x - 120,
+        opacity: 0,
+        scale: 0.7,
+        filter: 'blur(6px) brightness(0.35)',
+      },
+      0,
+    );
+
+    tl.to(
+      center,
+      {
+        x: REST.left.x,
+        y: 0,
+        scale: REST.left.scale,
+        rotateZ: REST.left.rotate,
+        opacity: REST.left.opacity,
+        filter: `blur(${REST.left.blur}px) brightness(${REST.left.bright})`,
+        zIndex: REST.left.z,
+      },
+      0,
+    );
+
+    tl.to(
+      right,
+      {
+        x: REST.center.x,
+        y: 0,
+        scale: REST.center.scale,
+        rotateZ: REST.center.rotate,
+        opacity: 1,
+        filter: 'blur(0px) brightness(1)',
+        zIndex: REST.center.z,
+      },
+      0,
+    );
+
+    tl.add(() => {
+      const incoming = images[mod(centerIdx + 2, len)];
+      const img = right.querySelector('img');
+      if (img && incoming) {
+        img.src = incoming.src;
+        img.alt = incoming.alt;
+      }
+      gsap.set(right, {
+        xPercent: -50,
+        yPercent: -50,
+        x: REST.right.x + 100,
+        scale: REST.right.scale,
+        rotateZ: REST.right.rotate,
+        opacity: 0,
+        filter: `blur(${REST.right.blur + 2}px) brightness(0.45)`,
+        zIndex: REST.right.z,
+      });
+    });
+
+    tl.to(
+      right,
+      {
+        x: REST.right.x,
+        opacity: REST.right.opacity,
+        filter: `blur(${REST.right.blur}px) brightness(${REST.right.bright})`,
+      },
+      '-=0.35',
+    );
+  }, [centerIdx, images, len]);
+
+  useEffect(() => {
+    if (len < 2) return undefined;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const id = window.setInterval(advance, intervalMs);
+    return () => window.clearInterval(id);
+  }, [advance, intervalMs, len]);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(() => applySlideStates(active, false));
+    const ro = new ResizeObserver(() => {
+      if (!animatingRef.current) layoutRest();
+    });
     ro.observe(container);
     return () => ro.disconnect();
-  }, [active, applySlideStates]);
-
-  useEffect(() => {
-    if (len < 2) return undefined;
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReduced) return undefined;
-
-    const id = window.setInterval(() => {
-      setActive((prev) => (prev + 1) % len);
-    }, intervalMs);
-
-    return () => window.clearInterval(id);
-  }, [intervalMs, len]);
+  }, [layoutRest]);
 
   if (len === 0) return null;
 
@@ -199,26 +186,16 @@ export default function ScreenshotCarousel({
       aria-roledescription="carousel"
       aria-label="App screenshots"
     >
-      <div
-        className="screenshot-carousel__stage"
-        style={{ width: slideWidth, height: slideHeight }}
-      >
-        {images.map((img, i) => (
-          <div
-            key={img.src}
-            ref={(el) => {
-              slideRefs.current[i] = el;
-            }}
-            className="screenshot-carousel__slide"
-            style={{
-              width: slideWidth,
-              height: slideHeight,
-            }}
-            aria-hidden={offsetFromActive(i, active, len) !== 0}
-          >
-            <img src={img.src} alt={img.alt} loading="lazy" draggable={false} />
-          </div>
-        ))}
+      <div className="screenshot-carousel__stage">
+        <div ref={leftRef} className="screenshot-carousel__slide" aria-hidden>
+          <img src={images[leftIdx].src} alt={images[leftIdx].alt} loading="lazy" draggable={false} />
+        </div>
+        <div ref={centerRef} className="screenshot-carousel__slide screenshot-carousel__slide--active">
+          <img src={images[centerIdx].src} alt={images[centerIdx].alt} loading="eager" draggable={false} />
+        </div>
+        <div ref={rightRef} className="screenshot-carousel__slide" aria-hidden>
+          <img src={images[rightIdx].src} alt={images[rightIdx].alt} loading="lazy" draggable={false} />
+        </div>
       </div>
     </div>
   );

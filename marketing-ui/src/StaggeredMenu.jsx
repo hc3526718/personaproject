@@ -17,6 +17,8 @@ export const StaggeredMenu = ({
   changeMenuColorOnOpen = true,
   isFixed = false,
   closeOnClickAway = true,
+  hamburgerOnly = false,
+  headerEnd = null,
   onMenuOpen,
   onMenuClose,
 }) => {
@@ -45,11 +47,7 @@ export const StaggeredMenu = ({
     const ctx = gsap.context(() => {
       const panel = panelRef.current;
       const preContainer = preLayersRef.current;
-      const plusH = plusHRef.current;
-      const plusV = plusVRef.current;
-      const icon = iconRef.current;
-      const textInner = textInnerRef.current;
-      if (!panel || !plusH || !plusV || !icon || !textInner) return;
+      if (!panel) return;
 
       let preLayers = [];
       if (preContainer) {
@@ -62,14 +60,24 @@ export const StaggeredMenu = ({
       if (preContainer) {
         gsap.set(preContainer, { xPercent: 0, opacity: 1 });
       }
-      gsap.set(plusH, { transformOrigin: '50% 50%', rotate: 0 });
-      gsap.set(plusV, { transformOrigin: '50% 50%', rotate: 90 });
-      gsap.set(icon, { rotate: 0, transformOrigin: '50% 50%' });
-      gsap.set(textInner, { yPercent: 0 });
+
+      if (!hamburgerOnly) {
+        const plusH = plusHRef.current;
+        const plusV = plusVRef.current;
+        const icon = iconRef.current;
+        const textInner = textInnerRef.current;
+        if (plusH && plusV && icon && textInner) {
+          gsap.set(plusH, { transformOrigin: '50% 50%', rotate: 0 });
+          gsap.set(plusV, { transformOrigin: '50% 50%', rotate: 90 });
+          gsap.set(icon, { rotate: 0, transformOrigin: '50% 50%' });
+          gsap.set(textInner, { yPercent: 0 });
+        }
+      }
+
       if (toggleBtnRef.current) gsap.set(toggleBtnRef.current, { color: menuButtonColor });
     });
     return () => ctx.revert();
-  }, [menuButtonColor, position]);
+  }, [menuButtonColor, position, hamburgerOnly]);
 
   const buildOpenTimeline = useCallback(() => {
     const panel = panelRef.current;
@@ -325,10 +333,12 @@ export const StaggeredMenu = ({
       onMenuClose?.();
       playClose();
     }
-    animateIcon(target);
+    if (!hamburgerOnly) {
+      animateIcon(target);
+      animateText(target);
+    }
     animateColor(target);
-    animateText(target);
-  }, [playOpen, playClose, animateIcon, animateColor, animateText, onMenuOpen, onMenuClose]);
+  }, [playOpen, playClose, animateIcon, animateColor, animateText, onMenuOpen, onMenuClose, hamburgerOnly]);
 
   const closeMenu = useCallback(() => {
     if (openRef.current) {
@@ -336,11 +346,13 @@ export const StaggeredMenu = ({
       setOpen(false);
       onMenuClose?.();
       playClose();
-      animateIcon(false);
+      if (!hamburgerOnly) {
+        animateIcon(false);
+        animateText(false);
+      }
       animateColor(false);
-      animateText(false);
     }
-  }, [playClose, animateIcon, animateColor, animateText, onMenuClose]);
+  }, [playClose, animateIcon, animateColor, animateText, onMenuClose, hamburgerOnly]);
 
   React.useEffect(() => {
     if (!closeOnClickAway || !open) return;
@@ -383,41 +395,52 @@ export const StaggeredMenu = ({
         })()}
       </div>
       <header className="staggered-menu-header" aria-label="Main navigation header">
-        <div className="sm-logo" aria-label="Logo">
-          <a href="/">
-            <img
-              src={logoUrl}
-              alt="Grant Access"
-              className="sm-logo-img"
-              draggable={false}
-              width={110}
-              height={40}
-            />
-          </a>
-        </div>
         <button
           ref={toggleBtnRef}
-          className="sm-toggle"
+          className={'sm-toggle' + (hamburgerOnly ? ' sm-toggle--hamburger' : '')}
           aria-label={open ? 'Close menu' : 'Open menu'}
           aria-expanded={open}
           aria-controls="staggered-menu-panel"
           onClick={toggleMenu}
           type="button"
         >
-          <span ref={textWrapRef} className="sm-toggle-textWrap" aria-hidden="true">
-            <span ref={textInnerRef} className="sm-toggle-textInner">
-              {textLines.map((l, i) => (
-                <span className="sm-toggle-line" key={i}>
-                  {l}
-                </span>
-              ))}
+          {hamburgerOnly ? (
+            <span className="sm-hamburger" aria-hidden="true">
+              <span />
+              <span />
+              <span />
             </span>
-          </span>
-          <span ref={iconRef} className="sm-icon" aria-hidden="true">
-            <span ref={plusHRef} className="sm-icon-line" />
-            <span ref={plusVRef} className="sm-icon-line sm-icon-line-v" />
-          </span>
+          ) : (
+            <>
+              <span ref={textWrapRef} className="sm-toggle-textWrap" aria-hidden="true">
+                <span ref={textInnerRef} className="sm-toggle-textInner">
+                  {textLines.map((l, i) => (
+                    <span className="sm-toggle-line" key={i}>
+                      {l}
+                    </span>
+                  ))}
+                </span>
+              </span>
+              <span ref={iconRef} className="sm-icon" aria-hidden="true">
+                <span ref={plusHRef} className="sm-icon-line" />
+                <span ref={plusVRef} className="sm-icon-line sm-icon-line-v" />
+              </span>
+            </>
+          )}
         </button>
+        <div className="sm-logo sm-logo--center" aria-label="Logo">
+          <a href="/">
+            <img
+              src={logoUrl}
+              alt="Grant Access"
+              className="sm-logo-img sm-logo-img--hero"
+              draggable={false}
+              width={275}
+              height={100}
+            />
+          </a>
+        </div>
+        <div className="sm-header-end">{headerEnd}</div>
       </header>
 
       <aside id="staggered-menu-panel" ref={panelRef} className="staggered-menu-panel" aria-hidden={!open}>

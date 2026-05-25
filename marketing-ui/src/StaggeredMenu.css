@@ -22,10 +22,11 @@
   top: 0;
   left: 0;
   width: 100%;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 1.5rem;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
   background: transparent;
   pointer-events: none;
   z-index: 20;
@@ -33,6 +34,19 @@
 
 .staggered-menu-header > * {
   pointer-events: auto;
+}
+
+.sm-logo--center {
+  justify-self: center;
+  text-align: center;
+}
+
+.sm-header-end {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 7.5rem;
 }
 
 .sm-logo a {
@@ -46,6 +60,97 @@
   height: 40px;
   width: auto;
   object-fit: contain;
+}
+
+.sm-logo-img--hero {
+  height: 100px;
+  width: auto;
+  max-width: min(275px, 52vw);
+}
+
+.sm-toggle--hamburger {
+  padding: 0.65rem 0.7rem;
+  min-width: 2.75rem;
+  justify-content: center;
+}
+
+.sm-hamburger {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 20px;
+}
+
+.sm-hamburger span {
+  display: block;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.landing-auth {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: 0.85rem;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.landing-auth--cta {
+  padding: 0.55rem 1rem;
+  background: #c8a84b;
+  color: #0a0a0a;
+  white-space: nowrap;
+}
+
+.landing-auth--cta:hover {
+  opacity: 0.92;
+}
+
+.landing-auth--profile {
+  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
+  border: 1px solid rgba(200, 168, 75, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  color: #d4d0c8;
+  max-width: 11rem;
+}
+
+.landing-auth--profile:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.landing-auth__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid rgba(200, 168, 75, 0.55);
+}
+
+.landing-auth__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .landing-auth__label {
+    display: none;
+  }
+
+  .landing-auth--cta {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .sm-logo-img--hero {
+    height: 72px;
+    max-width: 46vw;
+  }
 }
 
 .sm-toggle {
