@@ -185,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void ensureProfileRow(session.user.id, session.user.email ?? null);
         void hydrateDmPolicy(session.user.id);
         void syncProfileFlags(session.user.id);
+        void import('../lib/pushRegistration').then((m) => m.tryRegisterPushToken(session.user.id));
         void (async () => {
           try {
             await ensureDefaultDaltonVerifiedMetadata(supabase);

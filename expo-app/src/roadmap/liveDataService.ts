@@ -44,11 +44,15 @@ async function attachMediaForPosts(rows: CommunityPostFeedRow[]): Promise<Commun
   if (!supabase) return rows;
   const postIds = [...new Set(rows.map((r) => r.id))];
   if (postIds.length === 0) return rows;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('media_assets')
     .select('kind, public_url, post_id, created_at')
     .in('post_id', postIds)
     .order('created_at', { ascending: true });
+  if (error) {
+    if (__DEV__) console.warn('[attachMediaForPosts]', error.message);
+    return rows;
+  }
   const assets = (data ?? []) as { kind: MediaAssetRow['kind']; public_url: string | null; post_id: string | null }[];
   const map = new Map<string, { kind: 'image' | 'video' | 'file'; uri: string }[]>();
   for (const a of assets) {
@@ -223,18 +227,21 @@ export async function listRecentCommunityPosts(limit = 30): Promise<CommunityPos
   return (mergeScreenshotCommunityPosts(withMedia) as CommunityPostFeedRow[]).slice(0, limit);
 }
 
-export async function insertCommunityPost(authorId: string, body: string): Promise<PostRow | null> {
+export async function insertCommunityPost(
+  authorId: string,
+  body: string,
+): Promise<{ row: PostRow } | { error: string }> {
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { error: 'Not connected.' };
   const trimmed = body.trim();
-  if (!trimmed) return null;
+  if (!trimmed) return { error: 'Caption is required.' };
   const { data, error } = await supabase
     .from('posts')
     .insert({ author_id: authorId, body: trimmed })
     .select('*')
     .single();
-  if (error || !data) return null;
-  return data as PostRow;
+  if (error || !data) return { error: error?.message ?? 'Could not create post.' };
+  return { row: data as PostRow };
 }
 
 /** Deletes a post (RLS: author or master — see migrations 003 + 008). */
@@ -504,6 +511,14 @@ export async function deleteSubscriptionOfferPage(id: string): Promise<boolean> 
   return !error;
 }
 
+export async function getMediaAssetById(assetId: string): Promise<MediaAssetRow | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('media_assets').select('*').eq('id', assetId).maybeSingle();
+  if (error || !data) return null;
+  return data as MediaAssetRow;
+}
+
 export async function deleteMediaAsset(assetId: string): Promise<boolean> {
   if (isAppStoreScreenshotMode() && isScreenshotSampleMediaId(assetId)) return false;
   const supabase = getSupabase();
@@ -553,6 +568,14 @@ export type BookingWithEvent = {
   checkedInAt: string | null;
   event: EventRow | null;
 };
+
+export async function findUserBookingForEvent(
+  userId: string,
+  eventId: string,
+): Promise<BookingWithEvent | null> {
+  const rows = await listBookingsWithEventsForUser(userId);
+  return rows.find((b) => b.eventId === eventId) ?? null;
+}
 
 export async function listBookingsWithEventsForUser(userId: string): Promise<BookingWithEvent[]> {
   const supabase = getSupabase();
@@ -679,4 +702,75 @@ export async function createEventAndBooking(
     if (!msg.toLowerCase().includes('unique') && !msg.toLowerCase().includes('duplicate')) break;
   }
   return null;
+}
+
+/** Book an existing published event (does not create a duplicate event row). */
+export async function bookExistingEvent(
+  userId: string,
+  eventId: string,
+): Promise<{ reference: string; eventId: string; bookingId: string } | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const reference = newBookingReference();
+    const { data: bk, error: bkErr } = await supabase
+      .from('bookings')
+      .insert({
+        event_id: eventId,
+        user_id: userId,
+        reference,
+      })
+      .select('id, reference')
+      .single();
+    if (!bkErr && bk?.id && bk.reference) {
+      return { reference: bk.reference, eventId, bookingId: bk.id };
+    }
+    const msg = bkErr?.message ?? '';
+    if (!msg.toLowerCase().includes('unique') && !msg.toLowerCase().includes('duplicate')) break;
+  }
+  return null;
+}
+
+export type HostEventDashboardRow = {
+  eventId: string;
+  title: string;
+  startsAt: string;
+  bookingCount: number;
+  checkedInCount: number;
+};
+
+/** Events created by host with booking totals. */
+export async function listHostEventDashboard(userId: string): Promise<HostEventDashboardRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  const { data: evs } = await supabase
+    .from('events')
+    .select('id, title, starts_at')
+    .eq('created_by', userId)
+    .order('starts_at', { ascending: false })
+    .limit(40);
+  if (!evs?.length) return [];
+  const eventIds = (evs as { id: string }[]).map((e) => e.id);
+  const { data: bks } = await supabase
+    .from('bookings')
+    .select('event_id, checked_in_at')
+    .in('event_id', eventIds);
+  const counts = new Map<string, { total: number; checked: number }>();
+  for (const id of eventIds) counts.set(id, { total: 0, checked: 0 });
+  for (const b of (bks ?? []) as { event_id: string; checked_in_at: string | null }[]) {
+    const c = counts.get(b.event_id);
+    if (!c) continue;
+    c.total += 1;
+    if (b.checked_in_at) c.checked += 1;
+  }
+  return (evs as { id: string; title: string; starts_at: string }[]).map((e) => {
+    const c = counts.get(e.id) ?? { total: 0, checked: 0 };
+    return {
+      eventId: e.id,
+      title: e.title,
+      startsAt: e.starts_at,
+      bookingCount: c.total,
+      checkedInCount: c.checked,
+    };
+  });
 }

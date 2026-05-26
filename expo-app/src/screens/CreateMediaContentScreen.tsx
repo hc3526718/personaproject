@@ -1,4 +1,5 @@
 import { useCallback, useState, type ReactNode } from 'react';
+import { ActivityIndicator } from 'react-native';
 import {
   Alert,
   Platform,
@@ -24,6 +25,9 @@ import type { MediaStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
+import { uploadCatalogMediaVideo } from '../lib/catalogMediaUpload';
+import { pickWebMediaFile } from '../lib/webFilePicker';
+import { isSupabaseConfigured } from '../lib/env';
 
 type Props = NativeStackScreenProps<MediaStackParamList, 'CreateMediaContent'>;
 
@@ -41,6 +45,7 @@ export function CreateMediaContentScreen({ navigation }: Props) {
   const [description, setDescription] = useState('');
   const [tagPeople, setTagPeople] = useState('');
   const [searchTags, setSearchTags] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,7 +77,8 @@ export function CreateMediaContentScreen({ navigation }: Props) {
 
   const pickVideo = useCallback(async () => {
     if (Platform.OS === 'web') {
-      Alert.alert('Not on web', 'Use iOS or Android to pick a video file.');
+      const picked = await pickWebMediaFile('video');
+      if (picked?.uri) setVideoUri(picked.uri);
       return;
     }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -151,7 +157,7 @@ export function CreateMediaContentScreen({ navigation }: Props) {
           Submissions are reviewed. Video is required; description helps moderation and search.
         </Text>
 
-        <FormField label="Video file" required hint="MP4 / MOV from your library (native only).">
+        <FormField label="Video file" required hint="MP4 / MOV from your library or device.">
           <PressableField onPress={pickVideo}>
             {videoUri ? (
               <Text style={styles.fileOk} numberOfLines={2}>
@@ -221,7 +227,14 @@ export function CreateMediaContentScreen({ navigation }: Props) {
           />
         </FormField>
 
-        <AppButton label="Submit for review" onPress={submit} />
+        <AppButton
+          label={uploading ? 'Uploading…' : 'Publish video'}
+          onPress={submit}
+          disabled={uploading}
+        />
+        {uploading ? (
+          <ActivityIndicator color={DS.color.gold} style={{ marginTop: DS.space.md }} />
+        ) : null}
         <View style={{ height: DS.space.md }} />
         <AppButton label="Cancel" onPress={() => navigation.goBack()} variant="ghost" />
       </ScrollView>

@@ -138,6 +138,24 @@ Deno.serve(async (req) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+        if (session.mode === 'payment') {
+          const purpose = session.metadata?.purpose?.trim();
+          const eventId = session.metadata?.event_id?.trim();
+          const userId = userIdFromSession(session);
+          if (purpose === 'event_ticket' && eventId && userId) {
+            const reference = `DG-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+            const { error: bkErr } = await admin.from('bookings').insert({
+              event_id: eventId,
+              user_id: userId,
+              reference,
+              stripe_checkout_session_id: session.id,
+            });
+            if (bkErr && !/unique|duplicate/i.test(bkErr.message)) {
+              console.error('[stripe-webhook] event_booking_failed', bkErr.message);
+            }
+          }
+          break;
+        }
         if (session.mode !== 'subscription') break;
         const userId = userIdFromSession(session);
         if (!userId) break;

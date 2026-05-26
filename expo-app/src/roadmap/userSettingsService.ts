@@ -19,6 +19,8 @@ export type UserPrefsDoc = {
   accessibility?: AccessibilityPrefsCloud;
   /** UUIDs the signed-in user has blocked from messaging. */
   blocked_user_ids?: string[];
+  /** Saved media asset ids for the media library bookmark feature. */
+  saved_media_ids?: string[];
 };
 
 export const DEFAULT_USER_PREFS: UserPrefsDoc = {
@@ -42,6 +44,7 @@ function mergePrefs(base: UserPrefsDoc, patch: Partial<UserPrefsDoc>): UserPrefs
     notification_channels: { ...base.notification_channels, ...patch.notification_channels },
     accessibility: { ...base.accessibility, ...patch.accessibility },
     blocked_user_ids: patch.blocked_user_ids ?? base.blocked_user_ids,
+    saved_media_ids: patch.saved_media_ids ?? base.saved_media_ids,
   };
 }
 

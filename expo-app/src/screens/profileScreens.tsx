@@ -32,7 +32,12 @@ import { useSubscription } from '../subscriptions/SubscriptionContext';
 import * as ImagePicker from 'expo-image-picker';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import type { ProfileRow } from '../roadmap/types';
-import { fetchProfileByUserId, updateProfileBasics } from '../roadmap/profileService';
+import {
+  fetchProfileByUserId,
+  updateProfileAthleteDetails,
+  updateProfileBasics,
+  type AthleteDetails,
+} from '../roadmap/profileService';
 import { getFollowCounts } from '../roadmap/followService';
 import { uploadAndSaveProfileImage } from '../lib/profileImageUpload';
 import {
@@ -273,7 +278,13 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
                     navigation.navigate('EditProfileSectionDetail', { slug: 'highlights' });
                     return;
                   }
-                  void Linking.openURL(h.video_url.trim());
+                  navigation.getParent()?.navigate('Media', {
+                    screen: 'MediaPlayer',
+                    params: {
+                      title: h.title,
+                      playbackUrl: h.video_url.trim(),
+                    },
+                  });
                 }}
               >
                 <View style={styles.highlightThumbPlaceholder}>
@@ -863,18 +874,20 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
     });
     if (res.canceled || !res.assets[0]?.uri) return;
     const uri = res.assets[0].uri;
+    const previousPreview = localPreview ?? avatarUri;
     setLocalPreview(uri);
     setBusy(true);
     const uploaded = await uploadAndSaveProfileImage(user.id, uri, 'avatar');
     setBusy(false);
     if (!uploaded.ok) {
+      setLocalPreview(previousPreview);
       Alert.alert('Upload failed', uploaded.error);
       return;
     }
     setAvatarUri(uploaded.publicUrl);
     setLocalPreview(uploaded.publicUrl);
     setToast(true);
-  }, [live, user?.id]);
+  }, [avatarUri, live, localPreview, user?.id]);
 
   const removePhoto = useCallback(async () => {
     if (!supabase || !user?.id || !live) return;
@@ -945,14 +958,35 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
 
 export function EditAthleteScreen({ navigation }: PProps<'EditAthlete'>) {
   const insets = useSafeAreaInsets();
-  const [discipline, setDiscipline] = useState('Sprinter');
+  const { user } = useAuth();
+  const live = isSupabaseConfigured() && user && !user.id.startsWith('demo-');
+  const [discipline, setDiscipline] = useState('');
   const [level, setLevel] = useState<(typeof ATHLETE_LEVELS)[number]>('Professional');
-  const [team, setTeam] = useState('Elite Track Club');
-  const [coach, setCoach] = useState('Sarah Mitchell');
-  const [badges, setBadges] = useState<Record<string, boolean>>({ 'olympic-qualifier': true });
+  const [team, setTeam] = useState('');
+  const [coach, setCoach] = useState('');
+  const [badges, setBadges] = useState<Record<string, boolean>>({});
   const [levelOpen, setLevelOpen] = useState(false);
   const [toast, setToast] = useState(false);
   const [discErr, setDiscErr] = useState('');
+  const [saveErr, setSaveErr] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!live || !user?.id) return;
+      void (async () => {
+        const p = await fetchProfileByUserId(user.id);
+        const d = p?.athlete_details as AthleteDetails | null | undefined;
+        if (d?.discipline) setDiscipline(d.discipline);
+        if (d?.level && (ATHLETE_LEVELS as readonly string[]).includes(d.level)) {
+          setLevel(d.level as (typeof ATHLETE_LEVELS)[number]);
+        }
+        if (d?.team) setTeam(d.team);
+        if (d?.coach) setCoach(d.coach);
+        if (d?.badges && typeof d.badges === 'object') setBadges(d.badges);
+        else if (p?.primary_sport?.trim()) setDiscipline(p.primary_sport.trim());
+      })();
+    }, [live, user?.id]),
+  );
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -969,7 +1003,26 @@ export function EditAthleteScreen({ navigation }: PProps<'EditAthlete'>) {
       return;
     }
     setDiscErr('');
-    setToast(true);
+    setSaveErr('');
+    if (!live || !user?.id) {
+      setToast(true);
+      return;
+    }
+    void (async () => {
+      const payload: AthleteDetails = {
+        discipline: discipline.trim(),
+        level,
+        team: team.trim(),
+        coach: coach.trim(),
+        badges,
+      };
+      const res = await updateProfileAthleteDetails(user.id, payload);
+      if (!res.ok) {
+        setSaveErr(res.error);
+        return;
+      }
+      setToast(true);
+    })();
   };
 
   return (
@@ -1001,6 +1054,7 @@ export function EditAthleteScreen({ navigation }: PProps<'EditAthlete'>) {
         />
         <Text style={styles.athleteHint}>Your primary athletic discipline</Text>
         {discErr ? <Text style={styles.fieldError}>{discErr}</Text> : null}
+        {saveErr ? <Text style={styles.fieldError}>{saveErr}</Text> : null}
 
         <Text style={[styles.athleteLabel, styles.labelSpaced]}>
           Competition Level <Text style={styles.reqStar}>*</Text>

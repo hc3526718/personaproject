@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -10,7 +10,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { isSupabaseConfigured } from '../lib/env';
+import { ResizeMode, Video } from 'expo-av';
+import { isAppStoreScreenshotMode, isSupabaseConfigured } from '../lib/env';
+import { isMediaIdSaved, listSavedMediaIds, toggleSavedMediaId } from '../lib/savedMediaPrefs';
 import { useRoute, type RouteProp, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -28,6 +30,7 @@ import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
 import {
   deleteMediaAsset,
+  getMediaAssetById,
   listBrowseMediaAssets,
 } from '../roadmap/liveDataService';
 import type { MediaAssetRow } from '../roadmap/types';
@@ -627,7 +630,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
           r.badge.toLowerCase().includes(q),
       );
     }
-    if (loadMoreDone && !liveMediaMode) {
+    if (loadMoreDone && !liveMediaMode && !isAppStoreScreenshotMode()) {
       base.push(
         {
           id: '7',
@@ -657,7 +660,8 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
     return base;
   }, [loadMoreDone, trainingFilter, liveMedia, liveMediaMode, searchText]);
 
-  const openPlayer = (title: string) => navigation.navigate('MediaPlayer', { title });
+  const openPlayer = (title: string, mediaId?: string) =>
+    navigation.navigate('MediaPlayer', { title, mediaId });
 
   return (
     <View style={styles.root}>
@@ -714,7 +718,8 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
 
         <View style={styles.resultsMetaRow}>
           <Text style={styles.resultsCount}>
-            Found 127 results for &quot;{searchText.trim() || initialQ}&quot;
+            Found {results.length} result{results.length === 1 ? '' : 's'}
+            {searchText.trim() || initialQ ? ` for "${searchText.trim() || initialQ}"` : ''}
           </Text>
           <View style={styles.resultsTools}>
             <Pressable style={styles.sortTrigger} onPress={() => setSortOpen(true)}>
@@ -742,7 +747,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
               <Pressable
                 key={item.id}
                 style={styles.mediaCard}
-                onPress={() => openPlayer(item.title)}
+                onPress={() => openPlayer(item.title, item.id)}
               >
                 <View style={styles.mediaCardImageWrap}>
                   <Image source={{ uri: item.uri }} style={styles.mediaCardImage} />
@@ -793,7 +798,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
               <Pressable
                 key={item.id}
                 style={styles.resultLine}
-                onPress={() => openPlayer(item.title)}
+                onPress={() => openPlayer(item.title, item.id)}
               >
                 <Image source={{ uri: item.uri }} style={styles.resultThumb} />
                 <View style={{ flex: 1 }}>
@@ -857,27 +862,59 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
 
 export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const title = route.params?.title ?? 'Advanced Boxing Combinations for Power';
   const mediaId = route.params?.mediaId ?? `demo:${title}`;
+  const paramPlayback = route.params?.playbackUrl?.trim() || '';
   const meta = playerMeta(title);
   const playerNotice = (msg: string) => Alert.alert('Grant Access', msg);
+  const [asset, setAsset] = useState<MediaAssetRow | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [progress, setProgress] = useState(0.35);
+  const videoRef = useRef<Video | null>(null);
+  const playbackUrl = paramPlayback || asset?.public_url?.trim() || '';
+  const thumb = asset?.thumbnail_url?.trim() || asset?.public_url?.trim() || PLAYER_STILL;
+  const isVideo = asset?.kind === 'video' || (!!playbackUrl && !playbackUrl.match(/\.(png|jpe?g|webp|gif)(\?|$)/i));
+
+  useEffect(() => {
+    if (!mediaId || mediaId.startsWith('demo:')) return;
+    void getMediaAssetById(mediaId).then(setAsset);
+  }, [mediaId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id || user.id.startsWith('demo-') || mediaId.startsWith('demo:')) return;
+      void isMediaIdSaved(user.id, mediaId).then(setSaved);
+    }, [user?.id, mediaId]),
+  );
 
   useEffect(() => {
     void setMediaWatchProgress({
       mediaId,
       title,
-      thumb: PLAYER_STILL,
-      progress: 0.35,
+      thumb,
+      progress,
     });
     return () => {
       void setMediaWatchProgress({
         mediaId,
         title,
-        thumb: PLAYER_STILL,
-        progress: 0.35,
+        thumb,
+        progress,
       });
     };
-  }, [mediaId, title]);
+  }, [mediaId, title, thumb, progress]);
+
+  const toggleSave = useCallback(() => {
+    if (!user?.id || user.id.startsWith('demo-')) {
+      playerNotice('Sign in to save videos.');
+      return;
+    }
+    void (async () => {
+      const ok = await toggleSavedMediaId(user.id, mediaId);
+      if (ok) setSaved((s) => !s);
+    })();
+  }, [user?.id, mediaId]);
 
   return (
     <View style={styles.root}>
@@ -890,16 +927,34 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
         </Pressable>
       </View>
       <View style={styles.playerStage}>
-        <Image source={{ uri: PLAYER_STILL }} style={styles.playerImg} />
+        {isVideo && playbackUrl ? (
+          <Video
+            ref={videoRef}
+            source={{ uri: playbackUrl }}
+            style={styles.playerImg}
+            resizeMode={ResizeMode.CONTAIN}
+            useNativeControls
+            shouldPlay
+            onPlaybackStatusUpdate={(st) => {
+              if (!st.isLoaded) return;
+              const p = st.durationMillis ? st.positionMillis / st.durationMillis : 0;
+              if (Number.isFinite(p)) setProgress(Math.min(0.99, Math.max(0, p)));
+            }}
+          />
+        ) : (
+          <Image source={{ uri: thumb }} style={styles.playerImg} />
+        )}
+        {!playbackUrl || !isVideo ? (
         <View style={styles.playerOverlay}>
           <Pressable style={styles.playHuge}>
             <FontAwesome name="pause" size={28} color={DS.color.background} />
           </Pressable>
         </View>
+        ) : null}
         <View style={styles.playerControls}>
           <View style={styles.playerScrubWrap}>
             <View style={styles.trackBg}>
-              <View style={[styles.trackFill, { width: '35%' }]}>
+              <View style={[styles.trackFill, { width: `${Math.round(progress * 100)}%` }]}>
                 <View style={styles.trackKnob} />
               </View>
             </View>
@@ -944,12 +999,9 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
             <FontAwesome name="clock-o" size={14} color={DS.color.gold} />
             <Text style={styles.playerActionGoldText}> Add to Continue Watching</Text>
           </Pressable>
-          <Pressable
-            style={styles.playerActionGhost}
-            onPress={() => playerNotice('Saved to your list.')}
-          >
-            <FontAwesome name="bookmark-o" size={14} color={DS.color.text} />
-            <Text style={styles.playerActionGhostText}> Save</Text>
+          <Pressable style={styles.playerActionGhost} onPress={toggleSave}>
+            <FontAwesome name={saved ? 'bookmark' : 'bookmark-o'} size={14} color={saved ? DS.color.gold : DS.color.text} />
+            <Text style={styles.playerActionGhostText}> {saved ? 'Saved' : 'Save'}</Text>
           </Pressable>
           <Pressable
             style={styles.playerActionGhost}
@@ -1064,22 +1116,63 @@ function savedBadgeStyles(v: SavedBadgeVariant) {
 
 export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const live = isSupabaseConfigured() && user && !user.id.startsWith('demo-');
   const [filter, setFilter] = useState<(typeof SAVED_FILTER_CHIPS)[number]>('All');
   const [gridView, setGridView] = useState(true);
-  const [savedMap, setSavedMap] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(SAVED_MEDIA_ITEMS.map((i) => [i.id, true])),
+  const [items, setItems] = useState<SavedMediaItem[]>([]);
+
+  const loadSaved = useCallback(async () => {
+    if (!live || !user?.id) {
+      setItems(isAppStoreScreenshotMode() ? SAVED_MEDIA_ITEMS : []);
+      return;
+    }
+    const ids = await listSavedMediaIds(user.id);
+    if (ids.length === 0) {
+      setItems([]);
+      return;
+    }
+    const assets = await Promise.all(ids.map((id) => getMediaAssetById(id)));
+    const rows: SavedMediaItem[] = assets
+      .filter((a): a is MediaAssetRow => !!a)
+      .map((a) => {
+        const label = a.storage_path?.split('/').pop() || a.kind.toUpperCase();
+        return {
+          id: a.id,
+          uri: a.thumbnail_url?.trim() || a.public_url?.trim() || THUMB,
+          duration: a.kind === 'video' ? 'Video' : 'Media',
+          category: 'Training',
+          badgeVariant: 'gold' as SavedBadgeVariant,
+          title: label,
+          meta: new Date(a.created_at).toLocaleDateString(),
+          rating: '—',
+          savedAgo: 'Saved',
+        };
+      });
+    setItems(rows);
+  }, [live, user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadSaved();
+    }, [loadSaved]),
   );
 
   const filtered = useMemo(() => {
-    if (filter === 'All') return SAVED_MEDIA_ITEMS;
-    return SAVED_MEDIA_ITEMS.filter((i) => i.category === filter);
-  }, [filter]);
+    if (filter === 'All') return items;
+    return items.filter((i) => i.category === filter);
+  }, [filter, items]);
 
   const toggleSaved = (id: string) => {
-    setSavedMap((m) => ({ ...m, [id]: !m[id] }));
+    if (!user?.id) return;
+    void (async () => {
+      await toggleSavedMediaId(user.id, id);
+      await loadSaved();
+    })();
   };
 
-  const openPlayer = (t: string) => navigation.navigate('MediaPlayer', { title: t });
+  const openPlayer = (t: string, mediaId: string) =>
+    navigation.navigate('MediaPlayer', { title: t, mediaId });
 
   return (
     <View style={styles.root}>
@@ -1137,10 +1230,9 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
           <View style={styles.savedGrid}>
             {filtered.map((item) => {
               const b = savedBadgeStyles(item.badgeVariant);
-              const bookmarked = savedMap[item.id];
               return (
                 <View key={item.id} style={styles.savedCard}>
-                  <Pressable onPress={() => openPlayer(item.title)}>
+                  <Pressable onPress={() => openPlayer(item.title, item.id)}>
                     <View style={styles.savedCardImageWrap}>
                       <Image source={{ uri: item.uri }} style={styles.savedCardImage} />
                       <View style={styles.savedCardPlay}>
@@ -1168,11 +1260,7 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
                     </View>
                   </Pressable>
                   <Pressable style={styles.savedBookmarkFab} onPress={() => toggleSaved(item.id)}>
-                    <FontAwesome
-                      name={bookmarked ? 'bookmark' : 'bookmark-o'}
-                      size={14}
-                      color={bookmarked ? DS.color.gold : DS.color.textMuted}
-                    />
+                    <FontAwesome name="bookmark" size={14} color={DS.color.gold} />
                   </Pressable>
                 </View>
               );
@@ -1185,7 +1273,7 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
           showsVerticalScrollIndicator={false}
         >
           {filtered.map((item) => (
-            <Pressable key={item.id} style={styles.resultLine} onPress={() => openPlayer(item.title)}>
+            <Pressable key={item.id} style={styles.resultLine} onPress={() => openPlayer(item.title, item.id)}>
               <Image source={{ uri: item.uri }} style={styles.resultThumb} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.thumbTitle} numberOfLines={2}>

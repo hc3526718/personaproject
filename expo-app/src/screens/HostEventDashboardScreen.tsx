@@ -1,18 +1,58 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../auth/AuthContext';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
+import { isSupabaseConfigured } from '../lib/env';
+import { listHostEventDashboard, type HostEventDashboardRow } from '../roadmap/liveDataService';
 import type { EventsStackParamList } from '../navigation/types';
 
 type Props = NativeStackScreenProps<EventsStackParamList, 'HostEventDashboard'>;
 
-/**
- * Host-facing stats for an event (placeholder figures until wired to bookings / events data).
- * Shown to Dalton-verified users with `manage_events` from Admin tools.
- */
+function formatStartsAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export function HostEventDashboardScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const live = isSupabaseConfigured() && user && !user.id.startsWith('demo-');
+  const [rows, setRows] = useState<HostEventDashboardRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!live || !user?.id) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const data = await listHostEventDashboard(user.id);
+    setRows(data);
+    setLoading(false);
+  }, [live, user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
+
+  const totalBookings = rows.reduce((n, r) => n + r.bookingCount, 0);
+  const totalChecked = rows.reduce((n, r) => n + r.checkedInCount, 0);
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScreenHeader title="Event dashboard" onBack={() => navigation.goBack()} />
@@ -21,30 +61,50 @@ export function HostEventDashboardScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.lead}>
-          Summary totals for your session. Connect your database to show live tickets sold, RSVPs,
-          check-ins, and attendee lists.
+          Live totals from your hosted events and bookings. Tap an event to open check-in.
         </Text>
-        <View style={styles.statGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statVal}>128</Text>
-            <Text style={styles.statLbl}>Tickets / RSVPs</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statVal}>42</Text>
-            <Text style={styles.statLbl}>Checked in</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statVal}>$4.2k</Text>
-            <Text style={styles.statLbl}>Gross</Text>
-          </View>
-        </View>
-        <Text style={styles.section}>Recent sign-ups</Text>
-        {['Alex J.', 'Samira K.', 'Jordan P.'].map((n) => (
-          <View key={n} style={styles.row}>
-            <Text style={styles.rowTxt}>{n}</Text>
-            <Text style={styles.rowMeta}>Paid</Text>
-          </View>
-        ))}
+        {loading ? (
+          <AppLoadingIndicator />
+        ) : (
+          <>
+            <View style={styles.statGrid}>
+              <View style={styles.statCard}>
+                <Text style={styles.statVal}>{rows.length}</Text>
+                <Text style={styles.statLbl}>Your events</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statVal}>{totalBookings}</Text>
+                <Text style={styles.statLbl}>Bookings</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statVal}>{totalChecked}</Text>
+                <Text style={styles.statLbl}>Checked in</Text>
+              </View>
+            </View>
+            <Text style={styles.section}>Events</Text>
+            {rows.length === 0 ? (
+              <Text style={styles.empty}>No hosted events yet. Create one from the Events tab.</Text>
+            ) : (
+              rows.map((r) => (
+                <Pressable
+                  key={r.eventId}
+                  style={styles.row}
+                  onPress={() =>
+                    navigation.navigate('HostAttendeeScan', { selectedEventId: r.eventId })
+                  }
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTxt}>{r.title}</Text>
+                    <Text style={styles.rowMeta}>{formatStartsAt(r.startsAt)}</Text>
+                  </View>
+                  <Text style={styles.rowCount}>
+                    {r.checkedInCount}/{r.bookingCount} in
+                  </Text>
+                </Pressable>
+              ))
+            )}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -96,13 +156,22 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  empty: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    lineHeight: 22,
+  },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: DS.space.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: DS.color.borderHairline,
+    gap: DS.space.md,
   },
-  rowTxt: { fontFamily: DS.font.body, fontSize: 15, color: DS.color.text },
-  rowMeta: { fontFamily: DS.font.body, fontSize: 13, color: DS.color.textMuted },
+  rowTxt: { fontFamily: DS.font.bodyMedium, fontSize: 15, color: DS.color.text },
+  rowMeta: { fontFamily: DS.font.body, fontSize: 12, color: DS.color.textMuted, marginTop: 4 },
+  rowCount: { fontFamily: DS.font.body, fontSize: 13, color: DS.color.gold },
 });

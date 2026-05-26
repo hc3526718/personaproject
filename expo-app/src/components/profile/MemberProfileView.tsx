@@ -173,12 +173,12 @@ export function MemberProfileView({
       {canFollow ? (
         <View style={styles.actionRow}>
           <AppleHeroButton
-            variant={following ? 'secondary' : 'primary'}
+            variant={following ? 'unfollow' : 'primary'}
             loading={followBusy}
             onPress={() => onToggleFollow?.()}
-            style={styles.followGoldBtn}
+            style={following ? styles.followUnfollowBtn : styles.followGoldBtn}
           >
-            {following ? 'Following' : 'Follow'}
+            {following ? 'Unfollow' : 'Follow'}
           </AppleHeroButton>
           <Pressable style={styles.messageBtn} onPress={() => onMessage?.()}>
             <FontAwesome name="envelope-o" size={16} color={DS.color.gold} />
@@ -402,6 +402,10 @@ const styles = StyleSheet.create({
   followGoldBtn: {
     backgroundColor: DS.color.gold,
     borderColor: DS.color.gold,
+    minHeight: 44,
+    flex: 1,
+  },
+  followUnfollowBtn: {
     minHeight: 44,
     flex: 1,
   },

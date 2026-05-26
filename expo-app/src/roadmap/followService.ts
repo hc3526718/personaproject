@@ -145,6 +145,8 @@ export async function unfollowUserDirect(viewerId: string, targetUserId: string)
 export type FollowListMember = {
   id: string;
   display_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   username: string | null;
   avatar_url: string | null;
 };
@@ -160,7 +162,7 @@ export async function listFollowersProfiles(profileUserId: string): Promise<Foll
   const ids = [...new Set(edges.map((e: { follower_id: string }) => e.follower_id))];
   const { data: profs } = await supabase
     .from('profiles')
-    .select('id, display_name, username, avatar_url')
+    .select('id, display_name, first_name, last_name, username, avatar_url')
     .in('id', ids);
   return (profs ?? []) as FollowListMember[];
 }
@@ -176,7 +178,7 @@ export async function listFollowingProfiles(profileUserId: string): Promise<Foll
   const ids = [...new Set(edges.map((e: { followee_id: string }) => e.followee_id))];
   const { data: profs } = await supabase
     .from('profiles')
-    .select('id, display_name, username, avatar_url')
+    .select('id, display_name, first_name, last_name, username, avatar_url')
     .in('id', ids);
   return (profs ?? []) as FollowListMember[];
 }

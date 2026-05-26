@@ -4,7 +4,7 @@
 
 ## Pattern
 
-1. **Binary** → object storage (Supabase Storage or S3-compatible bucket).
+1. **Binary** → Supabase Storage bucket **`media_assets`** (public read; authenticated upload under `profiles/{userId}/`, `posts/`, `events/`, `messages/`, `proposals/`, `catalog/`). Do not use the legacy `media` bucket id in new app code.
 2. **Metadata** → Postgres table `media_assets` (see `backend/schema.sql`): `owner_id`, `kind`, `storage_path`, `public_url`, `thumbnail_url`, `post_id`, `message_id`, `visibility`.
 3. **Reads** — signed URLs or public CDN URLs depending on `visibility`.
 4. **Writes** — presigned upload from app, or Edge Function that validates auth then uploads.

@@ -18,6 +18,13 @@ export type ProfileRow = {
   banner_url?: string | null;
   highlights?: unknown;
   recent_results?: unknown;
+  athlete_details?: {
+    discipline?: string;
+    level?: string;
+    team?: string;
+    coach?: string;
+    badges?: Record<string, boolean>;
+  } | null;
   onboarding_completed_at: string | null;
   /** Lowercase handle; unique when set (`backend/migrations/010_profiles_username.sql`). */
   username?: string | null;

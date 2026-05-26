@@ -153,19 +153,29 @@ export async function listMessages(
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('messages')
-    .select('*, media_assets(public_url, kind)')
+    .select('id, conversation_id, sender_id, body, created_at, media_asset_id')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error || !data) return [];
-  const rows = (data as Record<string, unknown>[]).map((row) => {
-    const rawAsset = row.media_assets;
-    const asset = Array.isArray(rawAsset)
-      ? (rawAsset[0] as { public_url?: string | null; kind?: string | null } | undefined)
-      : (rawAsset as { public_url?: string | null; kind?: string | null } | null);
-    const { media_assets: _drop, ...rest } = row;
+
+  const rawRows = data as MessageRow[];
+  const assetIds = [...new Set(rawRows.map((r) => r.media_asset_id).filter(Boolean))] as string[];
+  const assetMap = new Map<string, { public_url: string | null; kind: string | null }>();
+  if (assetIds.length > 0) {
+    const { data: assets } = await supabase
+      .from('media_assets')
+      .select('id, public_url, kind')
+      .in('id', assetIds);
+    for (const a of (assets ?? []) as { id: string; public_url: string | null; kind: string | null }[]) {
+      assetMap.set(a.id, { public_url: a.public_url, kind: a.kind });
+    }
+  }
+
+  const rows = rawRows.map((row) => {
+    const asset = row.media_asset_id ? assetMap.get(row.media_asset_id) : undefined;
     return {
-      ...(rest as MessageRow),
+      ...row,
       media_public_url: asset?.public_url ?? null,
       media_kind: (asset?.kind as MessageRow['media_kind']) ?? null,
     };
@@ -226,7 +236,7 @@ export async function sendMediaMessage(
       body,
       media_asset_id: uploaded.assetId,
     })
-    .select('*')
+    .select('id, conversation_id, sender_id, body, created_at, media_asset_id')
     .single();
   if (error || !data) return null;
   return {

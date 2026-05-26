@@ -104,7 +104,7 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
       <Modal visible={modalIndex != null} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={[styles.modalRoot, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <Pressable style={styles.modalClose} onPress={closeModal} accessibilityLabel="Close media">
-            <FontAwesome name="times" size={22} color={DS.color.white} />
+            <FontAwesome name="times" size={14} color={DS.color.white} />
           </Pressable>
           {modalItem?.kind === 'image' ? (
             <Image source={{ uri: modalItem.uri }} style={styles.modalMedia} resizeMode="contain" />
@@ -178,7 +178,15 @@ const styles = StyleSheet.create({
     top: DS.space.lg,
     right: DS.space.lg,
     zIndex: 2,
-    padding: DS.space.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.goldTint30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   modalMedia: {
     width: '100%',

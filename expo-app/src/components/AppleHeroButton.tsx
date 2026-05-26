@@ -5,7 +5,7 @@ import { DS } from '../designSystem';
 import type { AccessibleColors } from '../lib/accessibilityTheme';
 import { useThemeStyles } from '../theme/useThemeStyles';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'social';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'social' | 'unfollow';
 
 type Props = Omit<PressableProps, 'style' | 'children'> & {
   children: ReactNode;
@@ -37,6 +37,7 @@ export function AppleHeroButton({
         variant === 'secondary' && styles.secondary,
         variant === 'ghost' && styles.ghost,
         variant === 'social' && styles.social,
+        variant === 'unfollow' && styles.unfollow,
         pressed && !disabled && !loading && styles.pressed,
         (disabled || loading) && styles.disabled,
         variant === 'primary' && DS.apple.shadowButton,
@@ -54,6 +55,7 @@ export function AppleHeroButton({
             variant === 'secondary' && styles.labelSecondary,
             variant === 'ghost' && styles.labelGhost,
             variant === 'social' && styles.labelSocial,
+            variant === 'unfollow' && styles.labelUnfollow,
           ]}
           numberOfLines={1}
         >
@@ -91,6 +93,11 @@ function createAppleHeroButtonStyles(c: AccessibleColors) {
       borderWidth: 1,
       borderColor: DS.apple.separator,
     },
+    unfollow: {
+      backgroundColor: c.background,
+      borderWidth: 1.5,
+      borderColor: c.gold,
+    },
     pressed: {
       opacity: 0.88,
     },
@@ -115,6 +122,9 @@ function createAppleHeroButtonStyles(c: AccessibleColors) {
     labelSocial: {
       color: c.text,
       fontWeight: '600' as const,
+    },
+    labelUnfollow: {
+      color: c.gold,
     },
   };
 }

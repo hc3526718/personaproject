@@ -68,8 +68,8 @@ export function FollowUserListScreen({ navigation, route }: Props) {
         renderItem={({ item }) => {
           const label = formatAuthorDisplayName({
             display_name: item.display_name,
-            first_name: null,
-            last_name: null,
+            first_name: item.first_name,
+            last_name: item.last_name,
             username: item.username,
           });
           const avatar = item.avatar_url?.trim()

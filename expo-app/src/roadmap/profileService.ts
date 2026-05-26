@@ -56,6 +56,31 @@ export async function updateProfileBasics(
   return { ok: true, profile: data as ProfileRow };
 }
 
+export type AthleteDetails = {
+  discipline: string;
+  level: string;
+  team: string;
+  coach: string;
+  badges: Record<string, boolean>;
+};
+
+export async function updateProfileAthleteDetails(
+  userId: string,
+  details: AthleteDetails,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: 'Not connected.' };
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      athlete_details: details,
+      primary_sport: details.discipline.trim() || null,
+    })
+    .eq('id', userId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
 export async function updateProfileAllowMessagesFrom(
   userId: string,
   value: 'everyone' | 'followers_only' | 'friends_only',

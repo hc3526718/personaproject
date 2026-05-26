@@ -44,8 +44,10 @@ import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
 import type { EventsBrowseFilterChip, EventsStackParamList } from '../navigation/types';
 import {
+  bookExistingEvent,
   createEventAndBooking,
   deleteCommunityEvent,
+  findUserBookingForEvent,
   getEventById,
   listAllEvents,
   listBookingsWithEventsForUser,
@@ -54,6 +56,7 @@ import {
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
+import { openEventCheckoutUrl, startEventStripeCheckout } from '../subscriptions/eventStripeCheckout';
 import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
 import type { EventRow } from '../roadmap/types';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
@@ -960,6 +963,9 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
       title: displayTitle,
       imageUri: displayHero,
       scheduleLine: displaySchedule,
+      supabaseEventId,
+      requiresPayment: dbEvent?.requires_payment ?? false,
+      stripePriceId: dbEvent?.stripe_price_id ?? null,
     });
 
   const addCal = () =>
@@ -1151,6 +1157,9 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
   const title = route.params?.title ?? 'STRENGTH CAMP';
   const heroUri = route.params?.imageUri ?? DEFAULT_HERO;
   const scheduleLine = route.params?.scheduleLine ?? 'October 15, 2024 • 10:00 AM - 12:00 PM';
+  const supabaseEventId = route.params?.supabaseEventId;
+  const requiresPayment = route.params?.requiresPayment ?? false;
+  const stripePriceId = route.params?.stripePriceId?.trim() ?? '';
   const { datePart, timePart } = splitScheduleLine(scheduleLine);
 
   const [fullName, setFullName] = useState('Alex Johnson');
@@ -1161,28 +1170,88 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
   const [consent, setConsent] = useState(false);
   const [bookingBusy, setBookingBusy] = useState(false);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !supabaseEventId || !user?.id) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('stripe_checkout') !== 'success' || params.get('event_id') !== supabaseEventId) return;
+    void (async () => {
+      const existing = await findUserBookingForEvent(user.id, supabaseEventId);
+      if (!existing) return;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('stripe_checkout');
+      url.searchParams.delete('event_id');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      navigation.navigate('BookingConfirm', {
+        reference: existing.reference,
+        eventId: existing.eventId,
+        title,
+        imageUri: heroUri,
+        recapDate: datePart,
+        recapTime: timePart || '10:00 AM - 12:00 PM',
+        venue: 'Elite Fitness Center',
+        attendeeName: fullName,
+        attendeeEmail: email,
+        fitnessLevel: level,
+      });
+    })();
+  }, [supabaseEventId, user?.id, navigation, title, heroUri, datePart, timePart, fullName, email, level]);
+
   const goBookingConfirm = useCallback(async () => {
     const demoSession = !user || user.id.startsWith('demo-');
     let reference = `SC-${Date.now().toString(36).toUpperCase().slice(-10)}`;
-    let eventId: string | undefined;
+    let eventId: string | undefined = supabaseEventId;
     if (!demoSession && isSupabaseConfigured()) {
+      if (requiresPayment && !stripePriceId) {
+        Alert.alert(
+          'Payment not configured',
+          'This event requires payment but the host has not linked a Stripe price yet. Contact the organizer.',
+        );
+        return;
+      }
+      if (requiresPayment && stripePriceId && supabaseEventId) {
+        setBookingBusy(true);
+        try {
+          const checkout = await startEventStripeCheckout(supabaseEventId);
+          if (!checkout.ok) {
+            Alert.alert('Checkout unavailable', checkout.error);
+            return;
+          }
+          openEventCheckoutUrl(checkout.url);
+        } finally {
+          setBookingBusy(false);
+        }
+        return;
+      }
       setBookingBusy(true);
       try {
-        const created = await createEventAndBooking(user.id, {
-          title,
-          scheduleLine,
-          heroImageUrl: heroUri,
-          venue: 'Elite Fitness Center',
-        });
-        if (!created) {
-          Alert.alert(
-            'Booking failed',
-            'Could not save your booking. Check Supabase (events RLS + profile row) and try again.',
-          );
-          return;
+        if (supabaseEventId) {
+          const booked = await bookExistingEvent(user.id, supabaseEventId);
+          if (!booked) {
+            Alert.alert(
+              'Booking failed',
+              'Could not save your booking. You may already be registered, or the event is full.',
+            );
+            return;
+          }
+          reference = booked.reference;
+          eventId = booked.eventId;
+        } else {
+          const created = await createEventAndBooking(user.id, {
+            title,
+            scheduleLine,
+            heroImageUrl: heroUri,
+            venue: 'Elite Fitness Center',
+          });
+          if (!created) {
+            Alert.alert(
+              'Booking failed',
+              'Could not save your booking. Check Supabase (events RLS + profile row) and try again.',
+            );
+            return;
+          }
+          reference = created.reference;
+          eventId = created.eventId;
         }
-        reference = created.reference;
-        eventId = created.eventId;
       } finally {
         setBookingBusy(false);
       }
@@ -1212,6 +1281,9 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
     email,
     level,
     showBanner,
+    supabaseEventId,
+    requiresPayment,
+    stripePriceId,
   ]);
 
   return (

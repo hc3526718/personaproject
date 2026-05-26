@@ -1,4 +1,5 @@
 import { getSupabase } from './supabase';
+import { uriToBlob } from './uriToBlob';
 
 function inferImageExt(uri: string): string {
   const m = uri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
@@ -28,14 +29,14 @@ export async function uploadProfileImage(
   const supabase = getSupabase();
   if (!supabase) return { ok: false, error: 'Not connected.' };
   try {
-    const blob = await (await fetch(uri)).blob();
-    const ext = inferImageExt(uri);
     const contentType = inferImageContentType(uri);
+    const blob = await uriToBlob(uri, contentType);
+    const ext = inferImageExt(uri);
     const rand = Math.random().toString(36).slice(2, 8);
     const storage_path = `profiles/${userId}/${kind}-${Date.now()}-${rand}.${ext}`;
     const { error } = await supabase.storage
       .from('media_assets')
-      .upload(storage_path, blob, { contentType, upsert: true });
+      .upload(storage_path, blob, { contentType, upsert: false });
     if (error) {
       if (__DEV__) console.warn('[uploadProfileImage]', error.message);
       return { ok: false, error: error.message || 'Storage upload failed.' };

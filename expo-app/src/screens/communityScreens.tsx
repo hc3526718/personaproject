@@ -529,35 +529,54 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
     setBusy(true);
     try {
       const eventTag = eventId ? `\n\n#event:${eventId}` : '';
-      const row = await insertCommunityPost(user.id, `${captionPlain.trim()}${eventTag}`);
-      if (!row) {
-        Alert.alert('Could not post', 'Check your connection and try again.');
+      const created = await insertCommunityPost(user.id, `${captionPlain.trim()}${eventTag}`);
+      if ('error' in created) {
+        Alert.alert('Could not post', created.error);
         return;
       }
+      const row = created.row;
       const supabase = getSupabase();
       if (supabase && picks.length > 0) {
+        const uploadErrors: string[] = [];
         for (let i = 0; i < picks.length; i++) {
           const m = picks[i]!;
-          const blob = await (await fetch(m.uri)).blob();
-          const ext = inferExt(m.kind, m.uri);
-          const storage_path = `posts/${row.id}/${Date.now()}-${i}.${ext}`;
-          const contentType = m.mimeType ?? inferContentType(m.kind, m.uri);
-          const up = await supabase.storage.from('media_assets').upload(storage_path, blob, {
-            contentType,
-            upsert: false,
-          });
-          if (up.error) continue;
-          const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
-          const public_url = pub.data.publicUrl ?? null;
-          await supabase.from('media_assets').insert({
-            owner_id: user.id,
-            kind: m.kind,
-            storage_path,
-            public_url,
-            mime_type: contentType,
-            visibility: 'public',
-            post_id: row.id,
-          });
+          try {
+            const { uriToBlob } = await import('../lib/uriToBlob');
+            const contentType = m.mimeType ?? inferContentType(m.kind, m.uri);
+            const blob = await uriToBlob(m.uri, contentType);
+            const ext = inferExt(m.kind, m.uri);
+            const storage_path = `posts/${user.id}/${row.id}/${Date.now()}-${i}.${ext}`;
+            const up = await supabase.storage.from('media_assets').upload(storage_path, blob, {
+              contentType,
+              upsert: false,
+            });
+            if (up.error) {
+              uploadErrors.push(up.error.message);
+              continue;
+            }
+            const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
+            const public_url = pub.data.publicUrl ?? null;
+            const { error: insErr } = await supabase.from('media_assets').insert({
+              owner_id: user.id,
+              kind: m.kind,
+              storage_path,
+              public_url,
+              mime_type: contentType,
+              visibility: 'public',
+              post_id: row.id,
+            });
+            if (insErr) uploadErrors.push(insErr.message);
+          } catch (e) {
+            uploadErrors.push(e instanceof Error ? e.message : 'Upload failed');
+          }
+        }
+        if (uploadErrors.length === picks.length) {
+          Alert.alert(
+            'Post saved without media',
+            uploadErrors[0] ?? 'Could not upload attachments. Check storage permissions and try again.',
+          );
+        } else if (uploadErrors.length > 0) {
+          showBanner('Posted with warnings', 'Some attachments could not be uploaded.');
         }
       }
       showBanner('Posted', 'Your post is live in the feed.');
@@ -606,7 +625,7 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
                 />
               )}
               <Pressable style={styles.mediaRemove} onPress={() => removeMedia(first.uri)} hitSlop={8}>
-                <FontAwesome name="times" size={14} color={colors.text} />
+                <FontAwesome name="times" size={11} color={colors.background} />
               </Pressable>
               <Pressable style={styles.composerAddChip} onPress={() => void openPicker()} hitSlop={8}>
                 <FontAwesome name="plus" size={12} color={colors.background} />
@@ -635,7 +654,7 @@ export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunit
               {media.map((m) => (
                 <View key={m.uri} style={styles.composerThumbWrap}>
                   <Pressable hitSlop={6} style={styles.composerThumbRemove} onPress={() => removeMedia(m.uri)}>
-                    <FontAwesome name="times" size={10} color={colors.background} />
+                    <FontAwesome name="times" size={8} color={colors.background} />
                   </Pressable>
                   {m.kind === 'image' ? (
                     <Image source={{ uri: m.uri }} style={styles.composerThumb} />
@@ -784,6 +803,8 @@ function PostCard({
   const [comments, setComments] = useState<PostCommentRow[]>([]);
   const [commentDraft, setCommentDraft] = useState('');
   const [commentsBusy, setCommentsBusy] = useState(false);
+  const [postMenuVisible, setPostMenuVisible] = useState(false);
+  const [postMenuOptions, setPostMenuOptions] = useState<OptionMenuItem[]>([]);
   const showActionBanner = useActionBanner();
   const insets = useSafeAreaInsets();
 
@@ -995,6 +1016,13 @@ function PostCard({
   const openPostMenu = useCallback(() => {
     const isAuthor = Boolean(user?.id && authorId && user.id === authorId);
     const canDelete = isAuthor || Boolean(user?.masterControl);
+    const sharePost = () => {
+      const shareBody = (bodyParagraphs?.join('\n\n') ?? body ?? '').trim();
+      void Share.share({
+        message: shareBody || 'Post on Dalton Grant Academy',
+        title: name ? `Post by ${name}` : 'Community post',
+      }).catch(() => undefined);
+    };
     const copyId = () => {
       Alert.alert('Post reference', _postId, [{ text: 'OK' }]);
     };
@@ -1023,42 +1051,34 @@ function PostCard({
       ]);
     };
 
+    const items: OptionMenuItem[] = [
+      { key: 'share', label: 'Share', onPress: sharePost },
+      ...(canDelete
+        ? [{ key: 'delete', label: 'Delete post', destructive: true, onPress: deletePost }]
+        : []),
+      { key: 'report', label: 'Report post', onPress: reportPost },
+      { key: 'copy', label: 'Copy reference', onPress: copyId },
+    ];
+
     if (Platform.OS === 'ios') {
-      const options = canDelete
-        ? ['Cancel', 'Delete post', 'Report post', 'Copy reference']
-        : ['Cancel', 'Report post', 'Copy reference'];
+      const labels = ['Cancel', ...items.map((i) => i.label)];
       ActionSheetIOS.showActionSheetWithOptions(
-        canDelete
-          ? { options, cancelButtonIndex: 0, destructiveButtonIndex: 1 }
-          : { options, cancelButtonIndex: 0 },
+        {
+          options: labels,
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: canDelete ? 2 : undefined,
+        },
         (i) => {
-          if (canDelete) {
-            if (i === 1) deletePost();
-            if (i === 2) reportPost();
-            if (i === 3) copyId();
-          } else {
-            if (i === 1) reportPost();
-            if (i === 2) copyId();
-          }
+          if (i <= 0) return;
+          items[i - 1]?.onPress();
         },
       );
-    } else {
-      const buttons: {
-        text: string;
-        style?: 'destructive' | 'cancel';
-        onPress?: () => void;
-      }[] = [];
-      if (canDelete) {
-        buttons.push({ text: 'Delete post', style: 'destructive', onPress: deletePost });
-      }
-      buttons.push(
-        { text: 'Report post', onPress: reportPost },
-        { text: 'Copy reference', onPress: copyId },
-        { text: 'Cancel', style: 'cancel' },
-      );
-      Alert.alert('Post menu', undefined, buttons);
+      return;
     }
-  }, [user, authorId, liveMode, _postId, onPostDeleted, showActionBanner, reportPost]);
+
+    setPostMenuOptions(items);
+    setPostMenuVisible(true);
+  }, [user, authorId, _postId, body, bodyParagraphs, name, onPostDeleted, showActionBanner, reportPost]);
 
   const submitComment = useCallback(async () => {
     if (!liveMode || !user) {
@@ -1084,6 +1104,12 @@ function PostCard({
 
   return (
     <View style={styles.postCard}>
+      <OptionMenuModal
+        visible={postMenuVisible}
+        title="Post"
+        options={postMenuOptions}
+        onClose={() => setPostMenuVisible(false)}
+      />
       <View style={styles.postTop}>
         <Pressable
           onPress={openProfile}

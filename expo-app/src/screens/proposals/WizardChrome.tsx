@@ -12,6 +12,8 @@ type Props = {
   onNext?: () => void;
   nextLabel?: string;
   nextDisabled?: boolean;
+  /** Shown below the progress bar when validation fails */
+  errorMessage?: string | null;
   children: ReactNode;
 };
 
@@ -42,6 +44,11 @@ export function WizardChrome({
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
+      {errorMessage ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{errorMessage}</Text>
+        </View>
+      ) : null}
       <View style={styles.body}>{children}</View>
       {onNext ? (
         <View style={[styles.footer, { paddingBottom: insets.bottom + DS.space.md }]}>
@@ -87,6 +94,21 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     backgroundColor: DS.color.gold,
+  },
+  errorBanner: {
+    marginHorizontal: DS.space.base,
+    marginTop: DS.space.sm,
+    padding: DS.space.md,
+    borderRadius: DS.radius.lg,
+    backgroundColor: 'rgba(220, 38, 38, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(248, 113, 113, 0.45)',
+  },
+  errorBannerText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    color: '#fca5a5',
+    lineHeight: 20,
   },
   body: {
     flex: 1,

@@ -19,6 +19,8 @@ import { corsHeaders } from '../_shared/cors.ts';
 
 type Body = {
   plan?: 'monthly' | 'annual';
+  mode?: 'subscription' | 'event';
+  event_id?: string;
   success_url?: string;
   cancel_url?: string;
 };
@@ -90,15 +92,6 @@ Deno.serve(async (req) => {
       body = {};
     }
 
-    const plan = body.plan === 'annual' ? 'annual' : 'monthly';
-    const priceId = priceIdForPlan(plan);
-    if (!priceId) {
-      return new Response(JSON.stringify({ error: 'price_not_configured', plan }), {
-        status: 503,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-      });
-    }
-
     const defaultBase =
       (Deno.env.get('STRIPE_CHECKOUT_BASE_URL') ?? 'https://dalton-access.vercel.app/app').replace(
         /\/$/,
@@ -109,19 +102,71 @@ Deno.serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2024-11-20.acacia' });
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      client_reference_id: user.id,
-      metadata: { user_id: user.id, plan },
-      subscription_data: {
-        metadata: { user_id: user.id },
-      },
-      ...(user.email ? { customer_email: user.email } : {}),
-      allow_promotion_codes: true,
-    });
+    const checkoutMode = body.mode === 'event' ? 'event' : 'subscription';
+    let session: Stripe.Checkout.Session;
+
+    if (checkoutMode === 'event') {
+      const eventId = (body.event_id ?? '').trim();
+      if (!eventId) {
+        return new Response(JSON.stringify({ error: 'event_id_required' }), {
+          status: 400,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: ev, error: evErr } = await admin
+        .from('events')
+        .select('id, title, requires_payment, stripe_price_id')
+        .eq('id', eventId)
+        .maybeSingle();
+      if (evErr || !ev?.id) {
+        return new Response(JSON.stringify({ error: 'event_not_found' }), {
+          status: 404,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
+      const priceId = (ev.stripe_price_id ?? '').trim();
+      if (!ev.requires_payment || !priceId) {
+        return new Response(JSON.stringify({ error: 'event_not_paid_or_unpriced' }), {
+          status: 400,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        client_reference_id: user.id,
+        metadata: {
+          user_id: user.id,
+          event_id: eventId,
+          purpose: 'event_ticket',
+        },
+        ...(user.email ? { customer_email: user.email } : {}),
+      });
+    } else {
+      const plan = body.plan === 'annual' ? 'annual' : 'monthly';
+      const priceId = priceIdForPlan(plan);
+      if (!priceId) {
+        return new Response(JSON.stringify({ error: 'price_not_configured', plan }), {
+          status: 503,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
+      session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        client_reference_id: user.id,
+        metadata: { user_id: user.id, plan },
+        subscription_data: {
+          metadata: { user_id: user.id },
+        },
+        ...(user.email ? { customer_email: user.email } : {}),
+        allow_promotion_codes: true,
+      });
+    }
 
     if (!session.url) {
       return new Response(JSON.stringify({ error: 'checkout_url_missing' }), {

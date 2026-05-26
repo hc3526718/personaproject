@@ -7,10 +7,13 @@ import { DS } from '../../designSystem';
 import { uploadProposalAttachment } from '../../lib/proposalAttachmentUpload';
 import type { SponsorsStackParamList } from '../../navigation/types';
 import {
-  canSubmitSponsorProposal,
-  getSponsorProposalsUsedThisMonth,
-  submitContentProposal,
+  canSubmitContentProposal,
+  contentProposalsUsedThisMonth,
 } from '../../roadmap/proposalService';
+import {
+  runProposalSubmitFlow,
+  showProposalSubmittedAlert,
+} from '../../lib/proposalSubmitFlow';
 import { WizardChrome } from './WizardChrome';
 
 type Props = NativeStackScreenProps<SponsorsStackParamList, 'SponsorProposalWizard'>;
@@ -23,19 +26,21 @@ export function SponsorProposalWizard({ navigation }: Props) {
   const [goals, setGoals] = useState('');
   const [attachments, setAttachments] = useState<{ name: string; uri: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [usedThisMonth, setUsedThisMonth] = useState(0);
   const [allowed, setAllowed] = useState(true);
 
   useEffect(() => {
     void (async () => {
-      const used = await getSponsorProposalsUsedThisMonth();
-      const ok = await canSubmitSponsorProposal();
+      const used = await contentProposalsUsedThisMonth();
+      const ok = await canSubmitContentProposal();
       setUsedThisMonth(used);
       setAllowed(ok);
       if (!ok) {
         Alert.alert(
           'Monthly limit reached',
-          'You can submit up to 3 sponsor proposals per calendar month. Try again next month or view your past proposals.',
+          'You can submit up to 3 proposals per calendar month (all types combined). Try again next month.',
           [{ text: 'OK', onPress: () => navigation.goBack() }],
         );
       }
@@ -55,14 +60,15 @@ export function SponsorProposalWizard({ navigation }: Props) {
   }, []);
 
   const submit = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || submitted || submitting) return;
     setSubmitting(true);
+    setError(null);
     const uploaded: string[] = [];
     for (const a of attachments) {
       const url = await uploadProposalAttachment(user.id, 'sponsor', a.uri, a.name);
       if (url) uploaded.push(url);
     }
-    const result = await submitContentProposal({
+    const result = await runProposalSubmitFlow({
       kind: 'sponsor',
       payload: {
         brand_name: brandName.trim(),
@@ -73,15 +79,12 @@ export function SponsorProposalWizard({ navigation }: Props) {
     });
     setSubmitting(false);
     if (!result.ok) {
-      Alert.alert('Submission failed', result.error);
+      setError(result.error);
       return;
     }
-    Alert.alert(
-      'Proposal received',
-      'Partnerships are reviewed by the Dalton team. We will follow up by email.',
-      [{ text: 'OK', onPress: () => navigation.goBack() }],
-    );
-  }, [attachments, brandName, contactEmail, goals, navigation, user?.id]);
+    setSubmitted(true);
+    showProposalSubmittedAlert(() => navigation.goBack());
+  }, [attachments, brandName, contactEmail, goals, navigation, submitted, submitting, user?.id]);
 
   if (!allowed) {
     return null;
@@ -163,8 +166,9 @@ export function SponsorProposalWizard({ navigation }: Props) {
       totalSteps={4}
       onBack={() => setStep(3)}
       onNext={() => void submit()}
-      nextLabel={submitting ? 'Submitting…' : 'Submit proposal'}
-      nextDisabled={submitting}
+      nextLabel={submitting ? 'Submitting…' : 'Submit for review'}
+      nextDisabled={submitting || submitted}
+      errorMessage={error}
     >
       <Text style={styles.reviewTitle}>{brandName}</Text>
       <Text style={styles.reviewMeta}>{contactEmail}</Text>

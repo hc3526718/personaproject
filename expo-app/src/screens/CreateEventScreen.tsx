@@ -27,6 +27,7 @@ import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { endsAtAfterDuration, parseEventStartIso } from '../lib/eventFormParse';
 import { getSupabase } from '../lib/supabase';
+import { pickWebMediaFile } from '../lib/webFilePicker';
 
 type Props = NativeStackScreenProps<EventsStackParamList, 'CreateEvent'>;
 
@@ -131,7 +132,8 @@ export function CreateEventScreen({ navigation }: Props) {
 
   const pickImages = useCallback(async () => {
     if (Platform.OS === 'web') {
-      Alert.alert('Not on web', 'Use a device build to attach images.');
+      const picked = await pickWebMediaFile('image');
+      if (picked?.uri) setAssets((prev) => [...prev, { uri: picked.uri, kind: 'image' }]);
       return;
     }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -150,7 +152,8 @@ export function CreateEventScreen({ navigation }: Props) {
 
   const pickVideos = useCallback(async () => {
     if (Platform.OS === 'web') {
-      Alert.alert('Not on web', 'Use a device build to attach videos.');
+      const picked = await pickWebMediaFile('video');
+      if (picked?.uri) setAssets((prev) => [...prev, { uri: picked.uri, kind: 'video' }]);
       return;
     }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();

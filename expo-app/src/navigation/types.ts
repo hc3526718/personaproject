@@ -29,7 +29,7 @@ export type MediaStackParamList = {
   MediaLibrary: undefined;
   MediaSearch: undefined;
   MediaSearchResults: { query?: string } | undefined;
-  MediaPlayer: { title?: string; mediaId?: string };
+  MediaPlayer: { title?: string; mediaId?: string; playbackUrl?: string };
   SavedMedia: undefined;
   MediaCommunityFeed: undefined;
   CreateMediaContent: undefined;
@@ -64,7 +64,14 @@ export type EventsStackParamList = {
     /** Real Supabase `events.id` when applicable */
     supabaseEventId?: string;
   };
-  ConfirmAttend: { title?: string; imageUri?: string; scheduleLine?: string };
+  ConfirmAttend: {
+    title?: string;
+    imageUri?: string;
+    scheduleLine?: string;
+    supabaseEventId?: string;
+    requiresPayment?: boolean;
+    stripePriceId?: string | null;
+  };
   BookingConfirm: BookingConfirmParams | undefined;
   StaffCheckIn: undefined;
   HostEventDashboard: undefined;

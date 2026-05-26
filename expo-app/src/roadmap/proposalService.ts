@@ -61,19 +61,41 @@ function mapRow(raw: Record<string, unknown>): ContentProposalRow {
 }
 
 export async function getSponsorProposalsUsedThisMonth(): Promise<number> {
+  return contentProposalsUsedThisMonth();
+}
+
+export async function contentProposalsUsedThisMonth(): Promise<number> {
   const supabase = getSupabase();
   if (!supabase) return 0;
-  const { data, error } = await supabase.rpc('sponsor_proposals_this_month_count');
-  if (error || data == null) return 0;
+  const { data, error } = await supabase.rpc('content_proposals_this_month_count');
+  if (error || data == null) {
+    const legacy = await supabase.rpc('sponsor_proposals_this_month_count');
+    if (legacy.error || legacy.data == null) return 0;
+    return Number(legacy.data) || 0;
+  }
   return Number(data) || 0;
 }
 
-export async function canSubmitSponsorProposal(): Promise<boolean> {
+export async function canSubmitContentProposal(): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc('can_submit_content_proposal');
+  if (error) {
+    return canSubmitSponsorProposalLegacy();
+  }
+  return data === true;
+}
+
+async function canSubmitSponsorProposalLegacy(): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
   const { data, error } = await supabase.rpc('can_submit_sponsor_proposal');
   if (error) return false;
   return data === true;
+}
+
+export async function canSubmitSponsorProposal(): Promise<boolean> {
+  return canSubmitContentProposal();
 }
 
 export async function submitContentProposal(input: {
@@ -84,14 +106,13 @@ export async function submitContentProposal(input: {
   const supabase = getSupabase();
   if (!supabase) return { ok: false, error: 'Not connected.' };
 
-  if (input.kind === 'sponsor') {
-    const allowed = await canSubmitSponsorProposal();
-    if (!allowed) {
-      return {
-        ok: false,
-        error: 'You have reached the limit of 3 sponsor proposals this month.',
-      };
-    }
+  const allowed = await canSubmitContentProposal();
+  if (!allowed) {
+    const used = await contentProposalsUsedThisMonth();
+    return {
+      ok: false,
+      error: `You have reached the limit of 3 proposals this month (${used}/3 used).`,
+    };
   }
 
   const {
@@ -113,8 +134,8 @@ export async function submitContentProposal(input: {
 
   if (error || !data?.id) {
     const msg = error?.message ?? 'Could not submit proposal.';
-    if (msg.includes('sponsor_monthly_limit')) {
-      return { ok: false, error: 'Maximum 3 sponsor proposals per calendar month.' };
+    if (msg.includes('sponsor_monthly_limit') || msg.includes('proposal_monthly_limit')) {
+      return { ok: false, error: 'Maximum 3 proposals per calendar month.' };
     }
     return { ok: false, error: msg };
   }

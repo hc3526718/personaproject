@@ -1,6 +1,7 @@
 import type { ComposerMedia } from './mediaComposer';
 import { inferContentType, inferExt } from './mediaComposer';
 import { getSupabase } from './supabase';
+import { uriToBlob } from './uriToBlob';
 
 /** Upload DM attachment to `media_assets` and return row id + public URL. */
 export async function uploadMessageMedia(
@@ -14,7 +15,6 @@ export async function uploadMessageMedia(
     const blob = await (await fetch(media.uri)).blob();
     const ext = inferExt(media.kind, media.uri);
     const storage_path = `messages/${conversationId}/${userId}/${Date.now()}.${ext}`;
-    const contentType = media.mimeType ?? inferContentType(media.kind, media.uri);
     const up = await supabase.storage.from('media_assets').upload(storage_path, blob, {
       contentType,
       upsert: false,

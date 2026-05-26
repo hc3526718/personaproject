@@ -31,9 +31,11 @@ Last updated from codebase review. Use as a launch checklist.
 
 | Item | Severity | Detail |
 |------|----------|--------|
-| In-app account deletion | **High** (Apple) | Profile → Delete still routes to Support only |
-| Push token registration | Medium | `registerDevicePushToken` not wired from app startup |
-| Host event dashboard | Low | Stub stats in `HostEventDashboardScreen` |
+| In-app account deletion | **High** (Apple) | Verify `deleteOwnAccount` flow on Profile → Account security |
+| Push token registration | Medium | Wired via `tryRegisterPushToken` on session; requires `expo-notifications` + device permission |
+| Host event dashboard | Low | Live booking totals from Supabase (`listHostEventDashboard`) |
+| Paid event checkout | Medium | Requires `events.stripe_price_id` + deploy updated `stripe-create-checkout` / `stripe-webhook` |
+| Media upload (web) | Low | Web file picker enabled; native preferred for large videos |
 | MFA TOTP | Low | Settings shows “coming soon” |
 | Accessibility UI depth | Medium | Global text scaling + contrast tokens wired; not every screen uses `useAccessibility().colors` yet |
 | Master delete | Ops | Edge function only — not end-user self-serve |

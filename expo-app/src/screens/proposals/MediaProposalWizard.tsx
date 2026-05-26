@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -6,7 +6,11 @@ import { useAuth } from '../../auth/AuthContext';
 import { DS } from '../../designSystem';
 import { uploadProposalAttachment } from '../../lib/proposalAttachmentUpload';
 import type { MediaStackParamList } from '../../navigation/types';
-import { submitContentProposal } from '../../roadmap/proposalService';
+import {
+  runProposalSubmitFlow,
+  showProposalSubmittedAlert,
+} from '../../lib/proposalSubmitFlow';
+import { contentProposalsUsedThisMonth } from '../../roadmap/proposalService';
 import { WizardChrome } from './WizardChrome';
 
 type Props = NativeStackScreenProps<MediaStackParamList, 'MediaProposalWizard'>;
@@ -21,6 +25,9 @@ export function MediaProposalWizard({ navigation }: Props) {
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Training');
   const [attachments, setAttachments] = useState<{ name: string; uri: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [quotaHint, setQuotaHint] = useState('');
 
   const pickDocs = useCallback(async () => {
     const res = await DocumentPicker.getDocumentAsync({
@@ -34,30 +41,32 @@ export function MediaProposalWizard({ navigation }: Props) {
     ]);
   }, []);
 
+  useEffect(() => {
+    void contentProposalsUsedThisMonth().then((n) => setQuotaHint(`${n}/3 proposals used this month`));
+  }, []);
+
   const submit = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || submitted || submitting) return;
     setSubmitting(true);
+    setError(null);
     const uploaded: string[] = [];
     for (const a of attachments) {
       const url = await uploadProposalAttachment(user.id, 'media', a.uri, a.name);
       if (url) uploaded.push(url);
     }
-    const result = await submitContentProposal({
+    const result = await runProposalSubmitFlow({
       kind: 'media',
       payload: { title: title.trim(), pitch: pitch.trim(), category },
       attachmentUrls: uploaded,
     });
     setSubmitting(false);
     if (!result.ok) {
-      Alert.alert('Submission failed', result.error);
+      setError(result.error);
       return;
     }
-    Alert.alert(
-      'Proposal received',
-      'Our team will review your media submission. You will be notified when it is approved.',
-      [{ text: 'OK', onPress: () => navigation.goBack() }],
-    );
-  }, [attachments, category, navigation, pitch, title, user?.id]);
+    setSubmitted(true);
+    showProposalSubmittedAlert(() => navigation.goBack());
+  }, [attachments, category, navigation, pitch, submitted, submitting, title, user?.id]);
 
   if (step === 1) {
     return (
@@ -68,8 +77,10 @@ export function MediaProposalWizard({ navigation }: Props) {
         onBack={() => navigation.goBack()}
         onNext={() => setStep(2)}
         nextDisabled={!title.trim() || pitch.trim().length < 20}
+        errorMessage={error}
       >
         <Text style={styles.lead}>Start with the essentials — you can add files later.</Text>
+        <Text style={styles.quota}>{quotaHint}</Text>
         <Text style={styles.label}>Title</Text>
         <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Series or episode title" placeholderTextColor={DS.color.textMuted} />
         <Text style={styles.label}>One-line pitch</Text>
@@ -124,7 +135,8 @@ export function MediaProposalWizard({ navigation }: Props) {
       onBack={() => setStep(3)}
       onNext={() => void submit()}
       nextLabel={submitting ? 'Submitting…' : 'Submit for review'}
-      nextDisabled={submitting}
+      nextDisabled={submitting || submitted}
+      errorMessage={error}
     >
       <Text style={styles.reviewTitle}>{title}</Text>
       <Text style={styles.reviewMeta}>{category}</Text>
@@ -143,6 +155,12 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     marginBottom: DS.space.lg,
     lineHeight: 20,
+  },
+  quota: {
+    fontFamily: DS.font.body,
+    fontSize: 12,
+    color: DS.color.gold,
+    marginBottom: DS.space.md,
   },
   label: {
     fontFamily: DS.font.bodyMedium,
