@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../../designSystem';
@@ -17,17 +17,19 @@ type Props = {
   children: ReactNode;
 };
 
-export function WizardChrome({
-  title,
-  step,
-  totalSteps,
-  onBack,
-  onNext,
-  nextLabel = 'Continue',
-  nextDisabled,
-  errorMessage,
-  children,
-}: Props) {
+export function WizardChrome(props: Props) {
+  const {
+    title,
+    step,
+    totalSteps,
+    onBack,
+    onNext,
+    nextLabel = 'Continue',
+    nextDisabled,
+    children,
+  } = props;
+  const validationError = props.errorMessage ?? null;
+
   const insets = useSafeAreaInsets();
   const progress = Math.min(1, step / totalSteps);
 
@@ -45,12 +47,19 @@ export function WizardChrome({
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
-      {errorMessage ? (
+      {validationError ? (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{errorMessage}</Text>
+          <Text style={styles.errorBannerText}>{validationError}</Text>
         </View>
       ) : null}
-      <View style={styles.body}>{children}</View>
+      <ScrollView
+        style={styles.bodyScroll}
+        contentContainerStyle={styles.bodyContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {children}
+      </ScrollView>
       {onNext ? (
         <View style={[styles.footer, { paddingBottom: insets.bottom + DS.space.md }]}>
           <Pressable
@@ -111,10 +120,11 @@ const styles = StyleSheet.create({
     color: '#fca5a5',
     lineHeight: 20,
   },
-  body: {
-    flex: 1,
+  bodyScroll: { flex: 1 },
+  bodyContent: {
     paddingHorizontal: DS.space.base,
     paddingTop: DS.space.lg,
+    paddingBottom: DS.space.lg,
   },
   footer: {
     paddingHorizontal: DS.space.base,
