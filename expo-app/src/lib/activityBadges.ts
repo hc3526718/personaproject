@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getSupabase, isSupabaseConfigured } from './supabase';
+import { isSupabaseConfigured } from './env';
+import { getSupabase } from './supabase';
 import { listInAppNotifications } from '../roadmap/notificationsService';
 import { listConversationSummaries } from '../roadmap/messagingService';
 

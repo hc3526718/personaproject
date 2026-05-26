@@ -25,6 +25,7 @@ export function WizardChrome({
   onNext,
   nextLabel = 'Continue',
   nextDisabled,
+  errorMessage,
   children,
 }: Props) {
   const insets = useSafeAreaInsets();
