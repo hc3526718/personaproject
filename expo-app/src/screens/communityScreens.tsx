@@ -3,7 +3,6 @@ import {
   ActionSheetIOS,
   Alert,
   AppState,
-  Dimensions,
   Image,
   type ImageSourcePropType,
   type LayoutChangeEvent,
