@@ -143,6 +143,36 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     borderColor: c.borderWhite5,
     position: 'relative',
   },
+  /** Compact upload preview for create-post (replaces tall 4:5 hero). */
+  composerHeroCompact: {
+    width: '100%',
+    height: 120,
+    borderRadius: DS.radius.lg,
+    overflow: 'hidden',
+    backgroundColor: c.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.borderWhite5,
+    position: 'relative',
+  },
+  composerHeroEmptyCompact: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: DS.space.md,
+    gap: 4,
+  },
+  composerHeroEmptyTitleCompact: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    color: c.text,
+    textAlign: 'center',
+  },
+  composerHeroEmptySubCompact: {
+    fontFamily: DS.font.body,
+    fontSize: 11,
+    color: c.textMuted,
+    textAlign: 'center',
+  },
   composerHeroInner: {
     width: '100%',
     height: '100%',

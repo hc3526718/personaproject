@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { webPageShellStyle } from '../layout/webLayout';
 import { WebAppFrame } from '../components/WebAppFrame';
 import {
@@ -16,6 +16,7 @@ import { useAccessibility } from '../accessibility/AccessibilityContext';
 import { DS } from '../designSystem';
 import { useThemedStackScreenOptions } from '../theme/useThemeStyles';
 import { CommunityThemeProvider } from '../screens/community/CommunityStylesContext';
+import { useActivityBadges } from '../activity/ActivityBadgeProvider';
 import { getSupabase } from '../lib/supabase';
 import { ensureProfileRow } from '../roadmap/profileService';
 import { OAuthProfileSetupModal } from '../components/OAuthProfileSetupModal';
@@ -348,9 +349,45 @@ function AuthenticatedShell() {
   );
 }
 
+function TabBadgeIcon({
+  children,
+  count,
+}: {
+  children: React.ReactNode;
+  count: number;
+}) {
+  return (
+    <View>
+      {children}
+      {count > 0 ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: -2,
+            right: -6,
+            minWidth: 16,
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: '#ef4444',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 3,
+          }}
+        >
+          <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+            {count > 9 ? '9+' : count}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const { colors } = useAccessibility();
+  const { unreadNotifications, unreadMessages } = useActivityBadges();
+  const communityBadgeCount = unreadNotifications + unreadMessages;
   const tabBarStyleVisible = useMemo(
     () => ({
       backgroundColor: DS.color.tabBarRaised,
@@ -401,7 +438,9 @@ function MainTabNavigator() {
               ? { display: 'none' as const, height: 0, overflow: 'hidden' as const }
               : tabBarStyleVisible,
             tabBarIcon: ({ color, size }) => (
-              <FontAwesome5 name="users" size={Math.max(14, size - 2)} color={color} solid />
+              <TabBadgeIcon count={communityBadgeCount}>
+                <FontAwesome5 name="users" size={Math.max(14, size - 2)} color={color} solid />
+              </TabBadgeIcon>
             ),
           };
         }}

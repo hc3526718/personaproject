@@ -21,6 +21,8 @@ import { useAuth } from '../auth/AuthContext';
 import { deleteOwnAccount } from '../auth/accountDeletionService';
 import { syncDaltonVerifiedFromProfileIfPremium } from '../auth/userMetadataSupabase';
 import { AppleHeroButton } from '../components/AppleHeroButton';
+import { HighlightVideoModal } from '../components/HighlightVideoModal';
+import { uploadHighlightVideo } from '../lib/highlightVideoUpload';
 import { BrandLogo } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
@@ -92,6 +94,9 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
   const [bannerZoomOpen, setBannerZoomOpen] = useState(false);
+  const [highlightPlayer, setHighlightPlayer] = useState<{ title: string; url: string } | null>(
+    null,
+  );
   const live = isLiveUser(user);
 
   useFocusEffect(
@@ -278,13 +283,7 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
                     navigation.navigate('EditProfileSectionDetail', { slug: 'highlights' });
                     return;
                   }
-                  navigation.getParent()?.navigate('Media', {
-                    screen: 'MediaPlayer',
-                    params: {
-                      title: h.title,
-                      playbackUrl: h.video_url.trim(),
-                    },
-                  });
+                  setHighlightPlayer({ title: h.title, url: h.video_url.trim() });
                 }}
               >
                 <View style={styles.highlightThumbPlaceholder}>
@@ -324,6 +323,12 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
           ) : null}
         </Pressable>
       </Modal>
+      <HighlightVideoModal
+        visible={highlightPlayer != null}
+        title={highlightPlayer?.title ?? 'Highlight'}
+        videoUrl={highlightPlayer?.url ?? ''}
+        onClose={() => setHighlightPlayer(null)}
+      />
     </View>
   );
 }
@@ -1521,7 +1526,7 @@ export function EditProfileSectionDetailScreen({
         {slug === 'highlights' ? (
           <>
             <Text style={styles.sectionDetailMuted}>
-              Add a title and video URL for each highlight. Tap play on your profile to open the video.
+              Add a title and paste a video link, or upload a clip from your device.
             </Text>
             {highlights.map((row, i) => (
               <View key={`hl-${i}`} style={styles.highlightEditBlock}>
@@ -1547,6 +1552,32 @@ export function EditProfileSectionDetailScreen({
                   autoCapitalize="none"
                   keyboardType="url"
                 />
+                <Pressable
+                  style={[styles.photoActionRow, { marginTop: DS.space.sm }]}
+                  onPress={() => {
+                    void (async () => {
+                      if (!user?.id) return;
+                      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                      if (!perm.granted) return;
+                      const res = await ImagePicker.launchImageLibraryAsync({
+                        mediaTypes: ['videos'],
+                        quality: 0.9,
+                      });
+                      if (res.canceled || !res.assets[0]?.uri) return;
+                      const url = await uploadHighlightVideo(user.id, res.assets[0].uri);
+                      if (!url) {
+                        Alert.alert('Upload failed', 'Could not upload this video.');
+                        return;
+                      }
+                      setHighlights((rows) =>
+                        rows.map((r, j) => (j === i ? { ...r, video_url: url } : r)),
+                      );
+                    })();
+                  }}
+                >
+                  <FontAwesome name="video-camera" size={16} color={DS.color.gold} />
+                  <Text style={styles.photoActionLabel}> Upload video file</Text>
+                </Pressable>
                 {highlights.length > 1 ? (
                   <Pressable
                     style={styles.photoRemoveRow}

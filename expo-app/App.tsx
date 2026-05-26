@@ -3,12 +3,14 @@ import { wrapWithSentry } from './src/monitoring/sentryBoot';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { hideNativeSplash, scheduleNativeSplashFailsafe } from './src/boot/nativeSplashGate';
+import { configurePushPresentation } from './src/lib/pushRegistration';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { AccessibilityProvider } from './src/accessibility/AccessibilityContext';
 import { ActionBannerProvider } from './src/actionBanner/ActionBannerContext';
+import { ActivityBadgeProvider } from './src/activity/ActivityBadgeProvider';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
@@ -25,6 +27,7 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
 
   useEffect(() => {
     scheduleNativeSplashFailsafe();
+    void configurePushPresentation();
   }, []);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
     <AccessibilityProvider>
       <SubscriptionProvider>
         <ActionBannerProvider>
+          <ActivityBadgeProvider>
           <View style={styles.shell}>
             {coreReady ? (
               <AppNavigator />
@@ -48,6 +52,7 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
               </View>
             )}
           </View>
+          </ActivityBadgeProvider>
         </ActionBannerProvider>
       </SubscriptionProvider>
     </AccessibilityProvider>

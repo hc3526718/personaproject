@@ -20,6 +20,8 @@ export type CommunityStackParamList = {
     avatarUrl?: string;
     /** When set, sending a message marks the linked proposal as discussed (master review). */
     markDiscussedProposalId?: string;
+    /** Pre-filled composer text (e.g. master outreach to applicant). */
+    initialDraft?: string;
   };
   BrandPartner: { pageId?: string } | undefined;
   DemoHub: undefined;
@@ -38,6 +40,7 @@ export type MediaStackParamList = {
 
 export type BookingConfirmParams = {
   reference?: string;
+  bookingId?: string;
   eventId?: string;
   title?: string;
   imageUri?: string;

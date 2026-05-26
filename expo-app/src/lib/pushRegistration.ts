@@ -7,10 +7,29 @@ import { registerDevicePushToken } from '../roadmap/notificationsService';
  * Registers Expo push token when `expo-notifications` is installed and permission granted.
  * Safe no-op when package missing (dev without native module).
  */
+/** In-app notifications while open; system banner only when app is backgrounded. */
+export async function configurePushPresentation(): Promise<void> {
+  try {
+    const Notifications = await import('expo-notifications');
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: false,
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch {
+    /* expo-notifications optional */
+  }
+}
+
 export async function tryRegisterPushToken(userId: string): Promise<void> {
   if (!userId || userId.startsWith('demo-') || !isSupabaseConfigured()) return;
   try {
     const Notifications = await import('expo-notifications');
+    await configurePushPresentation();
     const { status: existing } = await Notifications.getPermissionsAsync();
     let status = existing;
     if (existing !== 'granted') {

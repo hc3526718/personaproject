@@ -257,6 +257,7 @@ function bookingToConfirmParams(b: BookingWithEvent) {
   }
   return {
     reference: b.reference,
+    bookingId: b.bookingId,
     eventId: b.eventId,
     title,
     imageUri,
@@ -1200,6 +1201,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
     const demoSession = !user || user.id.startsWith('demo-');
     let reference = `SC-${Date.now().toString(36).toUpperCase().slice(-10)}`;
     let eventId: string | undefined = supabaseEventId;
+    let bookingId: string | undefined;
     if (!demoSession && isSupabaseConfigured()) {
       if (requiresPayment && !stripePriceId) {
         Alert.alert(
@@ -1235,6 +1237,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           }
           reference = booked.reference;
           eventId = booked.eventId;
+          bookingId = booked.bookingId;
         } else {
           const created = await createEventAndBooking(user.id, {
             title,
@@ -1251,6 +1254,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           }
           reference = created.reference;
           eventId = created.eventId;
+          bookingId = created.bookingId;
         }
       } finally {
         setBookingBusy(false);
@@ -1259,6 +1263,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
     showBanner(`Signed up · ${title}`, `Reference ${reference}`);
     navigation.navigate('BookingConfirm', {
       reference,
+      bookingId,
       eventId,
       title,
       imageUri: heroUri,
@@ -1428,6 +1433,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const { user } = useAuth();
   const p = route.params;
   const refCode = p?.reference ?? 'SC-2024-1015';
+  const bookingId = p?.bookingId;
   const eventId = p?.eventId;
   const evTitle = p?.title ?? 'STRENGTH CAMP';
   const evImg = p?.imageUri ?? DEFAULT_HERO;
@@ -1529,14 +1535,21 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
           {
             key: 'wallet',
             title: 'Add to Apple Wallet',
-            subtitle: 'Server-signed .pkpass in production',
+            subtitle: 'Add your event pass',
             icon: <FontAwesome name="apple" size={14} color={DS.color.gold} />,
-            onPress: () =>
-              Alert.alert(
-                'Apple Wallet',
-                'Event passes must be built and signed on your backend (Pass Type ID, certificates, WWDR). The app will download a .pkpass from your Edge Function when wired.',
-                [{ text: 'OK' }],
-              ),
+            onPress: () => {
+              if (!bookingId) {
+                Alert.alert('Apple Wallet', 'This booking is missing an id. Re-open the confirmation screen.');
+                return;
+              }
+              void import('../lib/walletPass')
+                .then(({ addEventPassToAppleWallet }) =>
+                  addEventPassToAppleWallet({ bookingId, reference: refCode }),
+                )
+                .catch(() =>
+                  Alert.alert('Apple Wallet', 'Could not load the Wallet module. Please try again.'),
+                );
+            },
           },
         ]
       : [];

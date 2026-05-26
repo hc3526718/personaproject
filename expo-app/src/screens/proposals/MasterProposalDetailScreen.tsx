@@ -16,6 +16,8 @@ import { AppLoadingIndicator } from '../../components/AppLoadingIndicator';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { DS } from '../../designSystem';
 import type { ProfileStackParamList } from '../../navigation/types';
+import { buildProposalOutreachMessage } from '../../lib/proposalOutreachMessage';
+import { fetchProfileByUserId } from '../../roadmap/profileService';
 import {
   fetchProposalById,
   masterOpenProposal,
@@ -78,18 +80,29 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
 
   const messageApplicant = useCallback(() => {
     if (!row?.author_id) return;
-    navigation.getParent()?.navigate(
-      'Community' as never,
-      {
-        screen: 'MessageThread',
-        params: {
-          peerUserId: row.author_id,
-          name: row.author_display_name ?? 'Applicant',
-          markDiscussedProposalId: proposalId,
-        },
-      } as never,
-    );
-  }, [navigation, proposalId, row?.author_display_name, row?.author_id]);
+    void (async () => {
+      const prof = await fetchProfileByUserId(row.author_id);
+      const initialDraft = buildProposalOutreachMessage({
+        kind: row.kind,
+        payload: row.payload,
+        authorFirstName: prof?.first_name ?? null,
+        authorUsername: prof?.username ?? null,
+        authorDisplayName: prof?.display_name ?? row.author_display_name ?? null,
+      });
+      navigation.getParent()?.navigate(
+        'Community' as never,
+        {
+          screen: 'MessageThread',
+          params: {
+            peerUserId: row.author_id,
+            name: row.author_display_name ?? 'Applicant',
+            markDiscussedProposalId: proposalId,
+            initialDraft,
+          },
+        } as never,
+      );
+    })();
+  }, [navigation, proposalId, row]);
 
   const decide = useCallback(
     async (decision: 'approved' | 'rejected') => {

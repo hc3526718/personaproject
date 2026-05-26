@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -27,6 +27,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { OptionMenuModal, type OptionMenuItem } from '../components/OptionMenuModal';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { PostCommentsSheet } from '../components/PostCommentsSheet';
 import { CaptionComposer } from '../components/CaptionComposer';
 import { BrandLogo } from '../components/BrandLogo';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
@@ -111,6 +113,12 @@ import type { MessageRow, SubscriptionOfferPageRow } from '../roadmap/types';
 import type { CommunityStackParamList, SponsorsStackParamList } from '../navigation/types';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { requestProposalOutcomeModal } from '../lib/proposalOutcomeBridge';
+import {
+  navigateFromInAppNotification,
+  notificationIconForLink,
+} from '../lib/notificationNavigation';
+import { useActivityBadges } from '../activity/ActivityBadgeProvider';
+import { markMessagesSeen, markNotificationsSeen } from '../lib/activityBadges';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
@@ -224,10 +232,41 @@ function formatRelativePostTime(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function TabIconWithBadge({
+  children,
+  show,
+}: {
+  children: ReactElement;
+  show: boolean;
+}) {
+  return (
+    <View>
+      {children}
+      {show ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: -2,
+            right: -4,
+            width: 9,
+            height: 9,
+            borderRadius: 5,
+            backgroundColor: '#ef4444',
+            borderWidth: 1,
+            borderColor: DS.color.background,
+          }}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   const { styles, colors } = useCommunityTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { unreadNotifications, unreadMessages, clearNotificationBadge, clearMessageBadge } =
+    useActivityBadges();
   const [feedPosts, setFeedPosts] = useState<CommunityPostFeedRow[]>([]);
   const [feedLoading, setFeedLoading] = useState(() => isSupabaseConfigured());
   const [eventTitleMap, setEventTitleMap] = useState<Map<string, string>>(new Map());
@@ -381,16 +420,28 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
             <Pressable onPress={() => navigation.navigate('CommunitySearch')}>
               <FontAwesome name="search" size={20} color={colors.gold} />
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('MessagesInbox')}>
-              <FontAwesome5 name="paper-plane" size={18} color={colors.gold} solid={false} />
+            <Pressable
+              onPress={() => {
+                void clearMessageBadge();
+                navigation.navigate('MessagesInbox');
+              }}
+            >
+              <TabIconWithBadge show={unreadMessages > 0}>
+                <FontAwesome5 name="paper-plane" size={18} color={colors.gold} solid={false} />
+              </TabIconWithBadge>
             </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Notifications"
-              onPress={() => navigation.navigate('Notifications')}
+              onPress={() => {
+                void clearNotificationBadge();
+                navigation.navigate('Notifications');
+              }}
               hitSlop={8}
             >
-              <FontAwesome name="bell-o" size={20} color={colors.gold} />
+              <TabIconWithBadge show={unreadNotifications > 0}>
+                <FontAwesome name="bell-o" size={20} color={colors.gold} />
+              </TabIconWithBadge>
             </Pressable>
           </View>
         </View>
@@ -440,304 +491,8 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   );
 }
 
-export function CreateCommunityPostScreen({ navigation }: CProps<'CreateCommunityPost'>) {
-  const { styles, colors } = useCommunityTheme();
-  const insets = useSafeAreaInsets();
-  const { user } = useAuth();
-  const liveMode = isSupabaseConfigured();
-  const isDemoUser = Boolean(user?.id.startsWith('demo-'));
+export { CreateCommunityPostScreen } from './community/CreateCommunityPostScreen';
 
-  const [captionValue, setCaptionValue] = useState({ body: '', hashtags: [] as string[] });
-  const [captionPlain, setCaptionPlain] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [media, setMedia] = useState<ComposerMedia[]>([]);
-  const [events, setEvents] = useState<{ id: string; title: string; starts_at: string }[]>([]);
-  const [eventId, setEventId] = useState<string | null>(null);
-  const [eventPickerOpen, setEventPickerOpen] = useState(false);
-
-  const showBanner = useActionBanner();
-
-  useEffect(() => {
-    if (!liveMode) return;
-    void (async () => {
-      const rows = await listAllEvents(100);
-      setEvents(rows.map((e) => ({ id: e.id, title: e.title, starts_at: e.starts_at })));
-    })();
-  }, [liveMode]);
-
-  const openPicker = useCallback(async () => {
-    if (Platform.OS !== 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
-    }
-
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: true,
-      quality: 0.92,
-      videoMaxDuration: Math.floor(MAX_COMPOSER_VIDEO_MS / 1000),
-      selectionLimit: MAX_COMPOSER_IMAGES + MAX_COMPOSER_VIDEOS,
-    });
-
-    if (res.canceled) return;
-
-    const nextIncoming: ComposerMedia[] = [];
-    for (const a of res.assets) {
-      const uri = a.uri;
-      if (pickerAssetIsVideo(a)) {
-        const durMs = pickerVideoDurationMs(a) ?? MAX_COMPOSER_VIDEO_MS;
-        if (durMs > MAX_COMPOSER_VIDEO_MS) continue;
-        nextIncoming.push({
-          kind: 'video',
-          uri,
-          durationMs: durMs,
-          mimeType: a.mimeType ?? undefined,
-        });
-      } else if (uri) {
-        nextIncoming.push({ kind: 'image', uri, mimeType: a.mimeType ?? undefined });
-      }
-    }
-
-    setMedia(clampComposerMedia([...media, ...nextIncoming]));
-  }, [media]);
-
-  const canPost =
-    Boolean(
-      user &&
-        !isDemoUser &&
-        liveMode &&
-        media.length > 0 &&
-        canSubmitCommunityPost(user.id, { body: captionPlain }) &&
-        !busy,
-    );
-
-  const removeMedia = useCallback((uri: string) => {
-    setMedia((prev) => clampComposerMedia(prev.filter((m) => m.uri !== uri)));
-  }, []);
-
-  const submit = useCallback(async () => {
-    const picks = clampComposerMedia(media);
-    if (!user || isDemoUser || !liveMode) return;
-    if (picks.length === 0) {
-      Alert.alert('Add media', 'Choose at least one photo or video.');
-      return;
-    }
-    if (!canSubmitCommunityPost(user.id, { body: captionPlain })) {
-      Alert.alert('Caption required', 'Add a caption before posting.');
-      return;
-    }
-    setBusy(true);
-    try {
-      const eventTag = eventId ? `\n\n#event:${eventId}` : '';
-      const created = await insertCommunityPost(user.id, `${captionPlain.trim()}${eventTag}`);
-      if ('error' in created) {
-        Alert.alert('Could not post', created.error);
-        return;
-      }
-      const row = created.row;
-      const supabase = getSupabase();
-      if (supabase && picks.length > 0) {
-        const uploadErrors: string[] = [];
-        for (let i = 0; i < picks.length; i++) {
-          const m = picks[i]!;
-          try {
-            const { uriToBlob } = await import('../lib/uriToBlob');
-            const contentType = m.mimeType ?? inferContentType(m.kind, m.uri);
-            const blob = await uriToBlob(m.uri, contentType);
-            const ext = inferExt(m.kind, m.uri);
-            const storage_path = `posts/${user.id}/${row.id}/${Date.now()}-${i}.${ext}`;
-            const up = await supabase.storage.from('media_assets').upload(storage_path, blob, {
-              contentType,
-              upsert: false,
-            });
-            if (up.error) {
-              uploadErrors.push(up.error.message);
-              continue;
-            }
-            const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
-            const public_url = pub.data.publicUrl ?? null;
-            const { error: insErr } = await supabase.from('media_assets').insert({
-              owner_id: user.id,
-              kind: m.kind,
-              storage_path,
-              public_url,
-              mime_type: contentType,
-              visibility: 'public',
-              post_id: row.id,
-            });
-            if (insErr) uploadErrors.push(insErr.message);
-          } catch (e) {
-            uploadErrors.push(e instanceof Error ? e.message : 'Upload failed');
-          }
-        }
-        if (uploadErrors.length === picks.length) {
-          Alert.alert(
-            'Post saved without media',
-            uploadErrors[0] ?? 'Could not upload attachments. Check storage permissions and try again.',
-          );
-        } else if (uploadErrors.length > 0) {
-          showBanner('Posted with warnings', 'Some attachments could not be uploaded.');
-        }
-      }
-      showBanner('Posted', 'Your post is live in the feed.');
-      navigation.goBack();
-    } finally {
-      setBusy(false);
-    }
-  }, [user, isDemoUser, liveMode, captionPlain, eventId, navigation, media, showBanner]);
-
-  const first = media[0];
-
-  return (
-    <View style={styles.root}>
-      <View style={[styles.createTop, { paddingTop: insets.top + DS.space.md }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <FontAwesome name="arrow-left" size={20} color={colors.gold} />
-        </Pressable>
-        <Text style={styles.createTitle}>NEW POST</Text>
-        <Pressable
-          onPress={() => void submit()}
-          disabled={!canPost}
-          style={[styles.createPostBtn, !canPost && { opacity: 0.45 }]}
-        >
-          <Text style={styles.createPostBtnTxt}>{busy ? 'Postingâ€¦' : 'Post'}</Text>
-        </Pressable>
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[styles.createBody, { paddingBottom: 32 + insets.bottom }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.composerSectionKicker}>POST PREVIEW (FIRST ATTACHMENT)</Text>
-        <View style={styles.composerHero}>
-          {first ? (
-            <>
-              {first.kind === 'image' ? (
-                <Image source={{ uri: first.uri }} style={styles.composerHeroInner} resizeMode="cover" />
-              ) : (
-                <Video
-                  source={{ uri: first.uri }}
-                  style={styles.composerHeroInner}
-                  resizeMode={ResizeMode.COVER}
-                  useNativeControls
-                  isLooping={false}
-                />
-              )}
-              <Pressable style={styles.mediaRemove} onPress={() => removeMedia(first.uri)} hitSlop={8}>
-                <FontAwesome name="times" size={11} color={colors.background} />
-              </Pressable>
-              <Pressable style={styles.composerAddChip} onPress={() => void openPicker()} hitSlop={8}>
-                <FontAwesome name="plus" size={12} color={colors.background} />
-                <Text style={styles.composerAddChipTxt}>Add</Text>
-              </Pressable>
-            </>
-          ) : (
-            <Pressable style={styles.composerHeroEmpty} onPress={() => void openPicker()}>
-              <FontAwesome name="plus-square-o" size={34} color={colors.gold} />
-              <Text style={styles.composerHeroEmptyTitle}>Add photos & videos</Text>
-              <Text style={styles.composerHeroEmptySub}>
-                Up to {MAX_COMPOSER_IMAGES} images and {MAX_COMPOSER_VIDEOS} videos Â· max {MAX_COMPOSER_VIDEO_MS / 1000}s clips
-              </Text>
-            </Pressable>
-          )}
-        </View>
-
-        {media.length > 1 ? (
-          <>
-            <Text style={[styles.composerSectionKicker, { marginTop: DS.space.md }]}>ALL ATTACHMENTS</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.composerThumbStrip}
-            >
-              {media.map((m) => (
-                <View key={m.uri} style={styles.composerThumbWrap}>
-                  <Pressable hitSlop={6} style={styles.composerThumbRemove} onPress={() => removeMedia(m.uri)}>
-                    <FontAwesome name="times" size={8} color={colors.background} />
-                  </Pressable>
-                  {m.kind === 'image' ? (
-                    <Image source={{ uri: m.uri }} style={styles.composerThumb} />
-                  ) : (
-                    <>
-                      <Video
-                        source={{ uri: m.uri }}
-                        style={styles.composerThumb}
-                        resizeMode={ResizeMode.COVER}
-                      />
-                      <View style={styles.composerThumbVidBadge} pointerEvents="none">
-                        <FontAwesome name="video-camera" size={9} color={colors.background} />
-                      </View>
-                    </>
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-          </>
-        ) : null}
-
-        <Text style={[styles.composerSectionKicker, { marginTop: DS.space.md }]}>CAPTION Â· MENTIONS Â· HASHTAGS</Text>
-        <View style={styles.captionCard}>
-          <CaptionComposer
-            value={captionValue}
-            onChange={(v, plain) => {
-              setCaptionValue(v);
-              setCaptionPlain(plain);
-            }}
-            placeholder={"@coach teammates â€” #hashtags move to the tray below"}
-            maxLength={4000}
-          />
-        </View>
-
-        <Text style={[styles.composerSectionKicker, { marginTop: DS.space.sm }]}>ATTACH EVENT (OPTIONAL)</Text>
-        <Pressable
-          style={styles.eventTagRow}
-          onPress={() => setEventPickerOpen(true)}
-          disabled={!events.length}
-        >
-          <FontAwesome name="calendar" size={16} color={colors.gold} />
-          <Text style={styles.eventTagTxt}>
-            {eventId ? `${events.find((e) => e.id === eventId)?.title ?? 'Event'}` : 'Select an upcoming event'}
-          </Text>
-          <FontAwesome name="chevron-right" size={14} color={colors.textMuted} />
-        </Pressable>
-      </ScrollView>
-
-      {eventPickerOpen ? (
-        <View style={styles.eventPickerOverlay}>
-          <Pressable style={styles.eventPickerBackdrop} onPress={() => setEventPickerOpen(false)} />
-          <View style={[styles.eventPickerSheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-            <Text style={styles.eventPickerTitle}>Attach an event</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {events.map((e) => (
-                <Pressable
-                  key={e.id}
-                  style={styles.eventPickerRow}
-                  onPress={() => {
-                    setEventId(e.id);
-                    setEventPickerOpen(false);
-                  }}
-                >
-                  <Text style={styles.eventPickerRowTitle}>{e.title}</Text>
-                  <Text style={styles.eventPickerRowMeta}>{new Date(e.starts_at).toLocaleString()}</Text>
-                </Pressable>
-              ))}
-              <Pressable
-                style={[styles.eventPickerRow, { borderBottomWidth: 0 }]}
-                onPress={() => {
-                  setEventId(null);
-                  setEventPickerOpen(false);
-                }}
-              >
-                <Text style={[styles.eventPickerRowTitle, { color: colors.textMuted }]}>Clear event</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
 
 type SecondaryReaction = { kind: 'fire' | 'clap' | 'lightbulb'; count: number };
 
@@ -805,6 +560,8 @@ function PostCard({
   const [commentsBusy, setCommentsBusy] = useState(false);
   const [postMenuVisible, setPostMenuVisible] = useState(false);
   const [postMenuOptions, setPostMenuOptions] = useState<OptionMenuItem[]>([]);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const showActionBanner = useActionBanner();
   const insets = useSafeAreaInsets();
 
@@ -1028,27 +785,7 @@ function PostCard({
     };
     const deletePost = () => {
       if (!canDelete) return;
-      Alert.alert('Delete post?', 'This cannot be undone.', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              const ok = await deleteCommunityPost(_postId);
-              if (ok) {
-                onPostDeleted?.(_postId);
-                showActionBanner('Deleted', 'Post removed from the feed.');
-              } else {
-                Alert.alert(
-                  'Could not delete',
-                  'You may not have permission to delete this post. Try again later.',
-                );
-              }
-            })();
-          },
-        },
-      ]);
+      setDeleteConfirmVisible(true);
     };
 
     const items: OptionMenuItem[] = [
@@ -1100,15 +837,59 @@ function PostCard({
     }
   }, [liveMode, user, commentDraft, _postId, reloadComments, showActionBanner]);
 
+  const confirmDeletePost = useCallback(async () => {
+    setDeleteBusy(true);
+    const ok = await deleteCommunityPost(_postId);
+    setDeleteBusy(false);
+    setDeleteConfirmVisible(false);
+    if (ok) {
+      onPostDeleted?.(_postId);
+      showActionBanner('Deleted', 'Post removed from the feed.');
+    } else {
+      Alert.alert(
+        'Could not delete',
+        'You may not have permission to delete this post. Try again later.',
+      );
+    }
+  }, [_postId, onPostDeleted, showActionBanner]);
+
+  const postMediaItems = (media ?? []).filter(
+    (m): m is { kind: 'image' | 'video'; uri: string } => m.kind === 'image' || m.kind === 'video',
+  );
   const avatarSource = resolvePostAvatar(avatar);
 
   return (
     <View style={styles.postCard}>
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title="Delete post?"
+        message="This cannot be undone. The post will be removed from the community feed permanently."
+        confirmLabel="Delete"
+        destructive
+        busy={deleteBusy}
+        onCancel={() => setDeleteConfirmVisible(false)}
+        onConfirm={() => void confirmDeletePost()}
+      />
       <OptionMenuModal
         visible={postMenuVisible}
         title="Post"
         options={postMenuOptions}
         onClose={() => setPostMenuVisible(false)}
+      />
+      <PostCommentsSheet
+        visible={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        postName={name}
+        postBody={bodyParagraphs?.join('\n\n') ?? body ?? ''}
+        postMedia={postMediaItems}
+        postImageFallback={imageUri}
+        comments={comments}
+        commentDraft={commentDraft}
+        onChangeDraft={setCommentDraft}
+        onSubmit={() => void submitComment()}
+        commentsBusy={commentsBusy}
+        liveMode={!!liveMode}
+        colors={colors}
       />
       <View style={styles.postTop}>
         <Pressable
@@ -1221,59 +1002,6 @@ function PostCard({
         </Pressable>
       </View>
 
-      <Modal
-        visible={commentsOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setCommentsOpen(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.commentsModalRoot}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View style={[styles.commentsHeader, { paddingTop: Math.max(insets.top, 12) }]}>
-            <Text style={styles.commentsTitle}>Comments</Text>
-            <Pressable hitSlop={10} onPress={() => setCommentsOpen(false)}>
-              <Text style={styles.commentsClose}>Done</Text>
-            </Pressable>
-          </View>
-          <FlatList
-            data={comments}
-            keyExtractor={(c) => c.id}
-            contentContainerStyle={{ paddingHorizontal: DS.space.base, paddingBottom: 12 }}
-            ListEmptyComponent={
-              <Text style={styles.commentsEmpty}>
-                {liveMode ? 'No comments yet. Start the thread.' : 'Sign in to read and post comments.'}
-              </Text>
-            }
-            renderItem={({ item }) => (
-              <View style={styles.commentRow}>
-                <Text style={styles.commentAuthor}>
-                  {item.author_display_name?.trim() || 'Member'}
-                </Text>
-                <Text style={styles.commentBody}>{item.body}</Text>
-              </View>
-            )}
-          />
-          <View style={[styles.commentComposer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Write a commentâ€¦"
-              placeholderTextColor={colors.textMuted}
-              value={commentDraft}
-              onChangeText={setCommentDraft}
-              multiline
-            />
-            <Pressable
-              style={[styles.commentSend, commentsBusy || !commentDraft.trim() ? { opacity: 0.4 } : null]}
-              disabled={commentsBusy || !commentDraft.trim()}
-              onPress={() => void submitComment()}
-            >
-              <FontAwesome name="send" size={16} color={colors.background} />
-            </Pressable>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </View>
   );
 }
@@ -1878,11 +1606,41 @@ type NotifRowUi = {
   unread: boolean;
   time: string;
   body: ReactNode;
+  titlePlain?: string;
   avatar?: string;
   icon?: 'calendar' | 'trophy';
+  iconKind?: ReturnType<typeof notificationIconForLink>;
   linkType?: string | null;
   linkId?: string | null;
 };
+
+function NotifLeadingIcon({
+  kind,
+  colors,
+  styles,
+}: {
+  kind: ReturnType<typeof notificationIconForLink>;
+  colors: { gold: string };
+  styles: ReturnType<typeof useCommunityStyles>;
+}) {
+  const name =
+    kind === 'message'
+      ? 'envelope'
+      : kind === 'proposal'
+        ? 'file-text-o'
+        : kind === 'event'
+          ? 'calendar'
+          : kind === 'post'
+            ? 'picture-o'
+            : kind === 'follow'
+              ? 'user-plus'
+              : 'bell-o';
+  return (
+    <View style={styles.notifIconCircle}>
+      <FontAwesome name={name} size={16} color={colors.gold} />
+    </View>
+  );
+}
 
 export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
   const { styles, colors } = useCommunityTheme();
@@ -1927,6 +1685,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
   useFocusEffect(
     useCallback(() => {
       reloadNotifs();
+      void markNotificationsSeen();
     }, [reloadNotifs]),
   );
 
@@ -1985,13 +1744,14 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
       id: n.id,
       unread: !n.read_at,
       time: formatRelativePostTime(n.created_at),
+      titlePlain: n.title,
       body: (
         <>
           <Text style={notifBodyStrongStyle}>{n.title}</Text>
           <Text style={notifBodyRestStyle}>{n.body ? ` ${n.body}` : ''}</Text>
         </>
       ),
-      icon: 'calendar' as const,
+      iconKind: notificationIconForLink(n.link_type, n.title),
       linkType: n.link_type,
       linkId: n.link_id,
     })) ?? [];
@@ -2050,6 +1810,16 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
             );
           }
         });
+        const tabNav = navigation.getParent();
+        if (tabNav) {
+          const handled = navigateFromInAppNotification(
+            tabNav as never,
+            row.linkType,
+            row.linkId,
+            row.titlePlain,
+          );
+          if (handled) return;
+        }
         if (row.linkType === 'proposal_outcome' && row.linkId) {
           requestProposalOutcomeModal(row.linkId);
         }
@@ -2057,7 +1827,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
       }
       setReadIds((prev) => new Set(prev).add(row.id));
     },
-    [useServerNotifs, user],
+    [navigation, useServerNotifs, user],
   );
 
   return (
@@ -2102,6 +1872,8 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
           >
             {row.avatar ? (
               <Image source={{ uri: row.avatar }} style={styles.notifAvatar} />
+            ) : row.iconKind ? (
+              <NotifLeadingIcon kind={row.iconKind} colors={colors} styles={styles} />
             ) : row.icon === 'calendar' ? (
               <View style={styles.notifIconCircle}>
                 <FontAwesome name="calendar" size={16} color={colors.gold} />
@@ -2170,6 +1942,7 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
   useFocusEffect(
     useCallback(() => {
       void reloadInboxThreads();
+      void markMessagesSeen();
     }, [reloadInboxThreads]),
   );
 
@@ -2444,6 +2217,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
   const conversationIdParam = route.params?.conversationId;
   const peerUserId = route.params?.peerUserId;
   const markDiscussedProposalId = route.params?.markDiscussedProposalId;
+  const initialDraft = route.params?.initialDraft;
   const title =
     route.params?.name ??
     (isAppStoreScreenshotMode() ? 'Coach Williams' : 'Conversation');
@@ -2456,8 +2230,12 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
 
   const [peerAvatarUrl, setPeerAvatarUrl] = useState<string | null>(paramAvatar?.trim() || null);
   const [liveMessages, setLiveMessages] = useState<MessageRow[]>([]);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(initialDraft?.trim() ?? '');
   const [loading, setLoading] = useState(Boolean(conversationIdParam || peerUserId));
+
+  useEffect(() => {
+    if (initialDraft?.trim()) setDraft(initialDraft.trim());
+  }, [initialDraft]);
   const [attachBusy, setAttachBusy] = useState(false);
   const [chatSearch, setChatSearch] = useState('');
   const [showChatSearch, setShowChatSearch] = useState(false);
