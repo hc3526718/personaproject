@@ -16,8 +16,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { AuthWebBackBar } from '../components/AuthWebBackBar';
 import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { authBackHandler } from '../lib/authNavigation';
 import { DS } from '../designSystem';
 import { openLegalPage } from '../lib/legalUrls';
 import type { AuthStackParamList } from '../navigation/types';
@@ -40,9 +42,11 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
     <View
       style={[
         styles.root,
-        { paddingTop: insets.top + DS.space.md, paddingBottom: insets.bottom + DS.space.lg },
+        { paddingBottom: insets.bottom + DS.space.lg },
+        Platform.OS !== 'web' && { paddingTop: insets.top + DS.space.md },
       ]}
     >
+      <AuthWebBackBar />
       <ScrollView contentContainerStyle={styles.welcomeScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeHero}>
           <AuthWelcomeRiveHero height={220} />
@@ -112,9 +116,14 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AuthWebBackBar />
       <ScreenHeader
         title="Log In"
-        onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+        onBack={
+          Platform.OS === 'web'
+            ? undefined
+            : authBackHandler(navigation, () => navigation.navigate('WelcomeHub'))
+        }
       />
       <ScrollView
         contentContainerStyle={[styles.scrollPad, styles.scrollPadCompact, { paddingBottom: insets.bottom + 24 }]}

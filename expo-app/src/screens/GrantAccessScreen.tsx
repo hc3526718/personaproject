@@ -21,6 +21,8 @@ import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
 import { DS } from '../designSystem';
 import { isSupabaseConfigured } from '../lib/env';
 import type { AuthStackParamList } from '../navigation/types';
+import { AuthWebBackBar } from '../components/AuthWebBackBar';
+import { authBackHandler } from '../lib/authNavigation';
 import { AuthFormField, authScreenSharedStyles as S } from './onboardingScreens';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
@@ -91,7 +93,11 @@ export default function GrantAccessScreen() {
 
   return (
     <KeyboardAvoidingView style={local.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScreenHeader title="Create Account" onBack={goWelcome} />
+      <AuthWebBackBar />
+      <ScreenHeader
+        title="Create Account"
+        onBack={Platform.OS === 'web' ? undefined : authBackHandler(navigation, goWelcome)}
+      />
       <ScrollView
         contentContainerStyle={[S.scrollPad, S.scrollPadCompact, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"

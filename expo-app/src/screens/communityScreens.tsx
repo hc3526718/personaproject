@@ -26,6 +26,7 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
+import { OptionMenuModal, type OptionMenuItem } from '../components/OptionMenuModal';
 import { CaptionComposer } from '../components/CaptionComposer';
 import { BrandLogo } from '../components/BrandLogo';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
@@ -2434,6 +2435,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
   const [attachBusy, setAttachBusy] = useState(false);
   const [chatSearch, setChatSearch] = useState('');
   const [showChatSearch, setShowChatSearch] = useState(false);
+  const [threadMenuVisible, setThreadMenuVisible] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(
     conversationIdParam,
   );
@@ -2558,30 +2560,32 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
 
   const send = useCallback(async () => {
     if (!cidFinal || !user || draft.trim().length === 0) return;
-    const m = await sendTextMessage(cidFinal, user.id, draft);
-    if (m) {
+    const result = await sendTextMessage(cidFinal, user.id, draft);
+    if (result.ok) {
       setDraft('');
-      setLiveMessages((prev) => [...prev, m]);
+      setLiveMessages((prev) => [...prev, result.message]);
       if (markDiscussedProposalId) {
         const { masterMarkProposalDiscussed } = await import('../roadmap/proposalService');
         await masterMarkProposalDiscussed(markDiscussedProposalId);
       }
       showBanner('Sent', 'Message delivered.');
     } else {
-      Alert.alert('Send failed', 'Could not send this message. Check your connection and try again.');
+      Alert.alert('Send failed', result.error);
     }
   }, [cidFinal, user, draft, showBanner, markDiscussedProposalId]);
 
-  const openThreadMenu = useCallback(() => {
-    if (!isLive || !cidFinal) return;
-    const buttons: { text: string; style?: 'cancel' | 'destructive'; onPress?: () => void }[] = [
+  const threadMenuOptions: OptionMenuItem[] = useMemo(() => {
+    if (!isLive || !cidFinal) return [];
+    const opts: OptionMenuItem[] = [
       {
-        text: 'Search chat',
+        key: 'search',
+        label: 'Search chat',
         onPress: () => setShowChatSearch(true),
       },
       {
-        text: 'Clear chat',
-        style: 'destructive',
+        key: 'clear',
+        label: 'Clear chat',
+        destructive: true,
         onPress: () => {
           Alert.alert(
             'Clear chat?',
@@ -2609,9 +2613,10 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
       },
     ];
     if (peerUserId && user?.id) {
-      buttons.push({
-        text: 'Block user',
-        style: 'destructive',
+      opts.push({
+        key: 'block',
+        label: 'Block user',
+        destructive: true,
         onPress: () => {
           Alert.alert(
             'Block user?',
@@ -2636,9 +2641,55 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         },
       });
     }
-    buttons.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Conversation', undefined, buttons);
+    return opts;
   }, [isLive, cidFinal, peerUserId, user?.id, navigation, showBanner]);
+
+  const openThreadMenu = useCallback(() => {
+    if (!cidFinal) {
+      Alert.alert('Conversation', 'Open a live conversation to use these options.');
+      return;
+    }
+    if (!isLive) {
+      Alert.alert('Conversation', 'Sign in with your account to manage this thread.');
+      return;
+    }
+    if (threadMenuOptions.length === 0) return;
+
+    if (Platform.OS === 'web') {
+      setThreadMenuVisible(true);
+      return;
+    }
+
+    if (Platform.OS === 'ios') {
+      const labels = [...threadMenuOptions.map((o) => o.label), 'Cancel'];
+      const destructiveIndex = threadMenuOptions.findIndex((o) => o.destructive);
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: labels,
+          cancelButtonIndex: labels.length - 1,
+          destructiveButtonIndex: destructiveIndex >= 0 ? destructiveIndex : undefined,
+        },
+        (index) => {
+          if (index == null || index === labels.length - 1) return;
+          threadMenuOptions[index]?.onPress();
+        },
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Conversation',
+      'Choose an action',
+      [
+        ...threadMenuOptions.map((o) => ({
+          text: o.label,
+          style: o.destructive ? ('destructive' as const) : undefined,
+          onPress: o.onPress,
+        })),
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
+  }, [cidFinal, isLive, threadMenuOptions]);
 
   const pickAttachment = useCallback(async () => {
     if (!isLive || !cidFinal || !user?.id || attachBusy) return;
@@ -2698,6 +2749,12 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
 
   return (
     <View style={styles.root}>
+      <OptionMenuModal
+        visible={threadMenuVisible}
+        title="Conversation"
+        options={threadMenuOptions}
+        onClose={() => setThreadMenuVisible(false)}
+      />
       <View style={[styles.threadHeader, { paddingTop: insets.top + DS.space.md }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
           <FontAwesome name="arrow-left" size={20} color={colors.gold} />

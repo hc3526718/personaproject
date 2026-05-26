@@ -173,25 +173,35 @@ export async function listMessages(
   return rows.reverse();
 }
 
+export type SendMessageResult =
+  | { ok: true; message: MessageRow }
+  | { ok: false; error: string };
+
 export async function sendTextMessage(
   conversationId: string,
   senderId: string,
   body: string,
-): Promise<MessageRow | null> {
+): Promise<SendMessageResult> {
   if (isAppStoreScreenshotMode() && isScreenshotSampleConversationId(conversationId)) {
-    return null;
+    return { ok: false, error: 'Messages are disabled in screenshot mode.' };
   }
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { ok: false, error: 'Not connected.' };
   const trimmed = body.trim();
-  if (!trimmed) return null;
+  if (!trimmed) return { ok: false, error: 'Message is empty.' };
   const { data, error } = await supabase
     .from('messages')
     .insert({ conversation_id: conversationId, sender_id: senderId, body: trimmed })
     .select('*')
     .single();
-  if (error || !data) return null;
-  return data as MessageRow;
+  if (error || !data) {
+    const msg = error?.message?.trim() || 'Could not send this message.';
+    if (__DEV__ && error) {
+      console.warn('[sendTextMessage]', error.code, error.message, error.details);
+    }
+    return { ok: false, error: msg };
+  }
+  return { ok: true, message: data as MessageRow };
 }
 
 export async function sendMediaMessage(
