@@ -1,9 +1,14 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
+import { WebView } from 'react-native-webview';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../designSystem';
-import { isPlayableVideoUrl } from '../lib/profileHighlights';
+import {
+  isPlayableVideoUrl,
+  resolveHighlightPlaybackUrl,
+} from '../lib/profileHighlights';
+import { isYouTubeUrl } from '../lib/youtube';
 
 type Props = {
   visible: boolean;
@@ -12,10 +17,12 @@ type Props = {
   onClose: () => void;
 };
 
-/** Full-screen overlay for profile highlight clips (not the media library player). */
+/** Full-screen overlay for profile highlight clips (direct file URL or YouTube embed). */
 export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props) {
   const insets = useSafeAreaInsets();
-  const playable = isPlayableVideoUrl(videoUrl);
+  const playbackUrl = resolveHighlightPlaybackUrl(videoUrl);
+  const playable = playbackUrl != null;
+  const useEmbed = isYouTubeUrl(videoUrl);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -29,9 +36,17 @@ export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props
           </Pressable>
         </View>
         <View style={styles.playerWrap}>
-          {playable ? (
+          {playable && useEmbed && playbackUrl ? (
+            <WebView
+              source={{ uri: playbackUrl }}
+              style={styles.embed}
+              allowsFullscreenVideo
+              mediaPlaybackRequiresUserAction={false}
+              javaScriptEnabled
+            />
+          ) : playable && playbackUrl && isPlayableVideoUrl(playbackUrl) ? (
             <Video
-              source={{ uri: videoUrl.trim() }}
+              source={{ uri: playbackUrl }}
               style={styles.video}
               resizeMode={ResizeMode.CONTAIN}
               shouldPlay
@@ -85,6 +100,12 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 240,
     maxHeight: '85%',
+  },
+  embed: {
+    width: '100%',
+    minHeight: 280,
+    maxHeight: '85%',
+    backgroundColor: '#000',
   },
   error: {
     fontFamily: DS.font.body,

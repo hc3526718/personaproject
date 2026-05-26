@@ -19,6 +19,8 @@ export type ConversationSummary = {
   peer_avatar_url: string | null;
   last_body: string | null;
   last_at: string | null;
+  /** Latest message author — used to badge only when someone else messaged you. */
+  last_sender_id: string | null;
 };
 
 /** Requires `get_or_create_dm` in backend/rpc_get_or_create_dm.sql + conversation RLS. */
@@ -93,15 +95,27 @@ export async function listConversationSummaries(userId: string): Promise<Convers
 
   const { data: msgs } = await supabase
     .from('messages')
-    .select('conversation_id, body, created_at')
+    .select('conversation_id, body, created_at, sender_id')
     .in('conversation_id', convIds)
     .order('created_at', { ascending: false })
     .limit(300);
 
-  const lastByConv = new Map<string, { body: string | null; created_at: string }>();
-  for (const m of (msgs ?? []) as { conversation_id: string; body: string | null; created_at: string }[]) {
+  const lastByConv = new Map<
+    string,
+    { body: string | null; created_at: string; sender_id: string }
+  >();
+  for (const m of (msgs ?? []) as {
+    conversation_id: string;
+    body: string | null;
+    created_at: string;
+    sender_id: string;
+  }[]) {
     if (!lastByConv.has(m.conversation_id)) {
-      lastByConv.set(m.conversation_id, { body: m.body, created_at: m.created_at });
+      lastByConv.set(m.conversation_id, {
+        body: m.body,
+        created_at: m.created_at,
+        sender_id: m.sender_id,
+      });
     }
   }
 
@@ -115,6 +129,7 @@ export async function listConversationSummaries(userId: string): Promise<Convers
       peer_avatar_url: pr?.avatar_url ?? null,
       last_body: last?.body ?? null,
       last_at: last?.created_at ?? null,
+      last_sender_id: last?.sender_id ?? null,
     });
   }
   summaries.sort((a, b) => (b.last_at ?? '').localeCompare(a.last_at ?? ''));

@@ -14,12 +14,38 @@ Run in SQL Editor (or via migrations `024`–`028`):
 | `025_bookings_event_user_unique.sql` | Duplicate booking guard |
 | `026_fix_dm_storage_and_proposal_limits.sql` | DM notify, storage policies, proposal monthly cap |
 | `027_storage_bucket_and_dm_rls_recursion.sql` | **`media_assets` bucket** + RLS recursion fix |
+| `029_proposal_instant_review_and_author_edit.sql` | Instant proposal decisions, author delete pending, DM notification links |
 
 Without **`media_assets`** bucket and non-recursive `conversation_participants` policies, profile uploads and DMs return **400/500**.
 
 ---
 
 ## External / manual (cannot finish in app code alone)
+
+### Apple Push Notifications (APNs) — SSL / keys
+
+Production push requires Apple + Expo configuration (not only in-app notification rows):
+
+1. **Apple Developer** → [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources) → **Keys** → create an **APNs** key (`.p8`), note **Key ID** and **Team ID**.
+2. **Expo / EAS** → project credentials → upload the APNs key (or let EAS manage with `eas credentials`).
+3. **App** → `expo-notifications` in a **production** build (not Expo Go); request permission after sign-in.
+4. **Supabase** (optional) → store device tokens via `device_push_tokens` + edge function for server-triggered push.
+5. **Pass updates** (Wallet): if passes use **web service URL** for updates, that endpoint must use **HTTPS with a valid TLS certificate** (often the same server cert as your API). See Apple [PassKit Web Service Reference](https://developer.apple.com/documentation/walletpasses/adding_a_web_service_to_update_passes).
+
+Docs: `docs/APPLE_PUSH_SSL_SETUP.md`, `docs/INTEGRATIONS.md`.
+
+### Apple Wallet — Pass Type ID & signing certificates
+
+To issue **Add to Wallet** event tickets (`.pkpass`):
+
+1. **Pass Type ID** — Developer portal → **Identifiers** → **Pass Type IDs** → register e.g. `pass.com.daltongroup.access.event`.
+2. **Certificate** — Create a **Pass Type ID Certificate** (signing); download `.cer`, export **`.p12`** with a password for your signer service.
+3. **WWDR** — Install Apple **WWDR intermediate** on the machine that signs passes.
+4. **App ID / entitlements** — Enable Wallet capability on the iOS app; associate the Pass Type ID.
+5. **Signing pipeline** — Server builds `pass.json` + assets, signs with OpenSSL/`signpass`/node-passbook, returns `.pkpass` after booking confirmed.
+6. **Web service (optional)** — `webServiceURL` + `authenticationToken` for push-updated passes; host must serve **HTTPS** (TLS 1.2+).
+
+Alternative: **Pass2U** or another vendor API (see `docs/WHAT_NEXT_DETAILED_PENDING.md`). QR check-in validation remains on your backend (`docs/QR_CHECKIN.md`).
 
 ### Apple Wallet event tickets (Path B in docs)
 

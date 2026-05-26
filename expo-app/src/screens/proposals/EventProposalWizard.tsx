@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -23,6 +23,13 @@ import {
   runProposalSubmitFlow,
   showProposalSubmittedAlert,
 } from '../../lib/proposalSubmitFlow';
+import {
+  combineDateAndTime,
+  isScheduleAtLeast48HoursAhead,
+  minScheduleStartDate,
+  schedule48HourError,
+} from '../../lib/scheduleValidation';
+import { proposedDateIsoFromPickers } from '../../lib/masterInstantPublish';
 import type { EventsStackParamList } from '../../navigation/types';
 import { contentProposalsUsedThisMonth } from '../../roadmap/proposalService';
 import { WizardChrome } from './WizardChrome';
@@ -30,7 +37,7 @@ import { WizardChrome } from './WizardChrome';
 type Props = NativeStackScreenProps<EventsStackParamList, 'EventProposalWizard'>;
 
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'All levels'] as const;
-type AgendaSplit = '30' | '60' | 'custom';
+type AgendaSplit = '15' | '30' | '60' | 'custom';
 
 type MediaAttachment = {
   uri: string;
@@ -60,8 +67,8 @@ export function EventProposalWizard({ navigation }: Props) {
   const [title, setTitle] = useState('');
   const [pitch, setPitch] = useState('');
   const [eventDate, setEventDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 14);
+    const d = minScheduleStartDate();
+    d.setDate(d.getDate() + 1);
     return d;
   });
   const [eventTime, setEventTime] = useState(() => {
@@ -72,6 +79,7 @@ export function EventProposalWizard({ navigation }: Props) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [venue, setVenue] = useState('');
+  const [maxAttendance, setMaxAttendance] = useState('');
   const [level, setLevel] = useState<(typeof LEVELS)[number]>('All levels');
   const [agendaSplit, setAgendaSplit] = useState<AgendaSplit>('60');
   const [agenda, setAgenda] = useState<AgendaItem[]>([
@@ -80,6 +88,8 @@ export function EventProposalWizard({ navigation }: Props) {
   ]);
   const [attachments, setAttachments] = useState<MediaAttachment[]>([]);
   const [quotaHint, setQuotaHint] = useState('');
+
+  const minSelectableDate = useMemo(() => minScheduleStartDate(), []);
 
   useEffect(() => {
     void contentProposalsUsedThisMonth().then((n) => setQuotaHint(`${n}/3 proposals used this month`));
@@ -95,6 +105,12 @@ export function EventProposalWizard({ navigation }: Props) {
       }
       if (s === 2) {
         if (!venue.trim()) return 'Venue or location is required.';
+        const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
+        if (!maxAttendance.trim() || Number.isNaN(cap) || cap < 1) {
+          return 'Enter expected attendance (minimum 1).';
+        }
+        const start = combineDateAndTime(eventDate, eventTime);
+        if (!isScheduleAtLeast48HoursAhead(start)) return schedule48HourError();
       }
       if (s === 3) {
         const filled = agenda.filter((a) => a.title.trim() || a.time.trim());
@@ -105,7 +121,7 @@ export function EventProposalWizard({ navigation }: Props) {
       }
       return null;
     },
-    [title, pitch, venue, agenda],
+    [title, pitch, venue, agenda, maxAttendance, eventDate, eventTime],
   );
 
   const goNext = useCallback(
@@ -170,7 +186,7 @@ export function EventProposalWizard({ navigation }: Props) {
   const applyAgendaSplit = useCallback((split: AgendaSplit) => {
     setAgendaSplit(split);
     if (split === 'custom') return;
-    const mins = split === '30' ? 30 : 60;
+    const mins = split === '15' ? 15 : split === '30' ? 30 : 60;
     const base = new Date(eventTime);
     const items: AgendaItem[] = [];
     for (let i = 0; i < 4; i++) {
@@ -198,27 +214,34 @@ export function EventProposalWizard({ navigation }: Props) {
       const url = await uploadProposalAttachment(user.id, 'event', a.uri, a.name);
       if (url) uploaded.push(url);
     }
-    const proposedDate = `${formatDate(eventDate)} ${formatTime(eventTime)}`;
-    const result = await runProposalSubmitFlow({
-      kind: 'event',
-      payload: {
-        title: title.trim(),
-        pitch: pitch.trim(),
-        proposed_date: proposedDate,
-        venue: venue.trim(),
-        level,
-        agenda_split: agendaSplit,
-        agenda,
+    const proposedDate = proposedDateIsoFromPickers(eventDate, eventTime);
+    const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
+    const result = await runProposalSubmitFlow(
+      {
+        kind: 'event',
+        payload: {
+          title: title.trim(),
+          pitch: pitch.trim(),
+          proposed_date: proposedDate,
+          venue: venue.trim(),
+          level,
+          agenda_split: agendaSplit,
+          agenda,
+          max_attendance: cap,
+        },
+        attachmentUrls: uploaded,
       },
-      attachmentUrls: uploaded,
-    });
+      { masterControl: user.masterControl === true, userId: user.id },
+    );
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
       return;
     }
     setSubmitted(true);
-    showProposalSubmittedAlert(() => navigation.goBack());
+    showProposalSubmittedAlert(() => navigation.goBack(), {
+      masterPublished: result.publishedLive,
+    });
   }, [
     submitted,
     submitting,
@@ -233,6 +256,8 @@ export function EventProposalWizard({ navigation }: Props) {
     level,
     agendaSplit,
     agenda,
+    maxAttendance,
+    user?.masterControl,
     navigation,
   ]);
 
@@ -299,6 +324,7 @@ export function EventProposalWizard({ navigation }: Props) {
             value={eventDate}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minimumDate={minSelectableDate}
             onChange={(e, d) => onPickerChange('date', e, d)}
           />
         ) : null}
@@ -326,6 +352,18 @@ export function EventProposalWizard({ navigation }: Props) {
             setVenue(t);
           }}
           placeholder="City, facility, or online"
+          placeholderTextColor={DS.color.textMuted}
+        />
+        <Text style={[styles.label, styles.labelSpaced]}>Expected attendance *</Text>
+        <TextInput
+          style={styles.input}
+          value={maxAttendance}
+          onChangeText={(t) => {
+            clearError();
+            setMaxAttendance(t);
+          }}
+          keyboardType="number-pad"
+          placeholder="e.g. 40"
           placeholderTextColor={DS.color.textMuted}
         />
         <Text style={[styles.label, styles.labelSpaced]}>Level</Text>
@@ -361,6 +399,7 @@ export function EventProposalWizard({ navigation }: Props) {
         <View style={styles.chipWrap}>
           {(
             [
+              ['15', 'Every 15 min'],
               ['30', 'Every 30 min'],
               ['60', 'Every 1 hour'],
               ['custom', 'Custom'],

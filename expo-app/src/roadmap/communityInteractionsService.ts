@@ -1,4 +1,3 @@
-import { formatAuthorDisplayName } from '../lib/communityPostBody';
 import { getSupabase } from '../lib/supabase';
 
 const EMOJI = {
@@ -43,7 +42,7 @@ export type PostCommentRow = {
   author_id: string;
   body: string;
   created_at: string;
-  author_display_name: string | null;
+  author_username: string | null;
   author_avatar_url: string | null;
 };
 
@@ -73,12 +72,7 @@ export async function listPostComments(postId: string): Promise<PostCommentRow[]
     (profs ?? []).map((p: Prof) => [
       p.id,
       {
-        label: formatAuthorDisplayName({
-          display_name: p.display_name,
-          first_name: p.first_name,
-          last_name: p.last_name,
-          username: (p as any).username,
-        }),
+        username: p.username?.trim() ? `@${p.username.trim()}` : null,
         avatar_url: p.avatar_url,
       },
     ]),
@@ -88,7 +82,7 @@ export async function listPostComments(postId: string): Promise<PostCommentRow[]
       const pr = map.get(c.author_id);
       return {
         ...c,
-        author_display_name: pr?.label ?? null,
+        author_username: pr?.username ?? null,
         author_avatar_url: pr?.avatar_url ?? null,
       };
     },

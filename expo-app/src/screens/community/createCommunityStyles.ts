@@ -19,7 +19,7 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: DS.space.md,
+    marginBottom: DS.space.xs,
   },
   communityTitle: {
     ...tabRootTitleText,
@@ -366,7 +366,8 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     fontSize: 14,
   },
   feedList: {
-    padding: DS.space.base,
+    paddingHorizontal: DS.space.base,
+    paddingTop: DS.space.xs,
     gap: DS.space.base,
   },
   rootWebFull: {

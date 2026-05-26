@@ -5,21 +5,37 @@ import {
   contentProposalsUsedThisMonth,
   submitContentProposal,
 } from '../roadmap/proposalService';
+import { masterInstantPublish } from './masterInstantPublish';
 
 export type ProposalSubmitInput = {
   kind: ProposalKind;
   payload: Record<string, unknown>;
   attachmentUrls?: string[];
+  /** Local files for master media publish (uri + name). */
+  localFiles?: { uri: string; name: string }[];
 };
 
 export type ProposalSubmitFlowResult =
-  | { ok: true; id: string }
+  | { ok: true; id: string; publishedLive?: boolean }
   | { ok: false; error: string; limitReached?: boolean };
 
-/** Client-side monthly cap check + single submit (caller disables UI while pending). */
+/** Client-side monthly cap check + submit (or master instant publish). */
 export async function runProposalSubmitFlow(
   input: ProposalSubmitInput,
+  options?: { masterControl?: boolean; userId?: string },
 ): Promise<ProposalSubmitFlowResult> {
+  if (options?.masterControl && options.userId) {
+    const published = await masterInstantPublish(
+      options.userId,
+      input.kind,
+      input.payload,
+      input.attachmentUrls ?? [],
+      input.localFiles ?? [],
+    );
+    if (!published.ok) return { ok: false, error: published.error };
+    return { ok: true, id: 'master-live', publishedLive: true };
+  }
+
   const allowed = await canSubmitContentProposal();
   if (!allowed) {
     const used = await contentProposalsUsedThisMonth();
@@ -39,7 +55,14 @@ export async function runProposalSubmitFlow(
   return { ok: true, id: result.id };
 }
 
-export function showProposalSubmittedAlert(onOk: () => void): void {
+export function showProposalSubmittedAlert(
+  onOk: () => void,
+  options?: { masterPublished?: boolean },
+): void {
+  if (options?.masterPublished) {
+    Alert.alert('Published', 'Your content is now live in the app.', [{ text: 'OK', onPress: onOk }]);
+    return;
+  }
   Alert.alert(
     'Submitted for review',
     'Your proposal has been sent to the Dalton team. Please wait for a response — you cannot submit another copy of the same proposal here.',

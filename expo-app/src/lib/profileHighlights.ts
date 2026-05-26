@@ -1,6 +1,15 @@
+import {
+  isYouTubeUrl,
+  parseYouTubeVideoId,
+  youTubeEmbedUrl,
+  youTubeThumbnailUrl,
+  youTubeWatchUrl,
+} from './youtube';
+
 export type ProfileHighlight = {
   title: string;
   video_url: string;
+  thumbnail_url?: string;
 };
 
 export function parseProfileHighlights(value: unknown): ProfileHighlight[] {
@@ -13,10 +22,23 @@ export function parseProfileHighlights(value: unknown): ProfileHighlight[] {
       continue;
     }
     if (!item || typeof item !== 'object') continue;
-    const row = item as { title?: unknown; video_url?: unknown; videoUrl?: unknown };
+    const row = item as {
+      title?: unknown;
+      video_url?: unknown;
+      videoUrl?: unknown;
+      thumbnail_url?: unknown;
+    };
     const title = String(row.title ?? '').trim();
     const video_url = String(row.video_url ?? row.videoUrl ?? '').trim();
-    if (title || video_url) out.push({ title: title || 'Highlight', video_url });
+    const thumbnail_url =
+      typeof row.thumbnail_url === 'string' ? row.thumbnail_url.trim() : undefined;
+    if (title || video_url) {
+      out.push({
+        title: title || 'Highlight',
+        video_url,
+        thumbnail_url: thumbnail_url || undefined,
+      });
+    }
   }
   return out.slice(0, 12);
 }
@@ -26,6 +48,11 @@ export function highlightsToJson(rows: ProfileHighlight[]): ProfileHighlight[] {
     .map((r) => ({
       title: r.title.trim(),
       video_url: r.video_url.trim(),
+      ...(r.thumbnail_url?.trim()
+        ? { thumbnail_url: resolveHighlightThumbnailUrl(r.video_url, r.thumbnail_url) }
+        : r.video_url.trim()
+          ? { thumbnail_url: resolveHighlightThumbnailUrl(r.video_url) }
+          : {}),
     }))
     .filter((r) => r.title.length > 0)
     .slice(0, 12);
@@ -34,10 +61,35 @@ export function highlightsToJson(rows: ProfileHighlight[]): ProfileHighlight[] {
 export function isPlayableVideoUrl(url: string): boolean {
   const u = url.trim();
   if (!u) return false;
+  if (isYouTubeUrl(u)) return true;
   try {
     const parsed = new URL(u);
     return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }
+}
+
+export function resolveHighlightPlaybackUrl(url: string): string | null {
+  const u = url.trim();
+  if (!u) return null;
+  const yt = parseYouTubeVideoId(u);
+  if (yt) return youTubeEmbedUrl(yt);
+  if (isPlayableVideoUrl(u)) return u;
+  return null;
+}
+
+export function resolveHighlightThumbnailUrl(url: string, existing?: string | null): string | null {
+  if (existing?.trim()) return existing.trim();
+  const yt = parseYouTubeVideoId(url);
+  if (yt) return youTubeThumbnailUrl(yt, 'hq');
+  if (isPlayableVideoUrl(url)) return url;
+  return null;
+}
+
+export function resolveHighlightOpenUrl(url: string): string | null {
+  const yt = parseYouTubeVideoId(url);
+  if (yt) return youTubeWatchUrl(yt);
+  if (isPlayableVideoUrl(url)) return url.trim();
+  return null;
 }

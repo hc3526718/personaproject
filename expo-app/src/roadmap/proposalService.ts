@@ -292,3 +292,26 @@ export async function submitProposalFollowup(
     .catch(() => undefined);
   return { ok: true };
 }
+
+export async function deleteContentProposal(proposalId: string): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: 'Not connected.' };
+  const { error } = await supabase.from('content_proposals').delete().eq('id', proposalId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function updatePendingProposalPayload(
+  proposalId: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: 'Not connected.' };
+  const { error } = await supabase
+    .from('content_proposals')
+    .update({ payload, updated_at: new Date().toISOString() })
+    .eq('id', proposalId)
+    .eq('status', 'pending');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

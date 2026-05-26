@@ -3,6 +3,7 @@ import {
   Animated,
   Dimensions,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -140,11 +141,20 @@ export function PostCommentsSheet({
                 </Text>
               }
               renderItem={({ item }) => (
-                <View style={[styles.commentCard, { borderColor: colors.borderWhite5 }]}>
-                  <Text style={[styles.commentAuthor, { color: colors.gold }]}>
-                    {item.author_display_name?.trim() || 'Member'}
-                  </Text>
-                  <Text style={[styles.commentBody, { color: colors.text }]}>{item.body}</Text>
+                <View style={[styles.commentRow, { borderColor: colors.borderWhite5 }]}>
+                  {item.author_avatar_url ? (
+                    <Image source={{ uri: item.author_avatar_url }} style={styles.commentAvatar} />
+                  ) : (
+                    <View style={[styles.commentAvatar, styles.commentAvatarPlaceholder, { borderColor: colors.borderWhite5 }]}>
+                      <FontAwesome name="user" size={14} color={colors.textMuted} />
+                    </View>
+                  )}
+                  <View style={styles.commentCol}>
+                    <Text style={[styles.commentAuthor, { color: colors.gold }]}>
+                      {item.author_username?.trim() || '@member'}
+                    </Text>
+                    <Text style={[styles.commentBody, { color: colors.text }]}>{item.body}</Text>
+                  </View>
                 </View>
               )}
             />
@@ -235,11 +245,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: DS.space.xl,
   },
-  commentCard: {
+  commentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DS.space.sm,
+    paddingVertical: DS.space.xs,
+  },
+  commentAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  commentAvatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: DS.radius.lg,
-    padding: DS.space.md,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  commentCol: {
+    flex: 1,
+    minWidth: 0,
   },
   commentAuthor: {
     fontFamily: DS.font.bodyMedium,

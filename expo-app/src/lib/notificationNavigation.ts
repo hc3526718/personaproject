@@ -1,6 +1,6 @@
 import type { NavigationProp } from '@react-navigation/native';
 import type { MainTabParamList } from '../navigation/types';
-import { requestProposalOutcomeModal } from '../components/ProposalOutcomeHost';
+import { requestProposalOutcomeModal } from './proposalOutcomeBridge';
 
 export type NotificationIconKind =
   | 'message'

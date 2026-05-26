@@ -14,6 +14,7 @@ export type ScreenshotConversationSummary = {
   peer_avatar_url: string | null;
   last_body: string | null;
   last_at: string | null;
+  last_sender_id?: string | null;
 };
 
 /** Same shape as `CommunityPostFeedRow` in `liveDataService` (avoid circular import). */
@@ -517,7 +518,11 @@ function mergeByConversationId(
 export function mergeScreenshotConversationSummaries(
   live: ScreenshotConversationSummary[],
 ): ScreenshotConversationSummary[] {
-  return mergeByConversationId(getScreenshotSampleConversationSummaries(), live);
+  const samples = getScreenshotSampleConversationSummaries().map((row) => ({
+    ...row,
+    last_sender_id: row.last_sender_id ?? row.peer_user_id,
+  }));
+  return mergeByConversationId(samples, live);
 }
 
 const OFFER_IDS = new Set(getScreenshotSampleOfferPages().map((r) => r.id));

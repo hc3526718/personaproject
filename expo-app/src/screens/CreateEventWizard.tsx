@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -17,7 +18,13 @@ import { useAuth } from '../auth/AuthContext';
 import { FormField } from '../components/ui/FormField';
 import { DS } from '../designSystem';
 import { useWizardBack } from '../hooks/useWizardBack';
-import { endsAtAfterDuration, parseEventStartIso } from '../lib/eventFormParse';
+import { endsAtAfterDuration } from '../lib/eventFormParse';
+import {
+  combineDateAndTime,
+  isScheduleAtLeast48HoursAhead,
+  minScheduleStartDate,
+  schedule48HourError,
+} from '../lib/scheduleValidation';
 import { getSupabase } from '../lib/supabase';
 import { pickWebMediaFile } from '../lib/webFilePicker';
 import type { EventsStackParamList } from '../navigation/types';
@@ -28,6 +35,7 @@ type Props = Pick<NativeStackScreenProps<EventsStackParamList, 'CreateEvent'>, '
 
 type AssetItem = { uri: string; kind: 'image' | 'video' };
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'All levels'] as const;
+type AgendaSplit = '15' | '30' | '60' | 'custom';
 const DESC_MIN = 100;
 const TOTAL_STEPS = 5;
 
@@ -66,6 +74,14 @@ async function uploadEventHero(userId: string, uri: string): Promise<string | nu
   }
 }
 
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export function CreateEventWizard({ navigation }: Props) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
@@ -78,9 +94,22 @@ export function CreateEventWizard({ navigation }: Props) {
   const [eventTags, setEventTags] = useState('');
   const [costFree, setCostFree] = useState(true);
   const [price, setPrice] = useState('');
-  const [dateStr, setDateStr] = useState('');
-  const [timeStr, setTimeStr] = useState('');
+  const [venue, setVenue] = useState('');
+  const [maxAttendance, setMaxAttendance] = useState('');
+  const [eventDate, setEventDate] = useState(() => {
+    const d = minScheduleStartDate();
+    d.setDate(d.getDate() + 1);
+    return d;
+  });
+  const [eventTime, setEventTime] = useState(() => {
+    const d = new Date();
+    d.setHours(10, 0, 0, 0);
+    return d;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [duration, setDuration] = useState('');
+  const [agendaSplit, setAgendaSplit] = useState<AgendaSplit>('30');
   const [level, setLevel] = useState<(typeof LEVELS)[number]>('Intermediate');
   const [agenda, setAgenda] = useState<{ title: string; time: string }[]>([
     { title: '', time: '' },
@@ -90,6 +119,8 @@ export function CreateEventWizard({ navigation }: Props) {
   const [bring, setBring] = useState('');
 
   const goBack = useWizardBack(step, setStep, () => navigation.goBack());
+
+  const minSelectableDate = useMemo(() => minScheduleStartDate(), []);
 
   const sortedAssets = useMemo(
     () => [...assets].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'image' ? -1 : 1)),
@@ -133,6 +164,38 @@ export function CreateEventWizard({ navigation }: Props) {
     setAssets((prev) => prev.filter((x) => x.uri !== uri));
   }, []);
 
+  const onPickerChange = useCallback(
+    (kind: 'date' | 'time', e: DateTimePickerEvent, selected?: Date) => {
+      if (Platform.OS === 'android') {
+        setShowDatePicker(false);
+        setShowTimePicker(false);
+      }
+      if (e.type === 'dismissed' || !selected) return;
+      if (kind === 'date') setEventDate(selected);
+      else setEventTime(selected);
+    },
+    [],
+  );
+
+  const applyAgendaSplit = useCallback(
+    (split: AgendaSplit) => {
+      setAgendaSplit(split);
+      if (split === 'custom') return;
+      const mins = split === '15' ? 15 : split === '30' ? 30 : 60;
+      const base = new Date(eventTime);
+      const items: { title: string; time: string }[] = [];
+      for (let i = 0; i < 4; i++) {
+        const t = new Date(base.getTime() + i * mins * 60_000);
+        items.push({
+          title: i === 0 ? 'Welcome' : `Block ${i + 1}`,
+          time: formatTime(t),
+        });
+      }
+      setAgenda(items);
+    },
+    [eventTime],
+  );
+
   const validateStep = useCallback(
     (s: number): string | null => {
       if (s === 1) {
@@ -144,7 +207,13 @@ export function CreateEventWizard({ navigation }: Props) {
         }
       }
       if (s === 3) {
-        if (!dateStr.trim() || !timeStr.trim()) return 'Date and time are required.';
+        if (!venue.trim()) return 'Venue or location is required.';
+        const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
+        if (!maxAttendance.trim() || Number.isNaN(cap) || cap < 1) {
+          return 'Enter expected attendance (minimum 1).';
+        }
+        const start = combineDateAndTime(eventDate, eventTime);
+        if (!isScheduleAtLeast48HoursAhead(start)) return schedule48HourError();
         if (!costFree) {
           const n = parseFloat(price.replace(/[^0-9.]/g, ''));
           if (!price.trim() || Number.isNaN(n) || n < 0) return 'Enter a valid price for paid events.';
@@ -160,7 +229,7 @@ export function CreateEventWizard({ navigation }: Props) {
       }
       return null;
     },
-    [eventTitle, description, dateStr, timeStr, costFree, price, agenda],
+    [eventTitle, description, venue, maxAttendance, eventDate, eventTime, costFree, price, agenda],
   );
 
   const nextStep = () => {
@@ -177,12 +246,9 @@ export function CreateEventWizard({ navigation }: Props) {
   const publish = useCallback(() => {
     if (publishing || !user?.id || user.id.startsWith('demo-')) return;
     const completeAgenda = agenda.filter((row) => row.title.trim() && row.time.trim());
-    const starts = parseEventStartIso(dateStr, timeStr);
-    if (!starts) {
-      setError('Use YYYY-MM-DD for the date and a time like 10:00 AM or 14:30.');
-      return;
-    }
+    const starts = combineDateAndTime(eventDate, eventTime).toISOString();
     const ends = endsAtAfterDuration(starts, duration);
+    const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
     const firstImage = sortedAssets.find((a) => a.kind === 'image');
     const faqLines = faqs
       .filter((f) => f.q.trim() && f.a.trim())
@@ -192,6 +258,7 @@ export function CreateEventWizard({ navigation }: Props) {
       description.trim(),
       '',
       `Level: ${level}`,
+      `Capacity: ${cap}`,
       `Tags: ${eventTags.trim() || '—'}`,
       '',
       'Agenda:',
@@ -214,7 +281,7 @@ export function CreateEventWizard({ navigation }: Props) {
         description: longDesc,
         starts_at: starts,
         ends_at: ends,
-        venue: null,
+        venue: venue.trim(),
         hero_image_url: hero,
         requires_payment: !costFree,
         stripe_price_id: null,
@@ -231,8 +298,10 @@ export function CreateEventWizard({ navigation }: Props) {
     publishing,
     user?.id,
     agenda,
-    dateStr,
-    timeStr,
+    eventDate,
+    eventTime,
+    venue,
+    maxAttendance,
     duration,
     description,
     level,
@@ -353,21 +422,51 @@ export function CreateEventWizard({ navigation }: Props) {
   if (step === 3) {
     return chrome(
       <>
-        <Text style={s.lead}>When does your event run?</Text>
+        <Text style={s.lead}>When and where does your event run?</Text>
         <FormField label="Date" required>
+          <Pressable style={s.pickerBtn} onPress={() => setShowDatePicker(true)}>
+            <FontAwesome name="calendar" size={16} color={DS.color.gold} />
+            <Text style={s.pickerBtnText}>{formatDate(eventDate)}</Text>
+          </Pressable>
+          {showDatePicker ? (
+            <DateTimePicker
+              value={eventDate}
+              mode="date"
+              minimumDate={minSelectableDate}
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(e, d) => onPickerChange('date', e, d)}
+            />
+          ) : null}
+        </FormField>
+        <FormField label="Time" required>
+          <Pressable style={s.pickerBtn} onPress={() => setShowTimePicker(true)}>
+            <FontAwesome name="clock-o" size={16} color={DS.color.gold} />
+            <Text style={s.pickerBtnText}>{formatTime(eventTime)}</Text>
+          </Pressable>
+          {showTimePicker ? (
+            <DateTimePicker
+              value={eventTime}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(e, d) => onPickerChange('time', e, d)}
+            />
+          ) : null}
+        </FormField>
+        <FormField label="Venue / location" required>
           <TextInput
-            value={dateStr}
-            onChangeText={setDateStr}
-            placeholder="YYYY-MM-DD"
+            value={venue}
+            onChangeText={setVenue}
+            placeholder="City, facility, or online link"
             placeholderTextColor={DS.color.textMuted}
             style={s.input}
           />
         </FormField>
-        <FormField label="Time" required>
+        <FormField label="Expected attendance" required>
           <TextInput
-            value={timeStr}
-            onChangeText={setTimeStr}
-            placeholder="e.g. 10:00 AM"
+            value={maxAttendance}
+            onChangeText={setMaxAttendance}
+            keyboardType="number-pad"
+            placeholder="e.g. 50"
             placeholderTextColor={DS.color.textMuted}
             style={s.input}
           />
@@ -409,6 +508,25 @@ export function CreateEventWizard({ navigation }: Props) {
     return chrome(
       <>
         <Text style={s.lead}>Agenda, FAQs, and what attendees should bring.</Text>
+        <Text style={s.sectionLabel}>Agenda spacing</Text>
+        <View style={s.chipWrap}>
+          {(
+            [
+              ['15', '15 min'],
+              ['30', '30 min'],
+              ['60', '1 hour'],
+              ['custom', 'Custom'],
+            ] as const
+          ).map(([key, label]) => (
+            <Pressable
+              key={key}
+              onPress={() => applyAgendaSplit(key)}
+              style={[s.chip, agendaSplit === key && s.chipOn]}
+            >
+              <Text style={[s.chipTxt, agendaSplit === key && s.chipTxtOn]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
         <Text style={s.sectionLabel}>Agenda *</Text>
         {agenda.map((row, i) => (
           <View key={i} style={s.agendaRow}>
@@ -483,9 +601,13 @@ export function CreateEventWizard({ navigation }: Props) {
       <Text style={s.reviewVal}>{eventTitle.trim() || '—'}</Text>
       <Text style={s.reviewLabel}>Schedule</Text>
       <Text style={s.reviewVal}>
-        {dateStr} · {timeStr}
+        {formatDate(eventDate)} · {formatTime(eventTime)}
         {duration.trim() ? ` · ${duration}` : ''}
       </Text>
+      <Text style={s.reviewLabel}>Venue</Text>
+      <Text style={s.reviewVal}>{venue.trim() || '—'}</Text>
+      <Text style={s.reviewLabel}>Attendance</Text>
+      <Text style={s.reviewVal}>{maxAttendance || '—'}</Text>
       <Text style={s.reviewLabel}>Cost</Text>
       <Text style={s.reviewVal}>{costFree ? 'Free' : `$${price}`}</Text>
       <Text style={s.reviewLabel}>Level</Text>
@@ -591,4 +713,20 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   reviewVal: { fontFamily: DS.font.body, fontSize: 15, color: DS.color.text },
+  pickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+    backgroundColor: DS.apple.fillSecondary,
+    borderRadius: DS.apple.radiusField,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.apple.separator,
+    paddingHorizontal: DS.space.base,
+    paddingVertical: 14,
+  },
+  pickerBtnText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    color: DS.color.text,
+  },
 });

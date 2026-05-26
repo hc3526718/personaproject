@@ -54,19 +54,25 @@ export function MediaProposalWizard({ navigation }: Props) {
       const url = await uploadProposalAttachment(user.id, 'media', a.uri, a.name);
       if (url) uploaded.push(url);
     }
-    const result = await runProposalSubmitFlow({
-      kind: 'media',
-      payload: { title: title.trim(), pitch: pitch.trim(), category },
-      attachmentUrls: uploaded,
-    });
+    const result = await runProposalSubmitFlow(
+      {
+        kind: 'media',
+        payload: { title: title.trim(), pitch: pitch.trim(), category },
+        attachmentUrls: uploaded,
+        localFiles: attachments.map((a) => ({ uri: a.uri, name: a.name })),
+      },
+      { masterControl: user.masterControl === true, userId: user.id },
+    );
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
       return;
     }
     setSubmitted(true);
-    showProposalSubmittedAlert(() => navigation.goBack());
-  }, [attachments, category, navigation, pitch, submitted, submitting, title, user?.id]);
+    showProposalSubmittedAlert(() => navigation.goBack(), {
+      masterPublished: result.publishedLive,
+    });
+  }, [attachments, category, navigation, pitch, submitted, submitting, title, user?.id, user?.masterControl]);
 
   if (step === 1) {
     return (

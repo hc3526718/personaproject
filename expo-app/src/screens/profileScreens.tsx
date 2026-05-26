@@ -44,8 +44,8 @@ import { getFollowCounts } from '../roadmap/followService';
 import { uploadAndSaveProfileImage } from '../lib/profileImageUpload';
 import {
   highlightsToJson,
-  isPlayableVideoUrl,
   parseProfileHighlights,
+  resolveHighlightThumbnailUrl,
   type ProfileHighlight,
 } from '../lib/profileHighlights';
 import {
@@ -274,30 +274,37 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
         <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>Highlights</Text>
         {parseProfileHighlights(profile?.highlights).length > 0 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsScroll}>
-            {parseProfileHighlights(profile?.highlights).map((h, i) => (
+            {parseProfileHighlights(profile?.highlights).map((h, i) => {
+              const thumb = resolveHighlightThumbnailUrl(h.video_url, h.thumbnail_url);
+              return (
               <Pressable
                 key={`${h.title}-${i}`}
                 style={styles.highlightCard}
                 onPress={() => {
-                  if (!isPlayableVideoUrl(h.video_url)) {
+                  if (!h.video_url.trim()) {
                     navigation.navigate('EditProfileSectionDetail', { slug: 'highlights' });
                     return;
                   }
                   setHighlightPlayer({ title: h.title, url: h.video_url.trim() });
                 }}
               >
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={styles.highlightThumb} resizeMode="cover" />
+                ) : (
                 <View style={styles.highlightThumbPlaceholder}>
                   <Text style={styles.highlightThumbTitle} numberOfLines={3}>
                     {h.title}
                   </Text>
                 </View>
-                {isPlayableVideoUrl(h.video_url) ? (
+                )}
+                {h.video_url.trim() ? (
                   <View style={styles.highlightPlay}>
                     <FontAwesome name="play" size={14} color={DS.color.background} />
                   </View>
                 ) : null}
               </Pressable>
-            ))}
+            );
+            })}
           </ScrollView>
         ) : (
           <Pressable

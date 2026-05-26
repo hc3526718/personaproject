@@ -413,7 +413,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   return (
     <View style={[styles.root, feedIsWeb && styles.rootWebFull]}>
       <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
-      <View style={[styles.feedHeader, webPageShellStyle(), { paddingTop: insets.top + DS.space.md }]}>
+      <View style={[styles.feedHeader, webPageShellStyle(), { paddingTop: insets.top + 4, paddingBottom: DS.space.xs }]}>
         <View style={styles.feedHeaderRow}>
           <Text style={styles.communityTitle}>COMMUNITY</Text>
           <View style={styles.feedHeaderActions}>

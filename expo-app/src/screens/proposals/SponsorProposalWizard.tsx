@@ -68,23 +68,28 @@ export function SponsorProposalWizard({ navigation }: Props) {
       const url = await uploadProposalAttachment(user.id, 'sponsor', a.uri, a.name);
       if (url) uploaded.push(url);
     }
-    const result = await runProposalSubmitFlow({
-      kind: 'sponsor',
-      payload: {
-        brand_name: brandName.trim(),
-        contact_email: contactEmail.trim(),
-        goals: goals.trim(),
+    const result = await runProposalSubmitFlow(
+      {
+        kind: 'sponsor',
+        payload: {
+          brand_name: brandName.trim(),
+          contact_email: contactEmail.trim(),
+          goals: goals.trim(),
+        },
+        attachmentUrls: uploaded,
       },
-      attachmentUrls: uploaded,
-    });
+      { masterControl: user.masterControl === true, userId: user.id },
+    );
     setSubmitting(false);
     if (!result.ok) {
       setError(result.error);
       return;
     }
     setSubmitted(true);
-    showProposalSubmittedAlert(() => navigation.goBack());
-  }, [attachments, brandName, contactEmail, goals, navigation, submitted, submitting, user?.id]);
+    showProposalSubmittedAlert(() => navigation.goBack(), {
+      masterPublished: result.publishedLive,
+    });
+  }, [attachments, brandName, contactEmail, goals, navigation, submitted, submitting, user?.id, user?.masterControl]);
 
   if (!allowed) {
     return null;

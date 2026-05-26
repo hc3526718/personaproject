@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../auth/AuthContext';
 import { AppLoadingIndicator } from '../../components/AppLoadingIndicator';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { DS } from '../../designSystem';
@@ -11,6 +12,7 @@ import { getOrCreateConversationId } from '../../roadmap/messagingService';
 import type { ProfileStackParamList } from '../../navigation/types';
 import type { SponsorsStackParamList } from '../../navigation/types';
 import {
+  deleteContentProposal,
   listMyProposals,
   type ContentProposalRow,
 } from '../../roadmap/proposalService';
@@ -34,6 +36,7 @@ function MyProposalsList({
   kindFilter?: 'sponsor';
 }) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [rows, setRows] = useState<ContentProposalRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +47,29 @@ function MyProposalsList({
     setRows(list);
     setLoading(false);
   }, [kindFilter]);
+
+  const confirmDelete = useCallback(
+    (row: ContentProposalRow) => {
+      Alert.alert('Delete proposal?', 'This cannot be undone.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              const res = await deleteContentProposal(row.id);
+              if (!res.ok) {
+                Alert.alert('Could not delete', res.error ?? 'Try again.');
+                return;
+              }
+              await load();
+            })();
+          },
+        },
+      ]);
+    },
+    [load],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -105,6 +131,12 @@ function MyProposalsList({
                 <Text style={styles.rejectedNote}>
                   This proposal was not accepted. You may submit again if slots remain this month.
                 </Text>
+              ) : null}
+              {(item.status === 'pending' || user?.masterControl) ? (
+                <Pressable style={styles.deleteBtn} onPress={() => confirmDelete(item)}>
+                  <FontAwesome name="trash-o" size={14} color={DS.color.error} />
+                  <Text style={styles.deleteBtnTxt}>Delete</Text>
+                </Pressable>
               ) : null}
             </View>
           )}
@@ -173,5 +205,17 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     marginTop: DS.space.sm,
     lineHeight: 18,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+    marginTop: DS.space.md,
+    alignSelf: 'flex-start',
+  },
+  deleteBtnTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    color: DS.color.error,
   },
 });

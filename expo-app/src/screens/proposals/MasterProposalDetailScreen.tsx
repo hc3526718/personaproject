@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppLoadingIndicator } from '../../components/AppLoadingIndicator';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { DS } from '../../designSystem';
+import { useActionBanner } from '../../actionBanner/ActionBannerContext';
 import type { ProfileStackParamList } from '../../navigation/types';
 import { buildProposalOutreachMessage } from '../../lib/proposalOutreachMessage';
 import { fetchProfileByUserId } from '../../roadmap/profileService';
@@ -29,6 +30,7 @@ type Props = NativeStackScreenProps<ProfileStackParamList, 'MasterProposalDetail
 
 export function MasterProposalDetailScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const showBanner = useActionBanner();
   const proposalId = route.params.proposalId;
   const [row, setRow] = useState<ContentProposalRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,6 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
     () => (row?.attachment_urls?.length ?? 0) > 0,
     [row?.attachment_urls],
   );
-  const discussed = Boolean(row?.discussed_at);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -106,17 +107,6 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
 
   const decide = useCallback(
     async (decision: 'approved' | 'rejected') => {
-      if (hasAttachments && !documentOpened) {
-        Alert.alert('Open document first', 'Review the submitted attachment before deciding.');
-        return;
-      }
-      if (!discussed) {
-        Alert.alert(
-          'Contact applicant first',
-          'Message the person who submitted this proposal before you approve or reject.',
-        );
-        return;
-      }
       setReviewing(true);
       const res = await masterReviewProposal(proposalId, decision);
       setReviewing(false);
@@ -124,13 +114,10 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
         Alert.alert('Review failed', res.error);
         return;
       }
-      Alert.alert(
-        decision === 'approved' ? 'Approved' : 'Rejected',
-        'The applicant will be notified in the app.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      showBanner('Proposal decision sent', 'The applicant has been notified.');
+      navigation.goBack();
     },
-    [discussed, documentOpened, hasAttachments, navigation, proposalId],
+    [navigation, proposalId, showBanner],
   );
 
   if (loading || !row) {
@@ -142,7 +129,7 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const canDecide = row.status === 'pending' && discussed && (!hasAttachments || documentOpened);
+  const canDecide = row.status === 'pending';
 
   return (
     <View style={styles.root}>
@@ -165,9 +152,7 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
 
         <Pressable style={styles.messageBtn} onPress={messageApplicant}>
           <FontAwesome name="comments" size={18} color={DS.color.gold} />
-          <Text style={styles.messageBtnTxt}>
-            {discussed ? 'Message applicant again' : 'Message applicant (required)'}
-          </Text>
+          <Text style={styles.messageBtnTxt}>Message applicant (optional)</Text>
         </Pressable>
 
         {hasAttachments ? (
@@ -180,12 +165,6 @@ export function MasterProposalDetailScreen({ navigation, route }: Props) {
         ) : (
           <Text style={styles.hint}>No attachment on this proposal — document review is not required.</Text>
         )}
-
-        {!discussed ? (
-          <Text style={styles.hint}>
-            Approve and reject unlock after you message the applicant{hasAttachments ? ' and open their document' : ''}.
-          </Text>
-        ) : null}
 
         {row.status !== 'pending' ? (
           <Text style={styles.decided}>
