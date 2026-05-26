@@ -107,3 +107,16 @@ html.dalton-a11y-mono .border-gold\/30,
 html.dalton-a11y-mono .border-line {
   border-color: rgba(255, 255, 255, 0.45) !important;
 }
+
+/* Marketing site: clear space below fixed header */
+body.dalton-marketing main,
+body.dalton-marketing > section.mx-auto {
+  padding-top: 7.75rem !important;
+}
+
+@media (min-width: 768px) {
+  body.dalton-marketing main,
+  body.dalton-marketing > section.mx-auto {
+    padding-top: 8.75rem !important;
+  }
+}

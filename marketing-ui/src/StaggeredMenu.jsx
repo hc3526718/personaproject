@@ -101,7 +101,7 @@ export const StaggeredMenu = ({
     const panelStart = offscreen;
 
     if (itemEls.length) {
-      gsap.set(itemEls, { yPercent: 140, rotate: 10 });
+      gsap.set(itemEls, { yPercent: 175, rotate: 8, x: -32, opacity: 0 });
     }
     if (numberEls.length) {
       gsap.set(numberEls, { '--sm-num-opacity': 0 });
@@ -136,9 +136,11 @@ export const StaggeredMenu = ({
         {
           yPercent: 0,
           rotate: 0,
-          duration: 1,
+          x: 0,
+          opacity: 1,
+          duration: 1.15,
           ease: 'power4.out',
-          stagger: { each: 0.1, from: 'start' },
+          stagger: { each: 0.11, from: 'start' },
         },
         itemsStart,
       );
@@ -225,7 +227,7 @@ export const StaggeredMenu = ({
       onComplete: () => {
         const itemEls = Array.from(panel.querySelectorAll('.sm-panel-itemLabel'));
         if (itemEls.length) {
-          gsap.set(itemEls, { yPercent: 140, rotate: 10 });
+          gsap.set(itemEls, { yPercent: 175, rotate: 8, x: -32, opacity: 0 });
         }
         const numberEls = Array.from(
           panel.querySelectorAll('.sm-panel-list[data-numbering] .sm-panel-item'),

@@ -7,12 +7,13 @@ import './ScreenshotCarousel.css';
 
 const MENU_ITEMS = [
   { label: 'Home', ariaLabel: 'Go to home page', link: '/' },
-  { label: 'How', ariaLabel: 'How Grant Access works', link: '/how' },
   { label: 'Features', ariaLabel: 'View features', link: '/features' },
   { label: 'Help', ariaLabel: 'Help centre', link: '/help-center' },
   { label: 'Contact', ariaLabel: 'Contact us', link: '/contact-us' },
-  { label: 'Login', ariaLabel: 'Log in to the app', link: '/app' },
 ];
+
+/** Staggered gold shades for menu open transition layers */
+const MENU_LAYER_COLORS = ['#4A3D18', '#8B7332', '#C8A84B', '#E8D5A3'];
 
 const SHOWCASE_IMAGES = [
   { src: '/showcase/01.png', alt: 'Community — speak with the community' },
@@ -33,10 +34,11 @@ function mountStaggeredMenu() {
       displaySocials={false}
       displayItemNumbering
       logoUrl="/showcase/dalton_logo.png"
-      menuButtonColor="#D4D0C8"
-      openMenuButtonColor="#0A0A0A"
+      colors={MENU_LAYER_COLORS}
+      menuButtonColor="#FFFFFF"
+      openMenuButtonColor="#FFFFFF"
       accentColor="#C8A84B"
-      changeMenuColorOnOpen
+      changeMenuColorOnOpen={false}
       hamburgerOnly
       headerEnd={<LandingAuth />}
     />,
