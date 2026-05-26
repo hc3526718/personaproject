@@ -14,7 +14,7 @@ Run in SQL Editor (or via migrations `024`–`028`):
 | `025_bookings_event_user_unique.sql` | Duplicate booking guard |
 | `026_fix_dm_storage_and_proposal_limits.sql` | DM notify, storage policies, proposal monthly cap |
 | `027_storage_bucket_and_dm_rls_recursion.sql` | **`media_assets` bucket** + RLS recursion fix |
-| `029_proposal_instant_review_and_author_edit.sql` | Instant proposal decisions, author delete pending, DM notification links |
+| `029_proposal_instant_review_and_author_edit.sql` | Instant proposal decisions, author delete pending, DM notification links — **applied on Supabase** (`proposal_instant_review_and_author_edit`) |
 
 Without **`media_assets`** bucket and non-recursive `conversation_participants` policies, profile uploads and DMs return **400/500**.
 
