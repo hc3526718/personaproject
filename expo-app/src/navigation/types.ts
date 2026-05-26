@@ -69,6 +69,7 @@ export type EventsStackParamList = {
   StaffCheckIn: undefined;
   HostEventDashboard: undefined;
   CreateEvent: undefined;
+  EventProposalWizard: undefined;
   /** Lists events created by current user → opens scan with mandatory selection. */
   HostScanPickEvent: undefined;
   HostAttendeeScan: { selectedEventId: string };

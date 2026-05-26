@@ -289,12 +289,16 @@ export function CreateEventScreen({ navigation }: Props) {
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <ScreenHeader title="Create event" onBack={() => navigation.goBack()} />
         <View style={styles.gateBody}>
-          <FontAwesome name="lock" size={40} color={DS.color.textMuted} />
-          <Text style={styles.gateTitle}>Dalton verified</Text>
+          <FontAwesome name="file-text-o" size={40} color={DS.color.gold} />
+          <Text style={styles.gateTitle}>Submit an event proposal</Text>
           <Text style={styles.gateTxt}>
-            Your account needs Dalton verification before publishing events. Complete verification in Settings
-            when your profile is approved.
+            Verified hosts can publish events instantly. Until then, submit a step-by-step proposal for the Dalton
+            team to review.
           </Text>
+          <AppButton
+            label="Start event proposal"
+            onPress={() => navigation.replace('EventProposalWizard')}
+          />
           <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
         </View>
       </View>

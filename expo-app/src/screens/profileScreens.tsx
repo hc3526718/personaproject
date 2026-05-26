@@ -3,6 +3,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -33,7 +34,13 @@ import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import type { ProfileRow } from '../roadmap/types';
 import { fetchProfileByUserId, updateProfileBasics } from '../roadmap/profileService';
 import { getFollowCounts } from '../roadmap/followService';
-import { uploadProfileImage } from '../lib/profileImageUpload';
+import { uploadAndSaveProfileImage } from '../lib/profileImageUpload';
+import {
+  highlightsToJson,
+  isPlayableVideoUrl,
+  parseProfileHighlights,
+  type ProfileHighlight,
+} from '../lib/profileHighlights';
 import {
   checkUsernameAvailable,
   isValidUsernameFormat,
@@ -255,10 +262,42 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
         </Pressable>
 
         <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>Highlights</Text>
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionBody}>Nothing added yet.</Text>
-          <Text style={styles.sectionMuted}>Optional but recommended.</Text>
-        </View>
+        {parseProfileHighlights(profile?.highlights).length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.highlightsScroll}>
+            {parseProfileHighlights(profile?.highlights).map((h, i) => (
+              <Pressable
+                key={`${h.title}-${i}`}
+                style={styles.highlightCard}
+                onPress={() => {
+                  if (!isPlayableVideoUrl(h.video_url)) {
+                    navigation.navigate('EditProfileSectionDetail', { slug: 'highlights' });
+                    return;
+                  }
+                  void Linking.openURL(h.video_url.trim());
+                }}
+              >
+                <View style={styles.highlightThumbPlaceholder}>
+                  <Text style={styles.highlightThumbTitle} numberOfLines={3}>
+                    {h.title}
+                  </Text>
+                </View>
+                {isPlayableVideoUrl(h.video_url) ? (
+                  <View style={styles.highlightPlay}>
+                    <FontAwesome name="play" size={14} color={DS.color.background} />
+                  </View>
+                ) : null}
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : (
+          <Pressable
+            style={styles.sectionCard}
+            onPress={() => navigation.navigate('EditProfileSectionDetail', { slug: 'highlights' })}
+          >
+            <Text style={styles.sectionBody}>Nothing added yet.</Text>
+            <Text style={styles.sectionCta}>Add highlights →</Text>
+          </Pressable>
+        )}
 
         <Text style={[styles.sectionTitleKicker, styles.sectionBlock]}>Recent results</Text>
         <View style={styles.sectionCard}>
@@ -758,9 +797,6 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
   );
 }
 
-const PHOTO_EDIT_URI =
-  'https://storage.googleapis.com/uxpilot-auth.appspot.com/df8a5c75f5-a5ff671efc349b235853.png';
-
 const ATHLETE_LEVELS = [
   'Beginner',
   'Amateur',
@@ -813,6 +849,7 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
   }, [toast]);
 
   const pickPhoto = useCallback(async () => {
+    if (!user?.id || !live) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert('Permission needed', 'Allow photo library access to choose a profile photo.');
@@ -824,31 +861,20 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
       aspect: [1, 1],
       quality: 0.9,
     });
-    if (!res.canceled && res.assets[0]?.uri) setLocalPreview(res.assets[0].uri);
-  }, []);
-
-  const savePhoto = useCallback(async () => {
-    if (!supabase || !user?.id || !live || !localPreview) return;
+    if (res.canceled || !res.assets[0]?.uri) return;
+    const uri = res.assets[0].uri;
+    setLocalPreview(uri);
     setBusy(true);
-    let url = localPreview;
-    if (!localPreview.startsWith('http')) {
-      const uploaded = await uploadProfileImage(user.id, localPreview, 'avatar');
-      if (!uploaded) {
-        setBusy(false);
-        Alert.alert('Upload failed', 'Could not upload profile photo.');
-        return;
-      }
-      url = uploaded;
-    }
-    const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id);
+    const uploaded = await uploadAndSaveProfileImage(user.id, uri, 'avatar');
     setBusy(false);
-    if (error) {
-      Alert.alert('Save failed', error.message);
+    if (!uploaded.ok) {
+      Alert.alert('Upload failed', uploaded.error);
       return;
     }
-    setAvatarUri(url);
+    setAvatarUri(uploaded.publicUrl);
+    setLocalPreview(uploaded.publicUrl);
     setToast(true);
-  }, [live, localPreview, supabase, user?.id]);
+  }, [live, user?.id]);
 
   const removePhoto = useCallback(async () => {
     if (!supabase || !user?.id || !live) return;
@@ -862,7 +888,12 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
     setToast(true);
   }, [live, supabase, user?.id]);
 
-  const displayUri = localPreview || avatarUri || PHOTO_EDIT_URI;
+  const displaySource =
+    localPreview != null
+      ? { uri: localPreview }
+      : avatarUri
+        ? { uri: avatarUri }
+        : DALTON_LOGO_FINAL_IMG;
 
   return (
     <View style={styles.root}>
@@ -880,7 +911,7 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
         <View style={styles.photoHero}>
           <View style={styles.photoGoldRing}>
             <View style={styles.photoInnerCircle}>
-              <Image source={{ uri: displayUri }} style={styles.photoInnerImg} />
+              <Image source={displaySource} style={styles.photoInnerImg} />
             </View>
           </View>
           <Pressable style={styles.photoCameraFab} onPress={() => void pickPhoto()}>
@@ -897,15 +928,15 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
           <Text style={styles.photoRemoveLabel}>Remove photo</Text>
         </Pressable>
 
-        <AppleHeroButton
-          style={styles.saveBtnSpaced}
-          disabled={busy || !localPreview}
-          onPress={() => void savePhoto()}
-        >
-          {busy ? 'Saving…' : 'Save changes'}
-        </AppleHeroButton>
+        {busy ? (
+          <Text style={styles.sectionDetailMuted}>Uploading your photo…</Text>
+        ) : (
+          <Text style={styles.sectionDetailMuted}>
+            Photos save automatically when you choose from the gallery.
+          </Text>
+        )}
         <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelBtnText}>Cancel</Text>
+          <Text style={styles.cancelBtnText}>Done</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -1140,7 +1171,7 @@ export function EditProfileSectionsScreen({ navigation }: PProps<'EditProfileSec
       title: 'Highlights',
       sub: 'Optional but recommended',
       icon: 'star',
-      status: Array.isArray(profile?.highlights) && (profile?.highlights as any[]).length > 0 ? 'complete' : 'missing',
+      status: parseProfileHighlights(profile?.highlights).length > 0 ? 'complete' : 'missing',
       onPress: () => navigation.navigate('EditProfileSectionDetail', { slug: 'highlights' }),
     },
     {
@@ -1250,7 +1281,7 @@ export function EditProfileSectionDetailScreen({
   const [bannerUrl, setBannerUrl] = useState('');
   const [bioText, setBioText] = useState('');
   const [interestCsv, setInterestCsv] = useState('');
-  const [highlightsText, setHighlightsText] = useState('');
+  const [highlights, setHighlights] = useState<ProfileHighlight[]>([{ title: '', video_url: '' }]);
   const [resultsText, setResultsText] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -1271,7 +1302,8 @@ export function EditProfileSectionDetailScreen({
         setBannerUrl(p?.banner_url?.trim() || '');
         setBioText(p?.bio?.trim() || '');
         setInterestCsv((p?.interests ?? []).join(', '));
-        setHighlightsText(profileSectionLines(p?.highlights));
+        const parsed = parseProfileHighlights(p?.highlights);
+        setHighlights(parsed.length > 0 ? parsed : [{ title: '', video_url: '' }]);
         setResultsText(profileSectionLines(p?.recent_results));
       })();
       return () => {
@@ -1319,8 +1351,8 @@ export function EditProfileSectionDetailScreen({
         const { error } = await supabase.from('profiles').update({ interests }).eq('id', user.id);
         if (error) throw new Error(error.message);
       } else if (slug === 'highlights') {
-        const highlights = profileLinesToArray(highlightsText);
-        const { error } = await supabase.from('profiles').update({ highlights }).eq('id', user.id);
+        const rows = highlightsToJson(highlights);
+        const { error } = await supabase.from('profiles').update({ highlights: rows }).eq('id', user.id);
         if (error) throw new Error(error.message);
       } else if (slug === 'recentResults') {
         const recent_results = profileLinesToArray(resultsText);
@@ -1334,7 +1366,7 @@ export function EditProfileSectionDetailScreen({
   }, [
     bannerUrl,
     bioText,
-    highlightsText,
+    highlights,
     interestCsv,
     live,
     profile?.primary_sport,
@@ -1360,13 +1392,14 @@ export function EditProfileSectionDetailScreen({
     });
     if (res.canceled || !res.assets[0]?.uri) return;
     setUploadingImage(true);
-    const url = await uploadProfileImage(user.id, res.assets[0].uri, 'banner');
+    const uploaded = await uploadAndSaveProfileImage(user.id, res.assets[0].uri, 'banner');
     setUploadingImage(false);
-    if (!url) {
-      Alert.alert('Upload failed', 'Could not upload banner. Try again.');
+    if (!uploaded.ok) {
+      Alert.alert('Upload failed', uploaded.error);
       return;
     }
-    setBannerUrl(url);
+    setBannerUrl(uploaded.publicUrl);
+    setToast(true);
   }, [live, user?.id]);
 
   return (
@@ -1433,16 +1466,53 @@ export function EditProfileSectionDetailScreen({
 
         {slug === 'highlights' ? (
           <>
-            <Text style={styles.sectionDetailMuted}>One highlight per line (shown on your profile).</Text>
-            <TextInput
-              style={[styles.input, styles.bioLongInput]}
-              multiline
-              textAlignVertical="top"
-              value={highlightsText}
-              onChangeText={setHighlightsText}
-              placeholder={'National champion 2024\nTeam GB selection'}
-              placeholderTextColor={DS.color.textMuted}
-            />
+            <Text style={styles.sectionDetailMuted}>
+              Add a title and video URL for each highlight. Tap play on your profile to open the video.
+            </Text>
+            {highlights.map((row, i) => (
+              <View key={`hl-${i}`} style={styles.highlightEditBlock}>
+                <Text style={styles.athleteLabel}>Title</Text>
+                <TextInput
+                  style={styles.input}
+                  value={row.title}
+                  onChangeText={(t) =>
+                    setHighlights((rows) => rows.map((r, j) => (j === i ? { ...r, title: t } : r)))
+                  }
+                  placeholder="National champion 2024"
+                  placeholderTextColor={DS.color.textMuted}
+                />
+                <Text style={[styles.athleteLabel, { marginTop: DS.space.sm }]}>Video URL</Text>
+                <TextInput
+                  style={styles.input}
+                  value={row.video_url}
+                  onChangeText={(t) =>
+                    setHighlights((rows) => rows.map((r, j) => (j === i ? { ...r, video_url: t } : r)))
+                  }
+                  placeholder="https://youtube.com/watch?v=…"
+                  placeholderTextColor={DS.color.textMuted}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+                {highlights.length > 1 ? (
+                  <Pressable
+                    style={styles.photoRemoveRow}
+                    onPress={() => setHighlights((rows) => rows.filter((_, j) => j !== i))}
+                  >
+                    <FontAwesome name="trash" size={16} color={DS.color.error} />
+                    <Text style={styles.photoRemoveLabel}>Remove highlight</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ))}
+            {highlights.length < 12 ? (
+              <Pressable
+                style={styles.photoActionRow}
+                onPress={() => setHighlights((rows) => [...rows, { title: '', video_url: '' }])}
+              >
+                <FontAwesome name="plus" size={16} color={DS.color.gold} />
+                <Text style={styles.photoActionLabel}>Add another highlight</Text>
+              </Pressable>
+            ) : null}
           </>
         ) : null}
 
@@ -1790,6 +1860,24 @@ const styles = StyleSheet.create({
   highlightThumb: {
     width: '100%',
     height: '100%',
+  },
+  highlightThumbPlaceholder: {
+    flex: 1,
+    backgroundColor: DS.color.surfaceAlt,
+    padding: DS.space.sm,
+    justifyContent: 'flex-end',
+  },
+  highlightThumbTitle: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 12,
+    color: DS.color.text,
+    lineHeight: 16,
+  },
+  highlightEditBlock: {
+    marginTop: DS.space.lg,
+    paddingBottom: DS.space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DS.color.borderHairline,
   },
   highlightPlay: {
     position: 'absolute',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import './ScreenshotCarousel.css';
 
@@ -7,9 +7,9 @@ function mod(n, len) {
 }
 
 const REST = {
-  left: { x: -210, scale: 0.82, opacity: 0.72, blur: 2, bright: 0.55, rotate: -4, z: 2 },
+  left: { x: -175, scale: 0.84, opacity: 0.75, blur: 2, bright: 0.55, rotate: -4, z: 2 },
   center: { x: 0, scale: 1, opacity: 1, blur: 0, bright: 1, rotate: 0, z: 4 },
-  right: { x: 210, scale: 0.82, opacity: 0.72, blur: 2, bright: 0.55, rotate: 4, z: 2 },
+  right: { x: 175, scale: 0.84, opacity: 0.75, blur: 2, bright: 0.55, rotate: 4, z: 2 },
 };
 
 function applyRest(el, slot, active) {
@@ -50,10 +50,14 @@ export default function ScreenshotCarousel({
     applyRest(rightRef.current, 'right', false);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (animatingRef.current) return;
     layoutRest();
   }, [centerIdx, layoutRest, len]);
+
+  useEffect(() => {
+    layoutRest();
+  }, [layoutRest]);
 
   const advance = useCallback(() => {
     if (len < 2 || animatingRef.current) return;
@@ -64,11 +68,10 @@ export default function ScreenshotCarousel({
 
     animatingRef.current = true;
     const nextCenter = mod(centerIdx + 1, len);
-    const nextLeft = mod(nextCenter - 1, len);
     const nextRight = mod(nextCenter + 1, len);
 
     const tl = gsap.timeline({
-      defaults: { ease: 'power2.inOut', duration: 1.15 },
+      defaults: { ease: 'power2.inOut', duration: 0.95 },
       onComplete: () => {
         const setImg = (el, item) => {
           const img = el?.querySelector('img');
@@ -77,26 +80,24 @@ export default function ScreenshotCarousel({
             img.alt = item.alt;
           }
         };
-        setImg(left, images[nextLeft]);
+        setImg(left, images[mod(nextCenter - 1, len)]);
         setImg(center, images[nextCenter]);
         setImg(right, images[nextRight]);
-        setCenterIdx(nextCenter);
+        applyRest(left, 'left', false);
+        applyRest(center, 'center', true);
+        applyRest(right, 'right', false);
         animatingRef.current = false;
-        requestAnimationFrame(() => {
-          applyRest(left, 'left', false);
-          applyRest(center, 'center', true);
-          applyRest(right, 'right', false);
-        });
+        setCenterIdx(nextCenter);
       },
     });
 
     tl.to(
       left,
       {
-        x: REST.left.x - 120,
+        x: REST.left.x - 90,
         opacity: 0,
-        scale: 0.7,
-        filter: 'blur(6px) brightness(0.35)',
+        scale: 0.76,
+        filter: 'blur(5px) brightness(0.4)',
       },
       0,
     );
@@ -105,7 +106,6 @@ export default function ScreenshotCarousel({
       center,
       {
         x: REST.left.x,
-        y: 0,
         scale: REST.left.scale,
         rotateZ: REST.left.rotate,
         opacity: REST.left.opacity,
@@ -119,7 +119,6 @@ export default function ScreenshotCarousel({
       right,
       {
         x: REST.center.x,
-        y: 0,
         scale: REST.center.scale,
         rotateZ: REST.center.rotate,
         opacity: 1,
@@ -130,7 +129,7 @@ export default function ScreenshotCarousel({
     );
 
     tl.add(() => {
-      const incoming = images[mod(centerIdx + 2, len)];
+      const incoming = images[nextRight];
       const img = right.querySelector('img');
       if (img && incoming) {
         img.src = incoming.src;
@@ -139,11 +138,11 @@ export default function ScreenshotCarousel({
       gsap.set(right, {
         xPercent: -50,
         yPercent: -50,
-        x: REST.right.x + 100,
-        scale: REST.right.scale,
+        x: REST.right.x + 72,
+        scale: REST.right.scale * 0.96,
         rotateZ: REST.right.rotate,
-        opacity: 0,
-        filter: `blur(${REST.right.blur + 2}px) brightness(0.45)`,
+        opacity: 0.35,
+        filter: `blur(${REST.right.blur + 1}px) brightness(0.5)`,
         zIndex: REST.right.z,
       });
     });
@@ -152,10 +151,11 @@ export default function ScreenshotCarousel({
       right,
       {
         x: REST.right.x,
+        scale: REST.right.scale,
         opacity: REST.right.opacity,
         filter: `blur(${REST.right.blur}px) brightness(${REST.right.bright})`,
       },
-      '-=0.35',
+      '-=0.42',
     );
   }, [centerIdx, images, len]);
 

@@ -1,47 +1,49 @@
+/* Portrait screenshots 1320×2868 (~0.46 aspect) */
 .screenshot-carousel {
   position: relative;
   width: 100%;
-  max-width: 560px;
-  min-height: 520px;
+  max-width: 480px;
+  min-height: 460px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 
 @media (min-width: 1024px) {
   .screenshot-carousel {
-    max-width: 620px;
-    min-height: 580px;
+    max-width: 520px;
+    min-height: 500px;
     margin: 0;
   }
 }
 
 .screenshot-carousel__stage {
   position: relative;
-  width: min(380px, 92vw);
-  height: min(540px, 78vh);
+  width: min(248px, 72vw);
+  height: min(520px, 68vh);
 }
 
 .screenshot-carousel__slide {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(380px, 92vw);
-  max-height: min(540px, 78vh);
-  border-radius: 1.25rem;
+  width: min(248px, 72vw);
+  max-height: min(520px, 68vh);
+  border-radius: 1.15rem;
   overflow: hidden;
   transform-origin: center center;
   will-change: transform, filter, opacity;
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.48);
 }
 
 .screenshot-carousel__slide img {
   display: block;
   width: 100%;
   height: auto;
-  max-height: min(540px, 78vh);
+  max-height: min(520px, 68vh);
+  aspect-ratio: 1320 / 2868;
   object-fit: contain;
   pointer-events: none;
   user-select: none;
@@ -49,8 +51,8 @@
 
 .screenshot-carousel__slide--active {
   box-shadow:
-    0 28px 64px rgba(0, 0, 0, 0.58),
-    0 0 0 1px rgba(200, 168, 75, 0.15);
+    0 24px 56px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(200, 168, 75, 0.18);
 }
 
 @media (prefers-reduced-motion: reduce) {

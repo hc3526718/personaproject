@@ -63,6 +63,7 @@ import { HostAttendeeScanScreen } from '../screens/HostAttendeeScanScreen';
 import { HostScanPickEventScreen } from '../screens/HostScanPickEventScreen';
 import { HostEventDashboardScreen } from '../screens/HostEventDashboardScreen';
 import { CreateEventScreen } from '../screens/CreateEventScreen';
+import { EventProposalWizard } from '../screens/proposals/EventProposalWizard';
 import { CreateMediaContentScreen } from '../screens/CreateMediaContentScreen';
 import { MediaProposalWizard } from '../screens/proposals/MediaProposalWizard';
 import { SponsorProposalWizard } from '../screens/proposals/SponsorProposalWizard';
@@ -171,6 +172,7 @@ function EventsStackNavigator() {
       <EventsStack.Screen name="StaffCheckIn" component={StaffCheckInScreen} />
       <EventsStack.Screen name="HostEventDashboard" component={HostEventDashboardScreen} />
       <EventsStack.Screen name="CreateEvent" component={CreateEventScreen} />
+      <EventsStack.Screen name="EventProposalWizard" component={EventProposalWizard} />
       <EventsStack.Screen name="HostScanPickEvent" component={HostScanPickEventScreen} />
       <EventsStack.Screen name="HostAttendeeScan" component={HostAttendeeScanScreen} />
     </EventsStack.Navigator>
@@ -442,6 +444,7 @@ function MainTabNavigator() {
             nested === 'StaffCheckIn' ||
             nested === 'HostEventDashboard' ||
             nested === 'CreateEvent' ||
+            nested === 'EventProposalWizard' ||
             nested === 'HostAttendeeScan' ||
             nested === 'HostScanPickEvent' ||
             nested === 'EventsSearch';

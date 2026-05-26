@@ -12,10 +12,10 @@ declare
   sender_name text;
   snippet text;
 begin
-  select p.user_id into recipient
-  from public.conversation_participants p
-  where p.conversation_id = new.conversation_id
-    and p.user_id <> new.sender_id
+  select cp.user_id into recipient
+  from public.conversation_participants cp
+  where cp.conversation_id = new.conversation_id
+    and cp.user_id <> new.sender_id
   limit 1;
 
   if recipient is null then

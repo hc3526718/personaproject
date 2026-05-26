@@ -453,7 +453,10 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
                   refreshSubscription,
                   notifyNewPremiumFromPaywall,
                 });
-                if (allowed === 'allowed') navigation.navigate('CreateEvent');
+                if (allowed === 'allowed') {
+                  if (user?.daltonVerified) navigation.navigate('CreateEvent');
+                  else navigation.navigate('EventProposalWizard');
+                }
               })();
             }}
           >
@@ -1900,9 +1903,8 @@ const styles = StyleSheet.create({
     backgroundColor: DS.color.surfaceAlt,
     borderWidth: 1,
     borderColor: DS.color.borderHairlineLight,
-    minWidth: 110,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: DS.space.sm,
+    alignSelf: 'flex-start',
   },
   evFilterChipOn: {
     backgroundColor: DS.color.gold,

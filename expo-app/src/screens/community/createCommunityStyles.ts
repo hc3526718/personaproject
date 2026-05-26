@@ -32,9 +32,9 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
   communityFab: {
     position: 'absolute',
     right: DS.space.base,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     backgroundColor: c.gold,
     alignItems: 'center',
     justifyContent: 'center',

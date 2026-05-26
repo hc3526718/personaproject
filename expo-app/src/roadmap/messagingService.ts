@@ -192,7 +192,7 @@ export async function sendTextMessage(
   const { data, error } = await supabase
     .from('messages')
     .insert({ conversation_id: conversationId, sender_id: senderId, body: trimmed })
-    .select('*')
+    .select('id, conversation_id, sender_id, body, created_at, media_asset_id')
     .single();
   if (error || !data) {
     const msg = error?.message?.trim() || 'Could not send this message.';

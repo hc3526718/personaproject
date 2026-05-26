@@ -434,7 +434,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
         ]}
         onPress={() => navigation.navigate('CreateCommunityPost')}
       >
-        <FontAwesome name="plus" size={28} color={colors.background} />
+        <FontAwesome name="plus" size={32} color={colors.background} />
       </Pressable>
     </View>
   );
