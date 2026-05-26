@@ -34,6 +34,21 @@ Production push requires Apple + Expo configuration (not only in-app notificatio
 
 Docs: `docs/APPLE_PUSH_SSL_SETUP.md`, `docs/INTEGRATIONS.md`.
 
+### How to obtain a CSR (Certificate Signing Request)
+
+Apple asks for a CSR when you create some **certificate-based** credentials (Wallet Pass Type ID signing, legacy push certs, etc.). APNs often uses a **Key** (`.p8`) instead — no CSR for that path.
+
+**On macOS:**
+
+1. Open **Keychain Access**.
+2. Menu **Keychain Access** → **Certificate Assistant** → **Request a Certificate From a Certificate Authority…**
+3. Enter your email and a **Common Name** (e.g. `Dalton Wallet Signing`).
+4. Select **Saved to disk** → you get a `.certSigningRequest` file.
+5. Go to [Apple Developer → Certificates](https://developer.apple.com/account/resources/certificates/list) (or the Pass Type ID / Services flow) → **Create** the cert type you need → **Upload CSR** → choose that file.
+6. Download the issued `.cer`, double-click to add it to Keychain. Export as **`.p12`** if your pass-signing server or tool requires it (Keychain → certificate → Export).
+
+**Without a Mac:** use OpenSSL on Linux/WSL to generate a key + CSR, or use a teammate’s Mac for the one-time CSR step.
+
 ### Apple Wallet — Pass Type ID & signing certificates
 
 To issue **Add to Wallet** event tickets (`.pkpass`):

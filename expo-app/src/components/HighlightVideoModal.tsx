@@ -1,4 +1,4 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { WebView } from 'react-native-webview';
 import { FontAwesome } from '@expo/vector-icons';
@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../designSystem';
 import {
   isPlayableVideoUrl,
+  resolveHighlightOpenUrl,
   resolveHighlightPlaybackUrl,
 } from '../lib/profileHighlights';
 import { isYouTubeUrl } from '../lib/youtube';
@@ -17,12 +18,34 @@ type Props = {
   onClose: () => void;
 };
 
-/** Full-screen overlay for profile highlight clips (direct file URL or YouTube embed). */
+/** Web-only YouTube embed (react-native-webview does not run on web). */
+function WebYouTubeEmbed({ src, title }: { src: string; title: string }) {
+  if (Platform.OS !== 'web') return null;
+  return (
+    <iframe
+      title={title}
+      src={src}
+      style={{
+        width: '100%',
+        minHeight: 320,
+        maxHeight: '80vh',
+        border: 'none',
+        backgroundColor: '#000',
+      }}
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowFullScreen
+    />
+  );
+}
+
+/** Full-screen overlay for profile highlight clips (YouTube embed or direct file URL). */
 export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const playbackUrl = resolveHighlightPlaybackUrl(videoUrl);
+  const openUrl = resolveHighlightOpenUrl(videoUrl);
   const playable = playbackUrl != null;
-  const useEmbed = isYouTubeUrl(videoUrl);
+  const isYoutube = isYouTubeUrl(videoUrl);
+  const useWebIframe = Platform.OS === 'web' && isYoutube && playbackUrl;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -36,7 +59,9 @@ export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props
           </Pressable>
         </View>
         <View style={styles.playerWrap}>
-          {playable && useEmbed && playbackUrl ? (
+          {playable && useWebIframe ? (
+            <WebYouTubeEmbed src={playbackUrl} title={title} />
+          ) : playable && isYoutube && playbackUrl && Platform.OS !== 'web' ? (
             <WebView
               source={{ uri: playbackUrl }}
               style={styles.embed}
@@ -54,7 +79,17 @@ export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props
               isLooping={false}
             />
           ) : (
-            <Text style={styles.error}>This highlight does not have a valid video link yet.</Text>
+            <View style={styles.fallback}>
+              <Text style={styles.error}>This highlight does not have a valid video link yet.</Text>
+              {openUrl ? (
+                <Pressable
+                  style={styles.openBtn}
+                  onPress={() => void Linking.openURL(openUrl)}
+                >
+                  <Text style={styles.openBtnTxt}>Open video in browser</Text>
+                </Pressable>
+              ) : null}
+            </View>
           )}
         </View>
       </View>
@@ -107,10 +142,26 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
     backgroundColor: '#000',
   },
+  fallback: {
+    alignItems: 'center',
+    gap: DS.space.md,
+  },
   error: {
     fontFamily: DS.font.body,
     fontSize: 15,
     color: DS.color.textMuted,
     textAlign: 'center',
+  },
+  openBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: DS.space.lg,
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: DS.color.gold,
+  },
+  openBtnTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 15,
+    color: DS.color.gold,
   },
 });

@@ -32,6 +32,7 @@ import {
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BookingQrCode } from '../components/BookingQrCode';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
@@ -874,6 +875,8 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const sub = route.params?.sub;
   const supabaseEventId = route.params?.supabaseEventId;
   const [dbEvent, setDbEvent] = useState<EventRow | null>(null);
+  const [deleteEventConfirmOpen, setDeleteEventConfirmOpen] = useState(false);
+  const [deleteEventBusy, setDeleteEventBusy] = useState(false);
 
   const storageKeyEarly =
     route.params?.eventStorageKey ??
@@ -971,6 +974,20 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
 
   const addCal = () =>
     void shareEventCalendar(displayTitle, displayVenue, displaySchedule, displayTitle);
+
+  const confirmDeleteEvent = useCallback(async () => {
+    if (!supabaseEventId || deleteEventBusy) return;
+    setDeleteEventBusy(true);
+    const ok = await deleteCommunityEvent(supabaseEventId);
+    setDeleteEventBusy(false);
+    setDeleteEventConfirmOpen(false);
+    if (ok) {
+      showBanner('Event deleted');
+      navigation.goBack();
+    } else {
+      Alert.alert('Could not delete', 'Check permissions and try again.');
+    }
+  }, [deleteEventBusy, navigation, showBanner, supabaseEventId]);
 
   return (
     <View style={styles.root}>
@@ -1108,26 +1125,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           {user?.masterControl && supabaseEventId ? (
             <Pressable
               style={styles.masterDeleteEventBtn}
-              onPress={() => {
-                Alert.alert('Delete event?', 'This removes the event for everyone.', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                      void (async () => {
-                        const ok = await deleteCommunityEvent(supabaseEventId);
-                        if (ok) {
-                          showBanner('Event deleted');
-                          navigation.goBack();
-                        } else {
-                          Alert.alert('Could not delete', 'Check permissions and try again.');
-                        }
-                      })();
-                    },
-                  },
-                ]);
-              }}
+              onPress={() => setDeleteEventConfirmOpen(true)}
             >
               <Text style={styles.masterDeleteEventLabel}>Delete event (master)</Text>
             </Pressable>
@@ -1145,6 +1143,16 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           <Text style={[styles.saveLaterOutlineText, saved && styles.saveLaterOutlineTextSaved]}>{saved ? 'SAVED' : 'SAVE FOR LATER'}</Text>
         </Pressable>
       </View>
+      <ConfirmModal
+        visible={deleteEventConfirmOpen}
+        title="Delete event?"
+        message="This removes the event for everyone."
+        confirmLabel="Delete"
+        destructive
+        busy={deleteEventBusy}
+        onCancel={() => !deleteEventBusy && setDeleteEventConfirmOpen(false)}
+        onConfirm={() => void confirmDeleteEvent()}
+      />
     </View>
   );
 }

@@ -32,7 +32,7 @@ import { PostCommentsSheet } from '../components/PostCommentsSheet';
 import { CaptionComposer } from '../components/CaptionComposer';
 import { BrandLogo } from '../components/BrandLogo';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
-import { DS, tabRootTitleText } from '../designSystem';
+import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
 import { listFollowingProfiles } from '../roadmap/followService';
 import { resolveCanMessagePeer } from '../roadmap/messagingGateService';
@@ -357,7 +357,6 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   }, []);
 
   const feedIsWeb = Platform.OS === 'web';
-  const webSnapHeight = Math.max(520, Math.round(Dimensions.get('window').height * 0.78));
 
   const renderFeedPost = useCallback(
     (p: CommunityPostFeedRow) => {
@@ -394,16 +393,9 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
         <FlatList
           data={feedPosts}
           keyExtractor={(p) => p.id}
-          renderItem={({ item }) => (
-            <View style={[styles.feedWebSnapCell, { minHeight: webSnapHeight }]}>
-              {renderFeedPost(item)}
-            </View>
-          )}
-          pagingEnabled
-          snapToAlignment="start"
-          decelerationRate="fast"
+          renderItem={({ item }) => <View>{renderFeedPost(item)}</View>}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.feedList, styles.feedListWebSnap, { paddingBottom: 124 + insets.bottom }]}
+          contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
           refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
         />
       )}
@@ -413,7 +405,14 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   return (
     <View style={[styles.root, feedIsWeb && styles.rootWebFull]}>
       <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
-      <View style={[styles.feedHeader, webPageShellStyle(), { paddingTop: insets.top + 4, paddingBottom: DS.space.xs }]}>
+      <View
+        style={[
+          styles.feedHeader,
+          tabRootHeaderPadding,
+          webPageShellStyle(),
+          { paddingTop: insets.top + DS.space.md },
+        ]}
+      >
         <View style={styles.feedHeaderRow}>
           <Text style={styles.communityTitle}>COMMUNITY</Text>
           <View style={styles.feedHeaderActions}>
