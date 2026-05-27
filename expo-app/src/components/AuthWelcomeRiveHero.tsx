@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: DS.color.background,
+    backgroundColor: 'transparent',
     overflow: 'hidden',
   },
   loaderOverlay: {
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   riveWrap: {
     width: '100%',
     height: '100%',
-    backgroundColor: DS.color.background,
+    backgroundColor: 'transparent',
   },
   riveHidden: {
     opacity: 0,
@@ -83,6 +83,6 @@ const styles = StyleSheet.create({
   rive: {
     width: '100%',
     height: '100%',
-    backgroundColor: DS.color.background,
+    backgroundColor: 'transparent',
   },
 });

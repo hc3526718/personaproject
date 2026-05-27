@@ -3,12 +3,7 @@ import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Asset } from 'expo-asset';
 import { Alignment, Fit, Layout, useRive } from '@rive-app/react-canvas';
 import type { DaltonBootRiveError } from './DaltonBootRivePlayer';
-import {
-  BOOT_PAGE_BACKGROUND,
-  BOOT_USE_RIVE,
-  DALTON_BOOT_RIVE,
-  daltonRiveLayoutProps,
-} from '../constants/riveBoot';
+import { BOOT_USE_RIVE, DALTON_BOOT_RIVE, daltonRiveLayoutProps } from '../constants/riveBoot';
 import { captureBootRiveIssue } from '../monitoring/sentryBoot';
 
 type Props = {
@@ -76,7 +71,7 @@ export function DaltonBootRiveDisplay({
   if (!BOOT_USE_RIVE || !rivSrc) return null;
 
   return (
-    <View style={[styles.outer, style, { backgroundColor: BOOT_PAGE_BACKGROUND }]}>
+    <View style={[styles.outer, style, { backgroundColor: 'transparent' }]}>
       <RiveComponent style={styles.canvas} />
     </View>
   );

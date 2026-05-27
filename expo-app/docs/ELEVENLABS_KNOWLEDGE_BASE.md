@@ -1,42 +1,41 @@
-# Dalton Access — ElevenLabs agent knowledge base
+# The Dalton Grant Academy — ElevenLabs agent knowledge base
 
-> **Canonical copy:** Use [`CHATBOT_KNOWLEDGE_BASE.md`](./CHATBOT_KNOWLEDGE_BASE.md) for the fullest training document (billing, security boundaries, accessibility). This file is kept for ElevenLabs-specific notes.
+**Scope:** App product information only. Do not discuss topics outside this product (no general chat, politics, unrelated services, or internal admin secrets).
 
-Use this document to train a voice/chat assistant for Dalton Access (mobile app + web at `https://daltongrantacademy.vercel.app/app`).
-
----
-
-## What Dalton Access is
-
-Dalton Access is a performance community platform for athletes and creators. Users can:
-
-- Browse **Community** posts and trending topics
-- Discover **Events** (book, save, host with premium tools)
-- Watch **Media** (training, mindset, recovery content)
-- View **Sponsors** and partnership offers
-- Manage **Profile** (bio, interests, highlights, results, banner, photo)
-- Subscribe to **Premium** for creator tools and Dalton verification
-
-Accounts use **Supabase** (email/password or Google/Apple sign-in). Premium on mobile uses **RevenueCat** (App Store / Play). Premium on web uses **Stripe Checkout**.
+**Web app:** https://daltongrantacademy.vercel.app/app  
+**Marketing site:** https://daltongrantacademy.vercel.app  
+**Last updated:** 2026-05-27
 
 ---
 
-## Sign in and account setup
+## Product identity
 
-### Sign up / log in
+**The Dalton Grant Academy** is a performance community platform for athletes and creators.
 
-1. Open the app (or web `/app`).
-2. **Welcome** screen: Sign Up, Log In, Continue with Google, Continue with Apple (iOS).
+| Area | What users do |
+|------|----------------|
+| **Community** | Feed, posts, reactions, comments, direct messages |
+| **Events** | Discover, book, save; hosts create sessions and use QR check-in (premium + Dalton verified) |
+| **Media** | Training and mindset video library; uploads for verified creators |
+| **Sponsors** | Partner listings and partnership inquiries (premium) |
+| **Profile** | Bio, sports, highlights, results, banner, profile photo |
+| **Premium** | Paid subscription (**Grant Access Pro** entitlement) for creator tools after **Dalton verification** |
+
+**Accounts:** Supabase Auth — email/password, Google, and Apple (iOS).  
+**One account on all devices:** Same email on web, iOS, and Android; subscription status is stored per account in `subscription_state`.
+
+---
+
+## Sign in and onboarding
+
+1. Open the app or web **Login** at `/app`.
+2. **Welcome:** Sign up, log in, Continue with Google, Continue with Apple (iOS).
 3. After email sign-up, confirm email if prompted, then log in.
-4. Complete **onboarding**: role, sports (capitalized when saved), discovery source, username.
+4. Complete **onboarding:** role, sports, discovery source, username.
 
-### Same account on all devices
+**Forgot password:** Use **Log In → Forgot password**; check spam if the reset email does not arrive.
 
-Use the **same email** (or same Google/Apple account) everywhere. Premium follows the account via `subscription_state` in the database—not the device.
-
-### Forgot password
-
-Use **Log In → Forgot password** (if shown) or contact support if reset email does not arrive (check spam).
+**Web OAuth callback:** `/app/auth/callback` — cookies and localStorage must be allowed.
 
 ---
 
@@ -44,202 +43,142 @@ Use **Log In → Forgot password** (if shown) or contact support if reset email 
 
 ### Two steps for creator features
 
-1. **Premium subscription** (paid) — required first.
-2. **Dalton verification** (team-approved) — required before publishing events/media.
+1. **Premium subscription** (paid) — required first.  
+2. **Dalton verification** (master-team approval) — required before publishing events or media.
 
-`dalton_verified` alone does **not** unlock creator tools without premium.
+`dalton_verified` **without** premium does **not** unlock creator tools.
 
-### If + button shows paywall
+### Purchasing premium
 
-User is not premium. On web: Stripe checkout. On iOS/Android: RevenueCat paywall.
+| Platform | Path |
+|----------|------|
+| **Web** | Profile → Premium → Stripe Checkout |
+| **iOS / Android** | RevenueCat paywall (App Store / Google Play) |
 
-### If user sees “Awaiting Dalton verification”
+**One subscription per account** — do not buy separately on web and mobile for the same email. After payment, wait 1–2 minutes, then refresh or use **Restore purchases** on mobile.
 
-They have premium but are not yet verified. Message: *Once your account has been verified you will have access to your premium features.* They should wait for the Dalton team or contact support—do not promise instant verification.
+### If the + button shows a paywall
+
+The user is not premium. Subscribe on web (Stripe) or mobile (stores).
+
+### If the user sees “Awaiting Dalton verification”
+
+They have premium but are **not yet Dalton verified**. Creator tools (host events, upload media, sponsor proposals) stay locked until a **master account** approves them in **Master control → Dalton verification queue**. Do not promise instant verification.
 
 ### Restore purchases (mobile)
 
-Profile → Premium → **Restore purchases**. Web: refresh after Stripe payment; return URL includes `?stripe_checkout=success`.
+Profile → Premium → **Restore purchases**. Use the same email as the original purchase.
 
 ---
 
-## Main tabs (how to use features)
+## Main tabs
 
 ### Community
 
-- Scroll feed; on web, trending sidebar may appear.
-- Create post (where enabled): text and images.
-- Pull down to refresh (gold ring loader at top).
+- Scroll the feed; pull down to refresh (gold circular loader).
+- Create posts where enabled (text and images).
+- Messages and notifications from the Community area.
+- Report content via in-app report.
 
 ### Events
 
-- Filter chips: All, Booked, Saved, Past, My events (premium).
-- **+** create event: premium + verification required.
-- Search icon in header (same size as Media).
-- Book events; QR check-in for hosts (premium).
+- Filters: All, Booked, Saved, Past, **My events** (premium).
+- **+** create event: premium + Dalton verification required.
+- Book events; hosts use QR check-in when verified.
 
 ### Media
 
-- Browse categories (chips).
-- **Continue Watching** only appears if the user started a video and did not finish it.
-- If everything watched, **Recommended** may show instead.
-- **Bookmark** icon opens saved library.
-- **+** upload: premium + verification.
+- Browse category chips.
+- **Continue Watching** when the user started a video and did not finish.
+- **Bookmark** opens the saved library.
+- **+** upload: premium + Dalton verification.
 
 ### Sponsors
 
 - Browse partner listings.
-- **+** partnership inquiry: premium required, then in-app message about coordinating with Dalton team.
+- **+** partnership inquiry: premium required; coordination with the Dalton team.
 
-### Profile
+### Profile and settings
 
-- Edit sections: basic info, photo, banner, bio, interests, highlights, recent results.
-- Photo/banner: upload from gallery (stored in Supabase Storage).
-- Settings → Legal: Terms, Privacy (opens marketing site pages).
+- Edit profile sections: basic info, photo, banner, bio, interests, highlights, recent results.
+- **Settings → Accessibility:** Larger Text (1×–3×), Differentiate Without Color, Sufficient Contrast; dark interface is default; prefs sync when signed in.
+- **Settings → Legal:** Terms, Privacy, Cookie policy, Athlete agreement (website links).
+- **Settings → Support / Help centre:** in-app and web guides.
 
 ---
 
 ## Web vs mobile
 
-| Feature | Web | iOS/Android |
-|--------|-----|-------------|
+| Feature | Web | iOS / Android |
+|--------|-----|----------------|
 | Sign in | Email, Google | Email, Google, Apple |
-| Premium purchase | Stripe | RevenueCat / stores |
-| Video upload | Limited | Full library picker |
-| Rive animation | Auth welcome (iframe) | Native/embed |
-
-Web base path: `/app`. OAuth callback: `/app/auth/callback`.
-
----
-
-## Troubleshooting (assistant playbook)
-
-### “Can’t log in”
-
-- Confirm email verified (sign-up flow).
-- Check internet connection.
-- Web: allow cookies/localStorage; try incognito if stuck session.
-- Google sign-in: ensure redirect URL matches Supabase settings.
-
-### “Premium not showing after payment”
-
-- Wait 1–2 minutes for webhook.
-- Pull to refresh or restart app.
-- Web: return from Stripe with success URL.
-- Mobile: Restore purchases.
-- Still missing: escalate to live support with receipt email and account email.
-
-### “Paywall won’t open”
-
-- Web: Supabase + Stripe Edge Functions must be deployed; user must be signed in.
-- Mobile: not available in Expo Go—needs TestFlight/production build.
-
-### “Can’t upload photo/banner”
-
-- Grant photo library permission.
-- Check connection.
-- If upload fails: Storage bucket `media_assets` policy may block—escalate support.
-
-### “Rive animation has white/grey box on web”
-
-Known embed limitation. Animation should sit on dark `#0A0A0A` background; if box persists, suggest updating browser or using mobile app.
-
-### “Spinner looks wrong on pull-to-refresh”
-
-App uses a **gold circular** loader (not the system spinner). If user sees a blank area, advise pull again or update app.
-
----
-
-## When to escalate to live support
-
-Escalate when:
-
-- Payment taken but no premium after 24h
-- Account deletion or GDPR request
-- Harassment, impersonation, or safety reports
-- Master control / admin access requests
-- Verification status disputes
-- Bug crashes (ask for device, OS, app version, steps)
-
-Collect: account email, platform (web/iOS/Android), screenshot if possible, time of issue.
-
----
-
-## Legal and privacy links
-
-When `EXPO_PUBLIC_DALTON_WEB_URL` is set:
-
-- Terms: `{DALTON_WEB_URL}/terms`
-- Privacy: `{DALTON_WEB_URL}/privacy`
-- Athlete agreement: `{DALTON_WEB_URL}/athlete-agreement`
-
-In-app: Profile → Settings → Legal.
+| Premium | Stripe Checkout | RevenueCat / stores |
+| Video upload | More limited | Full library picker |
+| Auth welcome animation | Rive on canvas (transparent background) | Native Rive or embed |
 
 ---
 
 ## Accessibility (in-app — four features only)
 
-- **Larger Text**, **Dark Interface** (default), **Differentiate Without Color**, **Sufficient Contrast** — Settings → Accessibility; sync across devices when signed in.
-- Do not claim VoiceOver, captions, reduced motion, or light theme as product features unless shipped.
+1. **Larger Text**  
+2. **Dark Interface** (default)  
+3. **Differentiate Without Color Alone**  
+4. **Sufficient Contrast**  
+
+Do not describe VoiceOver, captions, reduced motion, or light theme as shipped product features.
 
 ---
 
-## Content submission (media & sponsors) — future / ops
+## Legal pages (website)
 
-**Not fully automated in app today.** Recommended flows for operations:
+| Document | Path |
+|----------|------|
+| Terms | `/terms` |
+| Privacy | `/privacy` |
+| Cookies | `/cookie-policy` |
+| Athlete agreement | `/athlete-agreement` |
+| Help centre | `/help-center` |
+| Contact | `/contact-us` |
+| Live chat | `/live-chat` |
 
-1. **Email intake** — `partners@` / `media@` with PDF proposal + attachments.
-2. **In-app proposals** (future) — form linked to moderator role; approve/deny updates catalog.
-3. **Verification** — human review before `media_assets` or sponsor rows go public.
-
-Assistant: direct creators to Support for partnership/media pitches until in-app submission ships.
-
----
-
-## Offline mode (roadmap)
-
-Not fully shipped. Planned approach:
-
-- Cache feed/events/sponsors/media metadata in local storage when online.
-- Queue actions (posts, uploads) until reconnect.
-- Show “Offline” banner and read-only cached content.
-
-If user asks offline: explain coming soon; suggest downloading saved items where available.
+In-app: Profile → Settings → Legal.
 
 ---
 
-## Caption @ and # highlighting (roadmap)
+## Common app issues (in-product answers only)
 
-Gold styling when typing `@` or `#` in captions requires a custom `TextInput` (rich text) or markdown layer—not default React Native. Not in current build; suggest plain text tags for now.
-
----
-
-## Assistant tone
-
-- Clear, calm, athlete-friendly.
-- Do not share API keys, webhook secrets, or service role keys.
-- Do not promise verification timelines unless ops provides them.
-- Prefer step-by-step fixes before escalation.
+| Symptom | What to tell the user |
+|---------|------------------------|
+| Cannot log in | Confirm email verified; check network; on web allow cookies; retry Google sign-in |
+| Premium missing after payment | Wait 1–2 minutes; web: return from Stripe success URL; mobile: Restore purchases; same email everywhere |
+| Paywall will not open (mobile) | Real build required (not Expo Go) |
+| Paywall will not open (web) | Must be signed in; Stripe functions must be deployed |
+| Feed not updating | Pull to refresh; reopen app; check connection |
+| Cannot upload photo | Grant photo library permission; check connection |
+| Animation shows a box on web | Page/canvas background should be dark `#0A0A0A`; animation uses a transparent canvas — no extra panel behind the art |
 
 ---
 
 ## Quick FAQ
 
 **Q: Is Dalton verified the same as Premium?**  
-A: No. Premium is paid. Verification is approval to publish as a creator.
+A: No. Premium is paid. Verification is master-team approval to publish as a creator.
 
 **Q: Can I use Premium on web and phone?**  
-A: Yes, one subscription per account (Stripe on web, stores on mobile—both update the same account when webhooks are configured).
+A: Yes — one subscription per account when webhooks and store purchases use the same account email.
 
-**Q: Where are my saved events?**  
+**Q: Where are saved events?**  
 A: Events tab → Saved filter.
 
-**Q: Where is my saved media?**  
+**Q: Where is saved media?**  
 A: Media tab → bookmark icon → Saved library.
 
 **Q: How do I edit my bio?**  
 A: Profile → Edit Profile Sections → Bio.
 
+**Q: Who can verify my account?**  
+A: Only Dalton Grant Academy master accounts — not self-service in the app.
+
 ---
 
-*Last updated for product training. Regenerate when major releases ship.*
+*Regenerate when major app releases change tabs, billing, or verification flow.*

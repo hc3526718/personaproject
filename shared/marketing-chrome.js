@@ -7,10 +7,24 @@
   window.__daltonMarketingUiLoading = true;
 
   const CSS_HREF = '/shared/marketing-ui/marketing-ui.css';
+  const OVERRIDES_HREF = '/shared/marketing-overrides.css';
   const JS_SRC = '/shared/marketing-ui/marketing-ui.js';
+  const FOOTER_SRC = '/shared/site-footer.js';
 
-  function appendScript() {
-    if (document.querySelector('script[data-dalton-marketing-ui]')) return;
+  function appendFooterScript() {
+    if (document.querySelector('script[data-dga-site-footer]')) return;
+    const footerJs = document.createElement('script');
+    footerJs.src = FOOTER_SRC;
+    footerJs.defer = true;
+    footerJs.setAttribute('data-dga-site-footer', '1');
+    document.body.appendChild(footerJs);
+  }
+
+  function appendBundleScript() {
+    if (document.querySelector('script[data-dalton-marketing-ui]')) {
+      appendFooterScript();
+      return;
+    }
     const js = document.createElement('script');
     js.src = JS_SRC;
     js.async = false;
@@ -19,11 +33,26 @@
     js.onerror = function onMarketingUiError() {
       console.error('[dalton-marketing] Failed to load', JS_SRC);
     };
+    js.onload = appendFooterScript;
     document.body.appendChild(js);
   }
 
+  function appendOverridesCss() {
+    if (document.querySelector('link[data-dalton-marketing-overrides]')) {
+      appendBundleScript();
+      return;
+    }
+    const overrides = document.createElement('link');
+    overrides.rel = 'stylesheet';
+    overrides.href = OVERRIDES_HREF;
+    overrides.setAttribute('data-dalton-marketing-overrides', '1');
+    overrides.onload = appendBundleScript;
+    overrides.onerror = appendBundleScript;
+    document.head.appendChild(overrides);
+  }
+
   if (document.querySelector('link[data-dalton-marketing-ui]')) {
-    appendScript();
+    appendOverridesCss();
     return;
   }
 
@@ -31,10 +60,10 @@
   css.rel = 'stylesheet';
   css.href = CSS_HREF;
   css.setAttribute('data-dalton-marketing-ui', '1');
-  css.onload = appendScript;
+  css.onload = appendOverridesCss;
   css.onerror = function onMarketingCssError() {
     console.error('[dalton-marketing] Failed to load', CSS_HREF);
-    appendScript();
+    appendOverridesCss();
   };
   document.head.appendChild(css);
 })();

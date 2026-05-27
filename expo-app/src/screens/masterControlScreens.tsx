@@ -27,7 +27,13 @@ import {
   listSubscriptionOfferPages,
 } from '../roadmap/liveDataService';
 import type { SubscriptionOfferPageRow } from '../roadmap/types';
-import { masterDeleteUserAccount, verifyMasterPin } from '../master/masterControlService';
+import {
+  listPremiumAwaitingDaltonVerification,
+  masterDeleteUserAccount,
+  masterGrantDaltonVerified,
+  type PremiumAwaitingDaltonVerificationRow,
+  verifyMasterPin,
+} from '../master/masterControlService';
 import { clearMasterGate, isMasterGateUnlocked, setMasterGateUnlocked } from '../master/masterGateStorage';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
@@ -137,6 +143,11 @@ export function MasterControlHubScreen({ navigation }: PProps<'MasterControlHub'
           <Text style={styles.menuTxt}>Partner subscription pages</Text>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
+        <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterVerificationQueue')}>
+          <FontAwesome name="check-circle" size={18} color={DS.color.gold} />
+          <Text style={styles.menuTxt}>Dalton verification queue</Text>
+          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+        </Pressable>
         <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterUserAccounts')}>
           <FontAwesome name="users" size={18} color={DS.color.gold} />
           <Text style={styles.menuTxt}>Accounts & deletion</Text>
@@ -158,6 +169,123 @@ export function MasterControlHubScreen({ navigation }: PProps<'MasterControlHub'
           <Text style={[styles.menuTxt, { color: DS.color.textMuted }]}>Lock master session</Text>
         </Pressable>
       </ScrollView>
+    </View>
+  );
+}
+
+export function MasterVerificationQueueScreen({ navigation }: PProps<'MasterVerificationQueue'>) {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [rows, setRows] = useState<PremiumAwaitingDaltonVerificationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pinDraft, setPinDraft] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setRows(await listPremiumAwaitingDaltonVerification());
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
+
+  const approve = (target: PremiumAwaitingDaltonVerificationRow) => {
+    const label = target.display_name ?? target.username ?? target.user_id.slice(0, 8);
+    const runApprove = (pin: string) =>
+      void (async () => {
+        const digits = pin.replace(/\D/g, '');
+        if (digits.length !== 6) {
+          Alert.alert('PIN', 'Enter your 6-digit master PIN.');
+          return;
+        }
+        setBusyId(target.user_id);
+        const res = await masterGrantDaltonVerified(target.user_id, digits);
+        setBusyId(null);
+        if (res.ok) {
+          await reload();
+          Alert.alert('Verified', `${label} is now Dalton verified.`);
+        } else {
+          Alert.alert('Could not verify', res.message);
+        }
+      })();
+
+    if (Platform.OS === 'ios') {
+      Alert.prompt('Master PIN', `Approve Dalton verification for ${label}.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Approve', onPress: (p) => runApprove(p ?? '') },
+      ]);
+      return;
+    }
+    if (!pinDraft.replace(/\D/g, '').length) {
+      Alert.alert('PIN', 'Enter your 6-digit master PIN in the field above, then tap Approve again.');
+      return;
+    }
+    runApprove(pinDraft);
+  };
+
+  if (!user?.masterControl) {
+    return (
+      <View style={[styles.root, { paddingTop: insets.top }]}>
+        <ScreenHeader title="Verification queue" onBack={() => navigation.goBack()} />
+        <Text style={[styles.lead, styles.pad]}>This area is restricted.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScreenHeader title="Verification queue" onBack={() => navigation.goBack()} />
+      <Text style={[styles.lead, styles.pad]}>
+        Premium members who are not yet Dalton verified. Only master accounts can approve verification.
+      </Text>
+      {Platform.OS !== 'ios' ? (
+        <View style={[styles.padH, { marginBottom: DS.space.sm }]}>
+          <Text style={styles.label}>Master PIN (Android)</Text>
+          <TextInput
+            value={pinDraft}
+            onChangeText={setPinDraft}
+            keyboardType="number-pad"
+            secureTextEntry
+            style={styles.input}
+            placeholder="6 digits"
+            placeholderTextColor={DS.color.textMuted}
+          />
+        </View>
+      ) : null}
+      {loading ? (
+        <AppLoadingIndicator style={{ marginTop: 24 }} />
+      ) : (
+        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+          {rows.map((r) => {
+            const label = r.display_name ?? r.username ?? 'Member';
+            const sub = r.username ? `@${r.username}` : r.user_id;
+            return (
+              <View key={r.user_id} style={styles.offerRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.offerTitle}>{label}</Text>
+                  <Text style={styles.offerSub} numberOfLines={1}>
+                    {sub}
+                  </Text>
+                </View>
+                <Pressable
+                  style={[styles.verifyBtn, busyId === r.user_id && styles.verifyBtnBusy]}
+                  onPress={() => approve(r)}
+                  disabled={busyId === r.user_id}
+                >
+                  <Text style={styles.verifyBtnTxt}>{busyId === r.user_id ? '…' : 'Approve'}</Text>
+                </Pressable>
+              </View>
+            );
+          })}
+          {!rows.length ? (
+            <Text style={[styles.lead, styles.pad]}>No premium accounts awaiting verification.</Text>
+          ) : null}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -438,4 +566,16 @@ const styles = StyleSheet.create({
   },
   offerTitle: { fontFamily: DS.font.bodyBold, fontSize: 16, color: DS.color.gold },
   offerSub: { fontFamily: DS.font.body, fontSize: 13, color: DS.color.textMuted, marginTop: 4 },
+  verifyBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: DS.apple.radiusField,
+    backgroundColor: DS.color.gold,
+  },
+  verifyBtnBusy: { opacity: 0.6 },
+  verifyBtnTxt: {
+    fontFamily: DS.font.bodyBold,
+    fontSize: 13,
+    color: DS.color.background,
+  },
 });

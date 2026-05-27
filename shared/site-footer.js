@@ -29,7 +29,12 @@
   }
 
   function ensure() {
-    if (hasFooter()) return;
+    var existing = document.querySelector('footer');
+    if (existing && existing.getAttribute('data-dga-footer') === '1') return;
+    if (existing) {
+      existing.outerHTML = footerHtml();
+      return;
+    }
     var main = document.querySelector('main');
     if (!main) return;
     main.insertAdjacentHTML('afterend', footerHtml());

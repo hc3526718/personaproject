@@ -77,6 +77,49 @@ async function verifyMasterPinRpc(
   return { ok: false, message: 'Incorrect PIN.' };
 }
 
+export type PremiumAwaitingDaltonVerificationRow = {
+  user_id: string;
+  display_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  is_pro: boolean;
+  premium_updated_at: string | null;
+};
+
+export async function listPremiumAwaitingDaltonVerification(): Promise<
+  PremiumAwaitingDaltonVerificationRow[]
+> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc('list_premium_awaiting_dalton_verification');
+  if (error || !data) return [];
+  return data as PremiumAwaitingDaltonVerificationRow[];
+}
+
+export async function masterGrantDaltonVerified(
+  targetUserId: string,
+  pin: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, message: 'Supabase is not configured.' };
+  const { data, error } = await supabase.rpc('master_grant_dalton_verified', {
+    target_user_id: targetUserId,
+    pin,
+  });
+  if (error) {
+    const msg = error.message ?? 'Could not verify user.';
+    if (msg.includes('user_not_premium')) {
+      return { ok: false, message: 'This account does not have an active Premium subscription.' };
+    }
+    if (msg.includes('invalid_pin') || msg.includes('verify_master_pin')) {
+      return { ok: false, message: 'Incorrect PIN.' };
+    }
+    return { ok: false, message: msg };
+  }
+  if (data === true) return { ok: true };
+  return { ok: false, message: 'Incorrect PIN or not authorized.' };
+}
+
 /** Requires deployed Edge Function `master-delete-user` + `SUPABASE_SERVICE_ROLE_KEY` secret. */
 export async function masterDeleteUserAccount(
   targetUserId: string,

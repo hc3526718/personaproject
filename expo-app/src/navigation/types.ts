@@ -123,6 +123,7 @@ export type ProfileStackParamList = {
   MasterPartnerOffers: undefined;
   CreatePartnerOffer: undefined;
   MasterUserAccounts: undefined;
+  MasterVerificationQueue: undefined;
   MasterProposalQueue: undefined;
   MasterProposalDetail: { proposalId: string };
   MyProposals: undefined;

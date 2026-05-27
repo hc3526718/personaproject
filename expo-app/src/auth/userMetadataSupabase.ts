@@ -24,33 +24,26 @@ export async function ensureDefaultDaltonVerifiedMetadata(supabase: SupabaseClie
 }
 
 /**
- * When a user has active Premium (`is_pro`), mirror Dalton verified into auth metadata for the session.
- * Server trigger `subscription_state_sync_dalton_verified` also sets `profiles.dalton_verified`.
- *
- * One-way rule: every premium user becomes verified; verified users are not auto-premium.
- * Subscription expiry sets `is_pro = false` but does not clear `dalton_verified`.
+ * Mirror `profiles.dalton_verified` into auth metadata when a master has approved the user.
+ * Premium alone does not grant verification — masters approve via Master control.
  */
 export async function syncDaltonVerifiedFromProfileIfPremium(
   supabase: SupabaseClient,
-  isPro: boolean,
+  _isPro: boolean,
 ): Promise<{ updated: boolean }> {
-  if (!isPro) return { updated: false };
-
   const {
     data: { user },
     error: userErr,
   } = await supabase.auth.getUser();
   if (userErr || !user?.id) return { updated: false };
 
-  const { data: subRow, error: subErr } = await supabase
-    .from('subscription_state')
-    .select('is_pro')
-    .eq('user_id', user.id)
+  const { data: profile, error: profileErr } = await supabase
+    .from('profiles')
+    .select('dalton_verified')
+    .eq('id', user.id)
     .maybeSingle();
 
-  if (!subErr && subRow && subRow.is_pro === false) {
-    return { updated: false };
-  }
+  if (profileErr || !profile?.dalton_verified) return { updated: false };
 
   const meta = user.user_metadata as Record<string, unknown> | undefined;
   if (meta?.dalton_verified === true || meta?.daltonVerified === true) {

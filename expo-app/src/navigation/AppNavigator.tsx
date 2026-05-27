@@ -102,6 +102,7 @@ import {
   MasterGateScreen,
   MasterPartnerOffersScreen,
   MasterUserAccountsScreen,
+  MasterVerificationQueueScreen,
 } from '../screens/masterControlScreens';
 import { ProposalOutcomeHost } from '../components/ProposalOutcomeHost';
 import {
@@ -221,6 +222,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="MasterGate" component={MasterGateScreen} />
       <ProfileStack.Screen name="MasterPartnerOffers" component={MasterPartnerOffersScreen} />
       <ProfileStack.Screen name="CreatePartnerOffer" component={CreatePartnerOfferScreen} />
+      <ProfileStack.Screen name="MasterVerificationQueue" component={MasterVerificationQueueScreen} />
       <ProfileStack.Screen name="MasterUserAccounts" component={MasterUserAccountsScreen} />
       <ProfileStack.Screen name="MasterProposalQueue" component={MasterProposalQueueScreen} />
       <ProfileStack.Screen name="MasterProposalDetail" component={MasterProposalDetailScreen} />

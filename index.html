@@ -73,7 +73,7 @@
       grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: 0.75rem;
-      padding: 1rem 1.25rem;
+      padding: 1.35rem max(1.5rem, env(safe-area-inset-left, 0px)) 1.35rem max(1.5rem, env(safe-area-inset-right, 0px));
       pointer-events: none;
     }
     .dalton-header-fallback > * {
@@ -118,7 +118,7 @@
       display: block;
       height: 2px;
       border-radius: 2px;
-      background: #c8a84b;
+      background: #d4d0c8;
     }
     .landing-auth-fallback {
       display: inline-flex;
@@ -182,23 +182,11 @@
       display: none;
     }
 
-    /* Home-only layout tweaks */
-    .home-shell {
-      width: min(1260px, calc(100% - 2.25rem));
-      margin-left: auto;
-      margin-right: auto;
-    }
-    @media (min-width: 768px) {
-      .home-shell {
-        width: min(1320px, calc(100% - 3rem));
-      }
-    }
-
     /* New carousel (vanilla, no React mount) */
     .dga-carousel {
       position: relative;
       width: 100%;
-      max-width: 660px;
+      max-width: 720px;
       margin: 0 auto;
       display: grid;
       gap: 0.85rem;
@@ -206,25 +194,26 @@
     }
     @media (min-width: 1024px) {
       .dga-carousel {
-        margin: 0;
-        justify-items: end;
+        margin-left: auto;
+        margin-right: auto;
+        transform: translateX(-2.5%);
       }
     }
     .dga-carousel__stage {
       position: relative;
-      width: min(360px, 72vw);
-      height: min(620px, 68vh);
+      width: min(520px, 92vw);
+      height: min(760px, 78vh);
       perspective: 1200px;
-      isolation: isolate;
+      overflow: visible;
     }
     .dga-slide {
       position: absolute;
       left: 50%;
       top: 50%;
-      width: min(300px, 70vw);
-      max-height: min(620px, 68vh);
+      width: min(400px, 86vw);
+      max-height: min(760px, 78vh);
       border-radius: 1.2rem;
-      overflow: hidden;
+      overflow: visible;
       transform-origin: center center;
       will-change: transform, opacity, filter;
       box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
@@ -235,34 +224,41 @@
       filter: blur(6px) brightness(0.52);
       transform: translate(-50%, -50%) translateX(0px) scale(0.88) rotateZ(0deg);
       pointer-events: none;
+      z-index: 0;
     }
     .dga-slide img {
       display: block;
       width: 100%;
-      height: 100%;
+      height: auto;
+      max-height: min(760px, 78vh);
       object-fit: contain;
-      background: rgba(255, 255, 255, 0.02);
+      background: transparent;
     }
     .dga-slide[data-pos="active"] {
       opacity: 1;
       filter: blur(0px) brightness(1);
       transform: translate(-50%, -50%) translateX(0px) scale(1) rotateZ(0deg);
       box-shadow: 0 28px 64px rgba(0, 0, 0, 0.68), 0 0 0 1px rgba(200, 168, 75, 0.22);
+      z-index: 30 !important;
+      pointer-events: auto;
     }
     .dga-slide[data-pos="left"] {
       opacity: 0.78;
       filter: blur(1px) brightness(0.62);
-      transform: translate(-50%, -50%) translateX(-150px) scale(0.84) rotateZ(-4deg);
+      transform: translate(-50%, -50%) translateX(-168px) scale(0.84) rotateZ(-4deg);
+      z-index: 5 !important;
     }
     .dga-slide[data-pos="right"] {
       opacity: 0.78;
       filter: blur(1px) brightness(0.62);
-      transform: translate(-50%, -50%) translateX(150px) scale(0.84) rotateZ(4deg);
+      transform: translate(-50%, -50%) translateX(168px) scale(0.84) rotateZ(4deg);
+      z-index: 5 !important;
     }
     .dga-slide[data-pos="hidden"] {
       opacity: 0;
       filter: blur(10px) brightness(0.45);
       transform: translate(-50%, -50%) translateX(0px) scale(0.78);
+      z-index: 0 !important;
     }
 
     .dga-carousel__nav {
@@ -335,7 +331,7 @@
   <div id="dalton-staggered-menu" aria-hidden="false"></div>
 
   <main>
-    <section class="home-shell pt-16 md:pt-20 pb-12">
+    <section class="mx-auto max-w-5xl px-6 md:px-8 pt-6 md:pt-8 pb-12">
       <div class="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
         <div class="lg:col-span-6">
           <p class="font-bebas text-gold tracking-[0.26em] text-sm">TRAIN · CONNECT · GET DISCOVERED</p>
@@ -423,17 +419,6 @@
     </section>
   </main>
 
-  <footer class="mx-auto max-w-6xl px-5 pb-12 pt-8 text-xs text-dim">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t border-line pt-6">
-      <p>© <span id="y"></span> The Dalton Grant Academy.</p>
-      <div class="flex flex-wrap items-center gap-4">
-        <a class="hover:text-mist transition-colors" href="/privacy">Privacy</a>
-        <a class="hover:text-mist transition-colors" href="/terms">Terms</a>
-        <a class="hover:text-mist transition-colors" href="/app">Login</a>
-      </div>
-    </div>
-  </footer>
-  <script>document.getElementById('y').textContent = new Date().getFullYear();</script>
   <script src="shared/landing-auth.js"></script>
   <script src="shared/marketing-chrome.js"></script>
   <script src="shared/site-transition.js"></script>
@@ -477,15 +462,16 @@
 
       function applyPositions() {
         var len = slides.length;
-        for (var i = 0; i < len; i++) {
-          slides[i].setAttribute('data-pos', 'hidden');
-        }
         var active = idx;
         var left = clampIndex(idx - 1);
         var right = clampIndex(idx + 1);
+        for (var i = 0; i < len; i++) {
+          slides[i].setAttribute('data-pos', 'hidden');
+        }
         slides[left].setAttribute('data-pos', 'left');
-        slides[active].setAttribute('data-pos', 'active');
         slides[right].setAttribute('data-pos', 'right');
+        slides[active].setAttribute('data-pos', 'active');
+        stage.appendChild(slides[active]);
         renderDots();
       }
 
