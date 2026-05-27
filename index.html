@@ -98,19 +98,21 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 0.65rem 0.7rem;
-      border-radius: 0.75rem;
-      border: 1px solid rgba(200, 168, 75, 0.35);
-      background: rgba(255, 255, 255, 0.06);
+      padding: 0.55rem 0.55rem;
+      border-radius: 0.85rem;
+      border: none;
+      background: transparent;
       color: #d4d0c8;
       cursor: pointer;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      box-shadow: none;
+      overflow: visible;
     }
     .dalton-menu-fallback__icon {
       display: inline-flex;
       flex-direction: column;
       gap: 5px;
       width: 20px;
+      overflow: visible;
     }
     .dalton-menu-fallback__icon span {
       display: block;
@@ -179,6 +181,142 @@
     #dalton-card-swap:has(.screenshot-carousel) .dalton-screenshot-fallback {
       display: none;
     }
+
+    /* Home-only layout tweaks */
+    .home-shell {
+      width: min(1260px, calc(100% - 2.25rem));
+      margin-left: auto;
+      margin-right: auto;
+    }
+    @media (min-width: 768px) {
+      .home-shell {
+        width: min(1320px, calc(100% - 3rem));
+      }
+    }
+
+    /* New carousel (vanilla, no React mount) */
+    .dga-carousel {
+      position: relative;
+      width: 100%;
+      max-width: 660px;
+      margin: 0 auto;
+      display: grid;
+      gap: 0.85rem;
+      justify-items: center;
+    }
+    @media (min-width: 1024px) {
+      .dga-carousel {
+        margin: 0;
+        justify-items: end;
+      }
+    }
+    .dga-carousel__stage {
+      position: relative;
+      width: min(360px, 72vw);
+      height: min(620px, 68vh);
+      perspective: 1200px;
+      isolation: isolate;
+    }
+    .dga-slide {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(300px, 70vw);
+      max-height: min(620px, 68vh);
+      border-radius: 1.2rem;
+      overflow: hidden;
+      transform-origin: center center;
+      will-change: transform, opacity, filter;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
+      transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 520ms ease,
+        filter 520ms ease;
+      opacity: 0;
+      filter: blur(6px) brightness(0.52);
+      transform: translate(-50%, -50%) translateX(0px) scale(0.88) rotateZ(0deg);
+      pointer-events: none;
+    }
+    .dga-slide img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .dga-slide[data-pos="active"] {
+      opacity: 1;
+      filter: blur(0px) brightness(1);
+      transform: translate(-50%, -50%) translateX(0px) scale(1) rotateZ(0deg);
+      box-shadow: 0 28px 64px rgba(0, 0, 0, 0.68), 0 0 0 1px rgba(200, 168, 75, 0.22);
+    }
+    .dga-slide[data-pos="left"] {
+      opacity: 0.78;
+      filter: blur(1px) brightness(0.62);
+      transform: translate(-50%, -50%) translateX(-150px) scale(0.84) rotateZ(-4deg);
+    }
+    .dga-slide[data-pos="right"] {
+      opacity: 0.78;
+      filter: blur(1px) brightness(0.62);
+      transform: translate(-50%, -50%) translateX(150px) scale(0.84) rotateZ(4deg);
+    }
+    .dga-slide[data-pos="hidden"] {
+      opacity: 0;
+      filter: blur(10px) brightness(0.45);
+      transform: translate(-50%, -50%) translateX(0px) scale(0.78);
+    }
+
+    .dga-carousel__nav {
+      display: grid;
+      grid-auto-flow: column;
+      align-items: center;
+      gap: 0.75rem;
+      justify-content: center;
+      width: 100%;
+      max-width: 520px;
+    }
+    .dga-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.04);
+      color: #d4d0c8;
+      cursor: pointer;
+      transition: background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+    }
+    .dga-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(200, 168, 75, 0.28);
+    }
+    .dga-dots {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 6px;
+    }
+    .dga-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    }
+    .dga-dot[aria-current="true"] {
+      background: #c8a84b;
+      border-color: rgba(200, 168, 75, 0.85);
+      transform: scale(1.12);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .dga-slide {
+        transition: none !important;
+      }
+    }
   </style>
 </head>
 <body class="min-h-screen antialiased dalton-marketing">
@@ -197,7 +335,7 @@
   <div id="dalton-staggered-menu" aria-hidden="false"></div>
 
   <main>
-    <section class="mx-auto max-w-6xl px-5 pt-20 md:pt-24 pb-12">
+    <section class="home-shell pt-16 md:pt-20 pb-12">
       <div class="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
         <div class="lg:col-span-6">
           <p class="font-bebas text-gold tracking-[0.26em] text-sm">TRAIN · CONNECT · GET DISCOVERED</p>
@@ -205,7 +343,7 @@
             A social sports network built to move your career forward.
           </h1>
           <p class="text-dim mt-5 max-w-xl leading-relaxed">
-            Community, events, media, and sponsors in one dark, focused experience—on iPhone, Android, and web with the same account.
+            Turn training into momentum. Build your circle, get seen by the right people, and unlock real opportunities — with one account across mobile and web.
           </p>
           <div class="flex flex-col sm:flex-row gap-3 mt-7">
             <a href="/app" class="px-6 py-3.5 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Login</a>
@@ -228,7 +366,32 @@
         </div>
 
         <div class="lg:col-span-6 flex flex-col items-center lg:items-end w-full">
-          <div id="dalton-card-swap" class="w-full max-w-[620px]">
+          <!-- Note: we intentionally do NOT use id=dalton-card-swap here; the React marketing bundle
+               was causing a broken carousel transition. This vanilla carousel is stable and supports navigation. -->
+          <div class="dga-carousel w-full">
+            <div class="dga-carousel__stage" id="dga-carousel" aria-label="App showcase screenshots carousel">
+              <div class="dga-slide" data-idx="0"><img src="/showcase/01.png" alt="The Dalton Grant Academy app — Community feed" /></div>
+              <div class="dga-slide" data-idx="1"><img src="/showcase/02.png" alt="The Dalton Grant Academy app — Events and bookings" /></div>
+              <div class="dga-slide" data-idx="2"><img src="/showcase/03.png" alt="The Dalton Grant Academy app — Media library" /></div>
+              <div class="dga-slide" data-idx="3"><img src="/showcase/04.png" alt="The Dalton Grant Academy app — Athlete profile" /></div>
+              <div class="dga-slide" data-idx="4"><img src="/showcase/05.png" alt="The Dalton Grant Academy app — Messages and notifications" /></div>
+            </div>
+            <div class="dga-carousel__nav" aria-label="Showcase navigation">
+              <button type="button" class="dga-nav-btn" id="dga-prev" aria-label="Previous screenshot">←</button>
+              <div class="dga-dots" id="dga-dots" aria-label="Choose a screenshot"></div>
+              <button type="button" class="dga-nav-btn" id="dga-next" aria-label="Next screenshot">→</button>
+            </div>
+
+            <noscript>
+              <div class="dalton-screenshot-fallback" aria-hidden="true">
+                <img src="/showcase/05.png" alt="" />
+                <img src="/showcase/01.png" alt="The Dalton Grant Academy app preview" />
+                <img src="/showcase/02.png" alt="" />
+              </div>
+            </noscript>
+          </div>
+
+          <div id="dalton-card-swap" class="w-full max-w-[620px] hidden" aria-hidden="true">
             <div class="dalton-screenshot-fallback" aria-hidden="true">
               <img src="/showcase/05.png" alt="" />
               <img src="/showcase/01.png" alt="The Dalton Grant Academy app preview" />
@@ -274,5 +437,84 @@
   <script src="shared/landing-auth.js"></script>
   <script src="shared/marketing-chrome.js"></script>
   <script src="shared/site-transition.js"></script>
+  <script>
+    (function initDgaCarousel() {
+      var stage = document.getElementById('dga-carousel');
+      if (!stage) return;
+      var slides = Array.prototype.slice.call(stage.querySelectorAll('.dga-slide'));
+      if (!slides.length) return;
+
+      var dotsWrap = document.getElementById('dga-dots');
+      var btnPrev = document.getElementById('dga-prev');
+      var btnNext = document.getElementById('dga-next');
+
+      var idx = 0;
+      var timer = null;
+      var intervalMs = 5000;
+
+      function clampIndex(n) {
+        var len = slides.length;
+        return ((n % len) + len) % len;
+      }
+
+      function renderDots() {
+        if (!dotsWrap) return;
+        dotsWrap.innerHTML = '';
+        for (var i = 0; i < slides.length; i++) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'dga-dot';
+          b.setAttribute('aria-label', 'Show screenshot ' + (i + 1) + ' of ' + slides.length);
+          if (i === idx) b.setAttribute('aria-current', 'true');
+          (function (j) {
+            b.addEventListener('click', function () {
+              goTo(j, true);
+            });
+          })(i);
+          dotsWrap.appendChild(b);
+        }
+      }
+
+      function applyPositions() {
+        var len = slides.length;
+        for (var i = 0; i < len; i++) {
+          slides[i].setAttribute('data-pos', 'hidden');
+        }
+        var active = idx;
+        var left = clampIndex(idx - 1);
+        var right = clampIndex(idx + 1);
+        slides[left].setAttribute('data-pos', 'left');
+        slides[active].setAttribute('data-pos', 'active');
+        slides[right].setAttribute('data-pos', 'right');
+        renderDots();
+      }
+
+      function stop() {
+        if (timer) window.clearInterval(timer);
+        timer = null;
+      }
+
+      function start() {
+        stop();
+        timer = window.setInterval(function () {
+          goTo(idx + 1, false);
+        }, intervalMs);
+      }
+
+      function goTo(nextIdx, userInitiated) {
+        idx = clampIndex(nextIdx);
+        applyPositions();
+        if (userInitiated) start();
+      }
+
+      if (btnPrev) btnPrev.addEventListener('click', function () { goTo(idx - 1, true); });
+      if (btnNext) btnNext.addEventListener('click', function () { goTo(idx + 1, true); });
+
+      stage.addEventListener('mouseenter', stop);
+      stage.addEventListener('mouseleave', start);
+      applyPositions();
+      start();
+    })();
+  </script>
 </body>
 </html>
