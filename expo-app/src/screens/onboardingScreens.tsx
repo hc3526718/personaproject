@@ -233,6 +233,26 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
 
 export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
   const insets = useSafeAreaInsets();
+  const { requestPasswordReset } = useAuth();
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const send = async () => {
+    setBusy(true);
+    const result = await requestPasswordReset(email.trim());
+    setBusy(false);
+    if (!result.ok) {
+      Alert.alert('Reset password', result.message);
+      return;
+    }
+    setSent(true);
+    Alert.alert(
+      'Check your email',
+      'We sent you a reset link. Open it on this device so you can choose a new password. If your email isn’t arriving, check spam folders.',
+    );
+  };
+
   return (
     <View style={styles.root}>
       <ScreenHeader title="Forgot Password" onBack={() => navigation.goBack()} />
@@ -245,10 +265,10 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
             <FontAwesome name="lock" size={22} color={DS.color.gold} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoCardTitle}>Reset Your Password</Text>
+            <Text style={styles.infoCardTitle}>Reset your password</Text>
             <Text style={styles.infoCardBody}>
-              Enter your email address and we&apos;ll send you a verification code to reset your
-              password.
+              Enter the email you used to sign up. We&apos;ll send a secure link — only email/password accounts can use this
+              (not Apple or Google sign-in).
             </Text>
           </View>
         </View>
@@ -259,9 +279,14 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
             placeholderTextColor={DS.color.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
+            value={email}
+            onChangeText={setEmail}
+            editable={!sent}
           />
         </AuthFormField>
-        <AppleHeroButton onPress={() => navigation.navigate('VerifyReset')}>Send reset code</AppleHeroButton>
+        <AppleHeroButton loading={busy} disabled={sent} onPress={() => void send()}>
+          {sent ? 'Email sent' : 'Send reset link'}
+        </AppleHeroButton>
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Remember your password? </Text>
           <Pressable onPress={() => navigation.navigate('LogIn')}>

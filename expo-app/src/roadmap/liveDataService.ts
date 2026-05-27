@@ -18,6 +18,7 @@ import { formatAuthorDisplayName } from '../lib/communityPostBody';
 import { isAppStoreScreenshotMode } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import type {
+  EventReviewRow,
   EventRow,
   MediaAssetRow,
   PostRow,
@@ -773,4 +774,136 @@ export async function listHostEventDashboard(userId: string): Promise<HostEventD
       checkedInCount: c.checked,
     };
   });
+}
+
+export type HostBookingRosterRow = {
+  bookingId: string;
+  reference: string;
+  userId: string;
+  checkedInAt: string | null;
+  attendeeDisplayName: string;
+};
+
+function attendeeNameFromProfile(
+  p: Pick<ProfileRow, 'display_name' | 'first_name' | 'last_name'>,
+): string {
+  const d = p.display_name?.trim();
+  if (d) return d;
+  const parts = [p.first_name?.trim(), p.last_name?.trim()].filter(Boolean);
+  if (parts.length > 0) return parts.join(' ');
+  return 'Member';
+}
+
+/** Bookings for an event roster (requires host SELECT policy — see migration 031). */
+export async function listBookingsForEventHost(eventId: string): Promise<HostBookingRosterRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  const { data: bks, error } = await supabase
+    .from('bookings')
+    .select('id, reference, user_id, checked_in_at')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: true });
+  if (error || !bks?.length) return [];
+
+  const userIds = [...new Set((bks as { user_id: string }[]).map((b) => b.user_id))];
+  const { data: profs } = await supabase
+    .from('profiles')
+    .select('id, display_name, first_name, last_name')
+    .in('id', userIds);
+  const nameBy = new Map<string, string>();
+  for (const pr of (profs ?? []) as (Pick<ProfileRow, 'id' | 'display_name' | 'first_name' | 'last_name'>)[]) {
+    nameBy.set(pr.id, attendeeNameFromProfile(pr));
+  }
+
+  return (bks as { id: string; reference: string; user_id: string; checked_in_at: string | null }[]).map((b) => ({
+    bookingId: b.id,
+    reference: b.reference,
+    userId: b.user_id,
+    checkedInAt: b.checked_in_at,
+    attendeeDisplayName: nameBy.get(b.user_id) ?? 'Member',
+  }));
+}
+
+export function subscribeBookingsForEvent(eventId: string, onChange: () => void): Unsub {
+  const supabase = getSupabase();
+  if (!supabase) return noopChannel();
+  const channel: RealtimeChannel = supabase
+    .channel(`bookings-for-event-${eventId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'bookings', filter: `event_id=eq.${eventId}` },
+      () => onChange(),
+    )
+    .subscribe();
+  return () => void supabase.removeChannel(channel);
+}
+
+export async function listEventReviewsForHost(eventId: string): Promise<EventReviewRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('event_reviews')
+    .select('id, event_id, user_id, rating, comment, created_at')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (error || !data) return [];
+  return data as EventReviewRow[];
+}
+
+export async function fetchMyEventReview(eventId: string, userId: string): Promise<EventReviewRow | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('event_reviews')
+    .select('id, event_id, user_id, rating, comment, created_at')
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as EventReviewRow;
+}
+
+export async function upsertEventReview(
+  eventId: string,
+  userId: string,
+  rating: number,
+  comment: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, error: 'no_client' };
+  const trimmed = comment.trim().slice(0, 2000);
+  const { error } = await supabase.from('event_reviews').upsert(
+    {
+      event_id: eventId,
+      user_id: userId,
+      rating: Math.min(5, Math.max(1, Math.round(rating))),
+      comment: trimmed.length > 0 ? trimmed : null,
+    },
+    { onConflict: 'event_id,user_id' },
+  );
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Live updates when host checks in this booking (Realtime on `bookings`). */
+export function subscribeBookingByReference(reference: string, onChange: () => void): Unsub {
+  const supabase = getSupabase();
+  if (!supabase) return noopChannel();
+  const trimmed = reference.trim();
+  if (!trimmed) return noopChannel();
+  const channel: RealtimeChannel = supabase
+    .channel(`booking-ref-${trimmed}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'bookings',
+        filter: `reference=eq.${trimmed}`,
+      },
+      () => onChange(),
+    )
+    .subscribe();
+  return () => void supabase.removeChannel(channel);
 }

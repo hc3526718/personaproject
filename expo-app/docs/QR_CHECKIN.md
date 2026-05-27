@@ -16,3 +16,9 @@
 
 ## Staff UI
 - `StaffCheckInScreen` (Events stack): paste token for demo; camera scanner can use `expo-camera` / `vision-camera` in a dev build later.
+
+## Supabase (Dalton app)
+
+- Hosts scan via `HostAttendeeScanScreen` calling RPC `host_check_in_booking`; attendees receive `in_app_notifications` when checked in.
+- **Host roster:** Migration `031_host_bookings_and_event_reviews.sql` grants hosts `SELECT` on `bookings` for their events (read-only roster alongside `bookings_self_all`). `CreatorEventDetailView` lists sign-ups and LIVE check-in state (Realtime on `bookings` + pull-to-refresh — turn on replication in the Supabase dashboard if updates do not stream).
+- **Post-event reviews:** `event_reviews` — RLS allows checked-in attendees to insert after “end + 1 hour” (scheduled end = `ends_at` or `starts_at + 3h`); organisers read all reviews for events they created on the same host dashboard.

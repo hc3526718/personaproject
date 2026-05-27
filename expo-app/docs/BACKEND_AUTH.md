@@ -27,18 +27,28 @@ When these are **empty**, the app keeps the **demo** email/password gate (`AuthC
 - **Database (recommended):** Run `backend/auth_default_dalton_verified.sql` so a **`BEFORE INSERT` on `auth.users`** always sets `raw_user_meta_data.dalton_verified` to **`false`** when absent. Run **`backend/handle_new_user.sql`** (updated) so **`public.profiles.dalton_verified`** matches metadata on insert.
 - **Tamper protection:** The same SQL file adds a **`BEFORE UPDATE` on `public.profiles`** so a signed-in user **cannot** change their own `dalton_verified` column (staff use Table Editor / SQL / service role where `auth.uid()` is not the row owner).
 
-### After Dalton approval + Premium
+### After Dalton approval (`profiles.dalton_verified`)
 
-1. Staff sets **`public.profiles.dalton_verified = true`** for that user (dashboard or automated job).
-2. Once **RevenueCat** reports **Premium** (`premium` entitlement), the app calls **`syncDaltonVerifiedFromProfileIfPremium`** (see `src/auth/userMetadataSupabase.ts`) so **`auth.users.raw_user_meta_data.dalton_verified`** becomes **`true`** and **Settings** shows **Dalton verified**.
+1. Staff sets **`public.profiles.dalton_verified = true`** for that user (dashboard/SQL / Master verification queue).
+2. The app calls **`syncDaltonVerifiedFromProfileIfPremium`** (see `src/auth/userMetadataSupabase.ts`) so **`auth.users.raw_user_meta_data.dalton_verified`** mirrors **`true`** when metadata was still missing — **Settings** shows **Dalton verified**. (Premium is enforced separately for creator tools via `subscription_state` / paywall.)
 
-For **manual testing** without payment, you can set **`dalton_verified: true`** in **Authentication → Raw User Meta Data** (bypasses the profile + Premium gate). In production, **`canCreateVerifiedContent`** in `src/creator/creatorAccess.ts` still requires Premium + verification; **the server must re-check** before accepting uploads.
+For **manual testing** without going through the profile flow, you can set **`dalton_verified: true`** in **Authentication → Raw User Meta Data**. In production, **`canCreateVerifiedContent`** in `src/creator/creatorAccess.ts` still requires Premium + verification; **the server must re-check** before accepting uploads.
 
 ## Auth flows (app)
 
 1. **Demo (default)** — `user123@gmail.com` / `12345!` sets local session only.
 2. **Supabase** — `signInWithPassword` / `signUp`; session persisted via `expo-secure-store` adapter in `src/lib/supabase.ts`.
 3. **Logout** — `signOut()` clears Supabase session and local demo state.
+
+## Email confirmation & password reset (Supabase dashboard)
+
+1. **Site URL** — set to your production marketing origin, e.g. `https://daltongrantacademy.vercel.app` (not `http://localhost:3000`). This is the fallback for auth emails if a flow does not override the redirect.
+2. **Redirect URLs** — allow every URL the app opens after auth. Required entries include:
+   - Web: `https://<your-domain>/app/auth/callback` (must match `EXPO_PUBLIC_OAUTH_REDIRECT_URL` or the default `window.location.origin + /app/auth/callback`).
+   - Native dev build: your app scheme, e.g. `dalton-demo://auth/callback` (from Expo linking).
+3. **Sign-up confirmation** — `AuthContext.signUp` passes `emailRedirectTo: getOAuthRedirectUri()` so the link in the confirmation email opens the real app (typically `/app/auth/callback`), not localhost.
+4. **Forgot password** — `resetPasswordForEmail` uses the same `redirectTo`. After the user opens the link, the app establishes a recovery session and shows **Set new password** (`PasswordRecoveryScreen`).
+5. **Optional** — set `EXPO_PUBLIC_OAUTH_REDIRECT_URL` to a fixed production callback if you need OAuth and email links to always target production during local dev.
 
 ## API layer
 

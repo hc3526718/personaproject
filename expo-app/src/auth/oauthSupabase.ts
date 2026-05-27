@@ -173,6 +173,16 @@ export async function completeWebOAuthSessionIfNeeded(
     }
     const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, returnUrl);
     if (implicitOk) {
+      if (typeof window !== 'undefined') {
+        const qs = `${window.location.hash}${window.location.search}`;
+        if (/type=recovery/i.test(qs)) {
+          try {
+            sessionStorage.setItem('dga_auth_recovery_pending', '1');
+          } catch {
+            /* private mode */
+          }
+        }
+      }
       cleanupWebAuthUrlAfterSignIn();
       return { exchanged: true };
     }
@@ -184,6 +194,26 @@ export async function completeWebOAuthSessionIfNeeded(
   } finally {
     webOAuthExchangePromise = null;
   }
+}
+
+/**
+ * Shared callback URL for OAuth, **email sign-up confirmation**, and **password recovery** links.
+ * Call from native deep links (`auth/callback`) with the opened URL.
+ */
+export async function ingestSessionFromAuthCallbackUrl(
+  supabase: SupabaseClient,
+  url: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const code = parseOAuthCodeFromReturnUrl(url);
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error && !isPkceVerifierMissingError(error.message)) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: true };
+  }
+  const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, url);
+  return implicitOk ? { ok: true } : { ok: false, error: 'missing_tokens' };
 }
 
 export async function signInWithGoogleOAuth(

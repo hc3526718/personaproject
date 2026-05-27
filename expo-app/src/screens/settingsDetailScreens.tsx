@@ -891,15 +891,9 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
           <FontAwesome name="globe" size={18} color={DS.color.gold} />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>Help on web</Text>
-            <Text style={styles.supportSub}>Full help centre and live chat in your browser.</Text>
-          </View>
-          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
-        </Pressable>
-        <Pressable style={styles.supportCard} onPress={() => void open('/live-chat')}>
-          <FontAwesome name="comments-o" size={18} color={DS.color.gold} />
-          <View style={{ flex: 1, marginLeft: DS.space.md }}>
-            <Text style={styles.supportTitle}>Live chat</Text>
-            <Text style={styles.supportSub}>AI assistant for quick answers.</Text>
+            <Text style={styles.supportSub}>
+              Full help centre in your browser — the AI assistant loads in the corner on the site.
+            </Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>

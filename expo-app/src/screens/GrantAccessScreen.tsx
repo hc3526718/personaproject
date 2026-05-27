@@ -46,6 +46,7 @@ export default function GrantAccessScreen() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [signupConfirmEmail, setSignupConfirmEmail] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,12 +69,14 @@ export default function GrantAccessScreen() {
         return;
       }
       if (result.needsEmailConfirmation) {
+        setSignupConfirmEmail(trimmed);
         Alert.alert(
           'Confirm your email',
-          'We sent a confirmation link. After you confirm, use Log In to open the app.',
+          `We sent a confirmation link to ${trimmed}. Open that email to verify, then use Log In.`,
         );
+        return;
       }
-      return;
+      setSignupConfirmEmail(null);
     }
     const ok = await login(trimmed, password);
     if (ok) return;
@@ -82,6 +85,10 @@ export default function GrantAccessScreen() {
       'Please check your details and internet connection. If you already have an account, use Log In.',
     );
   }, [email, password, login, signUp]);
+
+  const dismissConfirmBanner = useCallback(() => {
+    setSignupConfirmEmail(null);
+  }, []);
 
   const goWelcome = useCallback(() => {
     navigation.navigate('WelcomeHub');
@@ -106,6 +113,18 @@ export default function GrantAccessScreen() {
         <View style={S.loginLogoRow}>
           <AuthWelcomeRiveHero height={120} />
         </View>
+        {signupConfirmEmail ? (
+          <View style={local.confirmBanner}>
+            <Text style={local.confirmBannerTitle}>Check your email</Text>
+            <Text style={local.confirmBannerBody}>
+              Please confirm your signup using the link sent to{' '}
+              <Text style={local.confirmBannerEm}>{signupConfirmEmail}</Text>. Then return here and tap Log In.
+            </Text>
+            <Pressable onPress={dismissConfirmBanner} hitSlop={10}>
+              <Text style={local.confirmBannerDismiss}>Dismiss</Text>
+            </Pressable>
+          </View>
+        ) : null}
         <AuthFormField label="Email">
           <TextInput
             style={S.inputCompact}
@@ -188,5 +207,35 @@ const local = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: DS.color.background,
+  },
+  confirmBanner: {
+    marginBottom: DS.space.md,
+    padding: DS.space.md,
+    borderRadius: DS.apple.radiusCard,
+    borderWidth: 1,
+    borderColor: 'rgba(200, 168, 75, 0.45)',
+    backgroundColor: 'rgba(200, 168, 75, 0.12)',
+    gap: DS.space.sm,
+  },
+  confirmBannerTitle: {
+    fontFamily: DS.font.bodyBold,
+    fontSize: 15,
+    color: DS.color.gold,
+  },
+  confirmBannerBody: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.text,
+    lineHeight: 21,
+  },
+  confirmBannerEm: {
+    fontFamily: DS.font.bodyBold,
+    color: DS.color.text,
+  },
+  confirmBannerDismiss: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    textDecorationLine: 'underline',
   },
 });

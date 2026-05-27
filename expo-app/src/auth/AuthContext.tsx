@@ -8,12 +8,15 @@ import {
   type ReactNode,
 } from 'react';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import {
   cleanupWebAuthUrlAfterSignIn,
   completeWebOAuthSessionIfNeeded,
+  getOAuthRedirectUri,
+  ingestSessionFromAuthCallbackUrl,
   signInWithAppleNative,
   signInWithGoogleOAuth,
 } from './oauthSupabase';
@@ -58,6 +61,10 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<boolean>;
   /** Supabase email/password registration; no-op when Supabase is not configured */
   signUp: (email: string, password: string) => Promise<SignUpResult>;
+  /** Email magic link → same redirect URL as OAuth (`/app/auth/callback` on web, native scheme deep link). */
+  requestPasswordReset: (email: string) => Promise<{ ok: true } | { ok: false; message: string }>;
+  passwordRecoveryPending: boolean;
+  clearPasswordRecoveryFlow: () => void;
   signInWithGoogle: () => Promise<boolean>;
   signInWithApple: () => Promise<boolean>;
   logout: () => Promise<void>;
@@ -139,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(!supabase);
   const [user, setUser] = useState<AppUser | null>(null);
   const [oAuthBusy, setOAuthBusy] = useState(false);
+  const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -249,6 +257,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (cancelled) return;
+        if (event === 'PASSWORD_RECOVERY') {
+          setPasswordRecoveryPending(true);
+        }
         if (
           Platform.OS === 'web' &&
           (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
@@ -271,6 +282,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(unlockId);
       clearTimeout(slowSessionId);
       sub.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  /** Web: password recovery links set this flag in `completeWebOAuthSessionIfNeeded` before the hash is cleared. */
+  useEffect(() => {
+    if (!user?.id || Platform.OS !== 'web' || typeof sessionStorage === 'undefined') return;
+    try {
+      if (sessionStorage.getItem('dga_auth_recovery_pending') === '1') {
+        sessionStorage.removeItem('dga_auth_recovery_pending');
+        setPasswordRecoveryPending(true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [user?.id]);
+
+  /** Native deep link: `/auth/callback` from email confirmation or password recovery. */
+  useEffect(() => {
+    if (!supabase || Platform.OS === 'web') return;
+    let alive = true;
+    const ingest = async (url: string) => {
+      if (!url.includes('auth/callback') && !url.includes('access_token')) return;
+      const { ok, error } = await ingestSessionFromAuthCallbackUrl(supabase, url);
+      if (!alive || !ok) {
+        if (error === 'missing_tokens') return;
+        if (error && __DEV__) console.warn('[auth] deep link session failed:', error);
+        return;
+      }
+      // `onAuthStateChange` persists session → `applySessionUser` runs via subscription.
+    };
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      void ingest(url);
+    });
+    void Linking.getInitialURL().then((url) => {
+      if (url) void ingest(url);
+    });
+    return () => {
+      alive = false;
+      sub.remove();
     };
   }, [supabase]);
 
@@ -350,6 +400,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           data: { dalton_verified: false },
+          emailRedirectTo: getOAuthRedirectUri(),
         },
       });
       if (error) {
@@ -362,6 +413,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [supabase],
   );
+
+  const requestPasswordReset = useCallback(
+    async (email: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+      if (!supabase) {
+        return { ok: false, message: 'Supabase is not configured.' };
+      }
+      const trimmed = email.trim();
+      if (!trimmed) {
+        return { ok: false, message: 'Enter your email address.' };
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+        redirectTo: getOAuthRedirectUri(),
+      });
+      if (error) return { ok: false, message: error.message };
+      return { ok: true };
+    },
+    [supabase],
+  );
+
+  const clearPasswordRecoveryFlow = useCallback(() => {
+    setPasswordRecoveryPending(false);
+    if (Platform.OS === 'web') {
+      cleanupWebAuthUrlAfterSignIn();
+    }
+  }, []);
 
   const logout = useCallback(async () => {
     if (supabase) {
@@ -479,11 +555,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       oAuthBusy,
       login,
       signUp,
+      requestPasswordReset,
+      passwordRecoveryPending,
+      clearPasswordRecoveryFlow,
       signInWithGoogle,
       signInWithApple,
       logout,
     }),
-    [ready, user, oAuthBusy, login, signUp, signInWithGoogle, signInWithApple, logout],
+    [
+      ready,
+      user,
+      oAuthBusy,
+      login,
+      signUp,
+      requestPasswordReset,
+      passwordRecoveryPending,
+      clearPasswordRecoveryFlow,
+      signInWithGoogle,
+      signInWithApple,
+      logout,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

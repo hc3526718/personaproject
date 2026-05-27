@@ -152,7 +152,7 @@ Do **not** claim VoiceOver, captions, reduced motion, or light theme as in-app p
 | Athlete agreement | `/athlete-agreement` |
 | Help | `/help-center` |
 | Contact | `/contact-us` |
-| Live chat | `/live-chat` |
+| Live assistant | ElevenLabs widget (corner) on marketing pages; `/live-chat` redirects to Help |
 
 In-app: Profile → Settings → Legal / Support.
 

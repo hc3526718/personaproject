@@ -139,7 +139,7 @@ Do not describe VoiceOver, captions, reduced motion, or light theme as shipped p
 | Athlete agreement | `/athlete-agreement` |
 | Help centre | `/help-center` |
 | Contact | `/contact-us` |
-| Live chat | `/live-chat` |
+| Live chat | Anchored assistant on every marketing page (`/help-center`, `/contact-us`, etc.) — no separate chat URL required (`/live-chat` redirects to Help). |
 
 In-app: Profile → Settings → Legal.
 

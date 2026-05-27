@@ -76,6 +76,15 @@ export type EventRow = {
   description?: string | null;
 };
 
+export type EventReviewRow = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+};
+
 export type MediaAssetRow = {
   id: string;
   owner_id: string;

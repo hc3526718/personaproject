@@ -145,6 +145,7 @@ export type OnboardingStackParamList = {
   OnboardingUsername: undefined;
   OnboardingRole: undefined;
   OnboardingSports: undefined;
+  OnboardingInterests: undefined;
   OnboardingDiscovery: undefined;
   OnboardingComplete: undefined;
 };
@@ -161,4 +162,6 @@ export type RootStackParamList = {
   Auth: undefined;
   /** Tabs or first-run onboarding — see `AuthenticatedShell` in `AppNavigator`. */
   Main: undefined;
+  /** Forced after email password-recovery deep link (temporary session). */
+  PasswordRecovery: undefined;
 };

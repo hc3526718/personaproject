@@ -113,6 +113,7 @@ import {
   WelcomeHubScreen,
 } from '../screens/onboardingScreens';
 import GrantAccessScreen from '../screens/GrantAccessScreen';
+import { PasswordRecoveryScreen } from '../screens/PasswordRecoveryScreen';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -479,7 +480,7 @@ function MainTabNavigator() {
 }
 
 export function AppNavigator() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, passwordRecoveryPending } = useAuth();
   const { colors } = useAccessibility();
   const navTheme = useMemo(
     () => ({
@@ -499,11 +500,21 @@ export function AppNavigator() {
     <WebAppFrame>
       <NavigationContainer theme={navTheme}>
         <RootStack.Navigator
-          key={isAuthenticated ? 'root-app' : 'root-auth'}
+          key={
+            isAuthenticated
+              ? passwordRecoveryPending
+                ? 'root-app-recovery'
+                : 'root-app'
+              : 'root-auth'
+          }
           screenOptions={{ headerShown: false }}
         >
           {isAuthenticated ? (
-            <RootStack.Screen name="Main" component={AuthenticatedShell} />
+            passwordRecoveryPending ? (
+              <RootStack.Screen name="PasswordRecovery" component={PasswordRecoveryScreen} />
+            ) : (
+              <RootStack.Screen name="Main" component={AuthenticatedShell} />
+            )
           ) : (
             <RootStack.Screen name="Auth" component={AuthStackNavigator} />
           )}

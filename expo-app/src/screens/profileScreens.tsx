@@ -532,7 +532,7 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
             };
             Alert.alert(
               'Delete account',
-              'This permanently deletes your account and profile data. Subscriptions must be cancelled in the App Store or Google Play separately.',
+              'Before you delete your account: if you subscribed to Premium on iPhone or Android, cancel the subscription in Subscription settings / Apple/Google account so you are not billed again by the platform. If you pay on web via Stripe, cancel in your Stripe customer portal — charges are handled by Stripe or Apple/Google, not DGA directly.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {

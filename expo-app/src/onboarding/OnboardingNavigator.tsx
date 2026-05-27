@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import {
   Alert,
@@ -26,7 +25,6 @@ import type { OnboardingStackParamList } from '../navigation/types';
 import { BOOT_USE_RIVE, getDaltonBootRiveDisplayMode } from '../constants/riveBoot';
 import { BouncingBrandLogo } from '../components/BouncingBrandLogo';
 import { DaltonBootRiveDisplay } from '../components/DaltonBootRiveDisplay';
-import { MasterControlRecoverySteps } from '../components/MasterControlRecoverySteps';
 import { UsernameSetupFields, canProceedWithUsername } from '../components/UsernameSetupFields';
 import {
   allocateAutoUsername,
@@ -37,7 +35,9 @@ import {
 import { useUsernameAvailability } from '../profile/useUsernameAvailability';
 import { DISCOVERY_OPTIONS, PERSONA_OPTIONS, SPORT_OPTIONS } from './onboardingCopy';
 
-const Stack = createNativeStackNavigator<OnboardingStackParamList>();
+function showCompeteOrCoachSportStep(personaRole: string): boolean {
+  return personaRole === 'athlete' || personaRole === 'coach';
+}
 
 export type OnboardingDraft = {
   firstName: string;
@@ -47,6 +47,8 @@ export type OnboardingDraft = {
   primarySport: string;
   personaRole: string;
   sports: string[];
+  /** Athlete-only follow-up: broader topics (stored in `profiles.interests`). */
+  interests: string[];
   discoverySource: string;
 };
 
@@ -58,6 +60,7 @@ const defaultDraft = (): OnboardingDraft => ({
   primarySport: '',
   personaRole: '',
   sports: [],
+  interests: [],
   discoverySource: '',
 });
 
@@ -135,6 +138,7 @@ export function OnboardingNavigator({ onFinished }: Props) {
         <Stack.Screen name="OnboardingUsername" component={UsernameStep} />
         <Stack.Screen name="OnboardingRole" component={RoleStep} />
         <Stack.Screen name="OnboardingSports" component={SportsStep} />
+        <Stack.Screen name="OnboardingInterests" component={InterestsStep} />
         <Stack.Screen name="OnboardingDiscovery" component={DiscoveryStep} />
         <Stack.Screen name="OnboardingComplete" component={CompleteStep} />
       </Stack.Navigator>
@@ -286,7 +290,13 @@ function RoleStep({ navigation }: StepProps<'OnboardingRole'>) {
           <AppleHeroButton
             disabled={!draft.personaRole}
             style={styles.footerHalf}
-            onPress={() => navigation.navigate('OnboardingSports')}
+            onPress={() =>
+              navigation.navigate(
+                showCompeteOrCoachSportStep(draft.personaRole)
+                  ? 'OnboardingSports'
+                  : 'OnboardingInterests',
+              )
+            }
           >
             Continue
           </AppleHeroButton>
@@ -313,6 +323,11 @@ function RoleStep({ navigation }: StepProps<'OnboardingRole'>) {
 
 function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
   const { draft, setDraft } = useOnboardingCtx();
+  const isCoach = draft.personaRole === 'coach';
+  const title = isCoach ? 'Sport you mainly coach' : 'Sport you currently compete in';
+  const subtitle = isCoach
+    ? 'Pick the main sport you work in. You can refine this later in your profile.'
+    : 'This is used to structure recent results. You can add more sports later.';
   const toggle = (s: string) => {
     const has = draft.sports.includes(s);
     setDraft({
@@ -321,8 +336,8 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
   };
   return (
     <StepChrome
-      title="Sport you currently compete in"
-      subtitle="This is used to structure recent results. You can add more sports later."
+      title={title}
+      subtitle={subtitle}
       footer={
         <View style={styles.footerRow}>
           <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
@@ -331,7 +346,9 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
           <AppleHeroButton
             disabled={!draft.primarySport}
             style={styles.footerHalf}
-            onPress={() => navigation.navigate('OnboardingDiscovery')}
+            onPress={() =>
+              navigation.navigate(draft.personaRole === 'athlete' ? 'OnboardingInterests' : 'OnboardingDiscovery')
+            }
           >
             Continue
           </AppleHeroButton>
@@ -352,6 +369,52 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
               style={[styles.chip, on && styles.chipPrimary]}
             >
               <Text style={[styles.chipText, on && styles.chipPrimaryText]}>{s}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </StepChrome>
+  );
+}
+
+function InterestsStep({ navigation }: StepProps<'OnboardingInterests'>) {
+  const { draft, setDraft } = useOnboardingCtx();
+  const toggle = (s: string) => {
+    const has = draft.sports.includes(s);
+    setDraft({
+      sports: has ? draft.sports.filter((x) => x !== s) : [...draft.sports, s],
+    });
+  };
+  const canNext = draft.sports.length > 0;
+  return (
+    <StepChrome
+      title="What are you interested in?"
+      subtitle="Choose one or more topics so we can tailor what you see."
+      footer={
+        <View style={styles.footerRow}>
+          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
+            Back
+          </AppleHeroButton>
+          <AppleHeroButton
+            disabled={!canNext}
+            style={styles.footerHalf}
+            onPress={() => {
+              const first = draft.sports[0];
+              setDraft({ primarySport: first });
+              navigation.navigate('OnboardingDiscovery');
+            }}
+          >
+            Continue
+          </AppleHeroButton>
+        </View>
+      }
+    >
+      <View style={styles.chipGrid}>
+        {SPORT_OPTIONS.map((s) => {
+          const on = draft.sports.includes(s);
+          return (
+            <Pressable key={s} onPress={() => toggle(s)} style={[styles.chip, on && styles.chipOn]}>
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{s}</Text>
             </Pressable>
           );
         })}
@@ -439,6 +502,12 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
     }
 
     const displayName = `${draft.firstName.trim()} ${draft.lastName.trim()}`.trim();
+    const interestsForDb =
+      draft.personaRole === 'athlete'
+        ? draft.interests
+        : !showCompeteOrCoachSportStep(draft.personaRole)
+          ? draft.sports
+          : [];
     const { error } = await supabase.from('profiles').upsert(
       {
         id: user.id,
@@ -449,6 +518,7 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
         persona_role: draft.personaRole,
         sports: capitalizeProfileTags(draft.sports),
         primary_sport: capitalizeProfileTag(draft.primarySport || (draft.sports[0] ?? '')),
+        interests: capitalizeProfileTags(interestsForDb),
         discovery_source: draft.discoverySource,
         onboarding_completed_at: new Date().toISOString(),
       },
@@ -485,7 +555,6 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
           Welcome to the premium experience. Tutorial flows and deeper profile customization will arrive in a future
           update — for now, dive into the community.
         </Text>
-        <MasterControlRecoverySteps style={{ width: '100%', maxWidth: 420, marginBottom: DS.space.lg }} />
         <AppleHeroButton loading={saving} onPress={() => void saveAndEnter()} style={styles.enterBtn}>
           Enter the community
         </AppleHeroButton>

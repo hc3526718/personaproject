@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -17,6 +17,10 @@ import { CommonActions, useFocusEffect, useRoute, type RouteProp } from '@react-
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { captureRef } from 'react-native-view-shot';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
 import { signTicketPayload } from '../booking/ticketToken';
@@ -43,15 +47,19 @@ import type { HtmlEventCard } from '../data/upcomingEventsFromHtml';
 import { UPCOMING_EVENTS_FROM_HTML } from '../data/upcomingEventsFromHtml';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
+import { isEventArchivedForBrowse, reviewsUnlockAtMs } from '../lib/eventTiming';
 import type { EventsBrowseFilterChip, EventsStackParamList } from '../navigation/types';
 import {
   bookExistingEvent,
   createEventAndBooking,
   deleteCommunityEvent,
+  fetchMyEventReview,
   findUserBookingForEvent,
   getEventById,
   listAllEvents,
   listBookingsWithEventsForUser,
+  subscribeBookingByReference,
+  upsertEventReview,
   type BookingWithEvent,
 } from '../roadmap/liveDataService';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
@@ -59,6 +67,7 @@ import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { openEventCheckoutUrl, startEventStripeCheckout } from '../subscriptions/eventStripeCheckout';
 import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
+import { CreatorEventDetailView } from './CreatorEventDetailView';
 import type { EventRow } from '../roadmap/types';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
 
@@ -141,6 +150,11 @@ function browseRowStartsAt(row: BrowseEventRow): number {
   return htmlCardApproxTs(row.card);
 }
 
+function browseRowIsArchived(row: BrowseEventRow, now: number): boolean {
+  if (row.kind === 'db') return isEventArchivedForBrowse(row.row);
+  return now >= htmlCardApproxTs(row.card) + 4 * 3600000;
+}
+
 function browseRowStorageKey(row: BrowseEventRow): string {
   if (row.kind === 'db') {
     return unifiedEventSlug({ source: 'db', id: row.row.id, title: row.row.title });
@@ -180,21 +194,26 @@ function rowMatchesBrowseFilter(
     user: { id: string } | null | undefined;
   },
 ): boolean {
-  const startTs = browseRowStartsAt(row);
   const key = browseRowStorageKey(row);
   switch (filter) {
     case 'booked':
-      return row.kind === 'db' && ctx.bookedEventIds.has(row.row.id);
+      return (
+        row.kind === 'db' &&
+        ctx.bookedEventIds.has(row.row.id) &&
+        !browseRowIsArchived(row, ctx.now)
+      );
     case 'saved':
-      return ctx.savedKeys.has(key);
+      return ctx.savedKeys.has(key) && !browseRowIsArchived(row, ctx.now);
     case 'past':
-      return startTs < ctx.now;
+      return browseRowIsArchived(row, ctx.now);
     case 'my_events':
       if (!ctx.user || row.kind !== 'db') return false;
-      return (row.row.created_by ?? '').trim() === ctx.user.id;
+      return (
+        (row.row.created_by ?? '').trim() === ctx.user.id && !browseRowIsArchived(row, ctx.now)
+      );
     case 'all':
     default:
-      return true;
+      return !browseRowIsArchived(row, ctx.now);
   }
 }
 
@@ -877,6 +896,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const [dbEvent, setDbEvent] = useState<EventRow | null>(null);
   const [deleteEventConfirmOpen, setDeleteEventConfirmOpen] = useState(false);
   const [deleteEventBusy, setDeleteEventBusy] = useState(false);
+  const [viewerBooking, setViewerBooking] = useState<BookingWithEvent | null>(null);
 
   const storageKeyEarly =
     route.params?.eventStorageKey ??
@@ -950,6 +970,23 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
     }, [storageKey]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!supabaseEventId || !user?.id || user.id.startsWith('demo-') || !isSupabaseConfigured()) {
+        setViewerBooking(null);
+        return undefined;
+      }
+      let alive = true;
+      void (async () => {
+        const bk = await findUserBookingForEvent(user.id, supabaseEventId);
+        if (alive) setViewerBooking(bk);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [supabaseEventId, user?.id]),
+  );
+
   const toggleSaved = useCallback(async () => {
     const next = !saved;
     setSaved(next);
@@ -988,6 +1025,38 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
       Alert.alert('Could not delete', 'Check permissions and try again.');
     }
   }, [deleteEventBusy, navigation, showBanner, supabaseEventId]);
+
+  const isEventHost = Boolean(
+    user?.id && dbEvent?.created_by && String(dbEvent.created_by).trim() === String(user.id),
+  );
+  const eventArchivedGuest = dbEvent ? isEventArchivedForBrowse(dbEvent) : false;
+  const { datePart: recapDatePart, timePart: recapTimePart } = splitScheduleLine(displaySchedule);
+
+  if (isEventHost && dbEvent) {
+    return (
+      <>
+        <CreatorEventDetailView
+          navigation={navigation}
+          event={dbEvent}
+          onShare={() =>
+            void Share.share({
+              message: `${displayTitle} — Dalton Grant Sports`,
+            }).catch(() => undefined)
+          }
+        />
+        <ConfirmModal
+          visible={deleteEventConfirmOpen}
+          title="Delete event?"
+          message="This removes the event for everyone."
+          confirmLabel="Delete"
+          destructive
+          busy={deleteEventBusy}
+          onCancel={() => !deleteEventBusy && setDeleteEventConfirmOpen(false)}
+          onConfirm={() => void confirmDeleteEvent()}
+        />
+      </>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -1133,15 +1202,71 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         </View>
       </ScrollView>
       <View style={[styles.eventStickyFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <AppleHeroButton onPress={goConfirm} style={{ marginBottom: DS.space.sm }}>
-          <Text style={eventCtaLabelStyle}>Attend now</Text>
-        </AppleHeroButton>
-        <Pressable
-          style={[styles.saveLaterOutlineBtn, saved && styles.saveLaterOutlineBtnSaved]}
-          onPress={() => void toggleSaved()}
-        >
-          <Text style={[styles.saveLaterOutlineText, saved && styles.saveLaterOutlineTextSaved]}>{saved ? 'SAVED' : 'SAVE FOR LATER'}</Text>
-        </Pressable>
+        {eventArchivedGuest ? (
+          <>
+            <Text
+              style={{
+                fontFamily: DS.font.body,
+                fontSize: 14,
+                color: DS.color.textMuted,
+                textAlign: 'center',
+                marginBottom: DS.space.base,
+              }}
+            >
+              This event has finished. Browse it anytime under Past events; your ticket stays available if you
+              registered.
+            </Text>
+            {viewerBooking ? (
+              <AppleHeroButton
+                style={{ marginBottom: DS.space.sm }}
+                onPress={() =>
+                  navigation.navigate('BookingConfirm', {
+                    reference: viewerBooking.reference,
+                    bookingId: viewerBooking.bookingId,
+                    eventId: viewerBooking.eventId,
+                    title: displayTitle,
+                    imageUri: displayHero,
+                    recapDate: recapDatePart,
+                    recapTime: recapTimePart || displaySchedule,
+                    venue: displayVenue,
+                    attendeeName: user?.email?.split('@')[0] ?? 'Member',
+                    attendeeEmail: user?.email ?? '',
+                    fitnessLevel: 'Intermediate',
+                  })
+                }
+              >
+                <Text style={eventCtaLabelStyle}>Ticket & reviews</Text>
+              </AppleHeroButton>
+            ) : null}
+            <AppleHeroButton variant="ghost" onPress={() => navigation.navigate('UpcomingEvents', { initialFilter: 'past' })}>
+              <Text
+                style={{
+                  fontFamily: DS.font.bodyBold,
+                  fontSize: 13,
+                  color: DS.color.gold,
+                  letterSpacing: 1,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Open past events
+              </Text>
+            </AppleHeroButton>
+          </>
+        ) : (
+          <>
+            <AppleHeroButton onPress={goConfirm} style={{ marginBottom: DS.space.sm }}>
+              <Text style={eventCtaLabelStyle}>Attend now</Text>
+            </AppleHeroButton>
+            <Pressable
+              style={[styles.saveLaterOutlineBtn, saved && styles.saveLaterOutlineBtnSaved]}
+              onPress={() => void toggleSaved()}
+            >
+              <Text style={[styles.saveLaterOutlineText, saved && styles.saveLaterOutlineTextSaved]}>
+                {saved ? 'SAVED' : 'SAVE FOR LATER'}
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
       <ConfirmModal
         visible={deleteEventConfirmOpen}
@@ -1438,6 +1563,7 @@ function resetEventsToUpcoming(navigation: EProps<'BookingConfirm'>['navigation'
 
 export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfirm'>) {
   const insets = useSafeAreaInsets();
+  const showBanner = useActionBanner();
   const { user } = useAuth();
   const p = route.params;
   const refCode = p?.reference ?? 'SC-2024-1015';
@@ -1456,9 +1582,12 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [checkedInAt, setCheckedInAt] = useState<string | null>(null);
   const [eventEndTs, setEventEndTs] = useState<number | null>(null);
+  const [reviewGateTs, setReviewGateTs] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [reviewStars, setReviewStars] = useState(0);
   const [reviewNote, setReviewNote] = useState('');
+  const ticketShotRef = useRef<View>(null);
+  const checkInBannerSent = useRef(false);
   /** Stable pick so copy does not flicker each render */
   const [motivateIx] = useState(() => (refCode.charCodeAt(0) ?? 0) % 2);
   const motivateLine =
@@ -1480,38 +1609,74 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         : Number.isFinite(startMs)
           ? startMs + 3 * 60 * 60 * 1000
           : null;
-      if (endMs !== null && Number.isFinite(endMs)) setEventEndTs(endMs);
+      if (endMs !== null && Number.isFinite(endMs)) {
+        setEventEndTs(endMs);
+        setReviewGateTs(reviewsUnlockAtMs(ev));
+      }
     });
   }, [eventId]);
 
   const eventHasEnded =
     eventEndTs !== null && Number.isFinite(eventEndTs) && nowTick >= eventEndTs;
+  const reviewWindowOpen =
+    reviewGateTs !== null && Number.isFinite(reviewGateTs) && nowTick >= reviewGateTs;
   const hideInteractionRail = Boolean(checkedInAt) || eventHasEnded;
   const hideQr = Boolean(checkedInAt);
 
+  const loadCheckedIn = useCallback(async (): Promise<string | null> => {
+    if (!isSupabaseConfigured() || !user || user.id.startsWith('demo-')) {
+      return null;
+    }
+    const s = getSupabase();
+    if (!s) return null;
+    const { data } = await s
+      .from('bookings')
+      .select('checked_in_at')
+      .eq('reference', refCode)
+      .maybeSingle();
+    return (data as { checked_in_at?: string | null } | null)?.checked_in_at ?? null;
+  }, [refCode, user]);
+
   useFocusEffect(
     useCallback(() => {
-      if (!isSupabaseConfigured() || !user || user.id.startsWith('demo-')) {
-        setCheckedInAt(null);
-        return undefined;
-      }
       let alive = true;
       void (async () => {
-        const s = getSupabase();
-        if (!s) return;
-        const { data } = await s
-          .from('bookings')
-          .select('checked_in_at')
-          .eq('reference', refCode)
-          .maybeSingle();
-        const v = (data as { checked_in_at?: string | null } | null)?.checked_in_at ?? null;
-        if (alive) setCheckedInAt(v);
+        const v = await loadCheckedIn();
+        if (!alive) return;
+        setCheckedInAt(v);
+        if (v && !checkInBannerSent.current) {
+          checkInBannerSent.current = true;
+          showBanner(`Signed in — your attendance for ${evTitle} is confirmed.`);
+        }
       })();
       return () => {
         alive = false;
       };
-    }, [refCode, user]),
+    }, [evTitle, loadCheckedIn, showBanner]),
   );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !user || user.id.startsWith('demo-')) return undefined;
+    return subscribeBookingByReference(refCode, () => {
+      void loadCheckedIn().then((v) => {
+        setCheckedInAt(v);
+        if (v && !checkInBannerSent.current) {
+          checkInBannerSent.current = true;
+          showBanner(`Signed in — your attendance for ${evTitle} is confirmed.`);
+        }
+      });
+    });
+  }, [evTitle, loadCheckedIn, refCode, showBanner, user]);
+
+  useEffect(() => {
+    if (!eventId || !user?.id || user.id.startsWith('demo-')) return;
+    void fetchMyEventReview(eventId, user.id).then((r) => {
+      if (r) {
+        setReviewStars(r.rating);
+        setReviewNote(r.comment ?? '');
+      }
+    });
+  }, [eventId, user?.id]);
 
   useEffect(() => {
     let alive = true;
@@ -1536,6 +1701,67 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   }, [refCode, user?.id, attendeeEmail, eventId]);
 
   const addCal = () => void shareEventCalendar(evTitle, venue, scheduleForIcs, refCode);
+
+  const saveTicketPng = useCallback(async () => {
+    try {
+      await new Promise((r) => setTimeout(r, 100));
+      const uri = await captureRef(ticketShotRef, {
+        format: 'png',
+        quality: 1,
+        result: 'tmpfile',
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png' });
+      } else {
+        Alert.alert('Sharing', 'Sharing is not available on this device.');
+      }
+    } catch (e) {
+      Alert.alert('Save ticket', e instanceof Error ? e.message : 'Could not capture the ticket.');
+    }
+  }, []);
+
+  const saveTicketPdf = useCallback(async () => {
+    try {
+      await new Promise((r) => setTimeout(r, 100));
+      const uri = await captureRef(ticketShotRef, {
+        format: 'png',
+        quality: 0.92,
+        result: 'tmpfile',
+      });
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const html = `<html><body style="margin:0;display:flex;justify-content:center;"><img src="data:image/png;base64,${base64}" style="width:100%;max-width:520px" /></body></html>`;
+      const { uri: pdfUri } = await Print.printToFileAsync({ html });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(pdfUri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
+      } else {
+        Alert.alert('Sharing', 'Sharing is not available on this device.');
+      }
+    } catch (e) {
+      Alert.alert('PDF', e instanceof Error ? e.message : 'Could not build a PDF.');
+    }
+  }, []);
+
+  const qrExportSteps =
+    !hideQr && qrToken
+      ? [
+          {
+            key: 'png',
+            title: 'Save ticket as PNG',
+            subtitle: 'Share or save the QR reference image',
+            icon: <FontAwesome name="file-image-o" size={14} color={DS.color.gold} />,
+            onPress: () => void saveTicketPng(),
+          },
+          {
+            key: 'pdf',
+            title: 'Save ticket as PDF',
+            subtitle: 'Portable archive of your QR strip',
+            icon: <FontAwesome name="file-pdf-o" size={14} color={DS.color.gold} />,
+            onPress: () => void saveTicketPdf(),
+          },
+        ]
+      : [];
 
   const walletStep =
     Platform.OS === 'ios'
@@ -1564,6 +1790,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
 
   const steps = [
     ...walletStep,
+    ...qrExportSteps,
     {
       key: 'cal',
       title: 'Add to Calendar (ICS)',
@@ -1635,7 +1862,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
           </Text>
         </View>
 
-        <View style={styles.refGradientCard}>
+        <View ref={ticketShotRef} collapsable={false} style={styles.refGradientCard}>
           <Text style={styles.refLabel}>BOOKING REFERENCE</Text>
           <Text style={styles.refCodeLg}>{refCode}</Text>
           {hideQr ? (
@@ -1658,6 +1885,21 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
             </>
           )}
         </View>
+
+        {hideQr ? null : (
+          <View style={styles.dayOfReminderCard}>
+            <FontAwesome name="battery-three-quarters" size={18} color={DS.color.gold} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.dayOfReminderTitle}>Before you arrive</Text>
+              <Text style={styles.dayOfReminderBody}>
+                • Keep your phone charged — you&apos;ll scan this QR at the door.
+                {'\n'}• Save a PNG or PDF of your ticket (Next steps below) plus a screenshot, just in case other
+                options fail offline.
+                {'\n'}• On iPhone, Wallet passes still need power when organisers scan your code.
+              </Text>
+            </View>
+          </View>
+        )}
 
         <Text style={styles.detailSectionKicker}>EVENT DETAILS</Text>
         <View style={styles.confirmEventCard}>
@@ -1723,11 +1965,12 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
           </>
         )}
 
-        {eventHasEnded ? (
+        {reviewWindowOpen ? (
           <View style={styles.eventReviewCard}>
             <Text style={styles.detailSectionKicker}>HOW WAS IT?</Text>
             <Text style={styles.reviewHint}>
-              This event window has ended. Share a quick rating — it helps organisers and athletes.
+              Reviews unlock one hour after the scheduled end. You must have checked in to submit feedback — results
+              show on the host&apos;s dashboard once published.
             </Text>
             <View style={styles.starRow}>
               {[1, 2, 3, 4, 5].map((s) => (
@@ -1750,14 +1993,29 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
             />
             <AppleHeroButton
               style={{ marginTop: DS.space.md }}
-              onPress={() =>
-                Alert.alert(
-                  reviewStars > 0 ? 'Thanks' : 'Rating',
-                  reviewStars > 0
-                    ? 'Feedback recorded locally for this prototype build.'
-                    : 'Tap a star rating above if you would like to share feedback.',
-                )
-              }
+              onPress={() => {
+                if (!eventId || !user?.id || user.id.startsWith('demo-')) {
+                  Alert.alert('Reviews', 'Sign in with a live account to submit.');
+                  return;
+                }
+                if (reviewStars < 1) {
+                  Alert.alert('Rating', 'Tap a star rating first.');
+                  return;
+                }
+                void (async () => {
+                  const res = await upsertEventReview(eventId, user.id, reviewStars, reviewNote);
+                  if (res.ok) {
+                    Alert.alert('Thanks', 'Your review was saved.');
+                  } else {
+                    Alert.alert(
+                      'Could not save',
+                      res.error?.includes('violates') || res.error?.includes('policy')
+                        ? 'Make sure you checked in and waited one hour after the event end (server rules).'
+                        : (res.error ?? 'Try again later.'),
+                    );
+                  }
+                })();
+              }}
             >
               <Text style={eventCtaLabelStyle}>Submit review</Text>
             </AppleHeroButton>
@@ -2901,6 +3159,28 @@ const styles = StyleSheet.create({
   },
   attendeeValEmail: {
     fontWeight: '400',
+  },
+  dayOfReminderCard: {
+    flexDirection: 'row',
+    gap: DS.space.md,
+    backgroundColor: DS.color.surface,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.goldTint10,
+    padding: DS.space.base,
+    marginBottom: DS.space.lg,
+  },
+  dayOfReminderTitle: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 13,
+    color: DS.color.gold,
+    marginBottom: 6,
+  },
+  dayOfReminderBody: {
+    fontFamily: DS.font.body,
+    fontSize: 12,
+    color: DS.color.textMuted,
+    lineHeight: 20,
   },
   emailSentCard: {
     flexDirection: 'row',
