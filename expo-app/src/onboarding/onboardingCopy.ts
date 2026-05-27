@@ -22,6 +22,25 @@ export const SPORT_OPTIONS = [
   'Other',
 ] as const;
 
+/** Broader profile interests (onboarding + profile edit). */
+export const INTEREST_OPTIONS = [
+  'Strength training',
+  'Nutrition',
+  'Recovery',
+  'Mindset',
+  'Youth development',
+  'Coaching',
+  'Sponsorship',
+  'Events & camps',
+  'Media & content',
+  'Community',
+  'Fitness',
+  'Injury prevention',
+  'Performance analysis',
+  'Parenting in sport',
+  'Scouting',
+] as const;
+
 export const DISCOVERY_OPTIONS = [
   { id: 'social', label: 'Social media' },
   { id: 'friend', label: 'Friend or teammate' },

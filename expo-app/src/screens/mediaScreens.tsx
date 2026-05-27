@@ -25,6 +25,7 @@ import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { useAuth } from '../auth/AuthContext';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
+import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import {
   listContinueWatching,
   listFullyWatchedIds,

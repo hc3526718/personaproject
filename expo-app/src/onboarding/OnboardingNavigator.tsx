@@ -33,6 +33,7 @@ import {
   normalizeUsernameTyping,
 } from '../profile/usernameProfile';
 import { useUsernameAvailability } from '../profile/useUsernameAvailability';
+import { InterestsEditor } from '../components/InterestsEditor';
 import { DISCOVERY_OPTIONS, PERSONA_OPTIONS, SPORT_OPTIONS } from './onboardingCopy';
 
 function showCompeteOrCoachSportStep(personaRole: string): boolean {
@@ -379,17 +380,11 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
 
 function InterestsStep({ navigation }: StepProps<'OnboardingInterests'>) {
   const { draft, setDraft } = useOnboardingCtx();
-  const toggle = (s: string) => {
-    const has = draft.sports.includes(s);
-    setDraft({
-      sports: has ? draft.sports.filter((x) => x !== s) : [...draft.sports, s],
-    });
-  };
-  const canNext = draft.sports.length > 0;
+  const canNext = draft.interests.length > 0;
   return (
     <StepChrome
       title="What are you interested in?"
-      subtitle="Choose one or more topics so we can tailor what you see."
+      subtitle="Pick topics from the list or type your own and press Enter."
       footer={
         <View style={styles.footerRow}>
           <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
@@ -398,27 +393,18 @@ function InterestsStep({ navigation }: StepProps<'OnboardingInterests'>) {
           <AppleHeroButton
             disabled={!canNext}
             style={styles.footerHalf}
-            onPress={() => {
-              const first = draft.sports[0];
-              setDraft({ primarySport: first });
-              navigation.navigate('OnboardingDiscovery');
-            }}
+            onPress={() => navigation.navigate('OnboardingDiscovery')}
           >
             Continue
           </AppleHeroButton>
         </View>
       }
     >
-      <View style={styles.chipGrid}>
-        {SPORT_OPTIONS.map((s) => {
-          const on = draft.sports.includes(s);
-          return (
-            <Pressable key={s} onPress={() => toggle(s)} style={[styles.chip, on && styles.chipOn]}>
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{s}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <InterestsEditor
+        value={draft.interests}
+        onChange={(interests) => setDraft({ interests })}
+        hint="Choose at least one — you can update these later in your profile."
+      />
     </StepChrome>
   );
 }
@@ -503,11 +489,9 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
 
     const displayName = `${draft.firstName.trim()} ${draft.lastName.trim()}`.trim();
     const interestsForDb =
-      draft.personaRole === 'athlete'
+      draft.personaRole === 'athlete' || !showCompeteOrCoachSportStep(draft.personaRole)
         ? draft.interests
-        : !showCompeteOrCoachSportStep(draft.personaRole)
-          ? draft.sports
-          : [];
+        : [];
     const { error } = await supabase.from('profiles').upsert(
       {
         id: user.id,

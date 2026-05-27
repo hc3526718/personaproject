@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   Linking,
   Pressable,
@@ -16,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandLogo } from '../components/BrandLogo';
 import { AppleHeroButton } from '../components/AppleHeroButton';
+import { OptionMenuModal } from '../components/OptionMenuModal';
 import { DS } from '../designSystem';
 import type { EventsStackParamList } from '../navigation/types';
 import type { EventReviewRow, EventRow } from '../roadmap/types';
@@ -65,9 +67,11 @@ type Props = {
   navigation: Nav;
   event: EventRow;
   onShare?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 };
 
-export function CreatorEventDetailView({ navigation, event, onShare }: Props) {
+export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onDelete }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const live = isSupabaseConfigured() && user && !user.id.startsWith('demo-');
@@ -76,6 +80,7 @@ export function CreatorEventDetailView({ navigation, event, onShare }: Props) {
   const [reviewsTick, setReviewsTick] = useState(0);
   const [reviews, setReviews] = useState<EventReviewRow[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const endMs = useMemo(() => eventEffectiveEndMs(event), [event.starts_at, event.ends_at]);
   const archived = useMemo(() => isEventArchivedForBrowse(event), [event.starts_at, event.ends_at]);

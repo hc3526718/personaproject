@@ -1058,6 +1058,13 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
               message: `${displayTitle} — Dalton Grant Sports`,
             }).catch(() => undefined)
           }
+          onEdit={() =>
+            Alert.alert(
+              'Edit event',
+              'Full in-app editing is coming soon. For urgent changes, contact support via Profile → Settings → Support.',
+            )
+          }
+          onDelete={() => setDeleteEventConfirmOpen(true)}
         />
         <ConfirmModal
           visible={deleteEventConfirmOpen}

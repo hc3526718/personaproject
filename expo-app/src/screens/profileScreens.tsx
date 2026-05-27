@@ -21,6 +21,7 @@ import { useAuth } from '../auth/AuthContext';
 import { deleteOwnAccount } from '../auth/accountDeletionService';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { HighlightVideoModal } from '../components/HighlightVideoModal';
+import { InterestsEditor } from '../components/InterestsEditor';
 import { uploadHighlightVideo } from '../lib/highlightVideoUpload';
 import { BrandLogo } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -351,7 +352,7 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     onPress: () => navigation.navigate('Paywall'),
   };
   const openMasterGated = useCallback(
-    async (returnTo: 'MasterControlHub' | 'MasterProposalQueue') => {
+    async (returnTo: 'MasterControlHub') => {
       if (!user?.id) return;
       const unlocked = await isMasterGateUnlocked(user.id);
       if (unlocked) {
@@ -367,10 +368,10 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     user?.masterControl === true
       ? [
           {
-            title: 'Master intake',
-            sub: 'Review sponsorship, media & event proposals',
-            icon: 'inbox' as const,
-            onPress: () => void openMasterGated('MasterProposalQueue'),
+            title: 'Master control',
+            sub: 'Partner pages, accounts & deletion',
+            icon: 'shield' as const,
+            onPress: () => void openMasterGated('MasterControlHub'),
           },
         ]
       : [];
@@ -1338,7 +1339,7 @@ export function EditProfileSectionDetailScreen({
   const [toast, setToast] = useState(false);
   const [bannerUrl, setBannerUrl] = useState('');
   const [bioText, setBioText] = useState('');
-  const [interestCsv, setInterestCsv] = useState('');
+  const [interestTags, setInterestTags] = useState<string[]>([]);
   const [highlights, setHighlights] = useState<ProfileHighlight[]>([{ title: '', video_url: '' }]);
   const [resultsText, setResultsText] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -1394,18 +1395,11 @@ export function EditProfileSectionDetailScreen({
         if (error) throw new Error(error.message);
       } else if (slug === 'interests') {
         const excludeSports = sportDedupeKeys(profile?.primary_sport, profile?.sports);
-        const interests = interestCsv
-          .split(',')
+        const interests = interestTags
           .map((s) => s.trim())
           .filter(Boolean)
           .filter((t) => !excludeSports.has(t.toLowerCase()))
-          .slice(0, 30)
-          .map((t) =>
-            t
-              .split(/[\s_-]+/)
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-              .join(' '),
-          );
+          .slice(0, 30);
         const { error } = await supabase.from('profiles').update({ interests }).eq('id', user.id);
         if (error) throw new Error(error.message);
       } else if (slug === 'highlights') {
@@ -1425,7 +1419,7 @@ export function EditProfileSectionDetailScreen({
     bannerUrl,
     bioText,
     highlights,
-    interestCsv,
+    interestTags,
     live,
     profile?.primary_sport,
     profile?.sports,
@@ -1510,16 +1504,11 @@ export function EditProfileSectionDetailScreen({
         ) : null}
 
         {slug === 'interests' ? (
-          <>
-            <Text style={styles.sectionDetailMuted}>Comma-separated keywords (e.g. “strength, nutrition, recovery”).</Text>
-            <TextInput
-              style={styles.input}
-              value={interestCsv}
-              onChangeText={setInterestCsv}
-              placeholder="strength, nutrition, recovery"
-              placeholderTextColor={DS.color.textMuted}
-            />
-          </>
+          <InterestsEditor
+            value={interestTags}
+            onChange={setInterestTags}
+            hint="Tap suggestions or search and press Enter to add your own topics."
+          />
         ) : null}
 
         {slug === 'highlights' ? (
