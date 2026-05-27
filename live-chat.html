@@ -3,71 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Dalton Grant Academy — Live Chat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <title>The Dalton Grant Academy — Live chat</title>
     <link rel="stylesheet" href="shared/theme.css" />
-    <style>
-      body { font-family: "DM Sans", sans-serif; background: var(--demo-bg); color: var(--demo-text); }
-      #chat-panel { min-height: 420px; }
-    </style>
   </head>
-  <body class="min-h-screen antialiased flex flex-col dalton-marketing">
-    <div id="dalton-staggered-menu"></div>
-    <main class="flex-1 mx-auto w-full max-w-3xl px-5 pt-20 pb-8 flex flex-col">
-      <p class="font-bebas text-gold tracking-[0.24em] text-sm">LIVE CHAT</p>
-      <h1 class="font-bebas text-3xl text-mist mt-1">The Dalton Grant Academy assistant</h1>
-      <p class="text-dim text-sm mt-2 mb-6">
-        Connect your chatbot widget here (ElevenLabs, Intercom, Crisp, etc.). Knowledge base:
-        <code class="text-mist text-xs">expo-app/docs/CHATBOT_KNOWLEDGE_BASE.md</code>
+  <body
+    class="min-h-screen antialiased dalton-marketing"
+    style="
+      font-family: system-ui;
+      background: #0a0a0a;
+      color: #d4d0c8;
+      margin: 0;
+      padding: 0;
+    "
+  >
+    <div style="padding: 1.5rem 1.25rem; max-width: 960px; margin: 0 auto">
+      <h1 style="margin: 0; font-size: 1.25rem; letter-spacing: 0.08em; text-transform: uppercase">
+        Live chat
+      </h1>
+      <p style="margin: 0.75rem 0 0; color: rgba(212, 208, 200, 0.8); line-height: 1.5">
+        If you have questions, start here. For FAQs and guides, visit the
+        <a style="color: #c8a84b" href="/help-center">Help centre</a>.
       </p>
-      <div id="chat-panel" class="flex-1 rounded-2xl border border-line bg-panel p-6 flex flex-col">
-        <div id="messages" class="flex-1 space-y-4 overflow-y-auto text-sm">
-          <div class="rounded-xl border border-line bg-ink/40 p-4 max-w-[90%]">
-            <p class="text-mist font-medium">Assistant</p>
-            <p class="text-dim mt-2 leading-relaxed">
-              Hi — I can help with sign-in, Premium, events, community, and accessibility. What do you need?
-            </p>
-          </div>
-        </div>
-        <form id="chat-form" class="mt-4 flex gap-2">
-          <input
-            id="chat-input"
-            type="text"
-            placeholder="Ask a question…"
-            class="flex-1 rounded-xl border border-line bg-ink/50 px-4 py-3 text-mist placeholder:text-dim focus:outline-none focus:border-gold/40"
-            autocomplete="off"
-          />
-          <button type="submit" class="px-5 py-3 rounded-xl bg-gold text-ink font-semibold text-sm">Send</button>
-        </form>
-        <p class="text-dim text-xs mt-3">
-          This page is a shell until you embed your provider script. For human support:
-          <a class="text-gold underline" href="/contact-us">contact us</a>.
-        </p>
+    </div>
+
+    <div style="padding: 0 1.25rem 2rem; max-width: 960px; margin: 0 auto">
+      <div
+        style="
+          border: 1px solid rgba(200, 168, 75, 0.25);
+          border-radius: 16px;
+          overflow: hidden;
+          background: rgba(255, 255, 255, 0.03);
+        "
+      >
+        <iframe
+          src="https://www.chatbase.co/chatbot-iframe/zEmQhZUYm1rliCblIg1mI"
+          width="100%"
+          style="height: 100%; min-height: 700px"
+          frameborder="0"
+          allow="microphone"
+        ></iframe>
       </div>
-    </main>
-    <script>
-      const form = document.getElementById("chat-form");
-      const input = document.getElementById("chat-input");
-      const messages = document.getElementById("messages");
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const text = input.value.trim();
-        if (!text) return;
-        const user = document.createElement("div");
-        user.className = "rounded-xl border border-gold/30 bg-gold/10 p-4 max-w-[90%] ml-auto";
-        user.innerHTML = `<p class="text-mist font-medium">You</p><p class="text-dim mt-2">${text.replace(/</g, "&lt;")}</p>`;
-        messages.appendChild(user);
-        input.value = "";
-        const bot = document.createElement("div");
-        bot.className = "rounded-xl border border-line bg-ink/40 p-4 max-w-[90%]";
-        bot.innerHTML =
-          '<p class="text-mist font-medium">Assistant</p><p class="text-dim mt-2">Connect your chatbot provider to answer live. Meanwhile, see <a class="text-gold underline" href="/help-center">Help centre</a> or email <a class="text-gold underline" href="mailto:support@daltongrantacademy.com">support</a>.</p>';
-        messages.appendChild(bot);
-        messages.scrollTop = messages.scrollHeight;
-      });
-    </script>
+    </div>
+
     <script src="shared/marketing-chrome.js"></script>
-    <script src="shared/site-footer.js"></script>
   </body>
 </html>
