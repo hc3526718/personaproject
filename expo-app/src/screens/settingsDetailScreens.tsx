@@ -181,8 +181,8 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
             <View style={{ flex: 1 }}>
               <Text style={styles.toggleTitle}>Authenticator app</Text>
               <Text style={styles.toggleSub}>
-                TOTP enrollment is handled by Supabase Auth (MFA). Enable it in your Supabase project, then a
-                future build will surface the QR enrollment flow here.
+                Two-factor authentication is managed in Supabase Auth for your account. In-app enrollment will be added
+                in a future release; contact Support if you need MFA enabled before then.
               </Text>
             </View>
             <View style={styles.statusPillMuted}>

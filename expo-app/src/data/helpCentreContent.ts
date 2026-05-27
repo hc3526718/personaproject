@@ -1,9 +1,13 @@
+import type { LegalPagePath } from '../lib/legalUrls';
+
 export type HelpArticle = {
   id: string;
   title: string;
   body: string;
   /** Lowercase tokens for in-app search (title + keywords). */
   keywords: string[];
+  /** Opens the Grant Access website legal page when the article is tapped. */
+  legalPath?: LegalPagePath;
 };
 
 export const HELP_SUGGESTED_SEARCHES = [
@@ -12,6 +16,8 @@ export const HELP_SUGGESTED_SEARCHES = [
   'Book an event',
   'Restore purchases',
   'Delete account',
+  'Privacy policy',
+  'Terms of service',
   'Accessibility',
   'Offline mode',
   'Report a post',
@@ -80,11 +86,76 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
       'Profile → Settings → Accessibility: Larger Text, Differentiate Without Color, and Sufficient Contrast. Grant Access uses a dark interface by default. Preferences sync across devices when signed in.',
   },
   {
-    id: 'legal',
-    title: 'Legal & privacy',
-    keywords: ['terms', 'privacy', 'cookies', 'athlete agreement'],
+    id: 'legal-overview',
+    title: 'Legal & privacy (overview)',
+    keywords: [
+      'legal',
+      'law',
+      'policies',
+      'terms',
+      'privacy',
+      'cookies',
+      'athlete agreement',
+      'terms and conditions',
+      'terms of service',
+      'privacy policy',
+      'cookie policy',
+      'gdpr',
+      'data protection',
+    ],
     body:
-      'Profile → Settings → Legal opens Terms, Privacy, Cookie policy, and Athlete agreement on the Grant Access website.',
+      'Grant Access legal documents are on our website and in Profile → Settings → Legal. Search “terms” or “privacy” in this help centre for direct links. You can also open each policy from the articles below.',
+  },
+  {
+    id: 'terms-of-service',
+    title: 'Terms of service',
+    keywords: [
+      'terms',
+      'terms of service',
+      'terms and conditions',
+      'conditions',
+      'user agreement',
+      'platform rules',
+      'eligibility',
+      'legal',
+    ],
+    body:
+      'Platform rules, eligibility, subscriptions, user-generated content, and event booking terms. Tap this article to open the full Terms of service in your browser, or go to Profile → Settings → Legal.',
+    legalPath: '/terms',
+  },
+  {
+    id: 'privacy-policy',
+    title: 'Privacy policy',
+    keywords: [
+      'privacy',
+      'privacy policy',
+      'personal data',
+      'data protection',
+      'gdpr',
+      'cookies',
+      'tracking',
+      'delete account',
+      'legal',
+    ],
+    body:
+      'How we collect, use, store, and delete personal data (account, profile, messages, bookings, and analytics). Tap to open the Privacy policy, or Profile → Settings → Legal.',
+    legalPath: '/privacy',
+  },
+  {
+    id: 'cookie-policy',
+    title: 'Cookie policy',
+    keywords: ['cookie', 'cookies', 'cookie policy', 'tracking', 'legal', 'privacy'],
+    body:
+      'How cookies and similar technologies are used on the Grant Access website. Tap to open the Cookie policy.',
+    legalPath: '/cookie-policy',
+  },
+  {
+    id: 'athlete-agreement',
+    title: 'Athlete agreement',
+    keywords: ['athlete', 'agreement', 'grant access', 'program', 'terms', 'legal'],
+    body:
+      'Grant Access program terms for athletes and creators. Tap to open the Athlete agreement.',
+    legalPath: '/athlete-agreement',
   },
   {
     id: 'account-delete',

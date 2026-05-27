@@ -23,8 +23,10 @@ const EAS_UPDATE_URL = `https://u.expo.dev/${EAS_PROJECT_ID}`;
  */
 
 function buildPlugins() {
+  loadEnv();
   const sentryOrg = (process.env.SENTRY_ORG || '').trim();
   const sentryProject = (process.env.SENTRY_PROJECT || '').trim();
+  const androidAllowCleartext = process.env.EXPO_PUBLIC_ANDROID_ALLOW_CLEARTEXT === 'true';
 
   return [
     sentryOrg && sentryProject
@@ -53,7 +55,8 @@ function buildPlugins() {
           deploymentTarget: '15.1',
         },
         android: {
-          usesCleartextTraffic: true,
+          /** HTTPS-only production default; enable for local LAN / HTTP debugging only. */
+          usesCleartextTraffic: androidAllowCleartext,
         },
       },
     ],

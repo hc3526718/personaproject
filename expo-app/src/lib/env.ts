@@ -80,6 +80,17 @@ export function isAppStoreScreenshotMode(): boolean {
   return process.env.EXPO_PUBLIC_APP_STORE_SCREENSHOTS === '1';
 }
 
+/**
+ * Fictional media search tiles when Supabase is off. Never in production store builds —
+ * enabled for __DEV__, screenshot captures, or explicit `EXPO_PUBLIC_ALLOW_MEDIA_SEARCH_DEMO=1`.
+ */
+export function allowMediaSearchDemoFallback(): boolean {
+  if (isAppStoreScreenshotMode()) return true;
+  if (typeof __DEV__ !== 'undefined' && __DEV__) return true;
+  const flag = process.env.EXPO_PUBLIC_ALLOW_MEDIA_SEARCH_DEMO;
+  return flag === '1' || flag === 'true';
+}
+
 export function getApiBaseUrl(): string {
   return (process.env.EXPO_PUBLIC_API_BASE_URL ?? '').replace(/\/$/, '');
 }

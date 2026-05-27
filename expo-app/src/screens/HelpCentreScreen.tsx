@@ -22,6 +22,7 @@ import { readOfflineCache, writeOfflineCache } from '../lib/offline/offlineCache
 import { OFFLINE_TTL } from '../lib/offline/offlinePolicy';
 import { useNetworkStatus } from '../lib/offline/useNetworkStatus';
 import { getDaltonWebUrl } from '../lib/env';
+import { openLegalPage } from '../lib/legalUrls';
 import { Linking } from 'react-native';
 import type { ProfileStackParamList } from '../navigation/types';
 
@@ -222,5 +223,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     color: DS.color.text,
+  },
+  cardLink: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 13,
+    color: DS.color.gold,
+    marginTop: DS.space.sm,
   },
 });

@@ -80,6 +80,8 @@ Terms, privacy, and athlete agreement are available in-app and on our website.
 
 ## App encryption documentation (Export Compliance)
 
+**Copy-paste text** for App Store Connect step **“App Encryption Documentation 1 of 3”** (app description), encryption answers, DSA/trader notes: **[APP_ENCRYPTION_EXPORT_COMPLIANCE.md](./APP_ENCRYPTION_EXPORT_COMPLIANCE.md)**.
+
 Apple asks whether your app uses encryption. Most apps that only use **HTTPS (TLS)** qualify for a **standard exemption**.
 
 ### What to answer in App Store Connect

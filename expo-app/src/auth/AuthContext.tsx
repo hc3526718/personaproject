@@ -24,14 +24,14 @@ import { ensureProfileRow, fetchProfileByUserId } from '../roadmap/profileServic
 import { captureAuthSessionTimeout } from '../monitoring/sentryBoot';
 import { ensureDefaultDaltonVerifiedMetadata } from './userMetadataSupabase';
 import {
+  DEMO_EMAIL,
+  getDevDemoLegacyPassword,
+  getDevDemoPremiumPassword,
   isPremiumDemoEmail,
   PREMIUM_DEMO_EMAIL,
-  PREMIUM_DEMO_PASSWORD,
 } from './demoAccounts';
 
-export const DEMO_EMAIL = 'user123@gmail.com';
-export const DEMO_PASSWORD = '12345!';
-export { PREMIUM_DEMO_EMAIL, PREMIUM_DEMO_PASSWORD } from './demoAccounts';
+export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
 
 export type AppUser = {
   id: string;
@@ -309,15 +309,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })();
         return true;
       }
-      /** Built-in demo accounts must never work in release if Supabase env is missing (known passwords ship in the bundle). */
-      if (!__DEV__) {
-        return false;
-      }
+      /** Offline demo login: __DEV__ only; passwords via EXPO_PUBLIC_DEV_DEMO_* (never bundled in release). */
+      if (!__DEV__) return false;
+
+      const legacyPw = getDevDemoLegacyPassword();
+      const premiumPw = getDevDemoPremiumPassword();
+
       const demoLegacy =
-        trimmed.toLowerCase() === DEMO_EMAIL.toLowerCase() && password === DEMO_PASSWORD;
+        legacyPw.length > 0 &&
+        trimmed.toLowerCase() === DEMO_EMAIL.toLowerCase() &&
+        password === legacyPw;
+
       const demoPremium =
+        premiumPw.length > 0 &&
         trimmed.toLowerCase() === PREMIUM_DEMO_EMAIL.toLowerCase() &&
-        password === PREMIUM_DEMO_PASSWORD;
+        password === premiumPw;
+
       const ok = demoLegacy || demoPremium;
       if (ok) {
         setUser({

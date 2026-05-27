@@ -11,7 +11,11 @@ import {
   View,
 } from 'react-native';
 import { ResizeMode, Video } from 'expo-av';
-import { isAppStoreScreenshotMode, isSupabaseConfigured } from '../lib/env';
+import {
+  allowMediaSearchDemoFallback,
+  isAppStoreScreenshotMode,
+  isSupabaseConfigured,
+} from '../lib/env';
 import { isMediaIdSaved, listSavedMediaIds, toggleSavedMediaId } from '../lib/savedMediaPrefs';
 import { useRoute, type RouteProp, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -620,7 +624,9 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
   const results = useMemo(() => {
     let base: ResultRow[] = liveMediaMode
       ? liveMedia.map(mediaAssetToResultRow)
-      : [...SEARCH_DEMO_RESULTS];
+      : allowMediaSearchDemoFallback()
+        ? [...SEARCH_DEMO_RESULTS]
+        : [];
     const q = searchText.trim().toLowerCase();
     if (q) {
       base = base.filter(
@@ -630,7 +636,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
           r.badge.toLowerCase().includes(q),
       );
     }
-    if (loadMoreDone && !liveMediaMode && !isAppStoreScreenshotMode()) {
+    if (loadMoreDone && !liveMediaMode && allowMediaSearchDemoFallback() && !isAppStoreScreenshotMode()) {
       base.push(
         {
           id: '7',

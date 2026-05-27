@@ -14,6 +14,50 @@ function loadSentry(): SentryModule | null {
 const dsn = (process.env.EXPO_PUBLIC_SENTRY_DSN || '').trim();
 
 let inited = false;
+let consoleErrorPatched = false;
+
+function shouldForwardConsoleErrorsToSentry(): boolean {
+  const flag = (process.env.EXPO_PUBLIC_SENTRY_FORWARD_CONSOLE_ERRORS ?? '').trim();
+  if (flag === '0' || flag === 'false') return false;
+  if (flag === '1' || flag === 'true') return true;
+  return !__DEV__;
+}
+
+function patchConsoleErrorForSentry(): void {
+  if (consoleErrorPatched || !shouldForwardConsoleErrorsToSentry()) return;
+  const Sentry = loadSentry();
+  if (!Sentry) return;
+
+  const original = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    original(...args);
+    try {
+      const errArg = args.find((a) => a instanceof Error) as Error | undefined;
+      if (errArg) {
+        Sentry.captureException(errArg);
+        return;
+      }
+      const text = args
+        .map((a) => {
+          if (a instanceof Error) return a.message;
+          if (typeof a === 'string') return a;
+          try {
+            return JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        })
+        .join(' ')
+        .trim();
+      if (text.length > 0 && text.length < 8000) {
+        Sentry.captureMessage(text, 'error');
+      }
+    } catch {
+      /* never break logging */
+    }
+  };
+  consoleErrorPatched = true;
+}
 
 /** Call once at startup (from `index.ts`). No-op when DSN unset or SDK missing. */
 export function initSentryFromEnv(): void {
@@ -33,6 +77,7 @@ export function initSentryFromEnv(): void {
       debug: __DEV__,
     });
     inited = true;
+    patchConsoleErrorForSentry();
   } catch (e) {
     if (__DEV__) console.warn('[Sentry] init failed', e);
   }
@@ -48,6 +93,20 @@ export function wrapWithSentry<P extends Record<string, unknown>>(
   const Sentry = loadSentry();
   if (Sentry?.wrap) return Sentry.wrap(Component) as ComponentType<P>;
   return Component;
+}
+
+export function captureException(error: unknown, context?: Record<string, unknown>): void {
+  if (!sentryEnabled()) return;
+  const Sentry = loadSentry();
+  if (!Sentry) return;
+  Sentry.withScope((scope) => {
+    if (context) scope.setContext('extra', context);
+    if (error instanceof Error) {
+      Sentry.captureException(error);
+    } else {
+      Sentry.captureMessage(String(error), 'error');
+    }
+  });
 }
 
 export function captureBootRiveIssue(
