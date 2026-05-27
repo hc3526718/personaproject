@@ -207,10 +207,18 @@ const RELATED_ITEMS = [
 
 const BROWSE = ['All Media', 'Training', 'Mindset', 'Nutrition', 'Recovery', 'Career'] as const;
 
-export function MediaLibraryScreen({ navigation }: MProps<'MediaLibrary'>) {
+export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>) {
   const insets = useSafeAreaInsets();
+  const showBanner = useActionBanner();
   const { user } = useAuth();
   const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
+
+  useEffect(() => {
+    const t = route.params?.createdMediaTitle?.trim();
+    if (!t) return;
+    showBanner('Media published', t);
+    navigation.setParams({ createdMediaTitle: undefined });
+  }, [route.params?.createdMediaTitle, navigation, showBanner]);
   const [b, setB] = useState(0);
   const [browseAssets, setBrowseAssets] = useState<MediaAssetRow[]>([]);
   const [continueItems, setContinueItems] = useState<Awaited<ReturnType<typeof listContinueWatching>>>([]);

@@ -33,7 +33,9 @@ export async function runProposalSubmitFlow(
       input.localFiles ?? [],
     );
     if (!published.ok) return { ok: false, error: published.error };
-    return { ok: true, id: 'master-live', publishedLive: true };
+    const id =
+      published.sponsorPageId ?? published.mediaAssetId ?? published.eventId ?? 'master-live';
+    return { ok: true, id, publishedLive: true };
   }
 
   const allowed = await canSubmitContentProposal();

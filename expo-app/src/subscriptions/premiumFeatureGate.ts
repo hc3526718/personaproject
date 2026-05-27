@@ -7,7 +7,7 @@ export type PremiumGateResult = 'allowed' | 'blocked';
 
 const MASTER_ONLY_TITLE = 'Master access only';
 const MASTER_ONLY_MESSAGE =
-  'Creating events, media, and sponsor proposals is limited to Dalton Academy master accounts while we launch. Check back soon for wider creator access.';
+  'Creating events, media, and sponsor pages is limited to Dalton Academy master accounts while we launch.';
 
 /**
  * Gate creator tools — master / admin only (premium + verification paused for launch).

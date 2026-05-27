@@ -256,7 +256,11 @@ const TAB_BAR_EXTRA_BOTTOM = 8;
 
 function AuthenticatedShell() {
   const { user, sessionEmail } = useAuth();
-  const { isPro, busy: subscriptionBusy, refresh: refreshSubscription } = useSubscription();
+  const {
+    isPaymentVerified,
+    busy: subscriptionBusy,
+    refresh: refreshSubscription,
+  } = useSubscription();
   const supabase = getSupabase();
   const [gate, setGate] = useState<'loading' | 'onboarding' | 'app'>('loading');
   const [oauthProfileSetupOpen, setOauthProfileSetupOpen] = useState(false);
@@ -328,7 +332,7 @@ function AuthenticatedShell() {
 
   const accessExempt = isAccessExemptUser(user, sessionEmail);
   const needsPaidAccess = gate === 'app' && user && !accessExempt;
-  const accessGranted = hasAppAccess(user, isPro, sessionEmail);
+  const accessGranted = hasAppAccess(user, isPaymentVerified, sessionEmail);
 
   if (gate === 'loading') {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;

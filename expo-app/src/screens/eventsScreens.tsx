@@ -66,6 +66,7 @@ import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { openEventCheckoutUrl, startEventStripeCheckout } from '../subscriptions/eventStripeCheckout';
+import { formatEntryPaymentNotice } from '../lib/eventEntryPayment';
 import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
 import { CreatorEventDetailView } from './CreatorEventDetailView';
 import type { EventRow } from '../roadmap/types';
@@ -951,6 +952,13 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const displaySchedule = dbEvent ? formatEventSchedule(dbEvent) : heroScheduleLine;
   const displayVenue = dbEvent?.venue?.trim() || sub?.trim() || 'Elite Fitness Center';
   const overviewFromHost = dbEvent?.description?.trim() ?? '';
+  const entryPaymentLine = dbEvent
+    ? formatEntryPaymentNotice(
+        dbEvent.entry_payment_mode ?? 'none',
+        dbEvent.entry_payment_amount,
+        dbEvent.entry_payment_note,
+      )
+    : null;
 
   const storageKey = useMemo(
     () =>
@@ -1144,6 +1152,12 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           ) : null}
           {dbEvent ? (
             <>
+              {entryPaymentLine ? (
+                <View style={styles.entryPaymentCard}>
+                  <FontAwesome name="info-circle" size={16} color={DS.color.gold} />
+                  <Text style={styles.entryPaymentText}>{entryPaymentLine}</Text>
+                </View>
+              ) : null}
               <Text style={styles.detailSectionKicker}>OVERVIEW</Text>
               {overviewFromHost ? (
                 <Text style={styles.detailBody}>{overviewFromHost}</Text>
@@ -2606,6 +2620,24 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: DS.space.md,
     marginTop: DS.space.md,
+  },
+  entryPaymentCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DS.space.sm,
+    padding: DS.space.md,
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(200,168,75,0.35)',
+    backgroundColor: 'rgba(200,168,75,0.08)',
+    marginBottom: DS.space.md,
+  },
+  entryPaymentText: {
+    flex: 1,
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    color: DS.color.text,
+    lineHeight: 20,
   },
   detailBody: {
     fontFamily: DS.font.body,

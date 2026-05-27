@@ -60,6 +60,8 @@ export type PostRow = {
   updated_at: string;
 };
 
+export type EntryPaymentMode = 'none' | 'payment_on_arrival' | 'internal_costs';
+
 export type EventRow = {
   id: string;
   organization_id: string | null;
@@ -74,6 +76,9 @@ export type EventRow = {
   created_at: string;
   /** Optional long-form copy from create-event form (`006_*` migration). */
   description?: string | null;
+  entry_payment_mode?: EntryPaymentMode | null;
+  entry_payment_amount?: string | null;
+  entry_payment_note?: string | null;
 };
 
 export type EventReviewRow = {

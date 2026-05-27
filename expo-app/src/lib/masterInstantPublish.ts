@@ -3,6 +3,8 @@ import { insertCommunityEvent, insertSubscriptionOfferPage } from '../roadmap/li
 import { getSupabase } from './supabase';
 import { combineDateAndTime } from './scheduleValidation';
 import type { ProposalKind } from '../roadmap/proposalService';
+import type { EntryPaymentMode } from './eventEntryPayment';
+import { entryPaymentBlockForDescription } from './eventEntryPayment';
 
 type EventPayload = {
   title?: string;
@@ -12,6 +14,9 @@ type EventPayload = {
   level?: string;
   agenda?: { title: string; time: string }[];
   max_attendance?: number | string;
+  entry_payment_mode?: EntryPaymentMode;
+  entry_payment_amount?: string;
+  entry_payment_note?: string;
 };
 
 type SponsorPayload = {
@@ -25,6 +30,10 @@ type MediaPayload = {
   pitch?: string;
   category?: string;
 };
+
+export type MasterPublishResult =
+  | { ok: true; eventId?: string; sponsorPageId?: string; mediaAssetId?: string }
+  | { ok: false; error: string };
 
 function parseProposedDate(proposedDate?: string): { starts: string; ends: string } | null {
   if (!proposedDate?.trim()) return null;
@@ -48,6 +57,10 @@ function buildEventDescription(payload: EventPayload): string {
   if (cap != null && String(cap).trim() !== '') {
     parts.push('', `Capacity: ${String(cap).trim()}`);
   }
+  const mode = payload.entry_payment_mode ?? 'none';
+  parts.push(
+    entryPaymentBlockForDescription(mode, payload.entry_payment_amount, payload.entry_payment_note),
+  );
   return parts.join('\n').trim() || 'Community event';
 }
 
@@ -55,11 +68,12 @@ export async function publishEventFromProposalPayload(
   userId: string,
   payload: EventPayload,
   attachmentUrls: string[],
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<MasterPublishResult> {
   const schedule = parseProposedDate(payload.proposed_date);
   if (!schedule) {
     return { ok: false, error: 'Could not read event date and time.' };
   }
+  const mode = payload.entry_payment_mode ?? 'none';
   const row = await insertCommunityEvent({
     title: (payload.title ?? 'Community event').trim(),
     description: buildEventDescription(payload),
@@ -69,16 +83,19 @@ export async function publishEventFromProposalPayload(
     hero_image_url: attachmentUrls.find((u) => /\.(jpe?g|png|webp|gif)/i.test(u)) ?? null,
     requires_payment: false,
     created_by: userId,
+    entry_payment_mode: mode,
+    entry_payment_amount: mode === 'payment_on_arrival' ? payload.entry_payment_amount?.trim() || null : null,
+    entry_payment_note: mode === 'internal_costs' ? payload.entry_payment_note?.trim() || null : null,
   });
   if (!row) return { ok: false, error: 'Could not publish event.' };
-  return { ok: true };
+  return { ok: true, eventId: row.id };
 }
 
 export async function publishSponsorFromProposalPayload(
   userId: string,
   payload: SponsorPayload,
   attachmentUrls: string[],
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<MasterPublishResult> {
   const descParts = [
     payload.goals?.trim() ?? '',
     payload.contact_email?.trim() ? `Contact: ${payload.contact_email.trim()}` : '',
@@ -93,7 +110,7 @@ export async function publishSponsorFromProposalPayload(
     social_links: [],
   });
   if (!row) return { ok: false, error: 'Could not publish sponsor page.' };
-  return { ok: true };
+  return { ok: true, sponsorPageId: row.id };
 }
 
 export async function publishMediaFromProposalPayload(
@@ -101,7 +118,7 @@ export async function publishMediaFromProposalPayload(
   payload: MediaPayload,
   attachmentUrls: string[],
   localFiles: { uri: string; name: string }[],
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<MasterPublishResult> {
   const supabase = getSupabase();
   if (!supabase) return { ok: false, error: 'Not connected.' };
 
@@ -111,6 +128,7 @@ export async function publishMediaFromProposalPayload(
     .join('\n\n');
 
   let published = 0;
+  let firstId: string | undefined;
   for (let i = 0; i < localFiles.length; i++) {
     const f = localFiles[i]!;
     const publicUrl =
@@ -118,45 +136,64 @@ export async function publishMediaFromProposalPayload(
       (await uploadProposalAttachment(userId, 'media', f.uri, f.name));
     if (!publicUrl) continue;
     const isVideo = /\.(mp4|mov|webm|m4v)/i.test(f.name) || f.name.toLowerCase().includes('video');
-    const { error } = await supabase.from('media_assets').insert({
-      owner_id: userId,
-      kind: isVideo ? 'video' : 'file',
-      storage_path: `library/${userId}/${Date.now()}-${i}`,
-      public_url: publicUrl,
-      mime_type: isVideo ? 'video/mp4' : null,
-      visibility: 'public',
-    });
-    if (!error) published += 1;
+    const { data, error } = await supabase
+      .from('media_assets')
+      .insert({
+        owner_id: userId,
+        kind: isVideo ? 'video' : 'file',
+        storage_path: `library/${userId}/${Date.now()}-${i}`,
+        public_url: publicUrl,
+        mime_type: isVideo ? 'video/mp4' : null,
+        visibility: 'public',
+      })
+      .select('id')
+      .single();
+    if (!error && data?.id) {
+      published += 1;
+      firstId ??= data.id as string;
+    }
   }
 
   for (const url of attachmentUrls.slice(localFiles.length)) {
     const isVideo = /\.(mp4|mov|webm)/i.test(url);
-    const { error } = await supabase.from('media_assets').insert({
-      owner_id: userId,
-      kind: isVideo ? 'video' : 'file',
-      storage_path: `library/${userId}/${Date.now()}-link`,
-      public_url: url,
-      visibility: 'public',
-    });
-    if (!error) published += 1;
+    const { data, error } = await supabase
+      .from('media_assets')
+      .insert({
+        owner_id: userId,
+        kind: isVideo ? 'video' : 'file',
+        storage_path: `library/${userId}/${Date.now()}-link`,
+        public_url: url,
+        visibility: 'public',
+      })
+      .select('id')
+      .single();
+    if (!error && data?.id) {
+      published += 1;
+      firstId ??= data.id as string;
+    }
   }
 
   if (published === 0 && attachmentUrls.length === 0 && localFiles.length === 0) {
-    const { error } = await supabase.from('media_assets').insert({
-      owner_id: userId,
-      kind: 'file',
-      storage_path: `library/${userId}/${Date.now()}-meta`,
-      public_url: null,
-      visibility: 'public',
-    });
-    if (error) return { ok: false, error: 'Could not publish media entry.' };
+    const { data, error } = await supabase
+      .from('media_assets')
+      .insert({
+        owner_id: userId,
+        kind: 'file',
+        storage_path: `library/${userId}/${Date.now()}-meta`,
+        public_url: null,
+        visibility: 'public',
+      })
+      .select('id')
+      .single();
+    if (error || !data?.id) return { ok: false, error: 'Could not publish media entry.' };
+    firstId = data.id as string;
   } else if (published === 0 && (attachmentUrls.length > 0 || localFiles.length > 0)) {
     return { ok: false, error: 'Could not publish media files.' };
   }
 
   void title;
   void description;
-  return { ok: true };
+  return { ok: true, mediaAssetId: firstId };
 }
 
 export async function masterInstantPublish(
@@ -165,7 +202,7 @@ export async function masterInstantPublish(
   payload: Record<string, unknown>,
   attachmentUrls: string[],
   localFiles: { uri: string; name: string }[] = [],
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<MasterPublishResult> {
   switch (kind) {
     case 'event':
       return publishEventFromProposalPayload(userId, payload as EventPayload, attachmentUrls);

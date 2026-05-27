@@ -1,5 +1,5 @@
 /**
- * Stripe webhook → `subscription_state` + `profiles.dalton_verified` (server truth).
+ * Stripe webhook → `subscription_state` (server truth for mandatory app access).
  *
  * Deploy:
  *   supabase functions deploy stripe-webhook --project-ref <REF>
@@ -34,17 +34,13 @@ async function setPremium(
     {
       user_id: userId,
       is_pro: isPro,
+      is_payment_verified: isPro,
       entitlement_ids: entitlementIds,
       updated_at: new Date().toISOString(),
       raw: raw as Record<string, unknown>,
     },
     { onConflict: 'user_id' },
   );
-
-  // Premium implies verified; expiry does not revoke verification (staff-only).
-  if (isPro) {
-    await admin.from('profiles').update({ dalton_verified: true }).eq('id', userId);
-  }
 }
 
 function userIdFromSubscription(sub: Stripe.Subscription): string | null {

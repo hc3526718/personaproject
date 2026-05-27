@@ -25,6 +25,7 @@ import type { MediaStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
+import { canCreateVerifiedContent } from '../creator/creatorAccess';
 import { uploadCatalogMediaVideo } from '../lib/catalogMediaUpload';
 import { pickWebMediaFile } from '../lib/webFilePicker';
 import { isSupabaseConfigured } from '../lib/env';
@@ -38,7 +39,7 @@ export function CreateMediaContentScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
   const tierOk = hasPremiumOrAdminTier(isPro, user?.role);
-  const verified = !!user?.daltonVerified;
+  const canCreate = canCreateVerifiedContent(isPro, user);
 
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -128,16 +129,15 @@ export function CreateMediaContentScreen({ navigation }: Props) {
     );
   }
 
-  if (!verified) {
+  if (!canCreate) {
     return (
       <View style={[styles.root, { paddingTop: insets.top }]}>
         <ScreenHeader title="Upload video" onBack={() => navigation.goBack()} />
         <View style={styles.gateBody}>
           <FontAwesome name="lock" size={40} color={DS.color.textMuted} />
-          <Text style={styles.gateTitle}>Dalton verified</Text>
+          <Text style={styles.gateTitle}>Master access only</Text>
           <Text style={styles.gateTxt}>
-            Dalton verification is required to publish uploads. Finish verification from your profile when
-            your account is approved.
+            Video uploads from this screen are limited to Dalton Academy master accounts.
           </Text>
           <AppButton label="Back" onPress={() => navigation.goBack()} variant="secondary" />
         </View>

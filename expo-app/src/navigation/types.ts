@@ -28,7 +28,7 @@ export type CommunityStackParamList = {
 };
 
 export type MediaStackParamList = {
-  MediaLibrary: undefined;
+  MediaLibrary: { createdMediaTitle?: string } | undefined;
   MediaSearch: undefined;
   MediaSearchResults: { query?: string } | undefined;
   MediaPlayer: { title?: string; mediaId?: string; playbackUrl?: string };
@@ -86,7 +86,7 @@ export type EventsStackParamList = {
 };
 
 export type SponsorsStackParamList = {
-  SponsorListings: undefined;
+  SponsorListings: { createdSponsorName?: string } | undefined;
   BrandPartner: { pageId?: string } | undefined;
   SponsorProposalWizard: undefined;
   MySponsorProposals: undefined;

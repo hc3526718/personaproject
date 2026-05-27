@@ -91,7 +91,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
   const canFollow =
     Boolean(user?.id && !user.id.startsWith('demo-') && user.id !== userId && userId.length > 10);
 
-  const showVerifiedBadge = Boolean(profile?.dalton_verified);
+  const showVerifiedBadge = false;
 
   const openMessage = async () => {
     if (!canFollow || !user?.id) return;

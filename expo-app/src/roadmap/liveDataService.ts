@@ -405,6 +405,9 @@ export type InsertCommunityEventInput = {
   requires_payment: boolean;
   stripe_price_id?: string | null;
   created_by: string;
+  entry_payment_mode?: 'none' | 'payment_on_arrival' | 'internal_costs' | null;
+  entry_payment_amount?: string | null;
+  entry_payment_note?: string | null;
 };
 
 /** Host publish — requires `events_insert_authenticated` (and Dalton verification in app). */
@@ -423,6 +426,9 @@ export async function insertCommunityEvent(row: InsertCommunityEventInput): Prom
       requires_payment: row.requires_payment,
       stripe_price_id: row.stripe_price_id?.trim() || null,
       created_by: row.created_by,
+      entry_payment_mode: row.entry_payment_mode ?? 'none',
+      entry_payment_amount: row.entry_payment_amount?.trim() || null,
+      entry_payment_note: row.entry_payment_note?.trim() || null,
     })
     .select()
     .single();

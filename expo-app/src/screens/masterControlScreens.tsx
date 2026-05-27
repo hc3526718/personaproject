@@ -143,19 +143,9 @@ export function MasterControlHubScreen({ navigation }: PProps<'MasterControlHub'
           <Text style={styles.menuTxt}>Partner subscription pages</Text>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
-        <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterVerificationQueue')}>
-          <FontAwesome name="check-circle" size={18} color={DS.color.gold} />
-          <Text style={styles.menuTxt}>Dalton verification queue</Text>
-          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
-        </Pressable>
         <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterUserAccounts')}>
           <FontAwesome name="users" size={18} color={DS.color.gold} />
           <Text style={styles.menuTxt}>Accounts & deletion</Text>
-          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
-        </Pressable>
-        <Pressable style={styles.menuRow} onPress={() => navigation.navigate('MasterProposalQueue')}>
-          <FontAwesome name="inbox" size={18} color={DS.color.gold} />
-          <Text style={styles.menuTxt}>Review proposals</Text>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
         <Pressable

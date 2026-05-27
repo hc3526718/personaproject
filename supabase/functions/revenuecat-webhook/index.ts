@@ -60,16 +60,13 @@ async function setPremium(
     {
       user_id: userId,
       is_pro: isPro,
+      is_payment_verified: isPro,
       entitlement_ids: entitlementIds,
       updated_at: new Date().toISOString(),
       raw: raw as Record<string, unknown>,
     },
     { onConflict: 'user_id' },
   );
-  // Premium implies verified; expiration does not revoke verification (staff-only).
-  if (isPro) {
-    await admin.from('profiles').update({ dalton_verified: true }).eq('id', userId);
-  }
 }
 
 function hasPremiumEntitlement(entitlementIds: unknown): boolean {

@@ -30,7 +30,11 @@ import type { EventsStackParamList } from '../navigation/types';
 import { insertCommunityEvent } from '../roadmap/liveDataService';
 import { WizardChrome } from './proposals/WizardChrome';
 import { WebScheduleField } from '../components/WebScheduleField';
-import { PlacesAutocompleteField } from '../components/PlacesAutocompleteField';
+import {
+  entryPaymentBlockForDescription,
+  formatEntryPaymentNotice,
+  type EntryPaymentMode,
+} from '../lib/eventEntryPayment';
 
 type Props = Pick<NativeStackScreenProps<EventsStackParamList, 'CreateEvent'>, 'navigation'>;
 
@@ -100,8 +104,9 @@ export function CreateEventWizard({ navigation }: Props) {
   const [eventTitle, setEventTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventTags, setEventTags] = useState('');
-  const [costFree, setCostFree] = useState(true);
-  const [price, setPrice] = useState('');
+  const [entryPaymentMode, setEntryPaymentMode] = useState<EntryPaymentMode>('none');
+  const [entryPaymentAmount, setEntryPaymentAmount] = useState('');
+  const [entryPaymentNote, setEntryPaymentNote] = useState('');
   const [venue, setVenue] = useState('');
   const [maxAttendance, setMaxAttendance] = useState('');
   const [eventDate, setEventDate] = useState(() => {
@@ -255,7 +260,7 @@ export function CreateEventWizard({ navigation }: Props) {
       }
       return null;
     },
-    [eventTitle, description, venue, maxAttendance, eventDate, eventTime, costFree, price, agenda],
+    [eventTitle, description, venue, maxAttendance, eventDate, eventTime, entryPaymentMode, entryPaymentAmount, entryPaymentNote, agenda],
   );
 
   const nextStep = () => {
@@ -293,6 +298,9 @@ export function CreateEventWizard({ navigation }: Props) {
     ];
     if (faqLines.length > 0) descParts.push('', 'FAQs:', ...faqLines);
     descParts.push('', `What to bring: ${bring.trim() || '—'}`);
+    descParts.push(
+      entryPaymentBlockForDescription(entryPaymentMode, entryPaymentAmount, entryPaymentNote),
+    );
     const longDesc = descParts.join('\n');
     const confirmPayload: ConfirmPayload = {
       title: eventTitle.trim(),
@@ -316,9 +324,14 @@ export function CreateEventWizard({ navigation }: Props) {
         ends_at: ends,
         venue: venue.trim(),
         hero_image_url: hero,
-        requires_payment: !costFree,
+        requires_payment: false,
         stripe_price_id: null,
         created_by: user.id,
+        entry_payment_mode: entryPaymentMode,
+        entry_payment_amount:
+          entryPaymentMode === 'payment_on_arrival' ? entryPaymentAmount.trim() : null,
+        entry_payment_note:
+          entryPaymentMode === 'internal_costs' ? entryPaymentNote.trim() : null,
       });
       setPublishing(false);
       if (!row) {
@@ -344,7 +357,9 @@ export function CreateEventWizard({ navigation }: Props) {
     bring,
     sortedAssets,
     eventTitle,
-    costFree,
+    entryPaymentMode,
+    entryPaymentAmount,
+    entryPaymentNote,
   ]);
 
   useEffect(() => {
@@ -514,11 +529,12 @@ export function CreateEventWizard({ navigation }: Props) {
           </>
         )}
         <FormField label="Venue / location" required>
-          <PlacesAutocompleteField
+          <TextInput
             value={venue}
             onChangeText={setVenue}
             placeholder="City, facility, or online link"
-            inputStyle={s.input}
+            placeholderTextColor={DS.color.textMuted}
+            style={s.input}
           />
         </FormField>
         <FormField label="Expected attendance" required>
@@ -540,23 +556,41 @@ export function CreateEventWizard({ navigation }: Props) {
             style={s.input}
           />
         </FormField>
-        <FormField label="Cost" required>
-          <View style={s.segment}>
-            <Pressable onPress={() => setCostFree(true)} style={[s.segBtn, costFree && s.segBtnOn]}>
-              <Text style={[s.segTxt, costFree && s.segTxtOn]}>Free</Text>
-            </Pressable>
-            <Pressable onPress={() => setCostFree(false)} style={[s.segBtn, !costFree && s.segBtnOn]}>
-              <Text style={[s.segTxt, !costFree && s.segTxtOn]}>Paid</Text>
-            </Pressable>
+        <FormField label="Entry payment notice" hint="Optional — shown on the event page (no in-app checkout).">
+          <View style={s.chipWrap}>
+            {(
+              [
+                ['none', 'No notice'],
+                ['payment_on_arrival', 'Payment on arrival'],
+                ['internal_costs', 'Free + internal costs'],
+              ] as const
+            ).map(([key, label]) => (
+              <Pressable
+                key={key}
+                onPress={() => setEntryPaymentMode(key)}
+                style={[s.chip, entryPaymentMode === key && s.chipOn]}
+              >
+                <Text style={[s.chipTxt, entryPaymentMode === key && s.chipTxtOn]}>{label}</Text>
+              </Pressable>
+            ))}
           </View>
-          {!costFree ? (
+          {entryPaymentMode === 'payment_on_arrival' ? (
             <TextInput
-              value={price}
-              onChangeText={setPrice}
-              placeholder="Amount in USD"
+              value={entryPaymentAmount}
+              onChangeText={setEntryPaymentAmount}
+              placeholder="e.g. £15"
               placeholderTextColor={DS.color.textMuted}
-              keyboardType="decimal-pad"
               style={[s.input, { marginTop: DS.space.md }]}
+            />
+          ) : null}
+          {entryPaymentMode === 'internal_costs' ? (
+            <TextInput
+              value={entryPaymentNote}
+              onChangeText={setEntryPaymentNote}
+              placeholder="e.g. facility hire split, equipment hire"
+              placeholderTextColor={DS.color.textMuted}
+              style={[s.input, s.inputMulti, { marginTop: DS.space.md, minHeight: 72 }]}
+              multiline
             />
           ) : null}
         </FormField>
@@ -670,8 +704,10 @@ export function CreateEventWizard({ navigation }: Props) {
         <Text style={s.reviewVal}>{venue.trim() || '—'}</Text>
         <Text style={s.reviewLabel}>Attendance</Text>
         <Text style={s.reviewVal}>{maxAttendance || '—'}</Text>
-        <Text style={s.reviewLabel}>Cost</Text>
-        <Text style={s.reviewVal}>{costFree ? 'Free' : `$${price}`}</Text>
+        <Text style={s.reviewLabel}>Entry payment</Text>
+        <Text style={s.reviewVal}>
+          {formatEntryPaymentNotice(entryPaymentMode, entryPaymentAmount, entryPaymentNote) ?? 'No notice'}
+        </Text>
         <Text style={s.reviewLabel}>Level</Text>
         <Text style={s.reviewVal}>{level}</Text>
         <Text style={s.reviewLabel}>Media</Text>

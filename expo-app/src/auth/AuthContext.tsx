@@ -93,7 +93,7 @@ function appUserFromSupabaseUser(u: {
     id: u.id,
     email: u.email ?? '',
     role: roleFromMetadata(meta),
-    daltonVerified: daltonVerifiedFromMetadata(meta),
+    daltonVerified: false,
   };
 }
 
@@ -167,8 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser((prev) => {
           if (prev?.id !== userId) return prev;
           const mc = profile?.master_control === 'yes';
-          const dv = prev.daltonVerified || !!profile?.dalton_verified;
-          return { ...prev, daltonVerified: dv, masterControl: mc };
+          return { ...prev, daltonVerified: false, masterControl: mc };
         });
       } catch {
         /* non-fatal */

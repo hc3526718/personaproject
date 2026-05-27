@@ -1,21 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { FontAwesome } from '@expo/vector-icons';
 import { useAuth } from '../../auth/AuthContext';
 import { DS } from '../../designSystem';
 import { uploadProposalAttachment } from '../../lib/proposalAttachmentUpload';
+import { masterInstantPublish } from '../../lib/masterInstantPublish';
 import type { MediaStackParamList } from '../../navigation/types';
-import {
-  runProposalSubmitFlow,
-  showProposalSubmittedAlert,
-} from '../../lib/proposalSubmitFlow';
-import { contentProposalsUsedThisMonth } from '../../roadmap/proposalService';
 import { WizardChrome } from './WizardChrome';
 
 type Props = NativeStackScreenProps<MediaStackParamList, 'MediaProposalWizard'>;
 
 const CATEGORIES = ['Training', 'Mindset', 'Nutrition', 'Recovery', 'Career', 'Other'] as const;
+const TOTAL_STEPS = 5;
 
 export function MediaProposalWizard({ navigation }: Props) {
   const { user } = useAuth();
@@ -24,10 +22,9 @@ export function MediaProposalWizard({ navigation }: Props) {
   const [pitch, setPitch] = useState('');
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Training');
   const [attachments, setAttachments] = useState<{ name: string; uri: string }[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [quotaHint, setQuotaHint] = useState('');
+  const [confirmTitle, setConfirmTitle] = useState<string | null>(null);
 
   const pickDocs = useCallback(async () => {
     const res = await DocumentPicker.getDocumentAsync({
@@ -41,55 +38,73 @@ export function MediaProposalWizard({ navigation }: Props) {
     ]);
   }, []);
 
-  useEffect(() => {
-    void contentProposalsUsedThisMonth().then((n) => setQuotaHint(`${n}/3 proposals used this month`));
-  }, []);
-
-  const submit = useCallback(async () => {
-    if (!user?.id || submitted || submitting) return;
-    setSubmitting(true);
+  const publish = useCallback(async () => {
+    if (publishing || !user?.id) return;
+    setPublishing(true);
     setError(null);
     const uploaded: string[] = [];
     for (const a of attachments) {
       const url = await uploadProposalAttachment(user.id, 'media', a.uri, a.name);
       if (url) uploaded.push(url);
     }
-    const result = await runProposalSubmitFlow(
-      {
-        kind: 'media',
-        payload: { title: title.trim(), pitch: pitch.trim(), category },
-        attachmentUrls: uploaded,
-        localFiles: attachments.map((a) => ({ uri: a.uri, name: a.name })),
-      },
-      { masterControl: user.masterControl === true, userId: user.id },
+    const result = await masterInstantPublish(
+      user.id,
+      'media',
+      { title: title.trim(), pitch: pitch.trim(), category },
+      uploaded,
+      attachments.map((a) => ({ uri: a.uri, name: a.name })),
     );
-    setSubmitting(false);
+    setPublishing(false);
     if (!result.ok) {
       setError(result.error);
       return;
     }
-    setSubmitted(true);
-    showProposalSubmittedAlert(() => navigation.goBack(), {
-      masterPublished: result.publishedLive,
-    });
-  }, [attachments, category, navigation, pitch, submitted, submitting, title, user?.id, user?.masterControl]);
+    setConfirmTitle(title.trim());
+    setStep(5);
+  }, [attachments, category, pitch, publishing, title, user?.id]);
+
+  useEffect(() => {
+    if (step !== 5 || !confirmTitle) return;
+    const timer = setTimeout(() => {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MediaLibrary', params: { createdMediaTitle: confirmTitle } }],
+      });
+    }, 2600);
+    return () => clearTimeout(timer);
+  }, [step, confirmTitle, navigation]);
+
+  const chrome = (
+    children: React.ReactNode,
+    opts?: { nextLabel?: string; onNext?: () => void; hideNext?: boolean; nextDisabled?: boolean },
+  ) => (
+    <WizardChrome
+      title="Create media"
+      step={step}
+      totalSteps={TOTAL_STEPS}
+      onBack={() => (step > 1 ? setStep(step - 1) : navigation.goBack())}
+      onNext={opts?.hideNext ? undefined : opts?.onNext ?? (() => setStep(step + 1))}
+      nextLabel={opts?.nextLabel}
+      nextDisabled={publishing || opts?.nextDisabled}
+      errorMessage={error}
+    >
+      {children}
+    </WizardChrome>
+  );
 
   if (step === 1) {
-    return (
-      <WizardChrome
-        title="Media proposal"
-        step={1}
-        totalSteps={4}
-        onBack={() => navigation.goBack()}
-        onNext={() => setStep(2)}
-        nextDisabled={!title.trim() || pitch.trim().length < 20}
-        errorMessage={error}
-      >
-        <Text style={styles.lead}>Start with the essentials — you can add files later.</Text>
-        <Text style={styles.quota}>{quotaHint}</Text>
+    return chrome(
+      <>
+        <Text style={styles.lead}>Published live in the media library when you confirm.</Text>
         <Text style={styles.label}>Title</Text>
-        <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Series or episode title" placeholderTextColor={DS.color.textMuted} />
-        <Text style={styles.label}>One-line pitch</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Series or episode title"
+          placeholderTextColor={DS.color.textMuted}
+        />
+        <Text style={styles.label}>Description</Text>
         <TextInput
           style={[styles.input, styles.multi]}
           value={pitch}
@@ -98,59 +113,75 @@ export function MediaProposalWizard({ navigation }: Props) {
           placeholder="What will athletes learn? (min 20 characters)"
           placeholderTextColor={DS.color.textMuted}
         />
-      </WizardChrome>
+      </>,
+      { nextDisabled: !title.trim() || pitch.trim().length < 20 },
     );
   }
 
   if (step === 2) {
-    return (
-      <WizardChrome title="Media proposal" step={2} totalSteps={4} onBack={() => setStep(1)} onNext={() => setStep(3)}>
+    return chrome(
+      <>
         <Text style={styles.lead}>Choose the closest category.</Text>
         <View style={styles.chips}>
           {CATEGORIES.map((c) => (
-            <Pressable key={c} onPress={() => setCategory(c)} style={[styles.chip, category === c && styles.chipOn]}>
+            <Pressable
+              key={c}
+              onPress={() => setCategory(c)}
+              style={[styles.chip, category === c && styles.chipOn]}
+            >
               <Text style={[styles.chipText, category === c && styles.chipTextOn]}>{c}</Text>
             </Pressable>
           ))}
         </View>
-      </WizardChrome>
+      </>,
     );
   }
 
   if (step === 3) {
-    return (
-      <WizardChrome title="Media proposal" step={3} totalSteps={4} onBack={() => setStep(2)} onNext={() => setStep(4)} nextLabel="Review">
-        <Text style={styles.lead}>Optional — treatment notes, storyboard, or sample clip links.</Text>
+    return chrome(
+      <>
+        <Text style={styles.lead}>Upload media files (images, video, or documents).</Text>
         <Text style={styles.linkBtn} onPress={() => void pickDocs()}>
-          + Add supplementary files
+          + Add files
         </Text>
         {attachments.map((a) => (
           <Text key={a.uri} style={styles.fileRow}>
             {a.name}
           </Text>
         ))}
-      </WizardChrome>
+      </>,
+      { nextLabel: 'Review' },
     );
   }
 
-  return (
-    <WizardChrome
-      title="Media proposal"
-      step={4}
-      totalSteps={4}
-      onBack={() => setStep(3)}
-      onNext={() => void submit()}
-      nextLabel={submitting ? 'Submitting…' : 'Submit for review'}
-      nextDisabled={submitting || submitted}
-      errorMessage={error}
-    >
-      <Text style={styles.reviewTitle}>{title}</Text>
-      <Text style={styles.reviewMeta}>{category}</Text>
-      <Text style={styles.reviewBody}>{pitch}</Text>
-      {attachments.length ? (
-        <Text style={styles.reviewMeta}>{attachments.length} attachment(s)</Text>
-      ) : null}
-    </WizardChrome>
+  if (step === 4) {
+    return chrome(
+      <>
+        <Text style={styles.lead}>Review before publishing.</Text>
+        <Text style={styles.reviewTitle}>{title}</Text>
+        <Text style={styles.reviewMeta}>{category}</Text>
+        <Text style={styles.reviewBody}>{pitch}</Text>
+        {attachments.length ? (
+          <Text style={styles.reviewMeta}>{attachments.length} file(s) attached</Text>
+        ) : null}
+      </>,
+      {
+        nextLabel: publishing ? 'Publishing…' : 'Create media',
+        onNext: () => void publish(),
+      },
+    );
+  }
+
+  return chrome(
+    <>
+      <View style={styles.confirmHero}>
+        <FontAwesome name="check-circle" size={48} color={DS.color.gold} />
+        <Text style={styles.confirmTitle}>Media published</Text>
+        <Text style={styles.confirmSubtitle}>{confirmTitle}</Text>
+      </View>
+      <Text style={styles.confirmHint}>Taking you to Media…</Text>
+    </>,
+    { hideNext: true },
   );
 }
 
@@ -161,12 +192,6 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     marginBottom: DS.space.lg,
     lineHeight: 20,
-  },
-  quota: {
-    fontFamily: DS.font.body,
-    fontSize: 12,
-    color: DS.color.gold,
-    marginBottom: DS.space.md,
   },
   label: {
     fontFamily: DS.font.bodyMedium,
@@ -191,9 +216,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: DS.color.input,
   },
-  chipOn: {
-    backgroundColor: DS.color.gold,
-  },
+  chipOn: { backgroundColor: DS.color.gold },
   chipText: {
     fontFamily: DS.font.bodyMedium,
     fontSize: 13,
@@ -232,5 +255,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: DS.color.text,
     lineHeight: 22,
+  },
+  confirmHero: { alignItems: 'center', marginTop: DS.space.lg, marginBottom: DS.space.lg },
+  confirmTitle: {
+    fontFamily: DS.font.heading,
+    fontSize: 24,
+    color: DS.color.text,
+    marginTop: DS.space.md,
+  },
+  confirmSubtitle: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    color: DS.color.gold,
+    marginTop: DS.space.sm,
+    textAlign: 'center',
+  },
+  confirmHint: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    textAlign: 'center',
+    marginTop: DS.space.xl,
   },
 });

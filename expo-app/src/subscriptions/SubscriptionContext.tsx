@@ -16,19 +16,18 @@ import {
   fetchCustomerInfo,
   identifyRevenueCatUser,
 } from './revenueCat';
-import { getSupabase } from '../lib/supabase';
-import { syncDaltonVerifiedFromProfileIfPremium } from '../auth/userMetadataSupabase';
 import { PremiumSubscriptionThanksModal } from '../components/PremiumSubscriptionThanksModal';
-import { resolvePremiumAccess } from './resolvePremiumAccess';
+import { resolvePaymentVerifiedAccess, resolvePremiumAccess } from './resolvePremiumAccess';
 import { useStripeCheckoutReturn } from './useStripeCheckoutReturn';
 
 type SubscriptionContextValue = {
+  /** Legacy premium flag — kept for compatibility; mirrors payment verified for launch. */
   isPro: boolean;
+  /** Mandatory £2 academy access — `subscription_state.is_payment_verified`. */
+  isPaymentVerified: boolean;
   busy: boolean;
   refresh: () => Promise<void>;
-  /** Resolves true when restore grants premium when it was not active before this call. */
   restore: () => Promise<boolean>;
-  /** Show after RevenueCat paywall / restore grants premium for the first time this session detection. */
   notifyNewPremiumFromPaywall: (activated: boolean) => void;
 };
 
@@ -37,6 +36,7 @@ const SubscriptionContext = createContext<SubscriptionContextValue | null>(null)
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { sessionEmail, user } = useAuth();
   const [isPro, setIsPro] = useState(false);
+  const [isPaymentVerified, setIsPaymentVerified] = useState(false);
   const [busy, setBusy] = useState(true);
   const [premiumThanksVisible, setPremiumThanksVisible] = useState(false);
 
@@ -52,22 +52,19 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     if (!sessionEmail?.trim()) {
       setIsPro(false);
+      setIsPaymentVerified(false);
       setBusy(false);
       return;
     }
     if (isPremiumDemoEmail(sessionEmail)) {
       setIsPro(true);
+      setIsPaymentVerified(true);
       setBusy(false);
-      const s = getSupabase();
-      if (s) await syncDaltonVerifiedFromProfileIfPremium(s, true);
       return;
     }
-    const pro = await resolvePremiumAccess();
-    setIsPro(pro);
-    if (pro) {
-      const s = getSupabase();
-      if (s) await syncDaltonVerifiedFromProfileIfPremium(s, true);
-    }
+    const [paid, pro] = await Promise.all([resolvePaymentVerifiedAccess(), resolvePremiumAccess()]);
+    setIsPaymentVerified(paid);
+    setIsPro(pro || paid);
     setBusy(false);
   }, [sessionEmail]);
 
@@ -86,14 +83,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     if (!sessionEmail?.trim()) {
       setIsPro(false);
+      setIsPaymentVerified(false);
       setBusy(false);
       return false;
     }
     if (isPremiumDemoEmail(sessionEmail)) {
       setIsPro(true);
+      setIsPaymentVerified(true);
       setBusy(false);
-      const s = getSupabase();
-      if (s) await syncDaltonVerifiedFromProfileIfPremium(s, true);
       return false;
     }
     await initRevenueCat();
@@ -103,13 +100,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     const pro = customerHasPremium(info);
     const gained = pro && !hadPro;
     setIsPro(pro);
-    if (pro) {
-      const s = getSupabase();
-      if (s) await syncDaltonVerifiedFromProfileIfPremium(s, true);
-    }
+    setIsPaymentVerified(pro);
     setBusy(false);
+    if (gained) {
+      void refresh();
+    }
     return gained;
-  }, [sessionEmail]);
+  }, [sessionEmail, refresh]);
 
   useEffect(() => {
     void refresh();
@@ -120,8 +117,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   const value = useMemo(
-    () => ({ isPro, busy, refresh, restore, notifyNewPremiumFromPaywall }),
-    [isPro, busy, refresh, restore, notifyNewPremiumFromPaywall],
+    () => ({
+      isPro,
+      isPaymentVerified,
+      busy,
+      refresh,
+      restore,
+      notifyNewPremiumFromPaywall,
+    }),
+    [isPro, isPaymentVerified, busy, refresh, restore, notifyNewPremiumFromPaywall],
   );
 
   return (

@@ -1,4 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useRoute } from '@react-navigation/native';
+import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import {
   Alert,
   Image,
@@ -34,10 +36,19 @@ const FALLBACK_SP_IMG =
 
 export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>) {
   const insets = useSafeAreaInsets();
+  const route = useRoute<SProps<'SponsorListings'>['route']>();
+  const showBanner = useActionBanner();
   const { user } = useAuth();
   const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
   const [items, setItems] = useState<SubscriptionOfferPageRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const name = route.params?.createdSponsorName?.trim();
+    if (!name) return;
+    showBanner('Sponsor page published', name);
+    navigation.setParams({ createdSponsorName: undefined });
+  }, [route.params?.createdSponsorName, navigation, showBanner]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,7 +81,7 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
             style={styles.roundIconBtnSm}
             hitSlop={8}
             onPress={() => navigation.navigate('MySponsorProposals')}
-            accessibilityLabel="My sponsor proposals"
+            accessibilityLabel="My sponsor pages"
           >
             <FontAwesome name="list-alt" size={15} color={DS.color.text} />
           </Pressable>

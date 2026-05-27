@@ -19,7 +19,6 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { deleteOwnAccount } from '../auth/accountDeletionService';
-import { syncDaltonVerifiedFromProfileIfPremium } from '../auth/userMetadataSupabase';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { HighlightVideoModal } from '../components/HighlightVideoModal';
 import { uploadHighlightVideo } from '../lib/highlightVideoUpload';
@@ -142,7 +141,7 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
     ? ({ uri: profile!.avatar_url!.trim() } as const)
     : DALTON_LOGO_FINAL_IMG;
 
-  const showPremiumVerified = Boolean(isPro && user?.daltonVerified);
+  const showPremiumVerified = false;
   const primarySport = profile?.primary_sport?.trim() || (profile?.sports ?? [])[0] || '';
 
   const bannerSource =
@@ -345,15 +344,6 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
   const { logout, user } = useAuth();
   const { isPro } = useSubscription();
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!isSupabaseConfigured()) return;
-      const s = getSupabase();
-      if (!s) return;
-      void syncDaltonVerifiedFromProfileIfPremium(s, isPro);
-    }, [isPro]),
-  );
-
   const premiumRow = {
     title: 'Premium',
     sub: 'Subscriptions, restore purchases, entitlements',
@@ -485,20 +475,6 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
           <View style={styles.accountStatusCard}>
             <Text style={styles.accountStatusLabel}>Account</Text>
             <Text style={styles.accountStatusEmail}>{user.email || 'Signed in'}</Text>
-            <Text
-              style={[
-                styles.accountVerifyBadge,
-                user.daltonVerified ? styles.accountVerifyOn : styles.accountVerifyOff,
-              ]}
-            >
-              {user.daltonVerified ? 'Dalton verified' : 'Not Dalton verified'}
-            </Text>
-            {!user.daltonVerified ? (
-              <Text style={styles.accountStatusHint}>
-                After Dalton approves your account and Premium is active, this switches to Dalton
-                verified automatically.
-              </Text>
-            ) : null}
           </View>
         ) : null}
         {rows.map((r) => (

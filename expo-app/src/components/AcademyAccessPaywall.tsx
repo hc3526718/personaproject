@@ -28,7 +28,7 @@ type Props = {
 export function AcademyAccessPaywall({ onAccessGranted }: Props) {
   const insets = useSafeAreaInsets();
   const { logout } = useAuth();
-  const { refresh, restore, notifyNewPremiumFromPaywall, busy } = useSubscription();
+  const { refresh, restore, notifyNewPremiumFromPaywall, busy, isPaymentVerified } = useSubscription();
   const [payBusy, setPayBusy] = useState(false);
   const isWeb = Platform.OS === 'web';
 
@@ -116,7 +116,15 @@ export function AcademyAccessPaywall({ onAccessGranted }: Props) {
             <Text style={styles.secondaryBtnTxt}>Restore purchases</Text>
           </Pressable>
         ) : null}
-        <Pressable style={styles.secondaryBtn} disabled={loading} onPress={() => void refresh().then(() => onAccessGranted?.())}>
+        <Pressable
+          style={styles.secondaryBtn}
+          disabled={loading}
+          onPress={() =>
+            void refresh().then(() => {
+              if (isPaymentVerified) onAccessGranted?.();
+            })
+          }
+        >
           <Text style={styles.secondaryBtnTxt}>I already paid — refresh access</Text>
         </Pressable>
         <Pressable style={styles.logoutBtn} onPress={() => void logout()}>

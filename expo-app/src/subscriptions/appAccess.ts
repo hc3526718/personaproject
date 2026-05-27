@@ -11,8 +11,12 @@ export function isAccessExemptUser(user: AppUser | null, sessionEmail?: string |
   return false;
 }
 
-/** Mandatory £2/mo (or active subscription_state) required before using the app. */
-export function hasAppAccess(user: AppUser | null, isPro: boolean, sessionEmail?: string | null): boolean {
+/** Mandatory £2/mo academy access — requires `subscription_state.is_payment_verified`. */
+export function hasAppAccess(
+  user: AppUser | null,
+  isPaymentVerified: boolean,
+  sessionEmail?: string | null,
+): boolean {
   if (isAccessExemptUser(user, sessionEmail)) return true;
-  return isPro;
+  return isPaymentVerified;
 }
