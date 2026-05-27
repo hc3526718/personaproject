@@ -241,6 +241,12 @@
       aspect-ratio: 1320 / 2868;
       object-fit: cover;
       background: transparent;
+      will-change: transform;
+      transition: transform 0.12s ease-out;
+    }
+    .dga-carousel__stage--parallax {
+      will-change: transform;
+      transition: transform 0.15s ease-out;
     }
     .dga-slide[data-pos="active"] {
       opacity: 1;
@@ -508,6 +514,28 @@
       stage.addEventListener('mouseleave', start);
       applyPositions();
       start();
+
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        stage.classList.add('dga-carousel__stage--parallax');
+        var parallaxImgs = stage.querySelectorAll('.dga-slide img');
+        var maxShift = 22;
+        function parallaxOnScroll() {
+          var rect = stage.getBoundingClientRect();
+          var vh = window.innerHeight || 800;
+          var centerY = rect.top + rect.height * 0.5;
+          var t = (vh * 0.5 - centerY) / vh;
+          var shift = Math.max(-maxShift, Math.min(maxShift, t * maxShift * 1.6));
+          stage.style.transform = 'translate3d(0,' + (shift * 0.35) + 'px,0)';
+          for (var p = 0; p < parallaxImgs.length; p++) {
+            var depth = p === idx ? 1 : 0.55;
+            parallaxImgs[p].style.transform =
+              'translate3d(0,' + (shift * depth * -0.65) + 'px,0) scale(1.015)';
+          }
+        }
+        window.addEventListener('scroll', parallaxOnScroll, { passive: true });
+        window.addEventListener('resize', parallaxOnScroll);
+        parallaxOnScroll();
+      }
     })();
   </script>
 </body>

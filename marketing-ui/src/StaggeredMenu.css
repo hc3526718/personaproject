@@ -13,9 +13,8 @@
   width: 100vw;
   height: 100vh;
   z-index: 60;
-  /* Menu / hamburger animations extend past the header; hidden clips the close (X) strokes */
-  overflow-x: visible;
-  overflow-y: hidden;
+  /* Do not clip hamburger → X rotation at the header */
+  overflow: visible;
   pointer-events: none;
 }
 
@@ -25,13 +24,23 @@
   left: 0;
   width: 100%;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.75rem;
   padding: 1.35rem 1.25rem 2.35rem 1.25rem;
   background: transparent;
   pointer-events: none;
   z-index: 20;
+  overflow: visible;
+}
+
+.sm-header-start {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  min-width: 2.75rem;
+  overflow: visible;
+  z-index: 25;
 }
 
 .sm-header-spacer {

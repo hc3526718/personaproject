@@ -397,20 +397,7 @@ export const StaggeredMenu = ({
         })()}
       </div>
       <header className="staggered-menu-header" aria-label="Main navigation header">
-        <div className="sm-header-spacer" aria-hidden="true" />
-        <div className="sm-logo sm-logo--center" aria-label="Logo">
-          <a href="/">
-            <img
-              src={logoUrl}
-              alt="Grant Access"
-              className="sm-logo-img sm-logo-img--hero"
-              draggable={false}
-              width={275}
-              height={100}
-            />
-          </a>
-        </div>
-        <div className="sm-header-end">
+        <div className="sm-header-start">
           <button
             ref={toggleBtnRef}
             className={'sm-toggle' + (hamburgerOnly ? ' sm-toggle--hamburger' : '')}
@@ -444,8 +431,20 @@ export const StaggeredMenu = ({
               </>
             )}
           </button>
-          {headerEnd}
         </div>
+        <div className="sm-logo sm-logo--center" aria-label="Logo">
+          <a href="/">
+            <img
+              src={logoUrl}
+              alt="Grant Access"
+              className="sm-logo-img sm-logo-img--hero"
+              draggable={false}
+              width={275}
+              height={100}
+            />
+          </a>
+        </div>
+        <div className="sm-header-end">{headerEnd}</div>
       </header>
 
       <aside id="staggered-menu-panel" ref={panelRef} className="staggered-menu-panel" aria-hidden={!open}>

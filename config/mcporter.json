@@ -4,9 +4,25 @@
       "type": "http",
       "url": "https://mcp.sentry.dev/mcp"
     },
-    "ruflo": {
-      "command": "npx",
-      "args": ["-y", "ruflo@latest", "mcp", "start"]
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=txehbzyntvqpkkegjrwp"
+    },
+    "stripe": {
+      "type": "http",
+      "url": "https://mcp.stripe.com"
+    },
+    "revenuecat": {
+      "type": "http",
+      "url": "https://mcp.revenuecat.ai/mcp"
+    },
+    "neon": {
+      "type": "http",
+      "url": "https://mcp.neon.tech/mcp"
+    },
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
     }
   }
 }
