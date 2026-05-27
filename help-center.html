@@ -90,6 +90,10 @@
         { t: "Events & tickets", k: "book event ticket qr host", b: "Browse Events, book sessions, and use host tools when verified. Offline viewing of previously opened events is limited." },
         { t: "Accessibility", k: "larger text contrast dark color", b: "In-app Settings → Accessibility: Larger Text, Differentiate Without Color, Sufficient Contrast. Dark interface is default; prefs sync when signed in." },
         { t: "Delete account", k: "gdpr delete removal", b: "Email support@daltongrantacademy.com from your account email until in-app deletion ships." },
+        { t: "Terms & conditions", k: "terms conditions terms of service legal", b: "Read the Terms & conditions for The Dalton Grant Academy.", url: "/terms" },
+        { t: "Privacy policy", k: "privacy policy legal gdpr data", b: "Read the Privacy policy for The Dalton Grant Academy.", url: "/privacy" },
+        { t: "Cookie policy", k: "cookies cookie policy tracking legal", b: "Read the Cookie policy for the website.", url: "/cookie-policy" },
+        { t: "Athlete agreement", k: "athlete agreement program terms legal", b: "Read the Athlete agreement for the academy program.", url: "/athlete-agreement" },
       ];
       const SUGGESTED = ["Premium subscription", "Dalton verification", "Restore purchases", "Accessibility", "Delete account"];
       const chipsEl = document.getElementById("chips");
@@ -98,7 +102,12 @@
       function renderArticles(q) {
         const needle = (q || "").trim().toLowerCase();
         articlesEl.innerHTML = ARTICLES.filter((a) => !needle || (a.t + a.k + a.b).toLowerCase().includes(needle))
-          .map((a) => `<article class="article rounded-2xl border border-line bg-panel p-5"><h2 class="text-mist font-semibold text-lg">${a.t}</h2><p class="text-dim mt-2 leading-relaxed">${a.b}</p></article>`)
+          .map((a) => {
+            const link = a.url
+              ? `<a class="inline-flex items-center gap-2 text-gold font-semibold text-sm mt-3 hover:opacity-90 transition-opacity" href="${a.url}">Open document →</a>`
+              : "";
+            return `<article class="article rounded-2xl border border-line bg-panel p-5"><h2 class="text-mist font-semibold text-lg">${a.t}</h2><p class="text-dim mt-2 leading-relaxed">${a.b}</p>${link}</article>`;
+          })
           .join("") || '<p class="text-dim">No results. Try another topic or <a class="text-gold underline" href="/contact-us">contact us</a>.</p>';
       }
       SUGGESTED.forEach((label) => {
@@ -173,5 +182,6 @@
     </script>
     <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-transition.js"></script>
+    <script src="shared/site-footer.js"></script>
   </body>
 </html>
