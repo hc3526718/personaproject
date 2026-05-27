@@ -1,6 +1,6 @@
 # App Store Connect — listing, compliance & assets
 
-Product names in repo: **Grant Access** (user-facing brand on welcome/auth) and **Dalton Access** (screenshot tooling). Use one name consistently in App Store Connect; below uses **Grant Access** with bundle ID `com.hc111.daltondemo` from `eas.json` / TestFlight docs.
+Product names in repo: **The Dalton Grant Academy** (user-facing brand on welcome/auth) and **The Dalton Grant Academy** (screenshot tooling). Use one name consistently in App Store Connect; below uses **The Dalton Grant Academy** with bundle ID `com.hc111.daltondemo` from `eas.json` / TestFlight docs.
 
 ---
 
@@ -12,7 +12,7 @@ Product names in repo: **Grant Access** (user-facing brand on welcome/auth) and 
 - **Polygon 1:** simplified Great Britain (England, Scotland, Wales).
 - **Polygon 2:** simplified Ireland (Republic + cross-border event area).
 
-Upload in App Store Connect only if the portal asks for **routing / geographic coverage** (common for navigation apps). Grant Access is primarily community, media, events, and messaging; if Apple does not show the upload field, you do not need this file. If you expand beyond UK & Ireland, replace coordinates or add polygons inside the same `MultiPolygon` (still one `MultiPolygon` root).
+Upload in App Store Connect only if the portal asks for **routing / geographic coverage** (common for navigation apps). The Dalton Grant Academy is primarily community, media, events, and messaging; if Apple does not show the upload field, you do not need this file. If you expand beyond UK & Ireland, replace coordinates or add polygons inside the same `MultiPolygon` (still one `MultiPolygon` root).
 
 ---
 
@@ -20,7 +20,7 @@ Upload in App Store Connect only if the portal asks for **routing / geographic c
 
 ### App name (title)
 
-**Grant Access**
+**The Dalton Grant Academy**
 
 *(30 characters max on App Store; this fits.)*
 
@@ -34,7 +34,7 @@ Upload in App Store Connect only if the portal asks for **routing / geographic c
 
 *(170 characters max; editable anytime without a new app version.)*
 
-> New: community feed, coach messaging, and event bookings in one place. Explore training media, partner offers, and Dalton-verified hosts. Download Grant Access and join your crew today.
+> New: community feed, coach messaging, and event bookings in one place. Explore training media, partner offers, and Dalton-verified hosts. Download The Dalton Grant Academy and join your crew today.
 
 *(Character count ~168 — trim if Connect counts differently.)*
 
@@ -42,7 +42,7 @@ Upload in App Store Connect only if the portal asks for **routing / geographic c
 
 *(4,000 characters max.)*
 
-Grant Access is the home for athletes, coaches, and fight-community crews who want training, conversation, and events in one app.
+The Dalton Grant Academy is the home for athletes, coaches, and fight-community crews who want training, conversation, and events in one app.
 
 **Community**  
 Share updates, photos, and clips with people who understand the work. Follow the feed, react to posts, and stay close to your gym, club, or team.
@@ -62,7 +62,7 @@ See partner brands and offers curated for the community, with clear paths to lea
 **Your profile**  
 Build your athlete profile, manage settings, and control how others can reach you. Premium features unlock deeper access when you subscribe.
 
-Grant Access is built for a dark, high-contrast experience that feels at home in the gym or on the road. We are actively improving accessibility options; see the Accessibility section in Settings.
+The Dalton Grant Academy is built for a dark, high-contrast experience that feels at home in the gym or on the road. We are actively improving accessibility options; see the Accessibility section in Settings.
 
 Questions or partnership enquiries: use the support URL listed on this App Store page.
 
@@ -101,13 +101,13 @@ You need **U.S. export classification (ERN/self-classification)** and possibly *
 - Ship **end-to-end encrypted** messaging you control,
 - Embed cryptography for purposes beyond authentication.
 
-Grant Access today: **TLS + platform keychain** — document as standard HTTPS-only in the annual compliance questionnaire.
+The Dalton Grant Academy today: **TLS + platform keychain** — document as standard HTTPS-only in the annual compliance questionnaire.
 
 ### Practical steps
 
 1. Complete the **Export Compliance** section each time you upload a build in App Store Connect (or in `eas submit`).
 2. In Xcode / `app.json` → `ios.infoPlist`, confirm `ITSAppUsesNonExemptEncryption` is `false` if you claim exemption.
-3. Keep a one-line internal note: *“Grant Access vX.Y — encryption limited to Apple OS + HTTPS (TLS 1.2+); no proprietary crypto.”*
+3. Keep a one-line internal note: *“The Dalton Grant Academy vX.Y — encryption limited to Apple OS + HTTPS (TLS 1.2+); no proprietary crypto.”*
 
 Official reference: [Apple — Complying with encryption export regulations](https://developer.apple.com/documentation/security/complying-with-encryption-export-regulations).
 
@@ -118,7 +118,7 @@ Official reference: [Apple — Complying with encryption export regulations](htt
 These are **questionnaires**, not files you upload (unless Apple requests a document).
 
 
-| Area                         | What Apple / stores ask             | Grant Access guidance                                                                                                           |
+| Area                         | What Apple / stores ask             | The Dalton Grant Academy guidance                                                                                                           |
 | ---------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | **Export compliance**        | Encryption (above)                  | Standard HTTPS exemption                                                                                                        |
 | **Content rights**           | You own or licensed all app content | Yes for your UI; user-generated content needs Terms + moderation                                                                |
@@ -131,13 +131,13 @@ These are **questionnaires**, not files you upload (unless Apple requests a docu
 | **UK / EU**                  | Trader status, DSA, GDPR            | Privacy policy + support contact on website; GDPR lawful basis in privacy policy                                                |
 
 
-**No separate “permit file”** is uploaded to Apple for a standard fitness/community app. Keep **Terms**, **Privacy**, and **Support URL** live at `EXPO_PUBLIC_DALTON_WEB_URL` (e.g. [https://dalton-access.vercel.app](https://dalton-access.vercel.app)).
+**No separate “permit file”** is uploaded to Apple for a standard fitness/community app. Keep **Terms**, **Privacy**, and **Support URL** live at `EXPO_PUBLIC_DALTON_WEB_URL` (e.g. [https://daltongrantacademy.vercel.app](https://daltongrantacademy.vercel.app)).
 
 ---
 
 ## Accessibility (App Store declaration & in-app)
 
-### What Grant Access supports today (declare in App Store Connect → Accessibility)
+### What The Dalton Grant Academy supports today (declare in App Store Connect → Accessibility)
 
 Align declarations with **what users actually get** on first run and in **Profile → Settings → Accessibility**:
 
@@ -156,7 +156,7 @@ Align declarations with **what users actually get** on first run and in **Profil
 
 ### Suggested “Accessibility” blurb for review notes (optional)
 
-> Grant Access uses a dark interface by default. Settings → Accessibility includes Larger Text, Differentiate Without Color, and Sufficient Contrast; preferences sync across iOS, Android, and web when signed in.
+> The Dalton Grant Academy uses a dark interface by default. Settings → Accessibility includes Larger Text, Differentiate Without Color, and Sufficient Contrast; preferences sync across iOS, Android, and web when signed in.
 
 ---
 
@@ -170,7 +170,7 @@ PNG (and some other formats) can store **alpha** — an extra channel per pixel 
 **What to do:**
 
 1. Export App Store screenshots as **PNG or JPEG without transparency**.
-2. Flatten layers; use a solid background (Grant Access uses dark `#0a0a0a`-style — match `designSystem`).
+2. Flatten layers; use a solid background (The Dalton Grant Academy uses dark `#0a0a0a`-style — match `designSystem`).
 3. In design tools: *Export → no transparency* or *fill background*.
 4. **App icon** must also be opaque (no rounded-corner transparency trick — iOS applies the mask).
 

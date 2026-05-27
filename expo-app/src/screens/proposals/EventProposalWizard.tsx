@@ -271,7 +271,7 @@ export function EventProposalWizard({ navigation }: Props) {
         onNext={() => goNext(2)}
         errorMessage={error}
       >
-        <Text style={styles.lead}>Tell us about the event you want to host on Grant Access.</Text>
+        <Text style={styles.lead}>Tell us about the event you want to host on The Dalton Grant Academy.</Text>
         <Text style={styles.quota}>{quotaHint}</Text>
         <Text style={styles.label}>Event title</Text>
         <TextInput

@@ -4,6 +4,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { BRAND_WEB_ORIGIN } from '../constants/brand';
 import { getDaltonWebUrl } from '../lib/env';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -11,7 +12,7 @@ WebBrowser.maybeCompleteAuthSession();
 /**
  * OAuth redirect must match Supabase Dashboard → Authentication → URL Configuration → Redirect URLs.
  * - Native: `dalton-demo://auth/callback` (scheme from app.config.js)
- * - Web (Vercel): `https://dalton-access.vercel.app/app/auth/callback`
+ * - Web (Vercel): `https://daltongrantacademy.vercel.app/app/auth/callback`
  */
 export function getOAuthRedirectUri(): string {
   const explicit = (process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URL ?? '').trim();
@@ -24,7 +25,7 @@ export function getOAuthRedirectUri(): string {
     }
     const marketing = getDaltonWebUrl();
     if (marketing) return `${marketing}${basePath}/auth/callback`;
-    return `https://dalton-access.vercel.app${basePath}/auth/callback`;
+    return `${BRAND_WEB_ORIGIN}${basePath}/auth/callback`;
   }
 
   return Linking.createURL('auth/callback');

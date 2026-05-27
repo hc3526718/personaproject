@@ -1602,7 +1602,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
       icon: <FontAwesome name="user-plus" size={14} color={DS.color.gold} />,
       onPress: () =>
         Share.share({
-          message: `Join me for ${evTitle} on Grant Access.`,
+          message: `Join me for ${evTitle} on The Dalton Grant Academy.`,
         }).catch(() => undefined),
     },
   ];

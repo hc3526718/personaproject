@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_WEB_ORIGIN } from '../constants/brand';
 import type { LegalPagePath } from '../lib/legalUrls';
 
 export type HelpArticle = {
@@ -6,7 +7,7 @@ export type HelpArticle = {
   body: string;
   /** Lowercase tokens for in-app search (title + keywords). */
   keywords: string[];
-  /** Opens the Grant Access website legal page when the article is tapped. */
+  /** Opens the academy website legal page when the article is tapped. */
   legalPath?: LegalPagePath;
 };
 
@@ -41,7 +42,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Getting started',
     keywords: ['sign up', 'login', 'onboarding', 'google', 'apple', 'account'],
     body:
-      'Sign in with email, Google, or Apple (iOS). Complete onboarding (role, sports, username), then explore Community, Events, Media, Sponsors, and Profile. Use the same email on web at dalton-access.vercel.app/app.',
+      `Sign in with email, Google, or Apple (iOS). Complete onboarding (role, sports, username), then explore Community, Events, Media, Sponsors, and Profile. Use the same email on web at ${BRAND_WEB_ORIGIN.replace(/^https:\/\//, '')}/app.`,
   },
   {
     id: 'premium',
@@ -83,7 +84,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Accessibility',
     keywords: ['larger text', 'contrast', 'dark', 'color', 'settings'],
     body:
-      'Profile → Settings → Accessibility: Larger Text, Differentiate Without Color, and Sufficient Contrast. Grant Access uses a dark interface by default. Preferences sync across devices when signed in.',
+      `Profile → Settings → Accessibility: Larger Text, Differentiate Without Color, and Sufficient Contrast. ${BRAND_NAME} uses a dark interface by default. Preferences sync across devices when signed in.`,
   },
   {
     id: 'legal-overview',
@@ -104,7 +105,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
       'data protection',
     ],
     body:
-      'Grant Access legal documents are on our website and in Profile → Settings → Legal. Search “terms” or “privacy” in this help centre for direct links. You can also open each policy from the articles below.',
+      `${BRAND_NAME} legal documents are on our website and in Profile → Settings → Legal. Search “terms” or “privacy” in this help centre for direct links. You can also open each policy from the articles below.`,
   },
   {
     id: 'terms-of-service',
@@ -146,15 +147,15 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Cookie policy',
     keywords: ['cookie', 'cookies', 'cookie policy', 'tracking', 'legal', 'privacy'],
     body:
-      'How cookies and similar technologies are used on the Grant Access website. Tap to open the Cookie policy.',
+      `How cookies and similar technologies are used on the ${BRAND_NAME} website. Tap to open the Cookie policy.`,
     legalPath: '/cookie-policy',
   },
   {
     id: 'athlete-agreement',
     title: 'Athlete agreement',
-    keywords: ['athlete', 'agreement', 'grant access', 'program', 'terms', 'legal'],
+    keywords: ['athlete', 'agreement', 'dalton grant academy', 'program', 'terms', 'legal'],
     body:
-      'Grant Access program terms for athletes and creators. Tap to open the Athlete agreement.',
+      `${BRAND_NAME} program terms for athletes and creators. Tap to open the Athlete agreement.`,
     legalPath: '/athlete-agreement',
   },
   {

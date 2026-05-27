@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { BRAND_WEB_ORIGIN } from '../constants/brand';
 
 type ExtraShape = {
   supabaseUrl?: string;
@@ -103,7 +104,8 @@ export function getDaltonWebUrl(): string {
   const extra = expoConfig?.extra as Record<string, unknown> | undefined;
   const fromExtra =
     typeof extra?.daltonWebUrl === 'string' ? extra.daltonWebUrl.trim() : '';
-  return fromExtra.replace(/\/$/, '');
+  const merged = fromExtra.replace(/\/$/, '');
+  return merged || BRAND_WEB_ORIGIN;
 }
 
 /**

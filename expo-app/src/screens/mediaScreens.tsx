@@ -873,7 +873,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const mediaId = route.params?.mediaId ?? `demo:${title}`;
   const paramPlayback = route.params?.playbackUrl?.trim() || '';
   const meta = playerMeta(title);
-  const playerNotice = (msg: string) => Alert.alert('Grant Access', msg);
+  const playerNotice = (msg: string) => Alert.alert('The Dalton Grant Academy', msg);
   const [asset, setAsset] = useState<MediaAssetRow | null>(null);
   const [saved, setSaved] = useState(false);
   const [progress, setProgress] = useState(0.35);
@@ -1187,7 +1187,7 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
         <View style={styles.savedHeaderActions}>
           <Pressable
             style={styles.savedIconBtn}
-            onPress={() => Alert.alert('Grant Access', 'Search for saved videos is not available yet.')}
+            onPress={() => Alert.alert('The Dalton Grant Academy', 'Search for saved videos is not available yet.')}
           >
             <FontAwesome name="search" size={16} color={DS.color.text} />
           </Pressable>

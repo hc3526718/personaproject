@@ -35,5 +35,5 @@ window.DEMO_ROUTES = {
   communitySearch: '29-Community Flow - Community Sea.html',
   editProfileSections: '30-Profile Settings - Edit Profil.html',
   sponsorListings: '31-Sponsor Listings.html',
-  grantAccess: '32-Grant Access.html',
+  grantAccess: '32-The Dalton Grant Academy.html',
 };

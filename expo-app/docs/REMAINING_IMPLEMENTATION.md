@@ -171,8 +171,8 @@ Items easy to miss because they are scattered in code or other docs:
 | Area | What to fix / complete |
 |------|-------------------------|
 | **Demo auth** | **Done in code** — release builds never accept bundled passwords; `__DEV__` + `EXPO_PUBLIC_DEV_DEMO_*` only when Supabase unset. |
-| **Bundle / brand ID** | `com.hc111.daltondemo` in `eas.json` / `app.config.js` — align with production **Grant Access** bundle ID and display name. |
-| **Legal HTML** | Header placeholders updated to Dalton Group / grantaccess.app — **counsel review still required** (`docs/CUSTOMER_DOCUMENTATION.md`). |
+| **Bundle / brand ID** | `com.hc111.daltondemo` in `eas.json` / `app.config.js` — align with production **The Dalton Grant Academy** bundle ID and display name. |
+| **Legal HTML** | Operator **The Dalton Grant Academy** + `daltongrantacademy.vercel.app` — **counsel review still required** (`docs/CUSTOMER_DOCUMENTATION.md`). |
 | **Web help site** | `help-center.html` on Vercel — expand FAQs; in-app Help centre now links legal pages (search: `terms`, `privacy`). |
 | **Community demo posts** | `communityScreens.tsx` still embeds **picsum.photos** sample cards when feed is empty — remove for production or show empty state only. |
 | **Media search demo** | **Done** — demo tiles only in `__DEV__`, screenshot mode, or `EXPO_PUBLIC_ALLOW_MEDIA_SEARCH_DEMO=1`. |

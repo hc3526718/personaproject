@@ -38,14 +38,14 @@ function buildPlugins() {
     [
       'expo-camera',
       {
-        cameraPermission: 'Allow Dalton to use your camera for event QR scanning.',
+        cameraPermission: 'Allow The Dalton Grant Academy to use your camera for event QR scanning.',
       },
     ],
     [
       'expo-image-picker',
       {
-        photosPermission: 'Allow Dalton to access your photos and videos for uploads.',
-        cameraPermission: 'Allow Dalton to use your camera for uploads.',
+        photosPermission: 'Allow The Dalton Grant Academy to access your photos and videos for uploads.',
+        cameraPermission: 'Allow The Dalton Grant Academy to use your camera for uploads.',
       },
     ],
     [
@@ -81,7 +81,7 @@ const ADAPTIVE_FG = './assets/dalton_logo_final_img-icons/Android/mipmap-xxxhdpi
 const WEB_FAVICON = './assets/dalton_logo_final_img-icons/Web/favicon-48x48.png';
 
 const baseExpo = {
-  name: 'Dalton Demo',
+  name: 'The Dalton Grant Academy',
   slug: 'dalton-demo',
   scheme: 'dalton-demo',
   version: '1.0.0',
@@ -200,7 +200,7 @@ module.exports = () => {
 
   expo.extra = {
     eas: { projectId: EAS_PROJECT_ID },
-    daltonWebUrl: (process.env.EXPO_PUBLIC_DALTON_WEB_URL || '').trim(),
+    daltonWebUrl: (process.env.EXPO_PUBLIC_DALTON_WEB_URL || 'https://daltongrantacademy.vercel.app').trim(),
     supabaseUrl: (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim(),
     supabaseAnonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim(),
     /** RevenueCat public SDK keys — duplicated here so native init can read `expo.extra` if env inlining differs. */

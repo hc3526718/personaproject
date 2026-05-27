@@ -1,6 +1,6 @@
 # Which Supabase schema goes with this app?
 
-## This repo is **Dalton** (Grant Access / expo-app)
+## This repo is **Dalton** (The Dalton Grant Academy / expo-app)
 
 - **Source of truth:** [`backend/schema.sql`](../backend/schema.sql)  
 - **Profiles:** `public.profiles.id` **is** `auth.users.id` (1:1 primary key), **not** a separate `user_id` column like some other apps.

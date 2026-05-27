@@ -736,7 +736,7 @@ export function AccessibilityScreen({ navigation }: PProps<'Accessibility'>) {
       >
         <ThemedText variant="muted" style={{ marginBottom: DS.space.md }}>
           Preferences sync to your account when signed in, so iOS, Android, and web stay aligned.
-          Grant Access uses a dark interface by default. Changes below update this screen immediately.
+          The Dalton Grant Academy uses a dark interface by default. Changes below update this screen immediately.
         </ThemedText>
 
         <View style={[styles.card, themed.card]}>
@@ -942,7 +942,7 @@ export function LegalScreen({ navigation }: PProps<'Legal'>) {
     { title: 'Terms of service', sub: 'Platform rules and eligibility', path: '/terms' },
     { title: 'Privacy policy', sub: 'How we handle your data', path: '/privacy' },
     { title: 'Cookie policy', sub: 'Tracking and preferences', path: '/cookie-policy' },
-    { title: 'Athlete agreement', sub: 'Grant Access program terms', path: '/athlete-agreement' },
+    { title: 'Athlete agreement', sub: 'Dalton Grant Academy program terms', path: '/athlete-agreement' },
   ];
   return (
     <View style={styles.root}>

@@ -1,6 +1,6 @@
-# App Encryption Documentation & App Store compliance (Grant Access)
+# App Encryption Documentation & App Store compliance (The Dalton Grant Academy)
 
-Copy the sections below into **App Store Connect** when submitting **Grant Access** (bundle `com.hc111.daltondemo` until production ID is finalized).
+Copy the sections below into **App Store Connect** when submitting **The Dalton Grant Academy** (bundle `com.hc111.daltondemo` until production ID is finalized).
 
 Related: [APP_STORE_METADATA.md](./APP_STORE_METADATA.md), [SUBMISSION_READINESS.md](./SUBMISSION_READINESS.md).
 
@@ -11,16 +11,16 @@ Related: [APP_STORE_METADATA.md](./APP_STORE_METADATA.md), [SUBMISSION_READINESS
 Paste into **App Encryption Documentation →** the field that asks for a short description of your app’s functionality and purpose:
 
 ```text
-Grant Access: community platform for athletes and coaches — feed, DMs, training media, sponsors, events & booking with check-in. Premium unlocks creator tools after verification. HTTPS; sign-in via email, Apple & Google. Not medical/regulated finance. See Terms & Privacy.
+The Dalton Grant Academy: community platform for athletes and coaches — feed, DMs, training media, sponsors, events & booking with check-in. Premium unlocks creator tools after verification. HTTPS; sign-in via email, Apple & Google. Not medical/regulated finance. See Terms & Privacy.
 ```
 
-*(272 characters — under Apple’s 300-character limit for step 1 of 3.)*
+*(284 characters — under Apple’s 300-character limit for step 1 of 3.)*
 
 ---
 
 ## Encryption questionnaire — how to answer
 
-Apple asks whether the app uses encryption. Grant Access **does** use encryption, but only in forms that typically qualify for **exemption** (no annual BIS self-classification filing for proprietary crypto).
+Apple asks whether the app uses encryption. The Dalton Grant Academy **does** use encryption, but only in forms that typically qualify for **exemption** (no annual BIS self-classification filing for proprietary crypto).
 
 ### Does your app use encryption?
 
@@ -55,13 +55,13 @@ Only if you add:
 
 ### Internal one-line record (keep with release notes)
 
-> Grant Access vX.Y — encryption limited to Apple/Google OS facilities and HTTPS (TLS); no proprietary cryptography.
+> The Dalton Grant Academy vX.Y — encryption limited to Apple/Google OS facilities and HTTPS (TLS); no proprietary cryptography.
 
 ---
 
 ## App Store Regulations & Permits
 
-| Topic | Grant Access — typical answer |
+| Topic | The Dalton Grant Academy — typical answer |
 |--------|-------------------------------|
 | **Export compliance** | Exempt HTTPS-only (see above) |
 | **Content rights** | You license UI; users post UGC under Terms |

@@ -1,4 +1,4 @@
-# MCP servers for Dalton / Grant Access (Cursor)
+# MCP servers for Dalton / The Dalton Grant Academy (Cursor)
 
 Recommended integrations for this repo. Pin versions in `.cursor/mcp.json`; review any config change (MCPoison / CurXecute mitigations require Cursor ≥ 1.3.9).
 

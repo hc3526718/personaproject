@@ -21,6 +21,7 @@ import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { authBackHandler } from '../lib/authNavigation';
 import { DS } from '../designSystem';
+import { BRAND_NAME } from '../constants/brand';
 import { openLegalPage } from '../lib/legalUrls';
 import type { AuthStackParamList } from '../navigation/types';
 
@@ -50,7 +51,7 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
       <ScrollView contentContainerStyle={styles.welcomeScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeHero}>
           <AuthWelcomeRiveHero height={220} />
-          <Text style={styles.welcomeAppName}>Grant Access</Text>
+          <Text style={styles.welcomeAppName}>{BRAND_NAME}</Text>
         </View>
       </ScrollView>
       <View style={styles.welcomeActions}>

@@ -26,7 +26,7 @@
 
     var caption = document.createElement("div");
     caption.className = "ga-caption";
-    caption.textContent = "GRANT ACCESS";
+    caption.textContent = "The Dalton Grant Academy";
 
     frame.appendChild(iframe);
     root.appendChild(frame);

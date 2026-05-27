@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
     }
 
     const defaultBase =
-      (Deno.env.get('STRIPE_CHECKOUT_BASE_URL') ?? 'https://dalton-access.vercel.app/app').replace(
+      (Deno.env.get('STRIPE_CHECKOUT_BASE_URL') ?? 'https://daltongrantacademy.vercel.app/app').replace(
         /\/$/,
         '',
       );

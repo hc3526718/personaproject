@@ -3,13 +3,13 @@
 By default the app runs a **native** app shell that mirrors the static HTML flows:
 
 - **Tabs** (Community, Media, Sponsors, Events, Profile) — see `src/navigation/AppNavigator.tsx`.
-- **Stacks** per tab map to the numbered HTML mockups (feed, messages, media library / player, event booking, profile settings, sponsors, onboarding, Grant Access signup).
+- **Stacks** per tab map to the numbered HTML mockups (feed, messages, media library / player, event booking, profile settings, sponsors, onboarding, The Dalton Grant Academy signup).
 - **Design tokens** — `src/designSystem.ts`.
 - **Typography** — Bebas Neue + DM Sans via `@expo-google-fonts/*`, loaded in `App.tsx` (`loadAppFonts.ts`) to align with the HTML mockups.
 - **HTML-derived content** — e.g. `src/data/upcomingEventsFromHtml.ts` (from `13-Upcoming Events.html`), community feed posts from `7-Community Feed.html`.
 - **Demo hub** — Profile → “Demo flows hub”, or Community stack → `DemoHub` (same idea as `index.html`).
 
-`Grant Access` (`32-…`) is **splash + create account** only; **Continue** switches to the **Community** tab (feed).
+`The Dalton Grant Academy` (`32-…`) is **splash + create account** only; **Continue** switches to the **Community** tab (feed).
 
 ## Post report → email (moderation)
 

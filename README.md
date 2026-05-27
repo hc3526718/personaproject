@@ -1,4 +1,4 @@
-# Grant Access — website + product demo
+# The Dalton Grant Academy — website + product demo
 
 This repository contains:
 
@@ -60,7 +60,7 @@ Allow the port through Windows Firewall if the page does not load.
 
 ## Expo Go / native shell
 
-The **[expo-app/](expo-app/)** folder is an **Expo SDK 54** project (**React Native 0.81** / **React 19**; use a matching **Expo Go** or a dev build). By default it runs a **native React Native** shell with **bottom tabs** and **stacks** that mirror the HTML flows (community, media, events, sponsors, profile, onboarding, Grant Access signup), with **Bebas Neue + DM Sans** and tokens in `expo-app/src/designSystem.ts` — see `expo-app/src/navigation/AppNavigator.tsx` and `expo-app/src/data/` for HTML-derived copy where noted.
+The **[expo-app/](expo-app/)** folder is an **Expo SDK 54** project (**React Native 0.81** / **React 19**; use a matching **Expo Go** or a dev build). By default it runs a **native React Native** shell with **bottom tabs** and **stacks** that mirror the HTML flows (community, media, events, sponsors, profile, onboarding, The Dalton Grant Academy signup), with **Bebas Neue + DM Sans** and tokens in `expo-app/src/designSystem.ts` — see `expo-app/src/navigation/AppNavigator.tsx` and `expo-app/src/data/` for HTML-derived copy where noted.
 
 Set **`EXPO_PUBLIC_USE_WEBVIEW_DEMO=1`** to load the **static HTML demo** in a **WebView** instead. See **[expo-app/README.md](expo-app/README.md)** for run steps and SDK notes.
 

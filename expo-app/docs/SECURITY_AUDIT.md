@@ -36,7 +36,7 @@ Top findings an external tester would report, and fixes:
 | 1 | **Client-only premium checks** on some flows | Modified app might show UI early; real writes should fail at RLS/API. | Enforce premium on **RPC / Edge Functions / RLS** for `INSERT` on events, media, proposals. |
 | 2 | **Broad profile read (authenticated)** | Scrape emails, bios, metadata at scale with one stolen session. | Column-level view + rate limits; CAPTCHA on sign-up. |
 | 3 | **Master delete + service role** | Stolen JWT + PIN or leaked service role → mass account deletion. | IP allowlist, audit log, separate break-glass credentials, MFA for admins. |
-| 4 | **CORS `*` on Edge Functions** | CSRF-style invocation from malicious sites if victim has valid JWT in browser. | Restrict `Access-Control-Allow-Origin` to `https://dalton-access.vercel.app`. |
+| 4 | **CORS `*` on Edge Functions** | CSRF-style invocation from malicious sites if victim has valid JWT in browser. | Restrict `Access-Control-Allow-Origin` to `https://daltongrantacademy.vercel.app`. |
 | 5 | **Ticket HMAC in `EXPO_PUBLIC_*`** | Secret in mobile bundle → forge QR tokens if same secret on server. | Server-only signing for production check-in; rotate secret. |
 | 6 | **No RC webhook** | User pays on iPhone, web still free (or reverse) until DB synced. | RC + Stripe webhooks both write `subscription_state`. |
 | 7 | **Placeholder legal / support emails** | Phishing trust issues; GDPR contact invalid. | Replace before launch; verify domain. |
@@ -113,7 +113,7 @@ Apply migration **`012_subscription_state_rls.sql`** on your Supabase project (C
 
 [Shannon](https://github.com/KeygraphHQ/shannon) (Keygraph) is an autonomous white-box pentester that reads application source, runs real exploits, and reports only findings with proof-of-concept. Use it **after** manual checklist items below, on a **staging** deployment that mirrors production auth (Supabase redirect URLs, Vercel `/app` routes).
 
-**Recommended scope for Dalton web (`dalton-access.vercel.app/app`):**
+**Recommended scope for Dalton web (`daltongrantacademy.vercel.app/app`):**
 
 1. **Auth & session** — email/password, Google OAuth callback (`/app/auth/callback`), PKCE code exchange, `localStorage` session persistence, logout, stale refresh tokens.
 2. **RLS / PostgREST** — attempt cross-user reads/writes on `profiles`, `posts`, `messages`, `subscription_state`, storage buckets.
@@ -129,5 +129,5 @@ Apply migration **`012_subscription_state_rls.sql`** on your Supabase project (C
 **Manual pentest priorities before Shannon:**
 
 - Confirm Supabase **Site URL** and **Redirect URLs** match Vercel exactly (no trailing-slash drift).
-- Verify Google Cloud **Authorized redirect URIs** include `https://dalton-access.vercel.app/app/auth/callback`.
+- Verify Google Cloud **Authorized redirect URIs** include `https://daltongrantacademy.vercel.app/app/auth/callback`.
 - Run Supabase **Security Advisor** (`get_advisors`) after each migration.

@@ -12,7 +12,7 @@ Consolidated plan for moving from demo shell to production-style flows. Edit che
 |---|--------|---------------------------------|-------------|
 | **0** | Backend gate | [BACKEND_AUTH.md](BACKEND_AUTH.md) (stack), [STORAGE.md](STORAGE.md) | `backend/schema.sql` |
 | **1** | Live data & storage | [STORAGE.md](STORAGE.md), [BACKEND_AUTH.md](BACKEND_AUTH.md), [ACCESS_MODEL.md](ACCESS_MODEL.md) §3–6 (RLS + capabilities), [QR_CHECKIN.md](QR_CHECKIN.md) (check-in API) | `src/lib/supabase.ts`, `src/api/client.ts`, screens under `src/screens/` |
-| **2** | Boot / splash / Grant Access | [UI_INVENTORY.md](UI_INVENTORY.md) (wiring status) | `App.tsx`, `BrandedBootScreen.tsx`, `GrantAccessScreen.tsx` |
+| **2** | Boot / splash / The Dalton Grant Academy | [UI_INVENTORY.md](UI_INVENTORY.md) (wiring status) | `App.tsx`, `BrandedBootScreen.tsx`, `GrantAccessScreen.tsx` |
 | **3** | Auth & onboarding | [BACKEND_AUTH.md](BACKEND_AUTH.md), [ACCESS_MODEL.md](ACCESS_MODEL.md) §1–3, [SECRETS_CHECKLIST.md](SECRETS_CHECKLIST.md) | `src/auth/AuthContext.tsx`, `src/lib/supabase.ts` |
 | **4** | Paywall | [MONETIZATION.md](MONETIZATION.md), [REVENUECAT.md](REVENUECAT.md), [ACCESS_MODEL.md](ACCESS_MODEL.md) §7 (monetization alignment) | `src/subscriptions/`, `subscription_state` in `schema.sql` |
 | **5** | Demo → real content | [UI_INVENTORY.md](UI_INVENTORY.md), [ACCESS_MODEL.md](ACCESS_MODEL.md) (who can post / sponsor), [MONETIZATION.md](MONETIZATION.md) (free baseline) | `src/data/*`, mock blocks in screens |
@@ -63,7 +63,7 @@ The repo is **Supabase-first** — see [BACKEND_AUTH.md](BACKEND_AUTH.md) and `b
 
 ---
 
-## 2. Boot / splash / Grant Access
+## 2. Boot / splash / The Dalton Grant Academy
 
 - [ ] Add **animated logo** (Rive in **development/EAS build** — [STORE_RELEASE.md](STORE_RELEASE.md); or Lottie/video if Expo Go-only) on `BrandedBootScreen`.
 - [ ] Replace fixed `MIN_BOOT_MS`-only logic with an **orchestrator**: `max(minAnimationMs, fontsReady, authReady, optionalPrefetchReady)`; then **fade spinner**; then show **Continue** (`GrantAccessScreen` — “Tap anywhere to continue” today). Track UX in [UI_INVENTORY.md](UI_INVENTORY.md) when done.

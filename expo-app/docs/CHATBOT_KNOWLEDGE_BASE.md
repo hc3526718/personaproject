@@ -1,15 +1,15 @@
-# Dalton Access (Grant Access) — Chatbot knowledge base
+# The Dalton Grant Academy (The Dalton Grant Academy) — Chatbot knowledge base
 
 **Purpose:** Paste or upload this document into your help bot (ElevenLabs, Intercom, custom RAG, etc.).  
-**Product URL:** https://dalton-access.vercel.app  
-**Web app:** https://dalton-access.vercel.app/app  
+**Product URL:** https://daltongrantacademy.vercel.app  
+**Web app:** https://daltongrantacademy.vercel.app/app  
 **Last updated:** 2026-05-22
 
 ---
 
 ## 1. Product identity
 
-**Grant Access** (Dalton Access platform) is a performance community app for athletes and creators.
+**The Dalton Grant Academy** (The Dalton Grant Academy platform) is a performance community app for athletes and creators.
 
 | Area | What users do |
 |------|----------------|
@@ -28,7 +28,7 @@
 
 ## 2. Sign in & onboarding
 
-1. Open app or **Login** on https://dalton-access.vercel.app/app  
+1. Open app or **Login** on https://daltongrantacademy.vercel.app/app  
 2. Sign up or log in (email, Google; Apple on iOS)  
 3. Complete onboarding: role, sports, discovery source, username  
 4. Explore tabs: Community, Media, Sponsors, Events, Profile  
@@ -185,7 +185,7 @@ Escalate when:
 
 Collect: **account email**, **platform** (web/iOS/Android), **time**, **screenshot**, **steps**.
 
-**Contact:** support@grantaccess.app · privacy@grantaccess.app
+**Contact:** support@daltongrantacademy.com · privacy@daltongrantacademy.com
 
 ---
 
@@ -218,7 +218,7 @@ A: Yes — one subscription per account when webhooks and RevenueCat user id are
 A: Events → Saved filter.
 
 **Q: How do I delete my account?**  
-A: Email support@grantaccess.app (in-app deletion coming).
+A: Email support@daltongrantacademy.com (in-app deletion coming).
 
 **Q: Where is accessibility?**  
 A: Profile → Settings → Accessibility.

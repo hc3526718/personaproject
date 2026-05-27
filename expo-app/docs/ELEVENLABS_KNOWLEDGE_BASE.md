@@ -2,7 +2,7 @@
 
 > **Canonical copy:** Use [`CHATBOT_KNOWLEDGE_BASE.md`](./CHATBOT_KNOWLEDGE_BASE.md) for the fullest training document (billing, security boundaries, accessibility). This file is kept for ElevenLabs-specific notes.
 
-Use this document to train a voice/chat assistant for Dalton Access (mobile app + web at `https://dalton-access.vercel.app/app`).
+Use this document to train a voice/chat assistant for Dalton Access (mobile app + web at `https://daltongrantacademy.vercel.app/app`).
 
 ---
 

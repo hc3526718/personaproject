@@ -33,7 +33,7 @@ export function buildIcsEvent(input: IcsEventInput): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Grant Access//EN',
+    'PRODID:-//The Dalton Grant Academy//EN',
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
     `UID:${escapeIcsText(input.uid)}@grant-access.app`,

@@ -1,4 +1,4 @@
-# RevenueCat + web billing setup (Grant Access)
+# RevenueCat + web billing setup (The Dalton Grant Academy)
 
 Use this checklist after creating **Web Billing** and **App Store** products in RevenueCat.
 
@@ -44,7 +44,7 @@ Premium resolution (`resolvePremiumAccess.ts`):
 Set in **EAS → Environment variables** (production + preview):
 
 ```env
-EXPO_PUBLIC_DALTON_WEB_URL=https://dalton-access.vercel.app
+EXPO_PUBLIC_DALTON_WEB_URL=https://daltongrantacademy.vercel.app
 EXPO_PUBLIC_WEB_BASE_PATH=/app
 EXPO_PUBLIC_REVENUECAT_API_KEY_IOS=appl_...
 EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID=goog_...
@@ -62,7 +62,7 @@ STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_MONTHLY_ID=price_...   # from Stripe linked to RC Web Billing
 STRIPE_PRICE_ANNUAL_ID=price_...    # optional
-STRIPE_CHECKOUT_BASE_URL=https://dalton-access.vercel.app/app
+STRIPE_CHECKOUT_BASE_URL=https://daltongrantacademy.vercel.app/app
 ```
 
 Deploy:
@@ -90,7 +90,7 @@ Replace `<PROJECT_REF>` with the id from your Supabase URL (`EXPO_PUBLIC_SUPABAS
 - If URL is `https://abcdefghijklmnop.supabase.co` → ref is `abcdefghijklmnop`  
 - Full example: `https://abcdefghijklmnop.supabase.co/functions/v1/revenuecat-webhook`
 
-**Do not** use `https://dalton-access.vercel.app/...` — Vercel hosts the marketing site and `/app`, not Supabase Edge Functions.
+**Do not** use `https://daltongrantacademy.vercel.app/...` — Vercel hosts the marketing site and `/app`, not Supabase Edge Functions.
 
 **Deploy:**
 
@@ -142,6 +142,6 @@ Refunds: Apple/Google/Stripe dashboards — not in-app.
 
 - Subscription group + products linked in RC  
 - Paid Applications Agreement active  
-- App Store metadata privacy/support URLs → `https://dalton-access.vercel.app/...`
+- App Store metadata privacy/support URLs → `https://daltongrantacademy.vercel.app/...`
 
 See `docs/APP_STORE_METADATA.md`.

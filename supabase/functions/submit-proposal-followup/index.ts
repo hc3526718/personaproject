@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const resendKey = (Deno.env.get('RESEND_API_KEY') ?? '').trim();
   const teamRaw = (Deno.env.get('PROPOSAL_TEAM_EMAIL') ?? Deno.env.get('REPORT_NOTIFY_EMAIL') ?? '').trim();
-  const fromEmail = (Deno.env.get('PROPOSAL_NOTIFY_FROM') ?? 'Dalton <notifications@dalton-access.vercel.app>').trim();
+  const fromEmail = (Deno.env.get('PROPOSAL_NOTIFY_FROM') ?? 'Dalton <notifications@daltongrantacademy.vercel.app>').trim();
 
   if (!supabaseUrl || !serviceKey) {
     return new Response(JSON.stringify({ error: 'server_misconfigured' }), {

@@ -62,7 +62,7 @@ export default function WebDemoApp() {
         style={styles.setupRoot}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <Text style={styles.setupTitle}>Grant Access</Text>
+        <Text style={styles.setupTitle}>The Dalton Grant Academy</Text>
         <Text style={styles.setupBody}>
           Point this app at the folder served by your PC, or at a hosted copy (HTTPS).
         </Text>

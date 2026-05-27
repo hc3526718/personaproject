@@ -1,6 +1,6 @@
 # Web security (Vercel + Supabase + Stripe + RevenueCat + Sentry)
 
-Operational checklist for the Grant Access web deployment at `https://dalton-access.vercel.app`.
+Operational checklist for the The Dalton Grant Academy web deployment at `https://daltongrantacademy.vercel.app`.
 
 ## Platform controls
 
@@ -15,7 +15,7 @@ Operational checklist for the Grant Access web deployment at `https://dalton-acc
 ## Application rules
 
 1. **Never** ship `SUPABASE_SERVICE_ROLE_KEY`, Stripe secret, Resend API key, or master PIN material in `EXPO_PUBLIC_*` or static HTML.
-2. **CORS** on Edge Functions should allow only `https://dalton-access.vercel.app` (and preview URLs you control), not `*`, when browsers call them with user JWTs.
+2. **CORS** on Edge Functions should allow only `https://daltongrantacademy.vercel.app` (and preview URLs you control), not `*`, when browsers call them with user JWTs.
 3. **Uploads** go to Supabase Storage `media_assets` with owner RLS; post and profile URLs use `visibility: public` where the feed must read them; DM attachments use public visibility with unguessable paths (consider participant-only SELECT policy in a follow-up migration).
 4. **Session** — Supabase Auth refresh tokens in secure storage on native; web uses default Supabase session persistence; sign out clears local prefs.
 5. **Blocking** — blocked user IDs stored in `user_settings.preferences.blocked_user_ids`; enforce server-side in a future RPC before `get_or_create_dm`.

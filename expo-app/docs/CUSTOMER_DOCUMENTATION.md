@@ -1,4 +1,4 @@
-# Customer-facing documentation (Grant Access / Dalton Access)
+# Customer-facing documentation (The Dalton Grant Academy / The Dalton Grant Academy)
 
 Documents users should be able to reach from **iOS**, **Android**, and **web** (`EXPO_PUBLIC_DALTON_WEB_URL`).
 

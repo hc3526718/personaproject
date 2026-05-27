@@ -1,4 +1,4 @@
-# Go live checklist — Grant Access / Dalton Access
+# Go live checklist — The Dalton Grant Academy / The Dalton Grant Academy
 
 Use this alongside [`REMAINING_IMPLEMENTATION.md`](./REMAINING_IMPLEMENTATION.md) and [`SUBMISSION_READINESS.md`](./SUBMISSION_READINESS.md).
 

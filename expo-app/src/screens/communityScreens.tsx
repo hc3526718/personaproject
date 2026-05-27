@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -271,7 +271,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
   const [eventTitleMap, setEventTitleMap] = useState<Map<string, string>>(new Map());
 
   const liveMode = isSupabaseConfigured();
-  /** With Supabase configured, never show HTML/demo posts â€” only real rows or empty state. */
+  /** With Supabase configured, never show HTML/demo posts — only real rows or empty state. */
   const demoCommunityAudience = !liveMode;
 
   const loadFeed = useCallback(async () => {
@@ -673,7 +673,7 @@ function PostCard({
   const sharePost = useCallback(async () => {
     try {
       await Share.share({
-        title: `${name} Â· Grant Access`,
+        title: `${name} · The Dalton Grant Academy`,
         message: `${name}\n\n${bodyText}`.slice(0, 4000),
       });
       await logShareActivity({
@@ -712,7 +712,7 @@ function PostCard({
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'ðŸ”¥ Fire', 'ðŸ‘ Clap', 'ðŸ’¡ Insight'],
+          options: ['Cancel', '🔥 Fire', '👏 Clap', '💡 Insight'],
           cancelButtonIndex: 0,
         },
         (i) => {
@@ -723,9 +723,9 @@ function PostCard({
       );
     } else {
       Alert.alert('React', 'Choose a reaction', [
-        { text: 'ðŸ”¥', onPress: () => apply('fire') },
-        { text: 'ðŸ‘', onPress: () => apply('clap') },
-        { text: 'ðŸ’¡', onPress: () => apply('lightbulb') },
+        { text: '🔥', onPress: () => apply('fire') },
+        { text: '👏', onPress: () => apply('clap') },
+        { text: '💡', onPress: () => apply('lightbulb') },
         { text: 'Cancel', style: 'cancel' },
       ]);
     }
@@ -965,7 +965,7 @@ function PostCard({
                 <FontAwesome5 name="fire" size={13} color="#f97316" solid />
               ) : null}
               {secondary.kind === 'clap' ? (
-                <Text style={styles.clapEmoji}>ðŸ‘</Text>
+                <Text style={styles.clapEmoji}>👏</Text>
               ) : null}
               {secondary.kind === 'lightbulb' ? (
                 <FontAwesome5 name="lightbulb" size={13} color="#facc15" solid />
@@ -974,7 +974,7 @@ function PostCard({
             </Pressable>
           ) : !liveMode ? (
             <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
-              <Text style={styles.actionTxt}>ï¼‹ ðŸ˜Š</Text>
+              <Text style={styles.actionTxt}>＋ 😊</Text>
             </Pressable>
           ) : null}
           {liveMode ? (
@@ -1014,7 +1014,7 @@ function CommunityDemoPostList({
         avatar="https://picsum.photos/seed/dalton-ava1/200/200"
         name="Jordan Blake"
         time="12m ago"
-        body="Track day reps with @TaylorM and @CoachDana felt locked in. Focusing on hips through the drive phase ðŸš€ #DaltonAthletics #Sprinters #MondayMiles"
+        body="Track day reps with @TaylorM and @CoachDana felt locked in. Focusing on hips through the drive phase 🚀 #DaltonAthletics #Sprinters #MondayMiles"
         imageUri="https://picsum.photos/seed/dalton-run1/800/520"
         likes={34}
         heartFilled={false}
@@ -1026,7 +1026,7 @@ function CommunityDemoPostList({
         avatar="https://picsum.photos/seed/dalton-ava2/200/200"
         name="Alex Rivera"
         time="42m ago"
-        body="@JordanBlake that ladder session blueprint you shared ðŸ”¥ Tagged @YouthClub coaches too â€” shoutout #DaltonGrant #CoachNetwork"
+        body="@JordanBlake that ladder session blueprint you shared 🔥 Tagged @YouthClub coaches too — shoutout #DaltonGrant #CoachNetwork"
         media={[
           { kind: 'image', uri: 'https://picsum.photos/seed/dalton-carousel-a/900/560' },
           { kind: 'image', uri: 'https://picsum.photos/seed/dalton-carousel-b/900/560' },
@@ -1042,7 +1042,7 @@ function CommunityDemoPostList({
         name="Mia Okonkwo"
         time="2h ago"
         badge="AMBASSADOR"
-        body="Recovery stack thatâ€™s working this block: mobility + flush ride + hydration check. Trying to stay consistent between dual meets âš¡ï¸ #Recovery #HydrationRoutine #AthleteJournal"
+        body="Recovery stack that’s working this block: mobility + flush ride + hydration check. Trying to stay consistent between dual meets ⚡️ #Recovery #HydrationRoutine #AthleteJournal"
         imageUri="https://picsum.photos/seed/dalton-recovery/780/540"
         likes={67}
         heartFilled={false}
@@ -1055,8 +1055,8 @@ function CommunityDemoPostList({
         name="Sam Whitaker"
         time="4h ago"
         bodyParagraphs={[
-          'Meet week mindset â€” shorten the warmup story, lengthen the checklist. Clipboard items: spikes, bib, salts, earbuds.',
-          '@PerformanceLab posted a slick primer on aisle breathing; pairing that with tonightâ€™s shakeout.',
+          'Meet week mindset — shorten the warmup story, lengthen the checklist. Clipboard items: spikes, bib, salts, earbuds.',
+          '@PerformanceLab posted a slick primer on aisle breathing; pairing that with tonight’s shakeout.',
           '#MeetWeek #DaltonAthletics #HurdlesClub',
         ]}
         likes={41}
@@ -1068,7 +1068,7 @@ function CommunityDemoPostList({
         avatar="https://picsum.photos/seed/dalton-ava5/200/200"
         name="Chen & Ellis Training"
         time="Yesterday"
-        body="Youth academy highlight reel is going up tonight â€” tagging @TaylorM @CoachDana plus #YouthDalton #SprintStarts. Slide into DMs if you want the drill PDF."
+        body="Youth academy highlight reel is going up tonight — tagging @TaylorM @CoachDana plus #YouthDalton #SprintStarts. Slide into DMs if you want the drill PDF."
         imageUri="https://picsum.photos/seed/dalton-coachposter/820/560"
         likes={156}
         heartFilled={false}
@@ -1081,7 +1081,7 @@ function CommunityDemoPostList({
         name="Coach Williams"
         time="Yesterday"
         badge="MENTOR"
-        body="Nutrition nudge â€” pre-comp carb window + electrolytes. Mentioning @JordanBlake and @MiaOkonkwo for keeping the locker room chatter positive. ðŸ¥¦ðŸƒâ€â™‚ï¸ðŸ’§ #FuelRight #DaltonFam"
+        body="Nutrition nudge — pre-comp carb window + electrolytes. Mentioning @JordanBlake and @MiaOkonkwo for keeping the locker room chatter positive. 🥦🏃‍♂️💧 #FuelRight #DaltonFam"
         imageUri="https://picsum.photos/seed/dalton-foodtrack/760/520"
         likes={198}
         heartFilled={false}
@@ -1207,7 +1207,7 @@ const SEARCH_RESULT_POSTS: {
     name: 'Sarah Chen',
     time: '4h',
     body:
-      'Finally nailed my sprint technique after months of practice! The key was focusing on arm drive and foot placement ðŸƒâ€â™€ï¸',
+      'Finally nailed my sprint technique after months of practice! The key was focusing on arm drive and foot placement 🏃‍♀️',
     imageUri:
       'https://storage.googleapis.com/uxpilot-auth.appspot.com/c68706f822-23f485ad5a9b054c3c84.png',
     heartFilled: true,
@@ -1218,7 +1218,7 @@ const SEARCH_RESULT_POSTS: {
     avatar: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg',
     name: 'Marcus Johnson',
     time: '1d',
-    body: 'Common mistakes in sprint technique that slow you down. Thread ðŸ§µ',
+    body: 'Common mistakes in sprint technique that slow you down. Thread 🧵',
     likes: 89,
     comments: 45,
   },
@@ -1242,7 +1242,7 @@ export function CommunitySearchResultsScreen({
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const q = route.params?.query?.trim() || 'sprint technique';
-  const displayQ = q.length > 28 ? `${q.slice(0, 28)}â€¦` : q;
+  const displayQ = q.length > 28 ? `${q.slice(0, 28)}…` : q;
   const [sortI, setSortI] = useState(0);
   const [chipI, setChipI] = useState(0);
   const liveConfigured = isSupabaseConfigured();
@@ -1440,7 +1440,7 @@ export function CommunitySearchResultsScreen({
                   <View style={{ flex: 1 }}>
                     <View style={styles.searchResultNameRow}>
                       <Text style={styles.searchResultName}>{post.name}</Text>
-                      <Text style={styles.searchResultDot}> â€¢ </Text>
+                      <Text style={styles.searchResultDot}> • </Text>
                       <Text style={styles.searchResultTime}>{post.time}</Text>
                     </View>
                     <HighlightBody text={post.body} query={q} />
@@ -1591,7 +1591,7 @@ function buildNotificationDemoRows(
     body: (
       <>
         <Text style={notifBodyStrongStyle}>Achievement Unlocked:</Text>
-        <Text style={notifBodyRestStyle}> Speed Demon â€” 10 sprint posts</Text>
+        <Text style={notifBodyRestStyle}> Speed Demon — 10 sprint posts</Text>
       </>
     ),
     time: '3 days ago',
@@ -2021,7 +2021,7 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
       if (!following.length) {
         Alert.alert(
           'New message',
-          'Follow someone first, then open their profile and tap Message â€” or message from a proposal thread.',
+          'Follow someone first, then open their profile and tap Message — or message from a proposal thread.',
         );
         return;
       }
@@ -2169,7 +2169,7 @@ const COACH_THREAD: { from: 'them' | 'me'; text: string; time: string; read?: 'd
   },
   {
     from: 'me',
-    text: 'It was amazing! The hill sections were challenging but I felt strong. Thanks for suggesting it ðŸƒâ€â™‚ï¸',
+    text: 'It was amazing! The hill sections were challenging but I felt strong. Thanks for suggesting it 🏃‍♂️',
     time: '9:18 AM',
     read: 'double',
   },
@@ -2180,7 +2180,7 @@ const COACH_THREAD: { from: 'them' | 'me'; text: string; time: string; read?: 'd
   },
   {
     from: 'them',
-    text: 'Great progress on your technique today! Keep it up ðŸ’ª',
+    text: 'Great progress on your technique today! Keep it up 💪',
     time: '2:45 PM',
   },
   {
@@ -2592,7 +2592,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         <View style={styles.threadSearchBar}>
           <TextInput
             style={styles.threadSearchInput}
-            placeholder="Search in conversationâ€¦"
+            placeholder="Search in conversation…"
             placeholderTextColor={colors.textMuted}
             value={chatSearch}
             onChangeText={setChatSearch}
@@ -3019,11 +3019,11 @@ export function DemoHubScreen({ navigation }: CProps<'DemoHub'>) {
       <Text style={styles.hubBody}>
         Quick jumps to primary areas while building and testing the app.
       </Text>
-      <HubBtn label="Path A â€” Sign out (return to welcome)" onPress={() => void logout()} />
-      <HubBtn label="Path B â€” Upcoming events" onPress={() => go('Events', 'UpcomingEvents')} />
-      <HubBtn label="Path C â€” Media library" onPress={() => go('Media', 'MediaLibrary')} />
-      <HubBtn label="Path D â€” Community feed" onPress={() => go('Community', 'CommunityFeed')} />
-      <HubBtn label="Path E â€” Athlete profile" onPress={() => go('Profile', 'AthleteProfile')} />
+      <HubBtn label="Path A — Sign out (return to welcome)" onPress={() => void logout()} />
+      <HubBtn label="Path B — Upcoming events" onPress={() => go('Events', 'UpcomingEvents')} />
+      <HubBtn label="Path C — Media library" onPress={() => go('Media', 'MediaLibrary')} />
+      <HubBtn label="Path D — Community feed" onPress={() => go('Community', 'CommunityFeed')} />
+      <HubBtn label="Path E — Athlete profile" onPress={() => go('Profile', 'AthleteProfile')} />
       <Pressable style={styles.hubClose} onPress={() => navigation.goBack()}>
         <Text style={styles.muted}>Close</Text>
       </Pressable>

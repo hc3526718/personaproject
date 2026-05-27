@@ -1,6 +1,6 @@
 /** CORS for browser-called Edge Functions (not server webhooks). */
 const DEFAULT_ORIGINS = [
-  'https://dalton-access.vercel.app',
+  'https://daltongrantacademy.vercel.app',
   'http://localhost:8081',
   'http://localhost:19006',
   'http://127.0.0.1:8081',

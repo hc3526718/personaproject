@@ -1,4 +1,4 @@
-# Submission readiness audit — Grant Access
+# Submission readiness audit — The Dalton Grant Academy
 
 Last updated from codebase review. Use as a launch checklist.
 
@@ -20,7 +20,7 @@ Last updated from codebase review. Use as a launch checklist.
 |------|--------|
 | `EXPO_PUBLIC_SUPABASE_URL` / `ANON_KEY` | Production project |
 | `EXPO_PUBLIC_DALTON_WEB_URL` | Production Vercel URL (EAS + local) |
-| Bundle ID / app name | Still demo-oriented in places (`com.hc111.daltondemo`) — align with **Grant Access** production ID |
+| Bundle ID / app name | Still demo-oriented in places (`com.hc111.daltondemo`) — align with **The Dalton Grant Academy** production ID |
 | RevenueCat / Stripe | Production keys for subscriptions |
 | Sentry | DSN for production |
 | Supabase Realtime | Enable replication for `posts` (community feed) |
