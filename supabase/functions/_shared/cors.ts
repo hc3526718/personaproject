@@ -3,6 +3,8 @@ const DEFAULT_ORIGINS = [
   'https://daltongrantacademy.vercel.app',
   /** www subdomain (Stripe return URLs, bookmarks, previews) */
   'https://www.daltongrantacademy.vercel.app',
+  /** Legacy Vercel project URL (still referenced by older deploys) */
+  'https://dalton-access.vercel.app',
   'http://localhost:8081',
   'http://localhost:19006',
   'http://localhost:3000',

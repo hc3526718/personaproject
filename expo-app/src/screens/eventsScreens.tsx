@@ -359,7 +359,7 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
   const route = useRoute<RouteProp<EventsStackParamList, 'UpcomingEvents'>>();
   const { user } = useAuth();
   const { isPro, refresh: refreshSubscription, notifyNewPremiumFromPaywall } = useSubscription();
-  const premiumEventTools = hasPremiumOrAdminTier(isPro, user?.role) || Boolean(user?.masterControl);
+  const premiumEventTools = Boolean(user?.masterControl) || user?.role === 'admin' || user?.role === 'super_admin';
   const canCreate = canCreateVerifiedContent(isPro, user);
   const demoSession = !user || user.id.startsWith('demo-');
   const liveListing =
@@ -410,6 +410,14 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
     if (f) setFilter(f);
   }, [route.params?.initialFilter]);
 
+  const showBanner = useActionBanner();
+  useEffect(() => {
+    const title = route.params?.createdEventTitle?.trim();
+    if (!title) return;
+    showBanner('Event published', title);
+    navigation.setParams({ createdEventTitle: undefined });
+  }, [route.params?.createdEventTitle, navigation, showBanner]);
+
   const mergedRows = useMemo(() => {
     if (isSupabaseConfigured()) return browseRowsDbOnly(dbEvents);
     return mergeBrowseRows(dbEvents, UPCOMING_EVENTS_FROM_HTML);
@@ -431,7 +439,7 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
       { key: 'saved' },
       { key: 'past' },
     ];
-    if (isPro || user?.masterControl) base.push({ key: 'my_events' });
+    if (user?.masterControl || user?.role === 'admin' || user?.role === 'super_admin') base.push({ key: 'my_events' });
     return base;
   }, [isPro, user?.masterControl]);
 
@@ -478,8 +486,7 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
                   notifyNewPremiumFromPaywall,
                 });
                 if (allowed === 'allowed') {
-                  if (user?.daltonVerified) navigation.navigate('CreateEvent');
-                  else navigation.navigate('EventProposalWizard');
+                  navigation.navigate('CreateEvent');
                 }
               })();
             }}

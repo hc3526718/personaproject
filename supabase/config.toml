@@ -23,5 +23,8 @@ verify_jwt = false
 # Marketing contact form validates Origin + anon apikey headers inside the function.
 verify_jwt = false
 
+[functions.verify-master-pin]
+verify_jwt = false
+
 [functions.notify-masters-proposal]
 verify_jwt = false

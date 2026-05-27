@@ -55,7 +55,7 @@ export type BookingConfirmParams = {
 export type EventsBrowseFilterChip = 'all' | 'booked' | 'saved' | 'past' | 'my_events';
 
 export type EventsStackParamList = {
-  UpcomingEvents: { initialFilter?: EventsBrowseFilterChip } | undefined;
+  UpcomingEvents: { initialFilter?: EventsBrowseFilterChip; createdEventTitle?: string } | undefined;
   EventsSearch: undefined;
   EventDetails: {
     title?: string;

@@ -1,12 +1,12 @@
 import type { AppUser } from '../auth/AuthContext';
 
 /**
- * Premium (or elevated role) plus Dalton verification — server should mirror before accepting uploads.
+ * Creator tools (events, media uploads, sponsor proposals) — master control only for launch.
+ * Premium / Dalton verification gates are paused; re-enable in `creatorAccess` when ready.
  */
-/** Premium or admin hosts can create events/media once Dalton-verified (server should mirror). */
-export function canCreateVerifiedContent(isPro: boolean, user: AppUser | null): boolean {
-  if (user?.masterControl) return true;
-  if (!user?.daltonVerified) return false;
+export function canCreateVerifiedContent(_isPro: boolean, user: AppUser | null): boolean {
+  if (!user) return false;
+  if (user.masterControl) return true;
   if (user.role === 'admin' || user.role === 'super_admin') return true;
-  return isPro;
+  return false;
 }

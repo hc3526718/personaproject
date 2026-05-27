@@ -18,14 +18,20 @@ import Stripe from 'npm:stripe@17.7.0';
 import { corsHeaders } from '../_shared/cors.ts';
 
 type Body = {
-  plan?: 'monthly' | 'annual';
+  plan?: 'monthly' | 'annual' | 'access';
   mode?: 'subscription' | 'event';
   event_id?: string;
   success_url?: string;
   cancel_url?: string;
 };
 
-function priceIdForPlan(plan: 'monthly' | 'annual'): string | null {
+function priceIdForPlan(plan: 'monthly' | 'annual' | 'access'): string | null {
+  if (plan === 'access') {
+    return (
+      (Deno.env.get('STRIPE_PRICE_ACCESS_MONTHLY_ID') ?? Deno.env.get('STRIPE_PRICE_MONTHLY_ID') ?? '').trim() ||
+      null
+    );
+  }
   if (plan === 'annual') {
     return (Deno.env.get('STRIPE_PRICE_ANNUAL_ID') ?? '').trim() || null;
   }
@@ -145,7 +151,8 @@ Deno.serve(async (req) => {
         ...(user.email ? { customer_email: user.email } : {}),
       });
     } else {
-      const plan = body.plan === 'annual' ? 'annual' : 'monthly';
+      const plan =
+        body.plan === 'annual' ? 'annual' : body.plan === 'access' ? 'access' : 'monthly';
       const priceId = priceIdForPlan(plan);
       if (!priceId) {
         return new Response(JSON.stringify({ error: 'price_not_configured', plan }), {
@@ -159,7 +166,7 @@ Deno.serve(async (req) => {
         success_url: successUrl,
         cancel_url: cancelUrl,
         client_reference_id: user.id,
-        metadata: { user_id: user.id, plan },
+        metadata: { user_id: user.id, plan, purpose: plan === 'access' ? 'academy_access' : 'premium' },
         subscription_data: {
           metadata: { user_id: user.id },
         },

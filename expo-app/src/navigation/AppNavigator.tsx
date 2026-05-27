@@ -105,6 +105,9 @@ import {
   MasterVerificationQueueScreen,
 } from '../screens/masterControlScreens';
 import { ProposalOutcomeHost } from '../components/ProposalOutcomeHost';
+import { AcademyAccessPaywall } from '../components/AcademyAccessPaywall';
+import { hasAppAccess, isAccessExemptUser } from '../subscriptions/appAccess';
+import { useSubscription } from '../subscriptions/SubscriptionContext';
 import {
   CreatePasswordScreen,
   ForgotPasswordScreen,
@@ -252,7 +255,8 @@ const TAB_BAR_TOP_PAD = 12;
 const TAB_BAR_EXTRA_BOTTOM = 8;
 
 function AuthenticatedShell() {
-  const { user } = useAuth();
+  const { user, sessionEmail } = useAuth();
+  const { isPro, busy: subscriptionBusy, refresh: refreshSubscription } = useSubscription();
   const supabase = getSupabase();
   const [gate, setGate] = useState<'loading' | 'onboarding' | 'app'>('loading');
   const [oauthProfileSetupOpen, setOauthProfileSetupOpen] = useState(false);
@@ -322,6 +326,10 @@ function AuthenticatedShell() {
 
   const { colors } = useAccessibility();
 
+  const accessExempt = isAccessExemptUser(user, sessionEmail);
+  const needsPaidAccess = gate === 'app' && user && !accessExempt;
+  const accessGranted = hasAppAccess(user, isPro, sessionEmail);
+
   if (gate === 'loading') {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
@@ -331,6 +339,18 @@ function AuthenticatedShell() {
         onFinished={() => {
           setGate('loading');
           void refreshGate();
+        }}
+      />
+    );
+  }
+  if (needsPaidAccess && subscriptionBusy) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+  if (needsPaidAccess && !accessGranted) {
+    return (
+      <AcademyAccessPaywall
+        onAccessGranted={() => {
+          void refreshSubscription();
         }}
       />
     );

@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   Platform,
   Pressable,
@@ -30,14 +29,23 @@ import { pickWebMediaFile } from '../lib/webFilePicker';
 import type { EventsStackParamList } from '../navigation/types';
 import { insertCommunityEvent } from '../roadmap/liveDataService';
 import { WizardChrome } from './proposals/WizardChrome';
+import { WebScheduleField } from '../components/WebScheduleField';
+import { PlacesAutocompleteField } from '../components/PlacesAutocompleteField';
 
 type Props = Pick<NativeStackScreenProps<EventsStackParamList, 'CreateEvent'>, 'navigation'>;
+
+type ConfirmPayload = {
+  title: string;
+  venue: string;
+  scheduleLine: string;
+  agenda: { title: string; time: string }[];
+};
 
 type AssetItem = { uri: string; kind: 'image' | 'video' };
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'All levels'] as const;
 type AgendaSplit = '15' | '30' | '60' | 'custom';
 const DESC_MIN = 100;
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 function inferImageContentType(uri: string): string {
   const u = uri.toLowerCase().split('?')[0] ?? '';
@@ -117,7 +125,25 @@ export function CreateEventWizard({ navigation }: Props) {
   ]);
   const [faqs, setFaqs] = useState<{ q: string; a: string }[]>([{ q: '', a: '' }]);
   const [bring, setBring] = useState('');
+  const [confirm, setConfirm] = useState<ConfirmPayload | null>(null);
 
+  const finishAfterPublish = useCallback(
+    (payload: ConfirmPayload) => {
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'UpcomingEvents',
+            params: {
+              initialFilter: 'my_events',
+              createdEventTitle: payload.title,
+            },
+          },
+        ],
+      });
+    },
+    [navigation],
+  );
   const goBack = useWizardBack(step, setStep, () => navigation.goBack());
 
   const minSelectableDate = useMemo(() => minScheduleStartDate(), []);
@@ -239,8 +265,8 @@ export function CreateEventWizard({ navigation }: Props) {
       return;
     }
     setError(null);
-    if (step < TOTAL_STEPS) setStep(step + 1);
-    else void publish();
+    if (step < 5) setStep(step + 1);
+    else if (step === 5) void publish();
   };
 
   const publish = useCallback(() => {
@@ -254,6 +280,7 @@ export function CreateEventWizard({ navigation }: Props) {
       .filter((f) => f.q.trim() && f.a.trim())
       .map((f) => `Q: ${f.q.trim()}\nA: ${f.a.trim()}`);
     const agendaBlock = completeAgenda.map((row) => `• ${row.time.trim()} — ${row.title.trim()}`).join('\n');
+    const scheduleLine = `${formatDate(eventDate)} · ${formatTime(eventTime)}${duration.trim() ? ` · ${duration}` : ''}`;
     const descParts: string[] = [
       description.trim(),
       '',
@@ -267,6 +294,12 @@ export function CreateEventWizard({ navigation }: Props) {
     if (faqLines.length > 0) descParts.push('', 'FAQs:', ...faqLines);
     descParts.push('', `What to bring: ${bring.trim() || '—'}`);
     const longDesc = descParts.join('\n');
+    const confirmPayload: ConfirmPayload = {
+      title: eventTitle.trim(),
+      venue: venue.trim(),
+      scheduleLine,
+      agenda: completeAgenda,
+    };
 
     setPublishing(true);
     void (async () => {
@@ -292,7 +325,8 @@ export function CreateEventWizard({ navigation }: Props) {
         setError('Could not publish. Check your connection and permissions.');
         return;
       }
-      Alert.alert('Event published', row.title, [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      setConfirm(confirmPayload);
+      setStep(6);
     })();
   }, [
     publishing,
@@ -311,17 +345,22 @@ export function CreateEventWizard({ navigation }: Props) {
     sortedAssets,
     eventTitle,
     costFree,
-    navigation,
   ]);
 
-  const chrome = (children: import('react').ReactNode, nextLabel?: string) => (
+  useEffect(() => {
+    if (step !== 6 || !confirm) return;
+    const timer = setTimeout(() => finishAfterPublish(confirm), 2800);
+    return () => clearTimeout(timer);
+  }, [step, confirm, finishAfterPublish]);
+
+  const chrome = (children: import('react').ReactNode, nextLabel?: string, hideNext?: boolean) => (
     <WizardChrome
       title="Create event"
       step={step}
       totalSteps={TOTAL_STEPS}
-      onBack={goBack}
-      onNext={nextStep}
-      nextLabel={nextLabel ?? (step === TOTAL_STEPS ? (publishing ? 'Publishing…' : 'Publish event') : 'Continue')}
+      onBack={step === 6 ? () => confirm && finishAfterPublish(confirm) : goBack}
+      onNext={hideNext ? undefined : nextStep}
+      nextLabel={nextLabel ?? (step === 5 ? (publishing ? 'Publishing…' : 'Publish event') : 'Continue')}
       nextDisabled={publishing}
       errorMessage={error}
     >
@@ -423,42 +462,63 @@ export function CreateEventWizard({ navigation }: Props) {
     return chrome(
       <>
         <Text style={s.lead}>When and where does your event run?</Text>
-        <FormField label="Date" required>
-          <Pressable style={s.pickerBtn} onPress={() => setShowDatePicker(true)}>
-            <FontAwesome name="calendar" size={16} color={DS.color.gold} />
-            <Text style={s.pickerBtnText}>{formatDate(eventDate)}</Text>
-          </Pressable>
-          {showDatePicker ? (
-            <DateTimePicker
-              value={eventDate}
+        {Platform.OS === 'web' ? (
+          <>
+            <WebScheduleField
               mode="date"
+              value={eventDate}
               minimumDate={minSelectableDate}
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(e, d) => onPickerChange('date', e, d)}
+              onChange={setEventDate}
+              label="Date *"
+              formatDisplay={formatDate}
             />
-          ) : null}
-        </FormField>
-        <FormField label="Time" required>
-          <Pressable style={s.pickerBtn} onPress={() => setShowTimePicker(true)}>
-            <FontAwesome name="clock-o" size={16} color={DS.color.gold} />
-            <Text style={s.pickerBtnText}>{formatTime(eventTime)}</Text>
-          </Pressable>
-          {showTimePicker ? (
-            <DateTimePicker
-              value={eventTime}
+            <WebScheduleField
               mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(e, d) => onPickerChange('time', e, d)}
+              value={eventTime}
+              onChange={setEventTime}
+              label="Time *"
+              formatDisplay={formatTime}
             />
-          ) : null}
-        </FormField>
+          </>
+        ) : (
+          <>
+            <FormField label="Date" required>
+              <Pressable style={s.pickerBtn} onPress={() => setShowDatePicker(true)}>
+                <FontAwesome name="calendar" size={16} color={DS.color.gold} />
+                <Text style={s.pickerBtnText}>{formatDate(eventDate)}</Text>
+              </Pressable>
+              {showDatePicker ? (
+                <DateTimePicker
+                  value={eventDate}
+                  mode="date"
+                  minimumDate={minSelectableDate}
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(e, d) => onPickerChange('date', e, d)}
+                />
+              ) : null}
+            </FormField>
+            <FormField label="Time" required>
+              <Pressable style={s.pickerBtn} onPress={() => setShowTimePicker(true)}>
+                <FontAwesome name="clock-o" size={16} color={DS.color.gold} />
+                <Text style={s.pickerBtnText}>{formatTime(eventTime)}</Text>
+              </Pressable>
+              {showTimePicker ? (
+                <DateTimePicker
+                  value={eventTime}
+                  mode="time"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(e, d) => onPickerChange('time', e, d)}
+                />
+              ) : null}
+            </FormField>
+          </>
+        )}
         <FormField label="Venue / location" required>
-          <TextInput
+          <PlacesAutocompleteField
             value={venue}
             onChangeText={setVenue}
             placeholder="City, facility, or online link"
-            placeholderTextColor={DS.color.textMuted}
-            style={s.input}
+            inputStyle={s.input}
           />
         </FormField>
         <FormField label="Expected attendance" required>
@@ -594,28 +654,68 @@ export function CreateEventWizard({ navigation }: Props) {
     );
   }
 
-  return chrome(
-    <>
-      <Text style={s.lead}>Review before publishing.</Text>
-      <Text style={s.reviewLabel}>Title</Text>
-      <Text style={s.reviewVal}>{eventTitle.trim() || '—'}</Text>
-      <Text style={s.reviewLabel}>Schedule</Text>
-      <Text style={s.reviewVal}>
-        {formatDate(eventDate)} · {formatTime(eventTime)}
-        {duration.trim() ? ` · ${duration}` : ''}
-      </Text>
-      <Text style={s.reviewLabel}>Venue</Text>
-      <Text style={s.reviewVal}>{venue.trim() || '—'}</Text>
-      <Text style={s.reviewLabel}>Attendance</Text>
-      <Text style={s.reviewVal}>{maxAttendance || '—'}</Text>
-      <Text style={s.reviewLabel}>Cost</Text>
-      <Text style={s.reviewVal}>{costFree ? 'Free' : `$${price}`}</Text>
-      <Text style={s.reviewLabel}>Level</Text>
-      <Text style={s.reviewVal}>{level}</Text>
-      <Text style={s.reviewLabel}>Media</Text>
-      <Text style={s.reviewVal}>{sortedAssets.length} file(s)</Text>
-    </>,
-  );
+  if (step === 5) {
+    const completeAgenda = agenda.filter((row) => row.title.trim() && row.time.trim());
+    return chrome(
+      <>
+        <Text style={s.lead}>Review before publishing.</Text>
+        <Text style={s.reviewLabel}>Title</Text>
+        <Text style={s.reviewVal}>{eventTitle.trim() || '—'}</Text>
+        <Text style={s.reviewLabel}>Schedule</Text>
+        <Text style={s.reviewVal}>
+          {formatDate(eventDate)} · {formatTime(eventTime)}
+          {duration.trim() ? ` · ${duration}` : ''}
+        </Text>
+        <Text style={s.reviewLabel}>Venue</Text>
+        <Text style={s.reviewVal}>{venue.trim() || '—'}</Text>
+        <Text style={s.reviewLabel}>Attendance</Text>
+        <Text style={s.reviewVal}>{maxAttendance || '—'}</Text>
+        <Text style={s.reviewLabel}>Cost</Text>
+        <Text style={s.reviewVal}>{costFree ? 'Free' : `$${price}`}</Text>
+        <Text style={s.reviewLabel}>Level</Text>
+        <Text style={s.reviewVal}>{level}</Text>
+        <Text style={s.reviewLabel}>Media</Text>
+        <Text style={s.reviewVal}>{sortedAssets.length} file(s)</Text>
+        <Text style={s.reviewLabel}>Agenda</Text>
+        {completeAgenda.length > 0 ? (
+          completeAgenda.map((row, i) => (
+            <Text key={i} style={s.agendaPreview}>
+              {row.time.trim()} — {row.title.trim()}
+            </Text>
+          ))
+        ) : (
+          <Text style={s.reviewVal}>—</Text>
+        )}
+      </>,
+    );
+  }
+
+  if (step === 6 && confirm) {
+    return chrome(
+      <>
+        <View style={s.confirmHero}>
+          <FontAwesome name="check-circle" size={48} color={DS.color.gold} />
+          <Text style={s.confirmTitle}>Event published</Text>
+          <Text style={s.confirmSubtitle}>{confirm.title}</Text>
+        </View>
+        <Text style={s.reviewLabel}>Schedule</Text>
+        <Text style={s.reviewVal}>{confirm.scheduleLine}</Text>
+        <Text style={s.reviewLabel}>Venue</Text>
+        <Text style={s.reviewVal}>{confirm.venue}</Text>
+        <Text style={s.reviewLabel}>Agenda</Text>
+        {confirm.agenda.map((row, i) => (
+          <Text key={i} style={s.agendaPreview}>
+            {row.time.trim()} — {row.title.trim()}
+          </Text>
+        ))}
+        <Text style={s.confirmHint}>Taking you to your events…</Text>
+      </>,
+      undefined,
+      true,
+    );
+  }
+
+  return null;
 }
 
 const s = StyleSheet.create({
@@ -713,6 +813,34 @@ const s = StyleSheet.create({
     letterSpacing: 0.5,
   },
   reviewVal: { fontFamily: DS.font.body, fontSize: 15, color: DS.color.text },
+  agendaPreview: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.text,
+    marginBottom: 4,
+    paddingLeft: DS.space.sm,
+  },
+  confirmHero: { alignItems: 'center', marginBottom: DS.space.lg, marginTop: DS.space.md },
+  confirmTitle: {
+    fontFamily: DS.font.heading,
+    fontSize: 24,
+    color: DS.color.text,
+    marginTop: DS.space.md,
+  },
+  confirmSubtitle: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    color: DS.color.gold,
+    marginTop: DS.space.sm,
+    textAlign: 'center',
+  },
+  confirmHint: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    textAlign: 'center',
+    marginTop: DS.space.xl,
+  },
   pickerBtn: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import { getDaltonWebUrl, isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 
-export type StripePlanKey = 'monthly' | 'annual';
+export type StripePlanKey = 'monthly' | 'annual' | 'access';
 
 export type StripePlanDisplay = {
   key: StripePlanKey;
@@ -60,6 +60,11 @@ export function getStripeCheckoutReturnBaseUrl(): string {
 export type StartStripeCheckoutResult =
   | { ok: true; url: string }
   | { ok: false; error: string };
+
+/** Mandatory academy access (£2/mo) — configure STRIPE_PRICE_ACCESS_MONTHLY_ID in Supabase secrets. */
+export function getAcademyAccessPlanLine(): string {
+  return (process.env.EXPO_PUBLIC_ACADEMY_ACCESS_PRICE_LABEL ?? '£2 / month').trim() || '£2 / month';
+}
 
 /** Creates a Stripe Checkout session via Supabase Edge Function (secret key stays server-side). */
 export async function startStripeCheckout(plan: StripePlanKey): Promise<StartStripeCheckoutResult> {

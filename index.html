@@ -192,7 +192,7 @@
     .dga-carousel {
       position: relative;
       width: 100%;
-      max-width: min(620px, 94vw);
+      max-width: min(460px, 88vw);
       margin: 0 auto;
       display: grid;
       gap: 0.85rem;
@@ -207,9 +207,9 @@
     }
     .dga-carousel__stage {
       position: relative;
-      width: min(420px, 88vw);
+      width: min(280px, 72vw);
       aspect-ratio: 1320 / 2868;
-      max-height: min(86vh, 920px);
+      max-height: min(72vh, 620px);
       perspective: 1200px;
       overflow: visible;
     }
@@ -217,9 +217,9 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      width: min(360px, 82vw);
+      width: min(240px, 66vw);
       aspect-ratio: 1320 / 2868;
-      max-height: min(86vh, 920px);
+      max-height: min(72vh, 620px);
       border-radius: 1.2rem;
       overflow: hidden;
       transform-origin: center center;
@@ -253,13 +253,13 @@
     .dga-slide[data-pos="left"] {
       opacity: 0.78;
       filter: blur(1px) brightness(0.62);
-      transform: translate(-50%, -50%) translateX(-168px) scale(0.84) rotateZ(-4deg);
+      transform: translate(-50%, -50%) translateX(-112px) scale(0.84) rotateZ(-4deg);
       z-index: 5 !important;
     }
     .dga-slide[data-pos="right"] {
       opacity: 0.78;
       filter: blur(1px) brightness(0.62);
-      transform: translate(-50%, -50%) translateX(168px) scale(0.84) rotateZ(4deg);
+      transform: translate(-50%, -50%) translateX(112px) scale(0.84) rotateZ(4deg);
       z-index: 5 !important;
     }
     .dga-slide[data-pos="hidden"] {
