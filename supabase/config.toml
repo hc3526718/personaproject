@@ -19,5 +19,9 @@ verify_jwt = false
 [functions.stripe-create-checkout]
 verify_jwt = false
 
+[functions.send-contact-email]
+# Marketing contact form validates Origin + anon apikey headers inside the function.
+verify_jwt = false
+
 [functions.notify-masters-proposal]
 verify_jwt = false

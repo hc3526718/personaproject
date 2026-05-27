@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Dalton Grant Academy — Train. Connect. Get Discovered.</title>
-  <meta name="description" content="The Dalton Grant Academy helps athletes train with intention, connect with the right people, and unlock opportunities—on iOS, Android, and web." />
+  <meta name="description" content="The Dalton Grant Academy helps athletes train with intention, connect with the right people, and unlock opportunities—on iOS and web." />
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared/theme.css">
@@ -148,6 +148,11 @@
       object-fit: cover;
       border: 2px solid rgba(200, 168, 75, 0.55);
     }
+    @media (max-width: 640px) {
+      .landing-auth-fallback--cta {
+        display: none !important;
+      }
+    }
     .dalton-screenshot-fallback {
       display: flex;
       align-items: center;
@@ -183,10 +188,11 @@
     }
 
     /* New carousel (vanilla, no React mount) */
+    /* Showcase frames match source screenshots 1320×2868 (~0.46:1 portrait) */
     .dga-carousel {
       position: relative;
       width: 100%;
-      max-width: 720px;
+      max-width: min(620px, 94vw);
       margin: 0 auto;
       display: grid;
       gap: 0.85rem;
@@ -201,8 +207,9 @@
     }
     .dga-carousel__stage {
       position: relative;
-      width: min(520px, 92vw);
-      height: min(760px, 78vh);
+      width: min(420px, 88vw);
+      aspect-ratio: 1320 / 2868;
+      max-height: min(86vh, 920px);
       perspective: 1200px;
       overflow: visible;
     }
@@ -210,10 +217,11 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      width: min(400px, 86vw);
-      max-height: min(760px, 78vh);
+      width: min(360px, 82vw);
+      aspect-ratio: 1320 / 2868;
+      max-height: min(86vh, 920px);
       border-radius: 1.2rem;
-      overflow: visible;
+      overflow: hidden;
       transform-origin: center center;
       will-change: transform, opacity, filter;
       box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55);
@@ -230,8 +238,8 @@
       display: block;
       width: 100%;
       height: auto;
-      max-height: min(760px, 78vh);
-      object-fit: contain;
+      aspect-ratio: 1320 / 2868;
+      object-fit: cover;
       background: transparent;
     }
     .dga-slide[data-pos="active"] {
@@ -331,7 +339,7 @@
   <div id="dalton-staggered-menu" aria-hidden="false"></div>
 
   <main>
-    <section class="mx-auto max-w-5xl px-6 md:px-8 pt-6 md:pt-8 pb-12">
+    <section class="mx-auto max-w-6xl px-5 pt-6 md:px-8 md:pt-8 pb-12 md:pb-14">
       <div class="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
         <div class="lg:col-span-6">
           <p class="font-bebas text-gold tracking-[0.26em] text-sm">TRAIN · CONNECT · GET DISCOVERED</p>
@@ -339,7 +347,7 @@
             A social sports network built to move your career forward.
           </h1>
           <p class="text-dim mt-5 max-w-xl leading-relaxed">
-            Turn training into momentum. Build your circle, get seen by the right people, and unlock real opportunities — with one account across mobile and web.
+            Turn training into momentum. Build your circle, get seen by the right people, and unlock real opportunities — with one account across iOS and web.
           </p>
           <div class="flex flex-col sm:flex-row gap-3 mt-7">
             <a href="/app" class="px-6 py-3.5 rounded-2xl bg-gold text-ink font-semibold text-sm text-center hover:opacity-90 transition-opacity">Login</a>
@@ -410,11 +418,11 @@
           <p class="text-mist font-semibold mt-2">Human support</p>
           <p class="text-dim text-sm mt-2">Billing, safety, and account requests.</p>
         </a>
-        <a href="/live-chat" class="rounded-[2rem] border border-line bg-panel2 p-6 hover:bg-white/[0.05] transition-colors">
-          <p class="font-bebas text-gold tracking-[0.22em] text-xs">LIVE CHAT</p>
-          <p class="text-mist font-semibold mt-2">AI help assistant</p>
-          <p class="text-dim text-sm mt-2">Instant answers; escalate when needed.</p>
-        </a>
+        <div class="rounded-[2rem] border border-line bg-panel2 p-6">
+          <p class="font-bebas text-gold tracking-[0.22em] text-xs">ASSISTANT</p>
+          <p class="text-mist font-semibold mt-2">AI help</p>
+          <p class="text-dim text-sm mt-2">Use the chat control in the corner on this site for instant answers; escalate via Contact if needed.</p>
+        </div>
       </div>
     </section>
   </main>

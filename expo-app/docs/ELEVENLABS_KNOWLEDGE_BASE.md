@@ -2,8 +2,8 @@
 
 **Scope:** App product information only. Do not discuss topics outside this product (no general chat, politics, unrelated services, or internal admin secrets).
 
-**Web app:** https://daltongrantacademy.vercel.app/app  
-**Marketing site:** https://daltongrantacademy.vercel.app  
+**Web app:** [https://daltongrantacademy.vercel.app/app](https://daltongrantacademy.vercel.app/app)  
+**Marketing site:** [https://daltongrantacademy.vercel.app](https://daltongrantacademy.vercel.app)  
 **Last updated:** 2026-05-27
 
 ---
@@ -12,17 +12,19 @@
 
 **The Dalton Grant Academy** is a performance community platform for athletes and creators.
 
-| Area | What users do |
-|------|----------------|
-| **Community** | Feed, posts, reactions, comments, direct messages |
-| **Events** | Discover, book, save; hosts create sessions and use QR check-in (premium + Dalton verified) |
-| **Media** | Training and mindset video library; uploads for verified creators |
-| **Sponsors** | Partner listings and partnership inquiries (premium) |
-| **Profile** | Bio, sports, highlights, results, banner, profile photo |
-| **Premium** | Paid subscription (**Grant Access Pro** entitlement) for creator tools after **Dalton verification** |
 
-**Accounts:** Supabase Auth — email/password, Google, and Apple (iOS).  
-**One account on all devices:** Same email on web, iOS, and Android; subscription status is stored per account in `subscription_state`.
+| Area          | What users do                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| **Community** | Feed, posts, reactions, comments, direct messages                                                    |
+| **Events**    | Discover, book, save; hosts create sessions and use QR check-in (premium + Dalton verified)          |
+| **Media**     | Training and mindset video library; uploads for verified creators                                    |
+| **Sponsors**  | Partner listings and partnership inquiries (premium)                                                 |
+| **Profile**   | Bio, sports, highlights, results, banner, profile photo                                              |
+| **Premium**   | Paid subscription (**Grant Access Pro** entitlement) for creator tools after **Dalton verification** |
+
+
+**Accounts:** Supabase Auth — email/password, Google on web; email/password, Google, and Apple on iOS.  
+**One account on all devices:** Same email on web and iOS carries your profile and subscription in `subscription_state`. **Android is not released yet.**
 
 ---
 
@@ -43,33 +45,35 @@
 
 ### Two steps for creator features
 
-1. **Premium subscription** (paid) — required first.  
-2. **Dalton verification** (master-team approval) — required before publishing events or media.
+1. **Premium subscription** (paid) — required first.
+2. **Dalton verification** — automatic approval (usually ~24–48 hours after subscribing) required before creator tools activate. Nothing separate to submit.
 
 `dalton_verified` **without** premium does **not** unlock creator tools.
 
 ### Purchasing premium
 
-| Platform | Path |
-|----------|------|
-| **Web** | Profile → Premium → Stripe Checkout |
-| **iOS / Android** | RevenueCat paywall (App Store / Google Play) |
 
-**One subscription per account** — do not buy separately on web and mobile for the same email. After payment, wait 1–2 minutes, then refresh or use **Restore purchases** on mobile.
+| Platform | Path                                                         |
+| -------- | ------------------------------------------------------------ |
+| **Web**  | Profile → Premium → Stripe Checkout                          |
+| **iOS**  | RevenueCat paywall (App Store)                               |
+
+**Android:** not shipped yet.
+
+
+**One subscription per account** — do not buy separately on web and mobile for the same email. After payment, wait 1–2 minutes, then refresh or use **Restore purchases** on iOS.
 
 ### If the + button shows a paywall
 
-The user is not premium. Subscribe on web (Stripe) or mobile (stores).
+The user is not premium. Subscribe on web (Stripe Checkout) or on iPhone (App Store).
 
 ### If the user sees “Awaiting Dalton verification”
 
-They have premium but are **not yet Dalton verified**. Creator tools (host events, upload media, sponsor proposals) stay locked until a **master account** approves them in **Master control → Dalton verification queue**. Do not promise instant verification.
+The user has Grant Access Pro but verification has not landed yet. Creator tools stay locked until automatic verification completes (~24–48 hours after purchase).
 
-### Restore purchases (mobile)
+### Restore purchases (iOS)
 
 Profile → Premium → **Restore purchases**. Use the same email as the original purchase.
-
----
 
 ## Main tabs
 
@@ -101,7 +105,7 @@ Profile → Premium → **Restore purchases**. Use the same email as the origina
 ### Profile and settings
 
 - Edit profile sections: basic info, photo, banner, bio, interests, highlights, recent results.
-- **Settings → Accessibility:** Larger Text (1×–3×), Differentiate Without Color, Sufficient Contrast; dark interface is default; prefs sync when signed in.
+- **Settings → Accessibility:** Larger Text (1×–3×), Differentiate Without Color Alone, Sufficient Contrast; dark interface is default; prefs sync when signed in.
 - **Settings → Legal:** Terms, Privacy, Cookie policy, Athlete agreement (website links).
 - **Settings → Support / Help centre:** in-app and web guides.
 
@@ -109,21 +113,21 @@ Profile → Premium → **Restore purchases**. Use the same email as the origina
 
 ## Web vs mobile
 
-| Feature | Web | iOS / Android |
-|--------|-----|----------------|
-| Sign in | Email, Google | Email, Google, Apple |
-| Premium | Stripe Checkout | RevenueCat / stores |
-| Video upload | More limited | Full library picker |
-| Auth welcome animation | Rive on canvas (transparent background) | Native Rive or embed |
+
+| Feature             | Web                | iOS                |
+| ------------------- | ------------------ | ------------------ |
+| Sign in             | Email, Google      | Email, Google, Apple |
+| Premium             | Stripe Checkout    | RevenueCat / App Store |
+| Video upload        | More limited       | Full library picker |
 
 ---
 
 ## Accessibility (in-app — four features only)
 
-1. **Larger Text**  
-2. **Dark Interface** (default)  
-3. **Differentiate Without Color Alone**  
-4. **Sufficient Contrast**  
+1. **Larger Text**
+2. **Dark Interface** (default)
+3. **Differentiate Without Color Alone**
+4. **Sufficient Contrast**
 
 Do not describe VoiceOver, captions, reduced motion, or light theme as shipped product features.
 
@@ -131,15 +135,17 @@ Do not describe VoiceOver, captions, reduced motion, or light theme as shipped p
 
 ## Legal pages (website)
 
-| Document | Path |
-|----------|------|
-| Terms | `/terms` |
-| Privacy | `/privacy` |
-| Cookies | `/cookie-policy` |
-| Athlete agreement | `/athlete-agreement` |
-| Help centre | `/help-center` |
-| Contact | `/contact-us` |
-| Live chat | Anchored assistant on every marketing page (`/help-center`, `/contact-us`, etc.) — no separate chat URL required (`/live-chat` redirects to Help). |
+
+| Document          | Path                                                                                                                                               |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Terms             | `/terms`                                                                                                                                           |
+| Privacy           | `/privacy`                                                                                                                                         |
+| Cookies           | `/cookie-policy`                                                                                                                                   |
+| Athlete agreement | `/athlete-agreement`                                                                                                                               |
+| Help centre       | `/help-center`                                                                                                                                     |
+| Contact           | `/contact-us`                                                                                                                                      |
+| Live chat         | Anchored assistant on every marketing page (`/help-center`, `/contact-us`, etc.) — no separate chat URL required (`/live-chat` redirects to Help). |
+
 
 In-app: Profile → Settings → Legal.
 
@@ -147,15 +153,17 @@ In-app: Profile → Settings → Legal.
 
 ## Common app issues (in-product answers only)
 
-| Symptom | What to tell the user |
-|---------|------------------------|
-| Cannot log in | Confirm email verified; check network; on web allow cookies; retry Google sign-in |
-| Premium missing after payment | Wait 1–2 minutes; web: return from Stripe success URL; mobile: Restore purchases; same email everywhere |
-| Paywall will not open (mobile) | Real build required (not Expo Go) |
-| Paywall will not open (web) | Must be signed in; Stripe functions must be deployed |
-| Feed not updating | Pull to refresh; reopen app; check connection |
-| Cannot upload photo | Grant photo library permission; check connection |
-| Animation shows a box on web | Page/canvas background should be dark `#0A0A0A`; animation uses a transparent canvas — no extra panel behind the art |
+
+| Symptom                        | What to tell the user                                                                                                |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Cannot log in                  | Confirm email verified; check network; on web allow cookies; retry Google sign-in                                    |
+| Premium missing after payment  | Wait 1–2 minutes; web: return from Stripe success URL; mobile: Restore purchases; same email everywhere              |
+| Paywall will not open (mobile) | Real build required (not Expo Go)                                                                                    |
+| Paywall will not open (web)    | Must be signed in; Stripe functions must be deployed                                                                 |
+| Feed not updating              | Pull to refresh; reopen app; check connection                                                                        |
+| Cannot upload photo            | Grant photo library permission; check connection                                                                     |
+| Animation shows a box on web   | Page/canvas background should be dark `#0A0A0A`; animation uses a transparent canvas — no extra panel behind the art |
+
 
 ---
 
@@ -177,8 +185,8 @@ A: Media tab → bookmark icon → Saved library.
 A: Profile → Edit Profile Sections → Bio.
 
 **Q: Who can verify my account?**  
-A: Only Dalton Grant Academy master accounts — not self-service in the app.
+A: Dalton verification is handled automatically after you subscribe — the team queues it behind the scenes; it is **not** a self-serve button in the app.
 
----
-
+**Q: How do I reach a human?**  
+A: Use Profile → Settings → Support, or `/contact-us` on the website. Replies typically come within **24–48 hours** — do **not** read raw mailbox addresses aloud in voice/chat.
 *Regenerate when major app releases change tabs, billing, or verification flow.*

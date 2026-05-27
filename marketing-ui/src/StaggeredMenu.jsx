@@ -397,39 +397,7 @@ export const StaggeredMenu = ({
         })()}
       </div>
       <header className="staggered-menu-header" aria-label="Main navigation header">
-        <button
-          ref={toggleBtnRef}
-          className={'sm-toggle' + (hamburgerOnly ? ' sm-toggle--hamburger' : '')}
-          aria-label={open ? 'Close menu' : 'Open menu'}
-          aria-expanded={open}
-          aria-controls="staggered-menu-panel"
-          onClick={toggleMenu}
-          type="button"
-        >
-          {hamburgerOnly ? (
-            <span className="sm-hamburger" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-          ) : (
-            <>
-              <span ref={textWrapRef} className="sm-toggle-textWrap" aria-hidden="true">
-                <span ref={textInnerRef} className="sm-toggle-textInner">
-                  {textLines.map((l, i) => (
-                    <span className="sm-toggle-line" key={i}>
-                      {l}
-                    </span>
-                  ))}
-                </span>
-              </span>
-              <span ref={iconRef} className="sm-icon" aria-hidden="true">
-                <span ref={plusHRef} className="sm-icon-line" />
-                <span ref={plusVRef} className="sm-icon-line sm-icon-line-v" />
-              </span>
-            </>
-          )}
-        </button>
+        <div className="sm-header-spacer" aria-hidden="true" />
         <div className="sm-logo sm-logo--center" aria-label="Logo">
           <a href="/">
             <img
@@ -442,7 +410,42 @@ export const StaggeredMenu = ({
             />
           </a>
         </div>
-        <div className="sm-header-end">{headerEnd}</div>
+        <div className="sm-header-end">
+          <button
+            ref={toggleBtnRef}
+            className={'sm-toggle' + (hamburgerOnly ? ' sm-toggle--hamburger' : '')}
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-expanded={open}
+            aria-controls="staggered-menu-panel"
+            onClick={toggleMenu}
+            type="button"
+          >
+            {hamburgerOnly ? (
+              <span className="sm-hamburger" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            ) : (
+              <>
+                <span ref={textWrapRef} className="sm-toggle-textWrap" aria-hidden="true">
+                  <span ref={textInnerRef} className="sm-toggle-textInner">
+                    {textLines.map((l, i) => (
+                      <span className="sm-toggle-line" key={i}>
+                        {l}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+                <span ref={iconRef} className="sm-icon" aria-hidden="true">
+                  <span ref={plusHRef} className="sm-icon-line" />
+                  <span ref={plusVRef} className="sm-icon-line sm-icon-line-v" />
+                </span>
+              </>
+            )}
+          </button>
+          {headerEnd}
+        </div>
       </header>
 
       <aside id="staggered-menu-panel" ref={panelRef} className="staggered-menu-panel" aria-hidden={!open}>

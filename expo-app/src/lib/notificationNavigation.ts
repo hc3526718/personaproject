@@ -29,11 +29,10 @@ export function navigateFromInAppNotification(
   navigation: NavigationProp<MainTabParamList>,
   linkType?: string | null,
   linkId?: string | null,
-  title?: string,
+  _title?: string,
 ): boolean {
   const lt = (linkType ?? '').trim().toLowerCase();
   const id = linkId?.trim();
-  const t = (title ?? '').toLowerCase();
 
   if (lt === 'proposal_outcome' && id) {
     requestProposalOutcomeModal(id);
@@ -65,14 +64,6 @@ export function navigateFromInAppNotification(
   }
   if (lt === 'post' && id) {
     navigation.navigate('Community', { screen: 'CommunityFeed' } as never);
-    return true;
-  }
-  if (t.includes('message') || t.includes('new message')) {
-    navigation.navigate('Community', { screen: 'MessagesInbox' } as never);
-    return true;
-  }
-  if (t.includes('proposal')) {
-    navigation.navigate('Profile', { screen: 'MyProposals' } as never);
     return true;
   }
   return false;

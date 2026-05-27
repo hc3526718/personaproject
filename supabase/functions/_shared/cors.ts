@@ -1,9 +1,13 @@
 /** CORS for browser-called Edge Functions (not server webhooks). */
 const DEFAULT_ORIGINS = [
   'https://daltongrantacademy.vercel.app',
+  /** www subdomain (Stripe return URLs, bookmarks, previews) */
+  'https://www.daltongrantacademy.vercel.app',
   'http://localhost:8081',
   'http://localhost:19006',
+  'http://localhost:3000',
   'http://127.0.0.1:8081',
+  'http://127.0.0.1:3000',
 ];
 
 function allowedOrigins(): string[] {
@@ -23,6 +27,13 @@ export function corsHeaders(req: Request): Record<string, string> {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Vary': 'Origin',
   };
+}
+
+/** True when Origin is absent (server-to-server) or matches an allowed marketing/app origin. */
+export function isBrowserOriginAllowed(req: Request): boolean {
+  const origin = req.headers.get('Origin');
+  if (!origin) return true;
+  return allowedOrigins().includes(origin);
 }
 
 /** Webhooks (Stripe / RevenueCat) have no browser Origin — permissive is fine. */

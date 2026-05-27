@@ -1,4 +1,4 @@
-import { BRAND_NAME, BRAND_WEB_ORIGIN } from '../constants/brand';
+import { BRAND_CONTACT_RESPONSE_WINDOW, BRAND_NAME, BRAND_WEB_ORIGIN } from '../constants/brand';
 import type { LegalPagePath } from '../lib/legalUrls';
 
 export type HelpArticle = {
@@ -47,16 +47,16 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
   {
     id: 'premium',
     title: 'Premium & one subscription',
-    keywords: ['subscribe', 'paywall', 'stripe', 'revenuecat', 'billing', 'restore', 'web', 'ios', 'android'],
+    keywords: ['subscribe', 'paywall', 'stripe', 'revenuecat', 'billing', 'restore', 'web', 'ios', 'app store'],
     body:
-      'Premium unlocks creator tools after Dalton verification. Pay on web (Stripe) or on iPhone/Android (App Store / Play)—one subscription per account, not per device. Sign in with the same email everywhere; status syncs via your account. Web: Profile → Premium. Mobile: Restore purchases after signing in.',
+      'Grant Access Pro unlocks creator tools after Dalton verification. Pay on web (Stripe Checkout) or on iPhone (App Store / RevenueCat)—one subscription per account, not per device. Android is not available yet. Sign in with the same email everywhere; status syncs via your account. Web: Profile → Premium. iOS: Restore purchases after signing in.',
   },
   {
     id: 'verification',
     title: 'Dalton verification',
     keywords: ['verified', 'creator', 'awaiting', 'publish', 'host', 'upload'],
     body:
-      'Premium is required first. Dalton verification is a separate team approval before you can publish events or media. If you see “Awaiting Dalton verification”, your review is in progress—contact Support if it has been longer than expected.',
+      'Premium is required first. Dalton verification is usually sent automatically within about 24–48 hours of subscribing—there is nothing separate to submit. Creator tools stay locked until verification lands. If you still see “Awaiting Dalton verification” after that window, contact us via Support.',
   },
   {
     id: 'community',
@@ -70,7 +70,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Events & bookings',
     keywords: ['book', 'ticket', 'qr', 'check-in', 'saved', 'host'],
     body:
-      'Discover events under Events → filters (All, Bookings, Saved). Booking requires an internet connection. Host tools and QR check-in need Premium and verification.',
+      'Discover events under Events → filters (All, Booked, Saved, Past, My events). Booking requires an internet connection. Host tools and QR check-in need Grant Access Pro and Dalton verification.',
   },
   {
     id: 'messages',
@@ -84,7 +84,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Accessibility',
     keywords: ['larger text', 'contrast', 'dark', 'color', 'settings'],
     body:
-      `Profile → Settings → Accessibility: Larger Text, Differentiate Without Color, and Sufficient Contrast. ${BRAND_NAME} uses a dark interface by default. Preferences sync across devices when signed in.`,
+      `Profile → Settings → Accessibility: Larger Text (1x–3x), Differentiate Without Color Alone, and Sufficient Contrast. ${BRAND_NAME} uses a dark interface by default (no light theme). Preferences sync across devices when signed in.`,
   },
   {
     id: 'legal-overview',
@@ -163,13 +163,13 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Delete my account',
     keywords: ['gdpr', 'remove', 'deletion', 'support'],
     body:
-      'Settings → Delete Account removes your profile and sign-in permanently (type DELETE to confirm). Cancel App Store or Google Play subscriptions separately in your device subscription settings.',
+      'Settings → Delete account permanently removes your profile, messages, bookings, uploads, and other data we hold for your account—you will be asked to type DELETE on iPhone to confirm. Cancel Apple subscriptions in iOS Subscription settings first; cancel web billing through the Stripe customer portal before deleting. This cannot be undone.',
   },
   {
     id: 'troubleshoot',
     title: 'Something not working?',
     keywords: ['bug', 'crash', 'error', 'connection', 'update'],
     body:
-      'Force-close and reopen the app, check your connection, and install the latest build. For billing, use Restore purchases (mobile) or refresh after web payment. Contact Support with your account email and platform (iOS / Android / web).',
+      `Force-close and reopen the app, check your connection, and install the latest build. For billing, use Restore purchases (iOS) or refresh after a web Stripe payment—Settings → Stripe billing portal on web. For anything else that keeps failing, use Profile → Settings → Support or the Contact form on our website (${BRAND_CONTACT_RESPONSE_WINDOW}).`,
   },
 ];

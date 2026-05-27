@@ -33,6 +33,7 @@ import type { ProfileStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import * as ImagePicker from 'expo-image-picker';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
+import { STRIPE_CUSTOMER_PORTAL_LOGIN_URL } from '../constants/stripePortal';
 import type { ProfileRow } from '../roadmap/types';
 import {
   fetchProfileByUserId,
@@ -396,6 +397,19 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
       : [];
   const rows = [
     ...(!isPro ? [premiumRow] : []),
+    ...(isPro && Platform.OS === 'web'
+      ? [
+          {
+            title: 'Stripe billing',
+            sub: 'Manage subscription on web (Stripe customer portal)',
+            icon: 'credit-card' as const,
+            onPress: () =>
+              void Linking.openURL(STRIPE_CUSTOMER_PORTAL_LOGIN_URL).catch(() =>
+                Alert.alert('Billing', 'Could not open Stripe. Try Support if this keeps happening.'),
+              ),
+          },
+        ]
+      : []),
     ...masterRows,
     ...adminRow,
     {
@@ -532,7 +546,9 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
             };
             Alert.alert(
               'Delete account',
-              'Before you delete your account: if you subscribed to Premium on iPhone or Android, cancel the subscription in Subscription settings / Apple/Google account so you are not billed again by the platform. If you pay on web via Stripe, cancel in your Stripe customer portal — charges are handled by Stripe or Apple/Google, not DGA directly.',
+              'This permanently deletes your Dalton Grant Academy account and data stored with us — including profile, bookings, posts, messages, and media uploads tied to this account.\n\n' +
+                'Before you delete: if you subscribed to Premium on iPhone, cancel from Apple subscriptions; if you pay on web via Stripe, cancel via the Stripe billing portal and wait for confirmations to settle. Charges are handled by Apple or Stripe — DGA cannot remove them for you after deletion.\n\n' +
+                'This action cannot be undone.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {

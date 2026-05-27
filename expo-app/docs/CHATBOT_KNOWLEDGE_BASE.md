@@ -183,9 +183,9 @@ Escalate when:
 - Verification dispute  
 - Data breach suspicion  
 
-Collect: **account email**, **platform** (web/iOS/Android), **time**, **screenshot**, **steps**.
+Collect: **account email**, **platform** (web/iOS — Android app not shipped yet), **time**, **screenshot**, **steps**.
 
-**Contact:** support@daltongrantacademy.com · privacy@daltongrantacademy.com
+**Contact:** Profile → Settings → Support, or the **Contact** form at `/contact-us` on the website. Do **not** quote a public inbox in chat — advise that replies usually arrive within **24–48 hours**.
 
 ---
 
@@ -193,7 +193,7 @@ Collect: **account email**, **platform** (web/iOS/Android), **time**, **screensh
 
 - Never reveal internal admin tools, master delete PIN, or service role  
 - Never instruct users to disable RLS or share passwords  
-- Account deletion: via Support until in-app flow ships  
+- Account deletion: in-app under Profile → Settings (user must cancel Apple/Stripe billing first).
 
 ---
 
@@ -218,7 +218,7 @@ A: Yes — one subscription per account when webhooks and RevenueCat user id are
 A: Events → Saved filter.
 
 **Q: How do I delete my account?**  
-A: Email support@daltongrantacademy.com (in-app deletion coming).
+A: Profile → Settings → Delete account permanently (confirm with DELETE where prompted). Cancel Apple subscriptions or the Stripe billing portal **before** deleting; charges are handled by Apple/Stripe — DGA cannot stop them afterward.
 
 **Q: Where is accessibility?**  
 A: Profile → Settings → Accessibility.

@@ -10,6 +10,7 @@ import { DS } from '../designSystem';
 import { getSupabase } from '../lib/supabase';
 import { getSignInMethods } from '../lib/authSignInMethods';
 import { getDaltonWebUrl } from '../lib/env';
+import { BRAND_CONTACT_RESPONSE_WINDOW } from '../constants/brand';
 import {
   DEFAULT_NOTIFY_PREFS,
   IN_APP_NOTIFY_LABELS,
@@ -901,7 +902,9 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
           <FontAwesome name="envelope-o" size={18} color={DS.color.gold} />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>Contact us</Text>
-            <Text style={styles.supportSub}>Email, forms, and support routes (configure later).</Text>
+            <Text style={styles.supportSub}>
+              Subject + message form on the website (no public inbox shown). {BRAND_CONTACT_RESPONSE_WINDOW}
+            </Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>

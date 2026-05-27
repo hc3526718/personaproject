@@ -2,7 +2,7 @@
  * Vercel build: static HTML at repo root + Expo web export under /app.
  */
 import { execSync } from 'node:child_process';
-import { cp, mkdir, readdir } from 'node:fs/promises';
+import { cp, mkdir, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -80,6 +80,18 @@ async function main() {
   }
 
   await copyDir(join(root, 'shared'), join(outDir, 'shared'));
+
+  const supabaseUrl = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').trim();
+  const supabaseAnon = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+  const contactCfgPath = join(outDir, 'shared', 'dalton-contact-config.js');
+  await writeFile(
+    contactCfgPath,
+    `window.__DALTON_CONTACT_CONFIG__=${JSON.stringify({ supabaseUrl, anonKey: supabaseAnon })};\n`,
+    'utf8',
+  );
+  if (!supabaseUrl || !supabaseAnon) {
+    console.warn('[vercel-build] EXPO_PUBLIC_SUPABASE_* unset — marketing contact form will stay disabled.');
+  }
 
   const showcaseSrc = join(root, 'showcase');
   try {

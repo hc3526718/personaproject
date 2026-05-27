@@ -10,6 +10,17 @@
   const OVERRIDES_HREF = '/shared/marketing-overrides.css';
   const JS_SRC = '/shared/marketing-ui/marketing-ui.js';
   const FOOTER_SRC = '/shared/site-footer.js';
+  const CONVAI_SRC = '/shared/convai-bootstrap.js';
+
+  function appendConvaiScript() {
+    if (document.querySelector('script[data-dga-convai-bootstrap]')) return;
+    var c = document.createElement('script');
+    c.src = CONVAI_SRC;
+    c.async = true;
+    c.defer = true;
+    c.setAttribute('data-dga-convai-bootstrap', '1');
+    document.body.appendChild(c);
+  }
 
   function appendFooterScript() {
     if (document.querySelector('script[data-dga-site-footer]')) return;
@@ -17,6 +28,8 @@
     footerJs.src = FOOTER_SRC;
     footerJs.defer = true;
     footerJs.setAttribute('data-dga-site-footer', '1');
+    footerJs.onload = appendConvaiScript;
+    footerJs.onerror = appendConvaiScript;
     document.body.appendChild(footerJs);
   }
 
@@ -53,6 +66,7 @@
 
   if (document.querySelector('link[data-dalton-marketing-ui]')) {
     appendOverridesCss();
+    appendConvaiScript();
     return;
   }
 

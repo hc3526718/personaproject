@@ -114,6 +114,7 @@ import {
 } from '../screens/onboardingScreens';
 import GrantAccessScreen from '../screens/GrantAccessScreen';
 import { PasswordRecoveryScreen } from '../screens/PasswordRecoveryScreen';
+import { rootNavigationRef } from './rootNavigationRef';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -497,8 +498,8 @@ export function AppNavigator() {
     [colors],
   );
   return (
-    <WebAppFrame>
-      <NavigationContainer theme={navTheme}>
+      <WebAppFrame>
+        <NavigationContainer ref={rootNavigationRef} theme={navTheme}>
         <RootStack.Navigator
           key={
             isAuthenticated

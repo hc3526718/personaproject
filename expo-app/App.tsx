@@ -11,6 +11,7 @@ import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { AccessibilityProvider } from './src/accessibility/AccessibilityContext';
 import { ActionBannerProvider } from './src/actionBanner/ActionBannerContext';
 import { ActivityBadgeProvider } from './src/activity/ActivityBadgeProvider';
+import { ConversationInAppAlerts } from './src/activity/ConversationInAppAlerts';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
@@ -45,7 +46,10 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
           <ActivityBadgeProvider>
           <View style={styles.shell}>
             {coreReady ? (
-              <AppNavigator />
+              <>
+                <AppNavigator />
+                <ConversationInAppAlerts />
+              </>
             ) : (
               <View style={styles.bootLoader}>
                 <BootCircleLoader />
