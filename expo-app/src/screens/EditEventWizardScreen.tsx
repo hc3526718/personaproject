@@ -13,7 +13,8 @@ import {
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useBeforeRemove, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useWizardBeforeRemove } from '../hooks/useWizardBeforeRemove';
 import { FontAwesome } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { FormField } from '../components/ui/FormField';
@@ -300,7 +301,7 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
     venue,
   ]);
 
-  useBeforeRemove(
+  useWizardBeforeRemove(
     useCallback(
       (e) => {
         if (explicitExit || !dirty) return;

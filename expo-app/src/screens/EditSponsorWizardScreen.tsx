@@ -3,7 +3,8 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
-import { useBeforeRemove, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useWizardBeforeRemove } from '../hooks/useWizardBeforeRemove';
 import { useAuth } from '../auth/AuthContext';
 import { DS } from '../designSystem';
 import { uploadProposalAttachment } from '../lib/proposalAttachmentUpload';
@@ -200,7 +201,7 @@ export function EditSponsorWizardScreen({ navigation, route }: Props) {
     websiteUrl,
   ]);
 
-  useBeforeRemove(
+  useWizardBeforeRemove(
     useCallback(
       (e) => {
         if (!dirty || saving) return;

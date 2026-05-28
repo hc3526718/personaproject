@@ -3,7 +3,8 @@ import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'reac
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
-import { useBeforeRemove, useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useWizardBeforeRemove } from '../hooks/useWizardBeforeRemove';
 import { useAuth } from '../auth/AuthContext';
 import { DS } from '../designSystem';
 import { uploadProposalAttachment } from '../lib/proposalAttachmentUpload';
@@ -116,7 +117,7 @@ export function EditMediaWizardScreen({ navigation, route }: Props) {
     return now !== initialSnapshot.current;
   }, [asset, category, newThumb, newVideo, pitch, selectedTags, title]);
 
-  useBeforeRemove(
+  useWizardBeforeRemove(
     useCallback(
       (e) => {
         if (!dirty || saving) return;

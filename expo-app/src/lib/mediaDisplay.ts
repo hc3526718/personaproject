@@ -1,24 +1,99 @@
 import type { MediaAssetRow } from '../roadmap/types';
 
+export type MediaPresentation = {
+  title: string;
+  tags: string[];
+  description: string;
+  category: string | null;
+};
+
+function capitalizeWord(w: string): string {
+  if (!w) return '';
+  return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+}
+
+function humanizeSlugWords(slug: string): string {
+  const words = slug
+    .replace(/\.(mp4|mov|m4v|webm)$/i, '')
+    .replace(/^\d{10,}-/, '')
+    .replace(/-\d+$/, '')
+    .split(/[-_]+/)
+    .filter(Boolean);
+  if (!words.length) return '';
+  const sentence = words.join(' ');
+  const cased = sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  if (/^(how|what|why|when|where|can|should|do|does|is|are)\b/i.test(sentence) && !/[?.!]$/.test(cased)) {
+    return `${cased}?`;
+  }
+  return cased;
+}
+
+function parseTitleAndTagsFromSlug(raw: string): { title: string; tags: string[] } {
+  const lower = raw.toLowerCase();
+  const idx = lower.indexOf('-tags-');
+  if (idx === -1) {
+    return { title: humanizeSlugWords(raw), tags: [] };
+  }
+  const titlePart = raw.slice(0, idx);
+  const tagsPart = raw.slice(idx + 6);
+  const tagTokens = tagsPart
+    .replace(/\.(mp4|mov|m4v|webm)$/i, '')
+    .replace(/-\d+$/, '')
+    .split(/[-_]+/)
+    .filter((t) => t && t !== 'tags');
+  return {
+    title: humanizeSlugWords(titlePart),
+    tags: tagTokens.map(capitalizeWord),
+  };
+}
+
 /** Human-friendly title from DB title, storage path, or kind. */
 export function formatMediaDisplayTitle(
   asset: Pick<MediaAssetRow, 'title' | 'storage_path' | 'kind'> | null | undefined,
   fallback = 'Media',
 ): string {
-  const raw = (asset?.title?.trim() || asset?.storage_path?.split('/').pop() || '').trim();
-  if (!raw) return fallback;
-  if (raw.match(/\.(mp4|mov|m4v|webm)$/i) || raw.match(/^\d{10,}-/)) {
-    const base = raw.replace(/\.(mp4|mov|m4v|webm)$/i, '');
-    const human = base
-      .replace(/^\d{10,}-/, '')
-      .replace(/[-_]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (human.length >= 3) {
-      return human.replace(/\b\w/g, (c) => c.toUpperCase());
-    }
+  return getMediaPresentation(asset, fallback).title;
+}
+
+export function getMediaPresentation(
+  asset: Pick<MediaAssetRow, 'title' | 'storage_path' | 'description' | 'tags' | 'kind'> | null | undefined,
+  fallback = 'Media',
+): MediaPresentation {
+  const raw = (asset?.title?.trim() || asset?.storage_path?.split('/').pop() || fallback || '').trim();
+  const desc = (asset?.description ?? '').trim();
+  const categoryMatch = desc.match(/(?:^|\n)Category:\s*([^\n]+)\s*(?:\n|$)/i);
+  const category = categoryMatch?.[1]?.trim() || null;
+  const description = desc.replace(/\n*Category:\s*[^\n]+\s*/gi, '\n').trim();
+
+  const dbTags = Array.isArray(asset?.tags)
+    ? asset.tags.map((t) => String(t).trim()).filter(Boolean)
+    : [];
+
+  if (!raw) {
+    return { title: fallback || 'Media', tags: dbTags, description, category };
   }
-  return raw;
+
+  const looksLikeSlug =
+    raw.match(/\.(mp4|mov|m4v|webm)$/i) ||
+    raw.match(/^\d{10,}-/) ||
+    raw.includes('-tags-');
+
+  if (looksLikeSlug) {
+    const parsed = parseTitleAndTagsFromSlug(raw);
+    return {
+      title: parsed.title || fallback || 'Media',
+      tags: dbTags.length ? dbTags : parsed.tags,
+      description,
+      category,
+    };
+  }
+
+  return {
+    title: raw,
+    tags: dbTags,
+    description,
+    category,
+  };
 }
 
 export function mediaThumbnailUri(
