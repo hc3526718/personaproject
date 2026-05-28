@@ -29,6 +29,7 @@ type MediaPayload = {
   title?: string;
   pitch?: string;
   category?: string;
+  tags?: string[];
 };
 
 export type MasterPublishResult =
@@ -126,6 +127,20 @@ export async function publishMediaFromProposalPayload(
   const description = [payload.pitch?.trim(), payload.category ? `Category: ${payload.category}` : '']
     .filter(Boolean)
     .join('\n\n');
+  const tagSuffix =
+    Array.isArray(payload.tags) && payload.tags.length
+      ? `tags-${payload.tags
+          .map((t) => String(t).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+          .filter(Boolean)
+          .slice(0, 6)
+          .join('-')}`
+      : '';
+
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 48);
 
   let published = 0;
   let firstId: string | undefined;
@@ -136,14 +151,16 @@ export async function publishMediaFromProposalPayload(
       (await uploadProposalAttachment(userId, 'media', f.uri, f.name));
     if (!publicUrl) continue;
     const isVideo = /\.(mp4|mov|webm|m4v)/i.test(f.name) || f.name.toLowerCase().includes('video');
+    if (!isVideo) continue;
+    const ext = (f.name.split('.').pop() || 'mp4').toLowerCase();
     const { data, error } = await supabase
       .from('media_assets')
       .insert({
         owner_id: userId,
-        kind: isVideo ? 'video' : 'file',
-        storage_path: `library/${userId}/${Date.now()}-${i}`,
+        kind: 'video',
+        storage_path: `library/${userId}/${Date.now()}-${slug || 'video'}${tagSuffix ? `-${tagSuffix}` : ''}-${i}.${ext}`,
         public_url: publicUrl,
-        mime_type: isVideo ? 'video/mp4' : null,
+        mime_type: `video/${ext === 'mov' ? 'quicktime' : ext}`,
         visibility: 'public',
       })
       .select('id')
@@ -155,13 +172,15 @@ export async function publishMediaFromProposalPayload(
   }
 
   for (const url of attachmentUrls.slice(localFiles.length)) {
-    const isVideo = /\.(mp4|mov|webm)/i.test(url);
+    const isVideo = /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
+    if (!isVideo) continue;
+    const ext = (url.split('?')[0]?.split('.').pop() || 'mp4').toLowerCase();
     const { data, error } = await supabase
       .from('media_assets')
       .insert({
         owner_id: userId,
-        kind: isVideo ? 'video' : 'file',
-        storage_path: `library/${userId}/${Date.now()}-link`,
+        kind: 'video',
+        storage_path: `library/${userId}/${Date.now()}-${slug || 'video'}${tagSuffix ? `-${tagSuffix}` : ''}-link.${ext}`,
         public_url: url,
         visibility: 'public',
       })

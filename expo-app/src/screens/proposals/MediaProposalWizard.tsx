@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -14,6 +14,16 @@ import { WizardChrome } from './WizardChrome';
 type Props = NativeStackScreenProps<MediaStackParamList, 'MediaProposalWizard'>;
 
 const CATEGORIES = ['Training', 'Mindset', 'Nutrition', 'Recovery', 'Career', 'Other'] as const;
+const TAGS = [
+  'Technique',
+  'Strength',
+  'Speed',
+  'Mindset',
+  'Recovery',
+  'Nutrition',
+  'Mobility',
+  'Competition',
+] as const;
 const TOTAL_STEPS = 5;
 
 export function MediaProposalWizard({ navigation }: Props) {
@@ -22,7 +32,8 @@ export function MediaProposalWizard({ navigation }: Props) {
   const [title, setTitle] = useState('');
   const [pitch, setPitch] = useState('');
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Training');
-  const [attachments, setAttachments] = useState<{ name: string; uri: string }[]>([]);
+  const [selectedTags, setSelectedTags] = useState<(typeof TAGS)[number][]>([]);
+  const [video, setVideo] = useState<{ name: string; uri: string } | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmTitle, setConfirmTitle] = useState<string | null>(null);
@@ -35,33 +46,47 @@ export function MediaProposalWizard({ navigation }: Props) {
     }, [navigation, user?.masterControl]),
   );
 
-  const pickDocs = useCallback(async () => {
+  const pickVideo = useCallback(async () => {
     const res = await DocumentPicker.getDocumentAsync({
-      multiple: true,
+      multiple: false,
       copyToCacheDirectory: true,
+      type: 'video/*',
     });
     if (res.canceled) return;
-    setAttachments((prev) => [
-      ...prev,
-      ...res.assets.map((a) => ({ name: a.name ?? 'file', uri: a.uri })),
-    ]);
+    const a = res.assets?.[0];
+    if (!a?.uri) return;
+    const name = a.name ?? 'video.mp4';
+    const lower = name.toLowerCase();
+    if (!lower.match(/\.(mp4|mov|m4v|webm)$/i)) {
+      Alert.alert('Video only', 'Please choose an MP4/MOV/WebM video file.');
+      return;
+    }
+    setVideo({ name, uri: a.uri });
   }, []);
+
+  const toggleTag = (t: (typeof TAGS)[number]) => {
+    setSelectedTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  };
+
+  const tagsLine = useMemo(() => selectedTags.join(', '), [selectedTags]);
 
   const publish = useCallback(async () => {
     if (publishing || !user?.id) return;
+    if (!video?.uri || !video.name) {
+      setError('Please upload a video to publish.');
+      return;
+    }
     setPublishing(true);
     setError(null);
     const uploaded: string[] = [];
-    for (const a of attachments) {
-      const url = await uploadProposalAttachment(user.id, 'media', a.uri, a.name);
-      if (url) uploaded.push(url);
-    }
+    const url = await uploadProposalAttachment(user.id, 'media', video.uri, video.name);
+    if (url) uploaded.push(url);
     const result = await masterInstantPublish(
       user.id,
       'media',
-      { title: title.trim(), pitch: pitch.trim(), category },
+      { title: title.trim(), pitch: pitch.trim(), category, tags: selectedTags },
       uploaded,
-      attachments.map((a) => ({ uri: a.uri, name: a.name })),
+      [{ uri: video.uri, name: video.name }],
     );
     setPublishing(false);
     if (!result.ok) {
@@ -70,7 +95,7 @@ export function MediaProposalWizard({ navigation }: Props) {
     }
     setConfirmTitle(title.trim());
     setStep(5);
-  }, [attachments, category, pitch, publishing, title, user?.id]);
+  }, [category, pitch, publishing, selectedTags, title, user?.id, video]);
 
   useEffect(() => {
     if (step !== 5 || !confirmTitle) return;
@@ -104,13 +129,27 @@ export function MediaProposalWizard({ navigation }: Props) {
   if (step === 1) {
     return chrome(
       <>
-        <Text style={styles.lead}>Published live in the media library when you confirm.</Text>
+        <Text style={styles.lead}>Video only — published live in the media library when you confirm.</Text>
+        <Text style={styles.label}>Video upload</Text>
+        <Text style={styles.linkBtn} onPress={() => void pickVideo()}>
+          {video ? 'Change video' : '+ Upload video'}
+        </Text>
+        {video ? <Text style={styles.fileRow}>{video.name}</Text> : null}
+      </>,
+      { nextDisabled: !video },
+    );
+  }
+
+  if (step === 2) {
+    return chrome(
+      <>
+        <Text style={styles.lead}>Add the details shown on the media page.</Text>
         <Text style={styles.label}>Title</Text>
         <TextInput
           style={styles.input}
           value={title}
           onChangeText={setTitle}
-          placeholder="Series or episode title"
+          placeholder="Video title"
           placeholderTextColor={DS.color.textMuted}
         />
         <Text style={styles.label}>Description</Text>
@@ -122,15 +161,7 @@ export function MediaProposalWizard({ navigation }: Props) {
           placeholder="What will athletes learn? (min 20 characters)"
           placeholderTextColor={DS.color.textMuted}
         />
-      </>,
-      { nextDisabled: !title.trim() || pitch.trim().length < 20 },
-    );
-  }
-
-  if (step === 2) {
-    return chrome(
-      <>
-        <Text style={styles.lead}>Choose the closest category.</Text>
+        <Text style={styles.label}>Category</Text>
         <View style={styles.chips}>
           {CATEGORIES.map((c) => (
             <Pressable
@@ -143,23 +174,27 @@ export function MediaProposalWizard({ navigation }: Props) {
           ))}
         </View>
       </>,
+      { nextDisabled: !title.trim() || pitch.trim().length < 20 },
     );
   }
 
   if (step === 3) {
     return chrome(
       <>
-        <Text style={styles.lead}>Upload media files (images, video, or documents).</Text>
-        <Text style={styles.linkBtn} onPress={() => void pickDocs()}>
-          + Add files
-        </Text>
-        {attachments.map((a) => (
-          <Text key={a.uri} style={styles.fileRow}>
-            {a.name}
-          </Text>
-        ))}
+        <Text style={styles.lead}>Select tags (choose one or more).</Text>
+        <View style={styles.chips}>
+          {TAGS.map((t) => {
+            const on = selectedTags.includes(t);
+            return (
+              <Pressable key={t} onPress={() => toggleTag(t)} style={[styles.chip, on && styles.chipOn]}>
+                <Text style={[styles.chipText, on && styles.chipTextOn]}>{t}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        {selectedTags.length ? <Text style={styles.tagPreview}>Selected: {tagsLine}</Text> : null}
       </>,
-      { nextLabel: 'Review' },
+      { nextLabel: 'Review', nextDisabled: selectedTags.length === 0 },
     );
   }
 
@@ -170,9 +205,8 @@ export function MediaProposalWizard({ navigation }: Props) {
         <Text style={styles.reviewTitle}>{title}</Text>
         <Text style={styles.reviewMeta}>{category}</Text>
         <Text style={styles.reviewBody}>{pitch}</Text>
-        {attachments.length ? (
-          <Text style={styles.reviewMeta}>{attachments.length} file(s) attached</Text>
-        ) : null}
+        {selectedTags.length ? <Text style={styles.reviewMeta}>Tags: {tagsLine}</Text> : null}
+        {video ? <Text style={styles.reviewMeta}>Video: {video.name}</Text> : null}
       </>,
       {
         nextLabel: publishing ? 'Publishing…' : 'Create media',
@@ -246,6 +280,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: DS.color.textMuted,
     marginBottom: 4,
+  },
+  tagPreview: {
+    marginTop: DS.space.md,
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    lineHeight: 18,
   },
   reviewTitle: {
     fontFamily: DS.font.heading,
