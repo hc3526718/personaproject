@@ -22,6 +22,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
+import { OptionMenuModal } from '../components/OptionMenuModal';
 import { useAuth } from '../auth/AuthContext';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';

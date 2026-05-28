@@ -184,9 +184,13 @@ export async function publishMediaFromProposalPayload(
   const shouldRetryWithoutMeta = (err: unknown) => {
     const msg =
       err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message ?? '') : '';
+    const code =
+      err && typeof err === 'object' && 'code' in err ? String((err as { code?: unknown }).code ?? '') : '';
     return (
-      msg.includes('column') &&
-      (msg.includes('title') || msg.includes('description') || msg.includes('tags'))
+      // PostgREST errors vary across versions. Treat any "unknown column" or schema-cache miss as a reason to retry.
+      (code === 'PGRST204' || code === '42703') ||
+      (msg.includes('column') && (msg.includes('title') || msg.includes('description') || msg.includes('tags'))) ||
+      (msg.toLowerCase().includes('schema cache') && (msg.includes('title') || msg.includes('description') || msg.includes('tags')))
     );
   };
 

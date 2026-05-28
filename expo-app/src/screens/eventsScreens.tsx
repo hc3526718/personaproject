@@ -1809,7 +1809,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   }, []);
 
   const qrExportSteps =
-    !hideQr && qrToken
+    qrToken
       ? [
           {
             key: 'png',
