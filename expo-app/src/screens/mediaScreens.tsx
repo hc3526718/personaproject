@@ -966,16 +966,15 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   );
   const displayTitle = presentation.title;
   const onFullscreen = useCallback(() => {
-    if (isVideo && playbackUrl) {
-      setVideoModalOpen(true);
-      return;
-    }
-    try {
-      void videoRef.current?.presentFullscreenPlayerAsync();
-    } catch {
-      /* ignore */
-    }
+    if (!isVideo || !playbackUrl) return;
+    void videoRef.current?.pauseAsync?.();
+    setVideoModalOpen(true);
   }, [isVideo, playbackUrl]);
+
+  useEffect(() => {
+    if (!videoModalOpen) return;
+    void videoRef.current?.pauseAsync?.();
+  }, [videoModalOpen]);
 
   useEffect(() => {
     if (!mediaId || mediaId.startsWith('demo:')) return;
@@ -1113,22 +1112,41 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
       />
       <View style={styles.playerStage}>
         <View style={styles.playerVideoFrame}>
-          {isVideo && playbackUrl ? (
-            <Video
-              ref={videoRef}
-              source={{ uri: playbackUrl }}
-              style={styles.playerVideo}
-              resizeMode={ResizeMode.CONTAIN}
-              useNativeControls
-              shouldPlay
-              onPlaybackStatusUpdate={(st) => {
-                if (!st.isLoaded) return;
-                const p = st.durationMillis ? st.positionMillis / st.durationMillis : 0;
-                if (Number.isFinite(p)) setProgress(Math.min(0.99, Math.max(0, p)));
-              }}
-            />
-          ) : (
+          {isVideo && playbackUrl && !videoModalOpen ? (
+            Platform.OS === 'web' ? (
+              <video
+                src={playbackUrl}
+                controls
+                playsInline
+                style={styles.playerVideoWeb as object}
+                onTimeUpdate={(e) => {
+                  const el = e.currentTarget;
+                  if (!el.duration || !Number.isFinite(el.duration)) return;
+                  const p = el.currentTime / el.duration;
+                  if (Number.isFinite(p)) setProgress(Math.min(0.99, Math.max(0, p)));
+                }}
+              />
+            ) : (
+              <Video
+                ref={videoRef}
+                source={{ uri: playbackUrl }}
+                style={styles.playerVideo}
+                resizeMode={ResizeMode.CONTAIN}
+                useNativeControls
+                shouldPlay={!videoModalOpen}
+                onPlaybackStatusUpdate={(st) => {
+                  if (!st.isLoaded) return;
+                  const p = st.durationMillis ? st.positionMillis / st.durationMillis : 0;
+                  if (Number.isFinite(p)) setProgress(Math.min(0.99, Math.max(0, p)));
+                }}
+              />
+            )
+          ) : !isVideo || !playbackUrl ? (
             <Image source={{ uri: thumb }} style={styles.playerVideo} resizeMode="contain" />
+          ) : (
+            <View style={styles.playerVideoPoster}>
+              <FontAwesome name="play-circle" size={48} color={DS.color.gold} />
+            </View>
           )}
         </View>
         {isVideo && playbackUrl ? (
@@ -1828,27 +1846,40 @@ const styles = StyleSheet.create({
   },
   playerStage: {
     width: '100%',
-    aspectRatio: 16 / 9,
-    maxHeight: 360,
     backgroundColor: DS.color.black,
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: DS.space.md,
   },
   playerVideoFrame: {
     width: '100%',
-    height: '100%',
+    maxWidth: 720,
+    aspectRatio: 16 / 9,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: DS.space.md,
-    paddingVertical: DS.space.sm,
+    backgroundColor: '#000',
+    overflow: 'hidden',
   },
   playerVideo: {
     width: '100%',
     height: '100%',
+    backgroundColor: 'transparent',
+  },
+  playerVideoWeb: {
+    width: '100%',
+    height: '100%',
     maxWidth: '100%',
     maxHeight: '100%',
-    backgroundColor: 'transparent',
+    objectFit: 'contain',
+    display: 'block',
+    backgroundColor: '#000',
+  },
+  playerVideoPoster: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
   },
   playerImg: {
     width: '100%',

@@ -21,19 +21,13 @@ import { FormField } from '../components/ui/FormField';
 import { DS } from '../designSystem';
 import { useWizardBack } from '../hooks/useWizardBack';
 import { endsAtAfterDuration } from '../lib/eventFormParse';
-import {
-  combineDateAndTime,
-  isScheduleAtLeast48HoursAhead,
-  minScheduleStartDate,
-  schedule48HourError,
-} from '../lib/scheduleValidation';
+import { combineDateAndTime, minScheduleStartDate } from '../lib/scheduleValidation';
 import { getSupabase } from '../lib/supabase';
 import { pickWebMediaFile } from '../lib/webFilePicker';
 import type { EventsStackParamList } from '../navigation/types';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
 import { getEventById, updateCommunityEvent } from '../roadmap/liveDataService';
 import { WizardChrome } from './proposals/WizardChrome';
-import { WebScheduleField } from '../components/WebScheduleField';
 import {
   entryPaymentBlockForDescription,
   formatEntryPaymentNotice,
@@ -194,6 +188,9 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
   ]);
   const [faqs, setFaqs] = useState<{ q: string; a: string }[]>([{ q: '', a: '' }]);
   const [bring, setBring] = useState('');
+  /** Existing event schedule — not editable after creation. */
+  const [lockedStartsAt, setLockedStartsAt] = useState<string | null>(null);
+  const [lockedEndsAt, setLockedEndsAt] = useState<string | null>(null);
 
   const initialSnapshot = useRef<string>('');
   const [explicitExit, setExplicitExit] = useState<'saved' | 'cancelled' | null>(null);
@@ -217,6 +214,8 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
       }
       setEventTitle(ev.title ?? '');
       setVenue(ev.venue ?? '');
+      setLockedStartsAt(ev.starts_at);
+      setLockedEndsAt(ev.ends_at ?? null);
       const starts = new Date(ev.starts_at);
       if (!Number.isNaN(starts.getTime())) {
         setEventDate(starts);
@@ -230,7 +229,10 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
       if (parsed.level && (LEVELS as readonly string[]).includes(parsed.level)) {
         setLevel(parsed.level as (typeof LEVELS)[number]);
       }
-      if (parsed.agenda.length) setAgenda(parsed.agenda);
+      if (parsed.agenda.length) {
+        setAgenda(parsed.agenda);
+        setAgendaSplit('custom');
+      }
       if (parsed.faqs.length) setFaqs(parsed.faqs);
       if (parsed.bring) setBring(parsed.bring);
       if (ev.hero_image_url?.trim()) {
@@ -274,9 +276,10 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
       entryPaymentNote,
       venue,
       maxAttendance,
-      starts_at: combineDateAndTime(eventDate, eventTime).toISOString(),
+      starts_at: lockedStartsAt ?? combineDateAndTime(eventDate, eventTime).toISOString(),
       duration,
       agenda,
+      agendaSplit,
       faqs,
       bring,
       level,
@@ -290,10 +293,11 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
     entryPaymentAmount,
     entryPaymentMode,
     entryPaymentNote,
-    eventDate,
     eventTags,
-    eventTime,
     eventTitle,
+    lockedEndsAt,
+    lockedStartsAt,
+    agendaSplit,
     faqs,
     level,
     maxAttendance,
@@ -385,15 +389,24 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
       setAgendaSplit(split);
       if (split === 'custom') return;
       const mins = split === '15' ? 15 : split === '30' ? 30 : 60;
-      const base = new Date(eventTime);
-      const items: { title: string; time: string }[] = [];
-      for (let i = 0; i < 4; i++) {
-        const t = new Date(base.getTime() + i * mins * 60_000);
-        items.push({ title: i === 0 ? 'Welcome' : `Block ${i + 1}`, time: formatTime(t) });
-      }
-      setAgenda(items);
+      const base = lockedStartsAt ? new Date(lockedStartsAt) : new Date(eventTime);
+      setAgenda((prev) => {
+        const filled = prev.filter((row) => row.title.trim() || row.time.trim());
+        const count = Math.max(filled.length, 4);
+        const items: { title: string; time: string }[] = [];
+        for (let i = 0; i < count; i++) {
+          const t = new Date(base.getTime() + i * mins * 60_000);
+          const existing = prev[i];
+          const keptTitle = existing?.title?.trim();
+          items.push({
+            title: keptTitle || (i === 0 ? 'Welcome' : `Block ${i + 1}`),
+            time: formatTime(t),
+          });
+        }
+        return items;
+      });
     },
-    [eventTime],
+    [eventTime, lockedStartsAt],
   );
 
   const validateStep = useCallback(
@@ -408,8 +421,6 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
         if (!venue.trim()) return 'Venue or location is required.';
         const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
         if (!maxAttendance.trim() || Number.isNaN(cap) || cap < 1) return 'Enter expected attendance (minimum 1).';
-        const start = combineDateAndTime(eventDate, eventTime);
-        if (!isScheduleAtLeast48HoursAhead(start)) return schedule48HourError();
       }
       if (s === 4) {
         const completeAgenda = agenda.filter((row) => row.title.trim() && row.time.trim());
@@ -441,8 +452,8 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
     setError(null);
 
     const completeAgenda = agenda.filter((row) => row.title.trim() && row.time.trim());
-    const starts = combineDateAndTime(eventDate, eventTime).toISOString();
-    const ends = endsAtAfterDuration(starts, duration);
+    const starts = lockedStartsAt ?? combineDateAndTime(eventDate, eventTime).toISOString();
+    const ends = lockedEndsAt ?? endsAtAfterDuration(starts, duration);
     const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
     const firstImage = sortedAssets.find((a) => a.kind === 'image');
 
@@ -497,11 +508,11 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
     entryPaymentAmount,
     entryPaymentMode,
     entryPaymentNote,
-    eventDate,
     eventId,
     eventTags,
-    eventTime,
     eventTitle,
+    lockedEndsAt,
+    lockedStartsAt,
     faqs,
     level,
     maxAttendance,
@@ -622,60 +633,20 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
   }
 
   if (step === 3) {
+    const scheduleStart = lockedStartsAt ? new Date(lockedStartsAt) : eventDate;
+    const scheduleLabel =
+      lockedStartsAt && !Number.isNaN(scheduleStart.getTime())
+        ? `${formatDate(scheduleStart)} · ${formatTime(scheduleStart)}`
+        : '—';
     return chrome(
       <>
-        <Text style={s.lead}>When and where does your event run?</Text>
-        {Platform.OS === 'web' ? (
-          <>
-            <WebScheduleField
-              mode="date"
-              value={eventDate}
-              minimumDate={minSelectableDate}
-              onChange={setEventDate}
-              label="Date *"
-              formatDisplay={formatDate}
-            />
-            <WebScheduleField
-              mode="time"
-              value={eventTime}
-              onChange={setEventTime}
-              label="Time *"
-              formatDisplay={formatTime}
-            />
-          </>
-        ) : (
-          <>
-            <FormField label="Date" required>
-              <Pressable style={s.pickerBtn} onPress={() => setShowDatePicker(true)}>
-                <FontAwesome name="calendar" size={16} color={DS.color.gold} />
-                <Text style={s.pickerBtnText}>{formatDate(eventDate)}</Text>
-              </Pressable>
-              {showDatePicker ? (
-                <DateTimePicker
-                  value={eventDate}
-                  mode="date"
-                  minimumDate={minSelectableDate}
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(e, d) => onPickerChange('date', e, d)}
-                />
-              ) : null}
-            </FormField>
-            <FormField label="Time" required>
-              <Pressable style={s.pickerBtn} onPress={() => setShowTimePicker(true)}>
-                <FontAwesome name="clock-o" size={16} color={DS.color.gold} />
-                <Text style={s.pickerBtnText}>{formatTime(eventTime)}</Text>
-              </Pressable>
-              {showTimePicker ? (
-                <DateTimePicker
-                  value={eventTime}
-                  mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(e, d) => onPickerChange('time', e, d)}
-                />
-              ) : null}
-            </FormField>
-          </>
-        )}
+        <Text style={s.lead}>Update venue and attendance. Date and time are fixed after the event is created.</Text>
+        <FormField label="Date & time" hint="Cannot be changed when editing an existing event.">
+          <View style={s.readOnlyField}>
+            <FontAwesome name="lock" size={14} color={DS.color.textMuted} />
+            <Text style={s.readOnlyText}>{scheduleLabel}</Text>
+          </View>
+        </FormField>
         <FormField label="Venue / location" required>
           <TextInput
             value={venue}
@@ -947,6 +918,23 @@ const s = StyleSheet.create({
   agendaTitle: { flex: 1 },
   ghostBtn: { paddingVertical: DS.space.sm, marginBottom: DS.space.md },
   ghostTxt: { fontFamily: DS.font.bodyMedium, fontSize: 14, color: DS.color.gold },
+  readOnlyField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.sm,
+    backgroundColor: DS.apple.fillTertiary,
+    borderRadius: DS.apple.radiusField,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.apple.separator,
+    paddingHorizontal: DS.space.base,
+    paddingVertical: 14,
+  },
+  readOnlyText: {
+    flex: 1,
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    color: DS.color.textMuted,
+  },
   pickerBtn: {
     flexDirection: 'row',
     alignItems: 'center',

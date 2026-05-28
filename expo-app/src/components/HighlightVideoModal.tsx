@@ -69,6 +69,20 @@ export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props
               mediaPlaybackRequiresUserAction={false}
               javaScriptEnabled
             />
+          ) : playable && playbackUrl && isPlayableVideoUrl(playbackUrl) && Platform.OS === 'web' ? (
+            <video
+              src={playbackUrl}
+              controls
+              autoPlay
+              playsInline
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                maxHeight: '85vh',
+                objectFit: 'contain',
+                backgroundColor: '#000',
+              }}
+            />
           ) : playable && playbackUrl && isPlayableVideoUrl(playbackUrl) ? (
             <Video
               source={{ uri: playbackUrl }}
