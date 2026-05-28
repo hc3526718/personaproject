@@ -26,6 +26,7 @@ export function SponsorProposalWizard({ navigation }: Props) {
   const [hook, setHook] = useState('');
   const [helpsAthletes, setHelpsAthletes] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [logo, setLogo] = useState<{ name: string; uri: string } | null>(null);
   const [coverImage, setCoverImage] = useState<{ name: string; uri: string } | null>(null);
   const [video, setVideo] = useState<{ name: string; uri: string } | null>(null);
   const [gallery, setGallery] = useState<{ name: string; uri: string }[]>([]);
@@ -53,6 +54,18 @@ export function SponsorProposalWizard({ navigation }: Props) {
     const a = res.assets?.[0];
     if (!a?.uri) return;
     setCoverImage({ name: a.name ?? 'cover.jpg', uri: a.uri });
+  }, []);
+
+  const pickLogo = useCallback(async () => {
+    const res = await DocumentPicker.getDocumentAsync({
+      multiple: false,
+      copyToCacheDirectory: true,
+      type: 'image/*',
+    });
+    if (res.canceled) return;
+    const a = res.assets?.[0];
+    if (!a?.uri) return;
+    setLogo({ name: a.name ?? 'logo.png', uri: a.uri });
   }, []);
 
   const pickGallery = useCallback(async () => {
@@ -107,6 +120,10 @@ export function SponsorProposalWizard({ navigation }: Props) {
     const coverUrl = await uploadProposalAttachment(user.id, 'sponsor', coverImage.uri, coverImage.name);
     if (coverUrl) uploaded.push(coverUrl);
 
+    const logoUrl = logo
+      ? await uploadProposalAttachment(user.id, 'sponsor', logo.uri, logo.name)
+      : null;
+
     const galleryUrls: string[] = [];
     for (const img of gallery) {
       const url = await uploadProposalAttachment(user.id, 'sponsor', img.uri, img.name);
@@ -126,6 +143,7 @@ export function SponsorProposalWizard({ navigation }: Props) {
         helps_athletes: helpsAthletes.trim(),
         website_url: websiteUrl.trim(),
         video_url: videoUrl,
+        logo_url: logoUrl,
         gallery_urls: galleryUrls,
         external_links: cleanedLinks,
         promo_codes: cleanedPromos,
@@ -148,6 +166,7 @@ export function SponsorProposalWizard({ navigation }: Props) {
     gallery,
     helpsAthletes,
     hook,
+    logo,
     publishing,
     user?.id,
     video,
@@ -245,6 +264,12 @@ export function SponsorProposalWizard({ navigation }: Props) {
     return chrome(
       <>
         <Text style={styles.lead}>Build the sponsor page media.</Text>
+        <Text style={styles.label}>Logo (shown on sponsor listings)</Text>
+        <Text style={styles.linkBtn} onPress={() => void pickLogo()}>
+          {logo ? 'Change logo' : '+ Upload logo'}
+        </Text>
+        {logo ? <Text style={styles.fileRow}>{logo.name}</Text> : null}
+
         <Text style={styles.label}>Cover image *</Text>
         <Text style={styles.linkBtn} onPress={() => void pickCover()}>
           {coverImage ? 'Change cover image' : '+ Upload cover image'}

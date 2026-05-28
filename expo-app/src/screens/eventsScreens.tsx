@@ -1744,6 +1744,8 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   useEffect(() => {
     let alive = true;
     void (async () => {
+      // Never block ticket rendering on async signing: show a deterministic QR immediately.
+      if (alive) setQrToken(refCode);
       const payload = {
         v: 1 as const,
         ref: refCode,
@@ -1755,7 +1757,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         const t = await signTicketPayload(payload);
         if (alive) setQrToken(t);
       } catch {
-        if (alive) setQrToken('');
+        if (alive) setQrToken(refCode);
       }
     })();
     return () => {

@@ -26,6 +26,7 @@ type SponsorPayload = {
   helps_athletes?: string;
   website_url?: string;
   video_url?: string;
+  logo_url?: string;
   gallery_urls?: string[];
   external_links?: { label: string; url: string }[];
   promo_codes?: { code: string; details: string }[];
@@ -124,6 +125,7 @@ export async function publishSponsorFromProposalPayload(
     external_links: Array.isArray(payload.external_links) ? payload.external_links : [],
     promo_codes: Array.isArray(payload.promo_codes) ? payload.promo_codes : [],
     gallery_urls: Array.isArray(payload.gallery_urls) ? payload.gallery_urls : [],
+    logo_url: payload.logo_url?.trim() || null,
     contact_email: contact || null,
   };
   const row = await insertSubscriptionOfferPage({
@@ -172,6 +174,22 @@ export async function publishMediaFromProposalPayload(
 
   let published = 0;
   let firstId: string | undefined;
+
+  const insertMedia = async (row: Record<string, unknown>) => {
+    const { data, error } = await supabase.from('media_assets').insert(row).select('id').single();
+    if (!error && data?.id) return { ok: true as const, id: data.id as string };
+    return { ok: false as const, error };
+  };
+
+  const shouldRetryWithoutMeta = (err: unknown) => {
+    const msg =
+      err && typeof err === 'object' && 'message' in err ? String((err as { message?: unknown }).message ?? '') : '';
+    return (
+      msg.includes('column') &&
+      (msg.includes('title') || msg.includes('description') || msg.includes('tags'))
+    );
+  };
+
   for (let i = 0; i < localFiles.length; i++) {
     const f = localFiles[i]!;
     const publicUrl =
@@ -181,9 +199,7 @@ export async function publishMediaFromProposalPayload(
     const isVideo = /\.(mp4|mov|webm|m4v)/i.test(f.name) || f.name.toLowerCase().includes('video');
     if (!isVideo) continue;
     const ext = (f.name.split('.').pop() || 'mp4').toLowerCase();
-    const { data, error } = await supabase
-      .from('media_assets')
-      .insert({
+    const rowWithMeta = {
         owner_id: userId,
         kind: 'video',
         storage_path: `library/${userId}/${Date.now()}-${slug || 'video'}${tagSuffix ? `-${tagSuffix}` : ''}-${i}.${ext}`,
@@ -193,12 +209,23 @@ export async function publishMediaFromProposalPayload(
         title,
         description: description || null,
         tags,
-      })
-      .select('id')
-      .single();
-    if (!error && data?.id) {
+      } as const;
+    const rowNoMeta = {
+      owner_id: userId,
+      kind: 'video',
+      storage_path: rowWithMeta.storage_path,
+      public_url: rowWithMeta.public_url,
+      mime_type: rowWithMeta.mime_type,
+      visibility: rowWithMeta.visibility,
+    } as const;
+
+    let ins = await insertMedia(rowWithMeta);
+    if (!ins.ok && shouldRetryWithoutMeta(ins.error)) {
+      ins = await insertMedia(rowNoMeta);
+    }
+    if (ins.ok) {
       published += 1;
-      firstId ??= data.id as string;
+      firstId ??= ins.id;
     }
   }
 
@@ -206,9 +233,7 @@ export async function publishMediaFromProposalPayload(
     const isVideo = /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url);
     if (!isVideo) continue;
     const ext = (url.split('?')[0]?.split('.').pop() || 'mp4').toLowerCase();
-    const { data, error } = await supabase
-      .from('media_assets')
-      .insert({
+    const rowWithMeta = {
         owner_id: userId,
         kind: 'video',
         storage_path: `library/${userId}/${Date.now()}-${slug || 'video'}${tagSuffix ? `-${tagSuffix}` : ''}-link.${ext}`,
@@ -217,12 +242,22 @@ export async function publishMediaFromProposalPayload(
         title,
         description: description || null,
         tags,
-      })
-      .select('id')
-      .single();
-    if (!error && data?.id) {
+      } as const;
+    const rowNoMeta = {
+      owner_id: userId,
+      kind: 'video',
+      storage_path: rowWithMeta.storage_path,
+      public_url: rowWithMeta.public_url,
+      visibility: rowWithMeta.visibility,
+    } as const;
+
+    let ins = await insertMedia(rowWithMeta);
+    if (!ins.ok && shouldRetryWithoutMeta(ins.error)) {
+      ins = await insertMedia(rowNoMeta);
+    }
+    if (ins.ok) {
       published += 1;
-      firstId ??= data.id as string;
+      firstId ??= ins.id;
     }
   }
 

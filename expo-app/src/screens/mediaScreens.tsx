@@ -902,6 +902,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const [asset, setAsset] = useState<MediaAssetRow | null>(null);
   const [saved, setSaved] = useState(false);
   const [progress, setProgress] = useState(0.35);
+  const [menuOpen, setMenuOpen] = useState(false);
   const videoRef = useRef<Video | null>(null);
   const playbackUrl = paramPlayback || asset?.public_url?.trim() || '';
   const thumb = asset?.thumbnail_url?.trim() || asset?.public_url?.trim() || PLAYER_STILL;
@@ -957,10 +958,59 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
         <Pressable style={styles.playerChromeBtn} onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
-        <Pressable style={styles.playerChromeBtn} onPress={() => playerNotice('More options are not available yet.')}>
-          <FontAwesome name="ellipsis-h" size={18} color={DS.color.text} />
-        </Pressable>
+        {user?.masterControl ? (
+          <Pressable style={styles.playerChromeBtn} onPress={() => setMenuOpen(true)} accessibilityLabel="Media options">
+            <FontAwesome name="ellipsis-v" size={18} color={DS.color.text} />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.playerChromeBtn}
+            onPress={() => playerNotice('Share is not available in this preview.')}
+            accessibilityLabel="Share media"
+          >
+            <FontAwesome name="share" size={18} color={DS.color.text} />
+          </Pressable>
+        )}
       </View>
+      <OptionMenuModal
+        visible={menuOpen}
+        title="Media"
+        onClose={() => setMenuOpen(false)}
+        options={[
+          {
+            key: 'edit',
+            label: 'Edit media',
+            onPress: () => playerNotice('Editing media is coming soon.'),
+          },
+          {
+            key: 'share',
+            label: 'Share media',
+            onPress: () => playerNotice('Share is not available in this preview.'),
+          },
+          {
+            key: 'delete',
+            label: 'Delete media',
+            destructive: true,
+            onPress: () => {
+              if (!asset?.id) return;
+              Alert.alert('Delete media?', 'Removes this media for everyone.', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () => {
+                    void (async () => {
+                      const ok = await deleteMediaAsset(asset.id);
+                      if (ok) navigation.goBack();
+                      else Alert.alert('Could not delete', 'Check permissions and try again.');
+                    })();
+                  },
+                },
+              ]);
+            },
+          },
+        ]}
+      />
       <View style={styles.playerStage}>
         {isVideo && playbackUrl ? (
           <Video

@@ -113,7 +113,12 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
           </Text>
         ) : null}
         {items.map((s) => {
-          const thumb = s.hero_image_url?.trim() || FALLBACK_SP_IMG;
+          const socialObj =
+            s.social_links && typeof s.social_links === 'object' && !Array.isArray(s.social_links)
+              ? (s.social_links as { logo_url?: unknown })
+              : null;
+          const logoUrl = socialObj ? String(socialObj.logo_url ?? '').trim() : '';
+          const thumb = (logoUrl && /^https?:\/\//i.test(logoUrl) ? logoUrl : s.hero_image_url?.trim()) || FALLBACK_SP_IMG;
           const sub =
             s.description?.trim().slice(0, 120) ||
             'Official partner — tap for offers and links.';

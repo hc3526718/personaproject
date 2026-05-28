@@ -189,10 +189,18 @@ function EventsStackNavigator() {
 
 function SponsorsStackNavigator() {
   const screenOptions = useThemedStackScreenOptions();
+  const BrandPartnerWithTheme = BrandPartnerScreen as typeof BrandPartnerScreen;
   return (
     <SponsorsStack.Navigator screenOptions={screenOptions}>
       <SponsorsStack.Screen name="SponsorListings" component={SponsorListingsScreen} />
-      <SponsorsStack.Screen name="BrandPartner" component={BrandPartnerScreen} />
+      <SponsorsStack.Screen
+        name="BrandPartner"
+        component={(props) => (
+          <CommunityThemeProvider>
+            <BrandPartnerWithTheme {...props} />
+          </CommunityThemeProvider>
+        )}
+      />
       <SponsorsStack.Screen name="SponsorProposalWizard" component={SponsorProposalWizard} />
       <SponsorsStack.Screen name="MySponsorProposals" component={MySponsorProposalsScreen} />
     </SponsorsStack.Navigator>
