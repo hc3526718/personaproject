@@ -9,6 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "vercel-build": "node scripts/vercel-build.mjs",
+    "sync-marketing": "node scripts/sync-marketing.mjs",
     "test:resend": "node scripts/test-resend-email.mjs"
   },
   "dependencies": {

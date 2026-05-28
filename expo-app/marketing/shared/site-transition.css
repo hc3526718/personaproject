@@ -1,0 +1,51 @@
+/* Marketing site: Rive transition overlay — animation only, no gold panel */
+:root {
+  --ga-ink: #0a0a0a;
+  --ga-mist: #d4d0c8;
+  --ga-gold: #c8a84b;
+}
+
+#ga-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+#ga-transition.ga-on {
+  display: flex;
+}
+
+#ga-transition .ga-frame {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: hidden;
+  box-shadow: none;
+  transform: none;
+  opacity: 1;
+  transition: none;
+}
+
+#ga-transition.ga-on .ga-frame {
+  transform: none;
+  opacity: 1;
+}
+
+#ga-transition iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+#ga-transition .ga-caption {
+  display: none;
+}
