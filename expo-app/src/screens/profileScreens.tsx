@@ -1391,7 +1391,7 @@ export function EditProfileSectionDetailScreen({
         setProfile(p);
         setBannerUrl(p?.banner_url?.trim() || '');
         setBioText(p?.bio?.trim() || '');
-        setInterestCsv((p?.interests ?? []).join(', '));
+        setInterestTags(p?.interests ?? []);
         const parsed = parseProfileHighlights(p?.highlights);
         setHighlights(parsed.length > 0 ? parsed : [{ title: '', video_url: '' }]);
         setResultsText(profileSectionLines(p?.recent_results));

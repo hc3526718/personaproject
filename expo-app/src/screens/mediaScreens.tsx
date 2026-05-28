@@ -912,6 +912,22 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const displayDesc = asset?.description?.trim() || meta.desc;
   const displayTags =
     Array.isArray(asset?.tags) && asset.tags.length ? asset.tags.join(', ') : null;
+  const parsedCategory = useMemo(() => {
+    const desc = asset?.description?.trim() || '';
+    const m = desc.match(/(?:^|\n)Category:\s*([^\n]+)\s*(?:\n|$)/i);
+    return m?.[1]?.trim() || null;
+  }, [asset?.description]);
+  const cleanedDesc = useMemo(() => {
+    const desc = (asset?.description?.trim() || displayDesc).trim();
+    return desc.replace(/\n*Category:\s*[^\n]+\s*/gi, '\n').trim();
+  }, [asset?.description, displayDesc]);
+  const onFullscreen = useCallback(() => {
+    try {
+      void videoRef.current?.presentFullscreenPlayerAsync();
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (!mediaId || mediaId.startsWith('demo:')) return;
@@ -964,13 +980,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
             <FontAwesome name="ellipsis-v" size={18} color={DS.color.text} />
           </Pressable>
         ) : (
-          <Pressable
-            style={styles.playerChromeBtn}
-            onPress={() => playerNotice('Share is not available in this preview.')}
-            accessibilityLabel="Share media"
-          >
-            <FontAwesome name="share" size={18} color={DS.color.text} />
-          </Pressable>
+          <View style={styles.playerChromeBtn} />
         )}
       </View>
       <OptionMenuModal
@@ -1030,38 +1040,11 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
         ) : (
           <Image source={{ uri: thumb }} style={styles.playerImg} />
         )}
-        {!playbackUrl || !isVideo ? (
-        <View style={styles.playerOverlay}>
-          <Pressable style={styles.playHuge}>
-            <FontAwesome name="pause" size={28} color={DS.color.background} />
+        {isVideo && playbackUrl ? (
+          <Pressable style={styles.fullscreenBtn} onPress={onFullscreen} accessibilityLabel="Fullscreen video">
+            <FontAwesome name="expand" size={16} color={DS.color.white} />
           </Pressable>
-        </View>
         ) : null}
-        <View style={styles.playerControls}>
-          <View style={styles.playerScrubWrap}>
-            <View style={styles.trackBg}>
-              <View style={[styles.trackFill, { width: `${Math.round(progress * 100)}%` }]}>
-                <View style={styles.trackKnob} />
-              </View>
-            </View>
-          </View>
-          <View style={styles.ctrlRow}>
-            <View style={styles.ctrlLeft}>
-              <Pressable onPress={() => playerNotice('Previous chapter is not available yet.')}>
-                <FontAwesome name="step-backward" size={18} color={DS.color.white} />
-              </Pressable>
-              <Text style={styles.timeText}>4:23 / {meta.duration}</Text>
-            </View>
-            <View style={styles.ctrlRight}>
-              <Pressable onPress={() => playerNotice('Volume controls are not available yet.')}>
-                <FontAwesome name="volume-up" size={18} color={DS.color.white} />
-              </Pressable>
-              <Pressable onPress={() => playerNotice('Fullscreen is not available yet.')}>
-                <FontAwesome name="expand" size={18} color={DS.color.white} />
-              </Pressable>
-            </View>
-          </View>
-        </View>
       </View>
       <ScrollView
         contentContainerStyle={[styles.padded, { paddingBottom: 100 + insets.bottom }]}
@@ -1069,23 +1052,17 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
       >
         <View style={styles.playerBadgeRow}>
           <View style={styles.playerBadgePill}>
-            <Text style={styles.playerBadgeText}>{meta.badge}</Text>
+            <Text style={styles.playerBadgeText}>{parsedCategory ?? meta.badge}</Text>
           </View>
           <Text style={styles.playerDurationLabel}>{meta.duration}</Text>
         </View>
         <Text style={styles.playerTitle}>{displayTitle}</Text>
         <Text style={styles.muted}>{meta.channelLine}</Text>
-        <Text style={styles.body}>{displayDesc}</Text>
+        <Text style={styles.body}>{cleanedDesc}</Text>
+        {parsedCategory ? <Text style={styles.muted}>Category: {parsedCategory}</Text> : null}
         {displayTags ? <Text style={styles.muted}>Tags: {displayTags}</Text> : null}
 
         <View style={styles.playerActionsRow}>
-          <Pressable
-            style={styles.playerActionGold}
-            onPress={() => playerNotice('Added to Continue Watching.')}
-          >
-            <FontAwesome name="clock-o" size={14} color={DS.color.gold} />
-            <Text style={styles.playerActionGoldText}> Add to Continue Watching</Text>
-          </Pressable>
           <Pressable style={styles.playerActionGhost} onPress={toggleSave}>
             <FontAwesome name={saved ? 'bookmark' : 'bookmark-o'} size={14} color={saved ? DS.color.gold : DS.color.text} />
             <Text style={styles.playerActionGhostText}> {saved ? 'Saved' : 'Save'}</Text>
@@ -1785,6 +1762,17 @@ const styles = StyleSheet.create({
     gap: DS.space.md,
   },
   playerChromeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(28, 28, 28, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullscreenBtn: {
+    position: 'absolute',
+    right: DS.space.base,
+    bottom: DS.space.base,
     width: 40,
     height: 40,
     borderRadius: 20,
