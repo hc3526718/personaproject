@@ -36,6 +36,20 @@ function runExpoExport() {
   run(`npx -y expo export --platform web --output-dir "${appOutDir}"`, expoDir, env);
 }
 
+/** Serve boot video as static file (avoids bundling ~95MB into Metro on Vercel). */
+async function stageBootVideoPublic() {
+  const src = path.join(expoDir, 'assets', 'VideoP.mp4');
+  const pubDir = path.join(expoDir, 'public');
+  const dest = path.join(pubDir, 'VideoP.mp4');
+  if (!existsSync(src)) {
+    console.warn('[vercel-build] assets/VideoP.mp4 missing — skip public staging');
+    return;
+  }
+  await mkdir(pubDir, { recursive: true });
+  await cp(src, dest);
+  console.log('[vercel-build] Staged VideoP.mp4 → public/ (static at /app/VideoP.mp4)');
+}
+
 async function copyMarketingSite() {
   if (!existsSync(path.join(marketingRoot, 'index.html'))) {
     throw new Error(
@@ -69,6 +83,7 @@ async function main() {
   if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
   mkdirSync(appOutDir, { recursive: true });
 
+  await stageBootVideoPublic();
   runExpoExport();
   await copyMarketingSite();
 
