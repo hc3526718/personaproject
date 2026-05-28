@@ -37,6 +37,9 @@ type MediaPayload = {
   pitch?: string;
   category?: string;
   tags?: string[];
+  series_title?: string;
+  series_part?: number;
+  feature_series?: boolean;
 };
 
 export type MasterPublishResult =
@@ -157,6 +160,12 @@ export async function publishMediaFromProposalPayload(
   const tags = Array.isArray(payload.tags)
     ? payload.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 12)
     : [];
+  const seriesTitle = payload.series_title?.trim() || null;
+  const seriesPart =
+    payload.series_part != null && Number.isFinite(payload.series_part) && payload.series_part > 0
+      ? Math.floor(payload.series_part)
+      : null;
+  const featureSeries = !!payload.feature_series && !!seriesTitle;
   const tagSuffix =
     Array.isArray(payload.tags) && payload.tags.length
       ? `tags-${payload.tags
@@ -193,10 +202,23 @@ export async function publishMediaFromProposalPayload(
         (msg.includes('title') ||
           msg.includes('description') ||
           msg.includes('tags') ||
-          msg.includes('thumbnail_url'))) ||
+          msg.includes('thumbnail_url') ||
+          msg.includes('series_title') ||
+          msg.includes('featured_series'))) ||
       (msg.toLowerCase().includes('schema cache') &&
-        (msg.includes('title') || msg.includes('description') || msg.includes('tags') || msg.includes('thumbnail_url')))
+        (msg.includes('title') ||
+          msg.includes('description') ||
+          msg.includes('tags') ||
+          msg.includes('thumbnail_url') ||
+          msg.includes('series_title') ||
+          msg.includes('featured_series')))
     );
+  };
+
+  const applyFeaturedSeries = async (assetId: string) => {
+    if (!featureSeries) return;
+    await supabase.from('media_assets').update({ featured_series: false }).eq('featured_series', true);
+    await supabase.from('media_assets').update({ featured_series: true }).eq('id', assetId);
   };
 
   const thumbnailUrl =
@@ -222,6 +244,9 @@ export async function publishMediaFromProposalPayload(
         description: description || null,
         tags,
         thumbnail_url: thumbnailUrl,
+        series_title: seriesTitle,
+        series_part: seriesPart,
+        featured_series: featureSeries,
       } as const;
     const rowNoMeta = {
       owner_id: userId,
@@ -239,6 +264,7 @@ export async function publishMediaFromProposalPayload(
     if (ins.ok) {
       published += 1;
       firstId ??= ins.id;
+      await applyFeaturedSeries(ins.id);
     }
   }
 
@@ -256,6 +282,9 @@ export async function publishMediaFromProposalPayload(
         description: description || null,
         tags,
         thumbnail_url: thumbnailUrl,
+        series_title: seriesTitle,
+        series_part: seriesPart,
+        featured_series: featureSeries,
       } as const;
     const rowNoMeta = {
       owner_id: userId,
@@ -272,6 +301,7 @@ export async function publishMediaFromProposalPayload(
     if (ins.ok) {
       published += 1;
       firstId ??= ins.id;
+      await applyFeaturedSeries(ins.id);
     }
   }
 

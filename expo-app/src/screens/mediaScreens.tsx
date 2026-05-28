@@ -26,6 +26,8 @@ import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { OptionMenuModal } from '../components/OptionMenuModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { HighlightVideoModal } from '../components/HighlightVideoModal';
+import { MediaMetaPanel } from '../components/MediaMetaPanel';
+import { FeaturedSeriesPickerModal } from '../components/FeaturedSeriesPickerModal';
 import {
   formatMediaDisplayTitle,
   getMediaPresentation,
@@ -46,8 +48,10 @@ import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { MediaStackParamList } from '../navigation/types';
 import {
   deleteMediaAsset,
+  getFeaturedSeriesHead,
   getMediaAssetById,
   listBrowseMediaAssets,
+  listMediaInSeries,
 } from '../roadmap/liveDataService';
 import type { MediaAssetRow } from '../roadmap/types';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
@@ -250,15 +254,19 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
   }, [route.params?.createdMediaTitle, navigation, showBanner]);
   const [b, setB] = useState(0);
   const [browseAssets, setBrowseAssets] = useState<MediaAssetRow[]>([]);
+  const [featuredHero, setFeaturedHero] = useState<MediaAssetRow | null>(null);
+  const [featuredPickerOpen, setFeaturedPickerOpen] = useState(false);
   const [continueItems, setContinueItems] = useState<Awaited<ReturnType<typeof listContinueWatching>>>([]);
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const loadBrowse = useCallback(async () => {
-    const [rows, cont, watched] = await Promise.all([
+    const [rows, cont, watched, featured] = await Promise.all([
       listBrowseMediaAssets(80),
       listContinueWatching(),
       listFullyWatchedIds(),
+      getFeaturedSeriesHead(),
     ]);
     setBrowseAssets(rows);
+    setFeaturedHero(featured);
     const watchedSet = watched;
     const seen = new Set<string>();
     setContinueItems(
@@ -341,26 +349,58 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
         showsVerticalScrollIndicator={false}
         refreshControl={pullRefreshControl(refreshing, onRefresh)}
       >
-        <Pressable
-          style={styles.hero}
-          onPress={() => navigation.navigate('MediaPlayer', { title: "The Champion's Mindset" })}
-        >
-          <Image source={{ uri: HERO_LIB }} style={styles.heroImage} />
-          <View style={styles.heroPlay}>
-            <View style={styles.playCircle}>
-              <FontAwesome name="play" size={22} color={DS.color.background} />
-            </View>
+        {featuredHero ? (
+          <View style={styles.heroWrap}>
+            {user?.masterControl ? (
+              <Pressable
+                style={styles.heroEditBtn}
+                onPress={() => setFeaturedPickerOpen(true)}
+                accessibilityLabel="Change featured series"
+              >
+                <FontAwesome name="pencil" size={14} color={DS.color.text} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={styles.hero}
+              onPress={() => {
+                const pres = getMediaPresentation(featuredHero);
+                navigation.navigate('MediaPlayer', {
+                  title: pres.title,
+                  mediaId: featuredHero.id,
+                  playbackUrl: featuredHero.public_url ?? undefined,
+                });
+              }}
+            >
+              <Image
+                source={{ uri: mediaThumbnailUri(featuredHero) || HERO_LIB }}
+                style={styles.heroImage}
+              />
+              <View style={styles.heroPlay}>
+                <View style={styles.playCircle}>
+                  <FontAwesome name="play" size={22} color={DS.color.background} />
+                </View>
+              </View>
+              <View style={styles.heroBottom}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heroKicker}>Featured Series</Text>
+                  <Text style={styles.heroHead} numberOfLines={2}>
+                    {(featuredHero.series_title || getMediaPresentation(featuredHero).title).toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
           </View>
-          <View style={styles.heroBottom}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.heroKicker}>Featured Series</Text>
-              <Text style={styles.heroHead}>THE CHAMPION&apos;S MINDSET</Text>
-            </View>
-            <View style={styles.durationPill}>
-              <Text style={styles.durationPillText}>45:20</Text>
-            </View>
-          </View>
-        </Pressable>
+        ) : user?.masterControl ? (
+          <Pressable style={styles.heroPlaceholder} onPress={() => setFeaturedPickerOpen(true)}>
+            <FontAwesome name="star" size={20} color={DS.color.gold} />
+            <Text style={styles.heroPlaceholderText}>Set featured series</Text>
+          </Pressable>
+        ) : null}
+        <FeaturedSeriesPickerModal
+          visible={featuredPickerOpen}
+          onClose={() => setFeaturedPickerOpen(false)}
+          onSaved={() => void loadBrowse()}
+        />
         <Text style={styles.browseLabel}>BROWSE</Text>
         <ScrollView
           horizontal
@@ -948,6 +988,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [seriesUpNext, setSeriesUpNext] = useState<MediaAssetRow[]>([]);
   const videoRef = useRef<Video | null>(null);
   const playbackUrl = paramPlayback || asset?.public_url?.trim() || '';
   const thumb = mediaThumbnailUri(asset ?? { kind: 'video', thumbnail_url: null, public_url: playbackUrl }) || PLAYER_STILL;
@@ -980,6 +1021,17 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
     if (!mediaId || mediaId.startsWith('demo:')) return;
     void getMediaAssetById(mediaId).then(setAsset);
   }, [mediaId]);
+
+  useEffect(() => {
+    const seriesTitle = asset?.series_title?.trim();
+    if (!seriesTitle || isDemoMedia) {
+      setSeriesUpNext([]);
+      return;
+    }
+    void listMediaInSeries(seriesTitle, mediaId.startsWith('demo:') ? undefined : mediaId, 12).then(
+      setSeriesUpNext,
+    );
+  }, [asset?.series_title, isDemoMedia, mediaId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1167,17 +1219,19 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
             <Text style={styles.playerDurationLabel}>{meta.duration}</Text>
           </View>
         ) : null}
-        <Text style={styles.playerTitle}>{presentation.title}</Text>
-        {isDemoMedia ? <Text style={styles.muted}>{meta.channelLine}</Text> : null}
-        {presentation.tags.length ? (
-          <Text style={styles.playerDetailBlock}>{presentation.tags.join(', ')}</Text>
-        ) : null}
-        {presentation.description ? (
-          <Text style={styles.playerDetailBlock}>{presentation.description}</Text>
-        ) : null}
-        {presentation.category ? (
-          <Text style={styles.playerDetailBlock}>{presentation.category}</Text>
-        ) : null}
+        {isDemoMedia ? (
+          <>
+            <Text style={styles.playerTitle}>{presentation.title}</Text>
+            <Text style={styles.muted}>{meta.channelLine}</Text>
+          </>
+        ) : (
+          <MediaMetaPanel
+            category={presentation.category}
+            title={presentation.title}
+            description={presentation.description}
+            tags={presentation.tags}
+          />
+        )}
 
         <View style={styles.playerActionsRow}>
           <Pressable style={styles.playerActionGhost} onPress={toggleSave}>
@@ -1193,21 +1247,48 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
           </Pressable>
         </View>
 
-        <Text style={styles.playerSectionTitle}>Up Next</Text>
+        <Text style={styles.playerSectionTitle}>
+          {seriesUpNext.length ? 'More in this series' : 'Up Next'}
+        </Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.upNextScroll}
         >
-          {UP_NEXT_ITEMS.map((u) => (
+          {(seriesUpNext.length
+            ? seriesUpNext.map((a) => {
+                const pres = getMediaPresentation(a);
+                return {
+                  key: a.id,
+                  title: pres.title,
+                  uri: mediaThumbnailUri(a) || THUMB,
+                  mediaId: a.id,
+                  playbackUrl: a.public_url ?? undefined,
+                  channel: a.series_title?.trim() || pres.category,
+                };
+              })
+            : UP_NEXT_ITEMS.map((u) => ({
+                key: u.title,
+                title: u.title,
+                uri: u.uri,
+                mediaId: undefined as string | undefined,
+                playbackUrl: undefined as string | undefined,
+                channel: u.channel,
+              }))
+          ).map((u) => (
             <Pressable
-              key={u.title}
+              key={u.key}
               style={styles.upNextCard}
-              onPress={() => navigation.replace('MediaPlayer', { title: u.title })}
+              onPress={() =>
+                navigation.replace('MediaPlayer', {
+                  title: u.title,
+                  mediaId: u.mediaId,
+                  playbackUrl: u.playbackUrl,
+                })
+              }
             >
               <View style={styles.upNextThumbWrap}>
                 <Image source={{ uri: u.uri }} style={styles.upNextThumb} />
-                <Text style={styles.upNextDur}>{u.duration}</Text>
               </View>
               <Text style={styles.upNextCardTitle} numberOfLines={2}>
                 {u.title}
@@ -1543,6 +1624,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  heroWrap: {
+    position: 'relative',
+    marginBottom: DS.space.lg,
+  },
+  heroEditBtn: {
+    position: 'absolute',
+    top: DS.space.md,
+    right: DS.space.md,
+    zIndex: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: DS.color.surfaceFloating92,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: DS.color.borderHairline,
+  },
+  heroPlaceholder: {
+    marginBottom: DS.space.lg,
+    paddingVertical: DS.space.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DS.space.sm,
+    borderWidth: 1,
+    borderColor: DS.color.cardBorder,
+    borderRadius: DS.radius.lg,
+    borderStyle: 'dashed',
+  },
+  heroPlaceholderText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    color: DS.color.gold,
+  },
   hero: {
     alignSelf: 'stretch',
     width: '100%',
@@ -1551,7 +1666,7 @@ const styles = StyleSheet.create({
     borderRadius: 0,
     overflow: 'hidden',
     backgroundColor: DS.color.surface,
-    marginBottom: DS.space.lg,
+    marginBottom: 0,
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,

@@ -57,6 +57,8 @@ import {
   fetchMyEventReview,
   findUserBookingForEvent,
   getEventById,
+  subscribeEventById,
+  invokeNotifyEventAttendees,
   listAllEvents,
   listBookingsWithEventsForUser,
   subscribeBookingByReference,
@@ -68,6 +70,7 @@ import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { openEventCheckoutUrl, startEventStripeCheckout } from '../subscriptions/eventStripeCheckout';
 import { formatEntryPaymentNotice } from '../lib/eventEntryPayment';
+import { formatEventSpotsLabel, parseEventCapacity } from '../lib/eventDescriptionParse';
 import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
 import { CreatorEventDetailView } from './CreatorEventDetailView';
 import type { EventRow } from '../roadmap/types';
@@ -907,21 +910,26 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
       dateHint: route.params?.dateShort ?? '',
     });
 
+  const reloadDbEvent = useCallback(async () => {
+    if (!supabaseEventId) {
+      setDbEvent(null);
+      return;
+    }
+    const row = await getEventById(supabaseEventId);
+    setDbEvent(row);
+  }, [supabaseEventId]);
+
   useFocusEffect(
     useCallback(() => {
       if (!supabaseEventId) {
         setDbEvent(null);
-        return;
+        return undefined;
       }
-      let alive = true;
-      void (async () => {
-        const row = await getEventById(supabaseEventId);
-        if (alive) setDbEvent(row);
-      })();
-      return () => {
-        alive = false;
-      };
-    }, [supabaseEventId]),
+      void reloadDbEvent();
+      return subscribeEventById(supabaseEventId, () => {
+        void reloadDbEvent();
+      });
+    }, [supabaseEventId, reloadDbEvent]),
   );
 
   useFocusEffect(
@@ -951,6 +959,10 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         dbEvent.entry_payment_note,
       )
     : null;
+  const eventCapacity = dbEvent ? parseEventCapacity(dbEvent.description) : null;
+  const registeredCount = dbEvent?.registered_count ?? 0;
+  const spotsLabel = dbEvent ? formatEventSpotsLabel(registeredCount, eventCapacity) : null;
+  const isAttending = Boolean(viewerBooking);
 
   const storageKey = useMemo(
     () =>
@@ -1151,7 +1163,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
               </View>
               <View style={styles.detailHeroMetaGroup}>
                 <FontAwesome name="users" size={12} color={DS.color.gold} />
-                <Text style={styles.detailHeroMeta}>8/20 spots</Text>
+                <Text style={styles.detailHeroMeta}>{spotsLabel ?? '—'}</Text>
               </View>
             </View>
           </View>
@@ -1314,6 +1326,27 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
               </Text>
             </AppleHeroButton>
           </>
+        ) : isAttending ? (
+          <AppleHeroButton
+            style={styles.attendingCombinedBtn}
+            onPress={() =>
+              navigation.navigate('BookingConfirm', {
+                reference: viewerBooking!.reference,
+                bookingId: viewerBooking!.bookingId,
+                eventId: viewerBooking!.eventId,
+                title: displayTitle,
+                imageUri: displayHero,
+                recapDate: recapDatePart,
+                recapTime: recapTimePart || displaySchedule,
+                venue: displayVenue,
+                attendeeName: user?.email?.split('@')[0] ?? 'Member',
+                attendeeEmail: user?.email ?? '',
+                fitnessLevel: 'Intermediate',
+              })
+            }
+          >
+            <Text style={styles.attendingCombinedLabel}>Attending</Text>
+          </AppleHeroButton>
         ) : (
           <>
             <AppleHeroButton onPress={goConfirm} style={{ marginBottom: DS.space.sm }}>
@@ -2787,6 +2820,17 @@ const styles = StyleSheet.create({
   },
   saveLaterOutlineTextSaved: {
     opacity: 0.95,
+  },
+  attendingCombinedBtn: {
+    minHeight: DS.apple.controlHeight + DS.space.sm + DS.apple.controlHeight,
+    justifyContent: 'center',
+  },
+  attendingCombinedLabel: {
+    fontFamily: DS.font.heading,
+    fontSize: 22,
+    color: DS.color.background,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   masterDeleteEventBtn: {
     marginTop: DS.space.xl,

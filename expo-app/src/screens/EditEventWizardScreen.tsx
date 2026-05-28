@@ -26,7 +26,7 @@ import { getSupabase } from '../lib/supabase';
 import { pickWebMediaFile } from '../lib/webFilePicker';
 import type { EventsStackParamList } from '../navigation/types';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
-import { getEventById, updateCommunityEvent } from '../roadmap/liveDataService';
+import { getEventById, invokeNotifyEventAttendees, updateCommunityEvent } from '../roadmap/liveDataService';
 import { WizardChrome } from './proposals/WizardChrome';
 import {
   entryPaymentBlockForDescription,
@@ -498,6 +498,7 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
       setError('Could not save. Check your connection and permissions.');
       return;
     }
+    void invokeNotifyEventAttendees(eventId);
     setExplicitExit('saved');
     navigation.replace('EventDetails', { supabaseEventId: eventId });
   }, [

@@ -79,6 +79,8 @@ export type EventRow = {
   entry_payment_mode?: EntryPaymentMode | null;
   entry_payment_amount?: string | null;
   entry_payment_note?: string | null;
+  /** Maintained by trigger on `bookings` (migration 034). */
+  registered_count?: number;
 };
 
 export type EventReviewRow = {
@@ -100,6 +102,9 @@ export type MediaAssetRow = {
   title?: string | null;
   description?: string | null;
   tags?: string[] | null;
+  series_title?: string | null;
+  series_part?: number | null;
+  featured_series?: boolean;
   mime_type: string | null;
   visibility: 'private' | 'followers' | 'public';
   created_at: string;

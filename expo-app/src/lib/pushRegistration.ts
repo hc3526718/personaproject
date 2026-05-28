@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import { openCommunityMessageThread } from '../navigation/rootNavigationRef';
+import { openCommunityMessageThread, openEventDetails } from '../navigation/rootNavigationRef';
 import { isSupabaseConfigured } from './env';
 import { registerDevicePushToken } from '../roadmap/notificationsService';
 
@@ -31,14 +31,22 @@ export async function configurePushPresentation(): Promise<void> {
             conversationId?: string;
             link_type?: string;
             link_id?: string;
+            event_id?: string;
           };
+          const lt = (data?.link_type ?? '').toLowerCase();
+          const eventId =
+            (typeof data?.event_id === 'string' ? data.event_id.trim() : '') ||
+            (lt === 'event' && typeof data?.link_id === 'string' ? data.link_id.trim() : '');
+          if (eventId) {
+            openEventDetails(eventId);
+            return;
+          }
           const cid =
             typeof data?.conversationId === 'string'
               ? data.conversationId.trim()
               : typeof data?.link_id === 'string'
                 ? data.link_id.trim()
                 : '';
-          const lt = (data?.link_type ?? '').toLowerCase();
           if (
             !cid ||
             !(lt === 'conversation' || lt === 'dm' || lt === 'message' || lt.includes('message'))
