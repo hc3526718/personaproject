@@ -13,7 +13,6 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FontAwesome5 } from '@expo/vector-icons';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppleHeroButton } from '../components/AppleHeroButton';
@@ -22,9 +21,8 @@ import { DS } from '../designSystem';
 import { capitalizeProfileTag, capitalizeProfileTags } from '../lib/capitalizeProfileTags';
 import { getSupabase } from '../lib/supabase';
 import type { OnboardingStackParamList } from '../navigation/types';
-import { BOOT_USE_RIVE, getDaltonBootRiveDisplayMode } from '../constants/riveBoot';
-import { BouncingBrandLogo } from '../components/BouncingBrandLogo';
-import { DaltonBootRiveDisplay } from '../components/DaltonBootRiveDisplay';
+import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
+import { DaltonVideoLoop } from '../components/DaltonVideoLoop';
 import { UsernameSetupFields, canProceedWithUsername } from '../components/UsernameSetupFields';
 import {
   allocateAutoUsername,
@@ -82,27 +80,9 @@ function useOnboardingCtx() {
   return v;
 }
 
-/** Expo Go uses WebView embed when display mode is `embed`; otherwise bounce. */
-function OnboardingCompleteRive({
-  riveFailed,
-  onRiveFailed,
-}: {
-  riveFailed: boolean;
-  onRiveFailed: () => void;
-}) {
-  const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-  if (riveFailed || !BOOT_USE_RIVE) {
-    return <BouncingBrandLogo width={180} height={180} />;
-  }
-  if (isExpoGo && getDaltonBootRiveDisplayMode() !== 'embed') {
-    return <BouncingBrandLogo width={180} height={180} />;
-  }
+function OnboardingCompleteVideo() {
   return (
-    <DaltonBootRiveDisplay
-      style={{ width: 220, height: 220, maxWidth: '90%' }}
-      onNativeError={() => onRiveFailed()}
-      onEmbedError={() => onRiveFailed()}
-    />
+    <DaltonVideoLoop style={{ width: 220, height: 220, maxWidth: '90%' }} />
   );
 }
 
@@ -456,7 +436,6 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
   const { draft, onFinished, resetDraft } = useOnboardingCtx();
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
-  const [riveFailed, setRiveFailed] = useState(false);
 
   const saveAndEnter = useCallback(async () => {
     const supabase = getSupabase();
@@ -534,7 +513,7 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.riveBlock}>
-          <OnboardingCompleteRive riveFailed={riveFailed} onRiveFailed={() => setRiveFailed(true)} />
+          <OnboardingCompleteVideo />
         </View>
         <Text style={styles.completeTitle}>You&apos;re in</Text>
         <Text style={styles.completeBody}>
@@ -656,7 +635,7 @@ const styles = StyleSheet.create({
   choiceTextOn: { fontFamily: DS.font.bodyMedium, color: DS.color.gold },
   completeRoot: {
     flex: 1,
-    backgroundColor: DS.color.background,
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
     paddingHorizontal: DS.space.lg,
     paddingTop: 56,
     alignItems: 'center',
@@ -667,6 +646,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: DS.space.lg,
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
   },
   completeTitle: {
     fontFamily: DS.font.heading,

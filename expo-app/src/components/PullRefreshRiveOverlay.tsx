@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
-import { AppLoadingIndicator } from './AppLoadingIndicator';
-import { DS } from '../designSystem';
+import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
+import { DaltonVideoLoop } from './DaltonVideoLoop';
 
 /** Pull-to-refresh indicator under the status bar (paired with transparent RefreshControl). */
 export function PullRefreshRiveOverlay({
@@ -15,7 +15,7 @@ export function PullRefreshRiveOverlay({
   return (
     <View pointerEvents="none" style={[styles.overlay, { paddingTop: topInset }]}>
       <View style={styles.box}>
-        <AppLoadingIndicator size={40} />
+        <DaltonVideoLoop style={styles.video} accessibilityLabel="Refreshing" />
       </View>
     </View>
   );
@@ -29,11 +29,17 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     alignItems: 'center',
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
   },
   box: {
     height: 100,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
+  },
+  video: {
+    width: 72,
+    height: 72,
   },
 });

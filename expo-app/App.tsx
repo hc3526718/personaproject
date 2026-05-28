@@ -12,10 +12,12 @@ import { AccessibilityProvider } from './src/accessibility/AccessibilityContext'
 import { ActionBannerProvider } from './src/actionBanner/ActionBannerContext';
 import { ActivityBadgeProvider } from './src/activity/ActivityBadgeProvider';
 import { ConversationInAppAlerts } from './src/activity/ConversationInAppAlerts';
+import { EventInAppAlerts } from './src/activity/EventInAppAlerts';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
-import { BootCircleLoader } from './src/components/BootCircleLoader';
+import { DaltonVideoLoop } from './src/components/DaltonVideoLoop';
+import { DALTON_BOOT_VIDEO_BG } from './src/constants/daltonBootVideo';
 import { appFontSources } from './src/loadAppFonts';
 import WebDemoApp from './src/WebDemoApp';
 
@@ -49,10 +51,11 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
               <>
                 <AppNavigator />
                 <ConversationInAppAlerts />
+                <EventInAppAlerts />
               </>
             ) : (
               <View style={styles.bootLoader}>
-                <BootCircleLoader />
+                <DaltonVideoLoop style={styles.bootVideo} />
               </View>
             )}
           </View>
@@ -99,6 +102,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: DS.color.background,
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
+  },
+  bootVideo: {
+    width: 280,
+    height: 280,
+    maxWidth: '88%',
   },
 });
