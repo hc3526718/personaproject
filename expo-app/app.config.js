@@ -49,6 +49,15 @@ function buildPlugins() {
       },
     ],
     [
+      'expo-media-library',
+      {
+        photosPermission: 'Allow The Dalton Grant Academy to save event ticket QR codes to your photo library.',
+        savePhotosPermission:
+          'Allow The Dalton Grant Academy to add ticket images to your Photos / gallery.',
+        isAccessMediaLocationEnabled: false,
+      },
+    ],
+    [
       'expo-build-properties',
       {
         ios: {
@@ -110,6 +119,10 @@ const baseExpo = {
     },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      NSPhotoLibraryAddUsageDescription:
+        'The Dalton Grant Academy saves your event ticket QR code to your photo library when you choose Save ticket as PNG.',
+      NSPhotoLibraryUsageDescription:
+        'The Dalton Grant Academy saves your event ticket QR code to your photo library when you choose Save ticket as PNG.',
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: false,
         NSExceptionDomains: {

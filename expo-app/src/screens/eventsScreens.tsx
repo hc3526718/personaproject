@@ -17,10 +17,7 @@ import { CommonActions, useFocusEffect, useRoute, type RouteProp } from '@react-
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system';
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { captureRef } from 'react-native-view-shot';
+import { saveTicketAsPdf, saveTicketAsPng } from '../lib/ticketExport';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
 import { signTicketPayload } from '../booking/ticketToken';
@@ -1741,7 +1738,9 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         setCheckedInAt(v);
         if (v && !checkInBannerSent.current) {
           checkInBannerSent.current = true;
-          showBanner(`Signed in — your attendance for ${evTitle} is confirmed.`);
+          showBanner(`Signed in — your attendance for ${evTitle} is confirmed.`, undefined, {
+            category: 'eventAttendance',
+          });
         }
       })();
       return () => {
@@ -1757,7 +1756,9 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         setCheckedInAt(v);
         if (v && !checkInBannerSent.current) {
           checkInBannerSent.current = true;
-          showBanner(`Signed in — your attendance for ${evTitle} is confirmed.`);
+          showBanner(`Signed in — your attendance for ${evTitle} is confirmed.`, undefined, {
+            category: 'eventAttendance',
+          });
         }
       });
     });
@@ -1800,45 +1801,12 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const addCal = () => void shareEventCalendar(evTitle, venue, scheduleForIcs, refCode);
 
   const saveTicketPng = useCallback(async () => {
-    try {
-      await new Promise((r) => setTimeout(r, 100));
-      const uri = await captureRef(ticketShotRef, {
-        format: 'png',
-        quality: 1,
-        result: 'tmpfile',
-      });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, { mimeType: 'image/png', UTI: 'public.png' });
-      } else {
-        Alert.alert('Sharing', 'Sharing is not available on this device.');
-      }
-    } catch (e) {
-      Alert.alert('Save ticket', e instanceof Error ? e.message : 'Could not capture the ticket.');
-    }
-  }, []);
+    await saveTicketAsPng(ticketShotRef, refCode);
+  }, [refCode]);
 
   const saveTicketPdf = useCallback(async () => {
-    try {
-      await new Promise((r) => setTimeout(r, 100));
-      const uri = await captureRef(ticketShotRef, {
-        format: 'png',
-        quality: 0.92,
-        result: 'tmpfile',
-      });
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      const html = `<html><body style="margin:0;display:flex;justify-content:center;"><img src="data:image/png;base64,${base64}" style="width:100%;max-width:520px" /></body></html>`;
-      const { uri: pdfUri } = await Print.printToFileAsync({ html });
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(pdfUri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
-      } else {
-        Alert.alert('Sharing', 'Sharing is not available on this device.');
-      }
-    } catch (e) {
-      Alert.alert('PDF', e instanceof Error ? e.message : 'Could not build a PDF.');
-    }
-  }, []);
+    await saveTicketAsPdf(ticketShotRef, refCode);
+  }, [refCode]);
 
   const qrExportSteps =
     qrToken
@@ -1846,14 +1814,14 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
           {
             key: 'png',
             title: 'Save ticket as PNG',
-            subtitle: 'Share or save the QR reference image',
+            subtitle: 'Save QR to Photos (mobile) or download as image',
             icon: <FontAwesome name="file-image-o" size={14} color={DS.color.gold} />,
             onPress: () => void saveTicketPng(),
           },
           {
             key: 'pdf',
             title: 'Save ticket as PDF',
-            subtitle: 'Portable archive of your QR strip',
+            subtitle: 'Download or save via the system share sheet',
             icon: <FontAwesome name="file-pdf-o" size={14} color={DS.color.gold} />,
             onPress: () => void saveTicketPdf(),
           },

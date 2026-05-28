@@ -5,6 +5,12 @@ import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { openEventDetails } from '../navigation/rootNavigationRef';
 import type { InAppNotification } from '../roadmap/notificationsService';
+import {
+  isInAppBannerAllowed,
+  loadInAppNotifyPrefs,
+} from '../lib/notificationBannerPrefs';
+import { isMasterControlUser } from '../lib/notifyPrefsAccess';
+import { fetchUserPrefsDoc } from '../roadmap/userSettingsService';
 import { listInAppNotifications } from '../roadmap/notificationsService';
 
 function isEventUpdateNotification(n: Pick<InAppNotification, 'title' | 'link_type'>): boolean {
@@ -31,7 +37,17 @@ export function EventInAppAlerts() {
   const alertedIdsRef = useRef<Set<string>>(new Set());
   const prevUserRef = useRef<string | null>(null);
 
-  const showEventAlert = useCallback((n: InAppNotification) => {
+  const showEventAlert = useCallback(async (n: InAppNotification) => {
+    const prefs = await loadInAppNotifyPrefs();
+    const isMaster = isMasterControlUser(user);
+    if (!isInAppBannerAllowed('eventAttendance', prefs, isMaster)) return;
+
+    if (user?.id && !user.id.startsWith('demo-')) {
+      const doc = await fetchUserPrefsDoc(user.id);
+      if (doc.notification_channels?.event_reminders === false) return;
+      if (doc.notification_channels?.push === false) return;
+    }
+
     const title = n.title?.trim() || 'Event updated';
     const subtitle = (n.body ?? '').trim();
     buzz();
@@ -45,7 +61,7 @@ export function EventInAppAlerts() {
         },
       },
     ]);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!user?.id || user.id.startsWith('demo-') || !isSupabaseConfigured()) {
@@ -66,7 +82,7 @@ export function EventInAppAlerts() {
         const unread = rows.find((n) => !n.read_at && isEventUpdateNotification(n) && (n.link_id ?? '').trim());
         if (!unread || alertedIdsRef.current.has(unread.id)) return;
         alertedIdsRef.current.add(unread.id);
-        showEventAlert(unread);
+        void showEventAlert(unread);
       });
     }
 
@@ -87,7 +103,7 @@ export function EventInAppAlerts() {
           if (!isEventUpdateNotification(row)) return;
           if (AppState.currentState !== 'active') return;
           alertedIdsRef.current.add(row.id);
-          showEventAlert(row);
+          void showEventAlert(row);
         },
       )
       .subscribe();

@@ -14,22 +14,17 @@ import { BRAND_CONTACT_RESPONSE_WINDOW } from '../constants/brand';
 import {
   DEFAULT_NOTIFY_PREFS,
   IN_APP_NOTIFY_LABELS,
+  invalidateInAppNotifyPrefsCache,
   loadInAppNotifyPrefs,
   saveInAppNotifyPrefs,
+  sanitizeInAppPrefsForAccount,
   type InAppNotifyCategory,
   type InAppNotifyPrefs,
 } from '../lib/notificationBannerPrefs';
-
-const BANNER_TOGGLE_ORDER: InAppNotifyCategory[] = [
-  'postInteraction',
-  'messages',
-  'eventAttendance',
-  'eventBooking',
-  'eventCreation',
-  'mediaCreation',
-  'masterProposals',
-  'system',
-];
+import { inAppNotifyCategoriesForUser, isMasterControlUser } from '../lib/notifyPrefsAccess';
+import { setPushDeliveryEnabled } from '../lib/pushPrefsGate';
+import { tryRegisterPushToken } from '../lib/pushRegistration';
+import { unregisterDevicePushToken } from '../roadmap/notificationsService';
 
 const BANNER_TOGGLE_SUB: Partial<Record<InAppNotifyCategory, string>> = {
   postInteraction: 'Likes, comments, follows, mentions.',
@@ -491,20 +486,24 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
-          <View style={styles.hairline} />
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Partner analytics</Text>
-              <Text style={styles.toggleSub}>Share anonymized usage with sponsors.</Text>
-            </View>
-            <Switch
-              value={dataShare}
-              onValueChange={(v) =>
-                applyPrivacy({ partner_analytics: v }, { pub, showResults, dataShare })
-              }
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
-          </View>
+          {isMasterControlUser(user) ? (
+            <>
+              <View style={styles.hairline} />
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.toggleTitle}>Partner analytics</Text>
+                  <Text style={styles.toggleSub}>Share anonymized usage with sponsors.</Text>
+                </View>
+                <Switch
+                  value={dataShare}
+                  onValueChange={(v) =>
+                    applyPrivacy({ partner_analytics: v }, { pub, showResults, dataShare })
+                  }
+                  trackColor={{ true: DS.color.goldTint30 }}
+                />
+              </View>
+            </>
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -521,23 +520,36 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
   const [community, setCommunity] = useState(false);
   const [masterProposals, setMasterProposals] = useState(true);
   const [bannerPrefs, setBannerPrefs] = useState<InAppNotifyPrefs>(DEFAULT_NOTIFY_PREFS);
-  const isMaster = user?.masterControl === true;
+  const isMaster = isMasterControlUser(user);
+  const bannerToggleOrder = inAppNotifyCategoriesForUser(isMaster);
 
   useFocusEffect(
     useCallback(() => {
       void (async () => {
-        setBannerPrefs(await loadInAppNotifyPrefs());
+        let prefs = await loadInAppNotifyPrefs();
         if (user?.id && !user.id.startsWith('demo-')) {
           const doc = await fetchUserPrefsDoc(user.id);
           const ch = doc.notification_channels;
-          if (ch?.push != null) setPush(ch.push);
+          if (ch?.push != null) {
+            setPush(ch.push);
+            setPushDeliveryEnabled(ch.push);
+          }
           if (ch?.email != null) setEmail(ch.email);
           if (ch?.event_reminders != null) setEvents(ch.event_reminders);
           if (ch?.community_mentions != null) setCommunity(ch.community_mentions);
           if (ch?.master_proposals != null) setMasterProposals(ch.master_proposals);
+          if (doc.in_app_notify) {
+            prefs = sanitizeInAppPrefsForAccount(
+              { ...prefs, ...doc.in_app_notify },
+              isMaster,
+            );
+            invalidateInAppNotifyPrefsCache();
+            await saveInAppNotifyPrefs(prefs);
+          }
         }
+        setBannerPrefs(sanitizeInAppPrefsForAccount(prefs, isMaster));
       })();
-    }, [user?.id]),
+    }, [isMaster, user?.id]),
   );
 
   const patchNotifyChannel = useCallback(
@@ -557,7 +569,10 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
         masterProposals: boolean;
       },
     ) => {
-      if (patch.push != null) setPush(patch.push);
+      if (patch.push != null) {
+        setPush(patch.push);
+        setPushDeliveryEnabled(patch.push);
+      }
       if (patch.email != null) setEmail(patch.email);
       if (patch.event_reminders != null) setEvents(patch.event_reminders);
       if (patch.community_mentions != null) setCommunity(patch.community_mentions);
@@ -575,18 +590,32 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
           setEvents(rollback.events);
           setCommunity(rollback.community);
           setMasterProposals(rollback.masterProposals);
+          setPushDeliveryEnabled(rollback.push);
           showBanner('Could not save', 'Check your connection. Restored your previous choices.');
-        } else {
-          showBanner('Saved', 'Notification preferences updated.');
+          return;
         }
+        if (patch.push === true) {
+          await tryRegisterPushToken(user.id);
+        } else if (patch.push === false) {
+          await unregisterDevicePushToken(user.id);
+        }
+        showBanner('Saved', 'Notification preferences updated.');
       })();
     },
     [user?.id, showBanner],
   );
 
   const patchBanner = async (partial: Partial<InAppNotifyPrefs>) => {
-    await saveInAppNotifyPrefs(partial);
-    setBannerPrefs(await loadInAppNotifyPrefs());
+    const merged = sanitizeInAppPrefsForAccount(
+      { ...(await loadInAppNotifyPrefs()), ...partial },
+      isMaster,
+    );
+    invalidateInAppNotifyPrefsCache();
+    await saveInAppNotifyPrefs(merged);
+    setBannerPrefs(merged);
+    if (user?.id && !user.id.startsWith('demo-')) {
+      await patchUserPrefsDoc(user.id, { in_app_notify: merged });
+    }
   };
 
   return (
@@ -667,8 +696,8 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
 
         <Text style={styles.cardKickerSpaced}>In-app banners</Text>
         <Text style={styles.bodyMuted}>
-          Stored preferences for future in-app notification banners (Community opens the full notifications list
-          from the gold bell).
+          Controls which in-app banners and popups you see while using the app. Master-only categories appear
+          only on master control accounts.
         </Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
@@ -682,7 +711,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
-          {BANNER_TOGGLE_ORDER.filter((key) => isMaster || key !== 'masterProposals').map((key) => (
+          {bannerToggleOrder.map((key) => (
             <View key={key}>
               <View style={styles.hairline} />
               <View style={styles.toggleRow}>

@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { openCommunityMessageThread, openEventDetails } from '../navigation/rootNavigationRef';
 import { isSupabaseConfigured } from './env';
+import { isPushDeliveryEnabled } from './pushPrefsGate';
 import { registerDevicePushToken } from '../roadmap/notificationsService';
 
 let notificationResponseListenerAttached = false;
@@ -15,13 +16,24 @@ export async function configurePushPresentation(): Promise<void> {
   try {
     const Notifications = await import('expo-notifications');
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
+      handleNotification: async () => {
+        if (!isPushDeliveryEnabled()) {
+          return {
+            shouldShowAlert: false,
+            shouldShowBanner: false,
+            shouldShowList: false,
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+          };
+        }
+        return {
+          shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        };
+      },
     });
     if (!notificationResponseListenerAttached) {
       notificationResponseListenerAttached = true;
