@@ -39,6 +39,7 @@ import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BookingQrCode } from '../components/BookingQrCode';
+import { OptionMenuModal } from '../components/OptionMenuModal';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { IcsEventInput } from '../integrations/eventCalendar';
@@ -474,27 +475,17 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
       >
         <Text style={styles.eventsTitle}>EVENTS</Text>
         <View style={styles.eventsHeaderActions}>
-          <Pressable
-            style={styles.eventsIconBtnSm}
-            hitSlop={8}
-            onPress={() => {
-              void (async () => {
-                const allowed = await gatePremiumFeatureAccess({
-                  navigation,
-                  isPro,
-                  user,
-                  refreshSubscription,
-                  notifyNewPremiumFromPaywall,
-                });
-                if (allowed === 'allowed') {
-                  navigation.navigate('CreateEvent');
-                }
-              })();
-            }}
-          >
-            <FontAwesome name="plus" size={15} color={DS.color.text} />
-          </Pressable>
-          {premiumEventTools ? (
+          {canCreateVerifiedContent(isPro, user) ? (
+            <Pressable
+              style={styles.eventsIconBtnSm}
+              hitSlop={8}
+              onPress={() => navigation.navigate('CreateEvent')}
+              accessibilityLabel="Create event"
+            >
+              <FontAwesome name="plus" size={15} color={DS.color.text} />
+            </Pressable>
+          ) : null}
+          {premiumEventTools && canCreateVerifiedContent(isPro, user) ? (
             <Pressable
               style={styles.eventsIconBtnSm}
               hitSlop={8}
@@ -894,6 +885,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const showBanner = useActionBanner();
   const { user } = useAuth();
   const [saved, setSaved] = useState(false);
+  const [masterMenuOpen, setMasterMenuOpen] = useState(false);
   const title = route.params?.title ?? 'STRENGTH CAMP';
   const heroUri = route.params?.imageUri ?? DEFAULT_HERO;
   const dateShort = route.params?.dateShort;
@@ -1086,17 +1078,58 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         <Pressable style={styles.headerRoundBtn} onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
-        <Pressable
-          style={styles.headerRoundBtn}
-          onPress={() =>
-            Share.share({
-              message: `${displayTitle} — Dalton Grant Sports`,
-            }).catch(() => undefined)
-          }
-        >
-          <FontAwesome name="share-alt" size={16} color={DS.color.text} />
-        </Pressable>
+        {user?.masterControl ? (
+          <Pressable
+            style={styles.headerRoundBtn}
+            onPress={() => setMasterMenuOpen(true)}
+            accessibilityLabel="Event options"
+          >
+            <FontAwesome name="ellipsis-v" size={18} color={DS.color.text} />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.headerRoundBtn}
+            onPress={() =>
+              Share.share({
+                message: `${displayTitle} — Dalton Grant Sports`,
+              }).catch(() => undefined)
+            }
+            accessibilityLabel="Share event"
+          >
+            <FontAwesome name="share-alt" size={16} color={DS.color.text} />
+          </Pressable>
+        )}
       </View>
+      <OptionMenuModal
+        visible={masterMenuOpen}
+        title="Event"
+        onClose={() => setMasterMenuOpen(false)}
+        options={[
+          {
+            key: 'edit',
+            label: 'Edit event',
+            onPress: () =>
+              Alert.alert(
+                'Edit event',
+                'Event editing is coming soon. For now, delete and recreate the event if needed.',
+              ),
+          },
+          {
+            key: 'share',
+            label: 'Share event',
+            onPress: () =>
+              void Share.share({
+                message: `${displayTitle} — Dalton Grant Sports`,
+              }).catch(() => undefined),
+          },
+          {
+            key: 'delete',
+            label: 'Delete event',
+            destructive: true,
+            onPress: () => setDeleteEventConfirmOpen(true),
+          },
+        ]}
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 220 + insets.bottom }}

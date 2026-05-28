@@ -252,38 +252,34 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
       <View style={[styles.mediaTop, tabRootHeaderPadding, { paddingTop: insets.top + DS.space.md }]}>
         <Text style={styles.mediaTitle}>MEDIA</Text>
         <View style={styles.mediaHeaderActions}>
-          <Pressable
-            style={styles.roundIconBtnSm}
-            hitSlop={8}
-            onPress={() => {
-              void (async () => {
-                const allowed = await gatePremiumFeatureAccess({
-                  navigation,
-                  isPro,
-                  user,
-                  refreshSubscription,
-                  notifyNewPremiumFromPaywall,
-                });
-                if (allowed === 'allowed') navigation.navigate('MediaProposalWizard');
-              })();
-            }}
-          >
-            <FontAwesome name="plus" size={15} color={DS.color.text} />
-          </Pressable>
-          <Pressable
-            style={styles.roundIconBtnSm}
-            hitSlop={8}
-            onPress={() => navigation.navigate('SavedMedia')}
-            accessibilityLabel="Saved library"
-          >
-            <FontAwesome name="bookmark" size={16} color={DS.color.text} />
-          </Pressable>
-          <Pressable
-            style={styles.roundIconBtn}
-            onPress={() => navigation.navigate('MediaSearch')}
-          >
-            <FontAwesome name="search" size={18} color={DS.color.text} />
-          </Pressable>
+          {user?.masterControl ? (
+            <Pressable
+              style={styles.roundIconBtnSm}
+              hitSlop={8}
+              onPress={() => navigation.navigate('MediaProposalWizard')}
+              accessibilityLabel="Upload media"
+            >
+              <FontAwesome name="plus" size={15} color={DS.color.text} />
+            </Pressable>
+          ) : (
+            <>
+              <Pressable
+                style={styles.roundIconBtnSm}
+                hitSlop={8}
+                onPress={() => navigation.navigate('SavedMedia')}
+                accessibilityLabel="Saved library"
+              >
+                <FontAwesome name="bookmark" size={16} color={DS.color.text} />
+              </Pressable>
+              <Pressable
+                style={styles.roundIconBtn}
+                onPress={() => navigation.navigate('MediaSearch')}
+                accessibilityLabel="Search media"
+              >
+                <FontAwesome name="search" size={18} color={DS.color.text} />
+              </Pressable>
+            </>
+          )}
         </View>
       </View>
       <ScrollView
@@ -2294,17 +2290,18 @@ const styles = StyleSheet.create({
     gap: DS.space.sm,
   },
   savedChip: {
-    paddingHorizontal: DS.space.md,
-    paddingVertical: 10,
-    borderRadius: DS.radius.xl,
-    backgroundColor: DS.color.surface,
+    paddingHorizontal: DS.space.lg,
+    paddingVertical: DS.space.sm + 2,
+    borderRadius: DS.radius.pill,
+    backgroundColor: DS.color.surfaceAlt,
     borderWidth: 1,
-    borderColor: DS.color.borderWhite5,
+    borderColor: DS.color.borderHairlineLight,
     marginRight: DS.space.sm,
+    alignSelf: 'flex-start',
   },
   savedChipOn: {
-    backgroundColor: DS.color.goldTint10,
-    borderColor: DS.color.goldTint30,
+    backgroundColor: DS.color.gold,
+    borderColor: DS.color.gold,
   },
   savedChipText: {
     fontSize: 13,
@@ -2312,7 +2309,7 @@ const styles = StyleSheet.create({
     color: DS.color.text,
   },
   savedChipTextOn: {
-    color: DS.color.gold,
+    color: DS.color.background,
   },
   savedCount: {
     fontSize: 13,

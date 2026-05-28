@@ -9,6 +9,7 @@ import { uploadProposalAttachment } from '../../lib/proposalAttachmentUpload';
 import { masterInstantPublish } from '../../lib/masterInstantPublish';
 import type { SponsorsStackParamList } from '../../navigation/types';
 import { WizardChrome } from './WizardChrome';
+import { useFocusEffect } from '@react-navigation/native';
 
 type Props = NativeStackScreenProps<SponsorsStackParamList, 'SponsorProposalWizard'>;
 
@@ -24,6 +25,14 @@ export function SponsorProposalWizard({ navigation }: Props) {
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmTitle, setConfirmTitle] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.masterControl) {
+        navigation.goBack();
+      }
+    }, [navigation, user?.masterControl]),
+  );
 
   const pickDocs = useCallback(async () => {
     const res = await DocumentPicker.getDocumentAsync({

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../auth/AuthContext';
 import { DS } from '../../designSystem';
 import { uploadProposalAttachment } from '../../lib/proposalAttachmentUpload';
@@ -25,6 +26,14 @@ export function MediaProposalWizard({ navigation }: Props) {
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmTitle, setConfirmTitle] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.masterControl) {
+        navigation.goBack();
+      }
+    }, [navigation, user?.masterControl]),
+  );
 
   const pickDocs = useCallback(async () => {
     const res = await DocumentPicker.getDocumentAsync({

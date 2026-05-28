@@ -28,6 +28,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import { isSupabaseConfigured } from '../lib/env';
 import { formatAuthorDisplayName } from '../lib/communityPostBody';
+import { getSignInMethods } from '../lib/authSignInMethods';
 import { getSupabase } from '../lib/supabase';
 import type { ProfileStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
@@ -344,6 +345,33 @@ export function AthleteProfileScreen({ navigation }: PProps<'AthleteProfile'>) {
 export function SettingsScreen({ navigation }: PProps<'Settings'>) {
   const { logout, user } = useAuth();
   const { isPro } = useSubscription();
+  const [signInMethodLabel, setSignInMethodLabel] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        if (!user?.id || user.id.startsWith('demo-')) {
+          if (alive) setSignInMethodLabel(null);
+          return;
+        }
+        const methods = await getSignInMethods();
+        if (!alive) return;
+        if (!methods) {
+          setSignInMethodLabel(null);
+          return;
+        }
+        if (methods.hasEmailPassword) setSignInMethodLabel('Email and password');
+        else if (methods.hasGoogle && methods.hasApple) setSignInMethodLabel('Google or Apple');
+        else if (methods.hasGoogle) setSignInMethodLabel('Google');
+        else if (methods.hasApple) setSignInMethodLabel('Apple');
+        else setSignInMethodLabel(null);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [user?.id]),
+  );
 
   const premiumRow = {
     title: 'Premium',
@@ -476,6 +504,9 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
           <View style={styles.accountStatusCard}>
             <Text style={styles.accountStatusLabel}>Account</Text>
             <Text style={styles.accountStatusEmail}>{user.email || 'Signed in'}</Text>
+            {signInMethodLabel ? (
+              <Text style={styles.accountStatusMethod}>Created with {signInMethodLabel}</Text>
+            ) : null}
           </View>
         ) : null}
         {rows.map((r) => (
@@ -2056,6 +2087,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: DS.color.text,
     marginBottom: DS.space.md,
+  },
+  accountStatusMethod: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    marginTop: -DS.space.sm,
   },
   accountVerifyBadge: {
     fontFamily: DS.font.bodyMedium,

@@ -77,33 +77,26 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
       >
         <Text style={styles.sponsorTitle}>SPONSORS</Text>
         <View style={styles.sponsorHeaderActions}>
-          <Pressable
-            style={styles.roundIconBtnSm}
-            hitSlop={8}
-            onPress={() => navigation.navigate('MySponsorProposals')}
-            accessibilityLabel="My sponsor pages"
-          >
-            <FontAwesome name="list-alt" size={15} color={DS.color.text} />
-          </Pressable>
-          <Pressable
-            style={styles.roundIconBtnSm}
-            hitSlop={8}
-            onPress={() => {
-              void (async () => {
-                const allowed = await gatePremiumFeatureAccess({
-                  navigation,
-                  isPro,
-                  user,
-                  refreshSubscription,
-                  notifyNewPremiumFromPaywall,
-                });
-                if (allowed !== 'allowed') return;
-                navigation.navigate('SponsorProposalWizard');
-              })();
-            }}
-          >
-            <FontAwesome name="plus" size={15} color={DS.color.text} />
-          </Pressable>
+          {user?.masterControl ? (
+            <>
+              <Pressable
+                style={styles.roundIconBtnSm}
+                hitSlop={8}
+                onPress={() => navigation.navigate('MySponsorProposals')}
+                accessibilityLabel="My sponsor pages"
+              >
+                <FontAwesome name="list-alt" size={15} color={DS.color.text} />
+              </Pressable>
+              <Pressable
+                style={styles.roundIconBtnSm}
+                hitSlop={8}
+                onPress={() => navigation.navigate('SponsorProposalWizard')}
+                accessibilityLabel="Create sponsor page"
+              >
+                <FontAwesome name="plus" size={15} color={DS.color.text} />
+              </Pressable>
+            </>
+          ) : null}
         </View>
       </View>
       <ScrollView
