@@ -24,6 +24,7 @@ export type CommunityStackParamList = {
     initialDraft?: string;
   };
   BrandPartner: { pageId?: string } | undefined;
+  EditSponsor: { pageId: string };
   DemoHub: undefined;
 };
 
@@ -36,6 +37,7 @@ export type MediaStackParamList = {
   MediaCommunityFeed: undefined;
   CreateMediaContent: undefined;
   MediaProposalWizard: undefined;
+  EditMedia: { mediaId: string };
 };
 
 export type BookingConfirmParams = {
@@ -91,6 +93,7 @@ export type SponsorsStackParamList = {
   BrandPartner: { pageId?: string } | undefined;
   SponsorProposalWizard: undefined;
   MySponsorProposals: undefined;
+  EditSponsor: { pageId: string };
 };
 
 export type ProfileStackParamList = {

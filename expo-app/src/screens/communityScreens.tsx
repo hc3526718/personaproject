@@ -56,6 +56,7 @@ import {
   getEventsByIds,
   deleteCommunityPost,
   getSubscriptionOfferPageById,
+  deleteSubscriptionOfferPage,
   searchCommunityPosts,
   subscribeCommunityPosts,
   type CommunityPostFeedRow,
@@ -130,6 +131,22 @@ type CProps<K extends keyof CommunityStackParamList> = NativeStackScreenProps<
 type BrandPartnerScreenProps =
   | NativeStackScreenProps<CommunityStackParamList, 'BrandPartner'>
   | NativeStackScreenProps<SponsorsStackParamList, 'BrandPartner'>;
+
+function parseSponsorDescriptionForFeatured(
+  description: string | null,
+): { hook: string; helpsAthletes: string; contactEmail: string } {
+  const desc = (description ?? '').trim();
+  if (!desc) return { hook: '', helpsAthletes: '', contactEmail: '' };
+  const contactMatch = desc.match(/(?:^|\n)Contact:\s*([^\n]+)\s*(?:\n|$)/i);
+  const contactEmail = contactMatch?.[1]?.trim() || '';
+  const helpsMatch = desc.match(/How this helps athletes:\s*\n([\s\S]*)/i);
+  const helpsAthletes = helpsMatch?.[1]?.trim() || '';
+  const hook = desc
+    .split(/\n\nHow this helps athletes:\s*\n/i)[0]
+    ?.replace(/\n*Contact:\s*[^\n]+\s*/gi, '\n')
+    .trim();
+  return { hook: hook || '', helpsAthletes, contactEmail };
+}
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -2861,10 +2878,36 @@ function BrandPartnerAthleticXLegacy({
 
 export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProps) {
   const { styles, colors } = useCommunityTheme();
+  const { user } = useAuth();
   const pageId = route.params?.pageId?.trim();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [offer, setOffer] = useState<
     SubscriptionOfferPageRow | 'loading' | 'idle' | 'missing'
   >(pageId ? 'loading' : 'idle');
+
+  const goEditSponsor = useCallback(() => {
+    if (!pageId) return;
+    try {
+      (navigation as any).navigate('EditSponsor', { pageId });
+      return;
+    } catch {
+      /* nested stack */
+    }
+    try {
+      navigation.getParent()?.navigate('Sponsors' as never, { screen: 'EditSponsor', params: { pageId } } as never);
+    } catch {
+      Alert.alert('Sponsor', 'Could not open the editor.');
+    }
+  }, [navigation, pageId]);
+
+  const confirmDeleteSponsor = useCallback(async () => {
+    if (!pageId) return;
+    const ok = await deleteSubscriptionOfferPage(pageId);
+    setDeleteConfirmOpen(false);
+    if (ok) navigation.goBack();
+    else Alert.alert('Could not delete', 'You may not have permission to delete this sponsor page.');
+  }, [navigation, pageId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -2916,6 +2959,7 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
   const page = offer;
   const insets = useSafeAreaInsets();
   const links = normalizePartnerLinks(page.social_links);
+  const featured = parseSponsorDescriptionForFeatured(page.description ?? null);
   const socialObj =
     page.social_links && typeof page.social_links === 'object' && !Array.isArray(page.social_links)
       ? (page.social_links as {
@@ -2946,8 +2990,68 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
           <FontAwesome name="chevron-left" size={18} color={colors.textMuted} />
         </Pressable>
         <Text style={styles.brandNavTitle}>Partner</Text>
-        <View style={styles.brandNavBtn} />
+        {user?.masterControl ? (
+          <Pressable
+            onPress={() => setMenuOpen(true)}
+            style={styles.brandNavBtn}
+            accessibilityLabel="Sponsor options"
+          >
+            <FontAwesome name="ellipsis-v" size={18} color={colors.text} />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={() => {
+              void Share.share({
+                message: siteUri ? `${page.business_name}\n${siteUri}` : page.business_name,
+              });
+            }}
+            style={styles.brandNavBtn}
+            accessibilityLabel="Share sponsor"
+          >
+            <FontAwesome name="share" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
       </View>
+      <OptionMenuModal
+        visible={menuOpen}
+        title="Sponsor"
+        onClose={() => setMenuOpen(false)}
+        options={[
+          {
+            key: 'edit',
+            label: 'Edit sponsor',
+            onPress: () => {
+              setMenuOpen(false);
+              goEditSponsor();
+            },
+          },
+          {
+            key: 'share',
+            label: 'Share sponsor',
+            onPress: () => {
+              setMenuOpen(false);
+              void Share.share({
+                message: siteUri ? `${page.business_name}\n${siteUri}` : page.business_name,
+              });
+            },
+          },
+          {
+            key: 'delete',
+            label: 'Delete sponsor',
+            destructive: true,
+            onPress: () => setDeleteConfirmOpen(true),
+          },
+        ]}
+      />
+      <ConfirmModal
+        visible={deleteConfirmOpen}
+        title="Delete sponsor?"
+        message="Removes this partner page for everyone."
+        confirmLabel="Delete"
+        destructive
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void confirmDeleteSponsor()}
+      />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.brandScroll, { paddingBottom: 120 + insets.bottom }]}
@@ -2975,10 +3079,52 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
             <Text style={styles.brandActiveLabel}>Partner offer</Text>
           </View>
         </View>
-        {page.description?.trim() ? (
+        {featured.hook ? (
+          <View
+            style={{
+              backgroundColor: colors.surface,
+              borderRadius: DS.radius.xl,
+              padding: DS.space.lg,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: colors.borderWhite5,
+              marginBottom: DS.space.md,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: DS.font.bodyMedium,
+                fontSize: 11,
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                color: colors.gold,
+                marginBottom: DS.space.sm,
+              }}
+            >
+              Featured offer
+            </Text>
+            <Text style={{ fontFamily: DS.font.heading, fontSize: 20, lineHeight: 28, color: colors.text }}>
+              {featured.hook}
+            </Text>
+          </View>
+        ) : null}
+        {featured.helpsAthletes ? (
           <View style={styles.brandAbout}>
-            <Text style={styles.brandAboutTitle}>About</Text>
-            <Text style={styles.brandAboutBody}>{page.description.trim()}</Text>
+            <Text style={[styles.brandAboutTitle, { fontSize: 20 }]}>How this helps athletes</Text>
+            <Text style={[styles.brandAboutBody, { fontSize: 16, lineHeight: 24 }]}>{featured.helpsAthletes}</Text>
+          </View>
+        ) : page.description?.trim() ? (
+          <View style={styles.brandAbout}>
+            <Text style={[styles.brandAboutTitle, { fontSize: 20 }]}>About</Text>
+            <Text style={[styles.brandAboutBody, { fontSize: 16, lineHeight: 24 }]}>{page.description.trim()}</Text>
+          </View>
+        ) : null}
+        {featured.contactEmail ? (
+          <View style={[styles.brandPromoBlock, { marginTop: DS.space.md }]}>
+            <View style={styles.brandPromoHeadingRow}>
+              <FontAwesome name="envelope" size={12} color={colors.gold} />
+              <Text style={styles.brandPromoHeading}> Contact</Text>
+            </View>
+            <Text style={[styles.brandCodeHint, { fontSize: 14, lineHeight: 20 }]}>{featured.contactEmail}</Text>
           </View>
         ) : null}
         {videoUri ? (

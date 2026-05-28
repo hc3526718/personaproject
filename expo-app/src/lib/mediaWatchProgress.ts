@@ -34,6 +34,10 @@ export async function getMediaWatchProgress(mediaId: string): Promise<MediaWatch
 }
 
 export async function setMediaWatchProgress(entry: Omit<MediaWatchEntry, 'updatedAt'>): Promise<void> {
+  if (entry.progress >= 0.98) {
+    await clearMediaWatchProgress(entry.mediaId);
+    return;
+  }
   const store = await readStore();
   store[entry.mediaId] = { ...entry, updatedAt: Date.now() };
   await writeStore(store);

@@ -189,10 +189,18 @@ export async function publishMediaFromProposalPayload(
     return (
       // PostgREST errors vary across versions. Treat any "unknown column" or schema-cache miss as a reason to retry.
       (code === 'PGRST204' || code === '42703') ||
-      (msg.includes('column') && (msg.includes('title') || msg.includes('description') || msg.includes('tags'))) ||
-      (msg.toLowerCase().includes('schema cache') && (msg.includes('title') || msg.includes('description') || msg.includes('tags')))
+      (msg.includes('column') &&
+        (msg.includes('title') ||
+          msg.includes('description') ||
+          msg.includes('tags') ||
+          msg.includes('thumbnail_url'))) ||
+      (msg.toLowerCase().includes('schema cache') &&
+        (msg.includes('title') || msg.includes('description') || msg.includes('tags') || msg.includes('thumbnail_url')))
     );
   };
+
+  const thumbnailUrl =
+    attachmentUrls.find((u) => /\.(jpe?g|png|webp|gif)(\?|$)/i.test(u)) ?? null;
 
   for (let i = 0; i < localFiles.length; i++) {
     const f = localFiles[i]!;
@@ -213,6 +221,7 @@ export async function publishMediaFromProposalPayload(
         title,
         description: description || null,
         tags,
+        thumbnail_url: thumbnailUrl,
       } as const;
     const rowNoMeta = {
       owner_id: userId,
@@ -246,6 +255,7 @@ export async function publishMediaFromProposalPayload(
         title,
         description: description || null,
         tags,
+        thumbnail_url: thumbnailUrl,
       } as const;
     const rowNoMeta = {
       owner_id: userId,

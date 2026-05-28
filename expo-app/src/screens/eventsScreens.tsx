@@ -1050,12 +1050,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
               message: `${displayTitle} — Dalton Grant Sports`,
             }).catch(() => undefined)
           }
-          onEdit={() =>
-            Alert.alert(
-              'Edit event',
-              'Full in-app editing is coming soon. For urgent changes, contact support via Profile → Settings → Support.',
-            )
-          }
+          onEdit={() => navigation.navigate('EditEvent', { eventId: dbEvent.id })}
           onDelete={() => setDeleteEventConfirmOpen(true)}
         />
         <ConfirmModal
@@ -1113,6 +1108,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
                 Alert.alert('Not available', 'Only live events can be edited right now.');
                 return;
               }
+              setMasterMenuOpen(false);
               navigation.navigate('EditEvent', { eventId: supabaseEventId });
             },
           },
@@ -1128,7 +1124,10 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
             key: 'delete',
             label: 'Delete event',
             destructive: true,
-            onPress: () => setDeleteEventConfirmOpen(true),
+            onPress: () => {
+              setMasterMenuOpen(false);
+              setDeleteEventConfirmOpen(true);
+            },
           },
         ]}
       />

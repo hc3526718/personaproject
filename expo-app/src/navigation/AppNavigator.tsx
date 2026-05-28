@@ -69,6 +69,8 @@ import { EventProposalWizard } from '../screens/proposals/EventProposalWizard';
 import { CreateMediaContentScreen } from '../screens/CreateMediaContentScreen';
 import { MediaProposalWizard } from '../screens/proposals/MediaProposalWizard';
 import { SponsorProposalWizard } from '../screens/proposals/SponsorProposalWizard';
+import { EditMediaWizardScreen } from '../screens/EditMediaWizardScreen';
+import { EditSponsorWizardScreen } from '../screens/EditSponsorWizardScreen';
 import { MasterProposalQueueScreen } from '../screens/proposals/MasterProposalQueueScreen';
 import { MasterProposalDetailScreen } from '../screens/proposals/MasterProposalDetailScreen';
 import { MyProposalsScreen, MySponsorProposalsScreen } from '../screens/proposals/MyProposalsScreen';
@@ -146,6 +148,7 @@ function CommunityStackNavigator() {
       <CommunityStack.Screen name="MessagesInbox" component={MessagesInboxScreen} />
       <CommunityStack.Screen name="MessageThread" component={MessageThreadScreen} />
       <CommunityStack.Screen name="BrandPartner" component={BrandPartnerScreen} />
+      <CommunityStack.Screen name="EditSponsor" component={EditSponsorWizardScreen} />
       <CommunityStack.Screen name="DemoHub" component={DemoHubScreen} />
     </CommunityStack.Navigator>
     </CommunityThemeProvider>
@@ -164,6 +167,7 @@ function MediaStackNavigator() {
       <MediaStack.Screen name="MediaCommunityFeed" component={MediaCommunityFeedScreen} />
       <MediaStack.Screen name="CreateMediaContent" component={CreateMediaContentScreen} />
       <MediaStack.Screen name="MediaProposalWizard" component={MediaProposalWizard} />
+      <MediaStack.Screen name="EditMedia" component={EditMediaWizardScreen} />
     </MediaStack.Navigator>
   );
 }
@@ -202,6 +206,7 @@ function SponsorsStackNavigator() {
       </SponsorsStack.Screen>
       <SponsorsStack.Screen name="SponsorProposalWizard" component={SponsorProposalWizard} />
       <SponsorsStack.Screen name="MySponsorProposals" component={MySponsorProposalsScreen} />
+      <SponsorsStack.Screen name="EditSponsor" component={EditSponsorWizardScreen} />
     </SponsorsStack.Navigator>
   );
 }

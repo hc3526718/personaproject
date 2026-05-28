@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -371,17 +371,47 @@ export function SponsorProposalWizard({ navigation }: Props) {
   if (step === 5) {
     return chrome(
       <>
-        <Text style={styles.lead}>Review before publishing to the app.</Text>
-        <Text style={styles.reviewTitle}>{brandName}</Text>
-        <Text style={styles.reviewMeta}>{contactEmail}</Text>
-        <Text style={styles.reviewBody}>{hook}</Text>
-        <Text style={styles.reviewBody}>{helpsAthletes}</Text>
-        {websiteUrl.trim() ? <Text style={styles.reviewMeta}>{websiteUrl.trim()}</Text> : null}
-        {coverImage ? <Text style={styles.reviewMeta}>Cover: {coverImage.name}</Text> : null}
-        {video ? <Text style={styles.reviewMeta}>Video: {video.name}</Text> : null}
-        {gallery.length ? <Text style={styles.reviewMeta}>Gallery: {gallery.length} image(s)</Text> : null}
-        {cleanedLinks.length ? <Text style={styles.reviewMeta}>Links: {cleanedLinks.length}</Text> : null}
-        {cleanedPromos.length ? <Text style={styles.reviewMeta}>Promo codes: {cleanedPromos.length}</Text> : null}
+        <Text style={styles.lead}>Preview how this looks to a standard user.</Text>
+        <View style={styles.previewCard}>
+          {coverImage?.uri ? <Image source={{ uri: coverImage.uri }} style={styles.previewImg} /> : null}
+          <View style={styles.previewBody}>
+            <Text style={styles.previewTitle}>{brandName.trim().toUpperCase()}</Text>
+            <Text style={styles.previewHook} numberOfLines={3}>
+              {hook.trim()}
+            </Text>
+            <Text style={styles.previewMeta}>Website: {websiteUrl.trim() || '—'}</Text>
+            <Text style={styles.previewMeta}>Logo: {logo ? 'Included' : '—'}</Text>
+            <Text style={styles.previewMeta}>Gallery: {gallery.length || 0} image(s)</Text>
+            {cleanedPromos.length ? (
+              <View style={{ marginTop: DS.space.md }}>
+                <Text style={styles.previewSectionTitle}>Promo codes</Text>
+                {cleanedPromos.slice(0, 3).map((p) => (
+                  <View key={p.code} style={{ marginTop: DS.space.sm }}>
+                    <Text style={styles.previewPromoCode}>{p.code}</Text>
+                    <Text style={styles.previewDesc}>{p.details}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            {cleanedLinks.length ? (
+              <View style={{ marginTop: DS.space.md }}>
+                <Text style={styles.previewSectionTitle}>Links</Text>
+                {cleanedLinks.slice(0, 3).map((l) => (
+                  <Text key={`${l.label}-${l.url}`} style={styles.previewDesc}>
+                    {l.label}: {l.url}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.previewDivider} />
+            <Text style={styles.previewSectionTitle}>How this helps athletes</Text>
+            <Text style={styles.previewDesc} numberOfLines={7}>
+              {helpsAthletes.trim()}
+            </Text>
+            <Text style={[styles.previewMeta, { marginTop: DS.space.md }]}>Contact: {contactEmail.trim()}</Text>
+            {video ? <Text style={styles.previewMeta}>Promo video: {video.name}</Text> : null}
+          </View>
+        </View>
       </>,
       {
         nextLabel: publishing ? 'Publishing…' : 'Create sponsor',
@@ -458,6 +488,29 @@ const styles = StyleSheet.create({
     color: DS.color.text,
     lineHeight: 22,
   },
+  previewCard: {
+    marginTop: DS.space.md,
+    backgroundColor: DS.color.surface,
+    borderRadius: DS.radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  previewImg: { width: '100%', height: 200 },
+  previewBody: { padding: DS.space.lg },
+  previewTitle: { color: DS.color.text, fontFamily: DS.font.heading, fontSize: 20 },
+  previewHook: {
+    marginTop: DS.space.sm,
+    color: DS.color.gold,
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  previewMeta: { marginTop: DS.space.sm, color: DS.color.textMuted, fontFamily: DS.font.body, fontSize: 12 },
+  previewSectionTitle: { marginTop: DS.space.sm, color: DS.color.text, fontFamily: DS.font.bodyMedium, fontSize: 13 },
+  previewPromoCode: { color: DS.color.gold, fontFamily: DS.font.bodyMedium },
+  previewDesc: { marginTop: DS.space.xs, color: DS.color.textMuted, fontFamily: DS.font.body, lineHeight: 20 },
+  previewDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: DS.space.md },
   confirmHero: { alignItems: 'center', marginTop: DS.space.lg, marginBottom: DS.space.lg },
   confirmTitle: {
     fontFamily: DS.font.heading,

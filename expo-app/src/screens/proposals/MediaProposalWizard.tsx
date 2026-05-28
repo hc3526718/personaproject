@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -34,6 +34,7 @@ export function MediaProposalWizard({ navigation }: Props) {
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Training');
   const [selectedTags, setSelectedTags] = useState<(typeof TAGS)[number][]>([]);
   const [video, setVideo] = useState<{ name: string; uri: string } | null>(null);
+  const [thumbnail, setThumbnail] = useState<{ name: string; uri: string } | null>(null);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmTitle, setConfirmTitle] = useState<string | null>(null);
@@ -64,6 +65,18 @@ export function MediaProposalWizard({ navigation }: Props) {
     setVideo({ name, uri: a.uri });
   }, []);
 
+  const pickThumbnail = useCallback(async () => {
+    const res = await DocumentPicker.getDocumentAsync({
+      multiple: false,
+      copyToCacheDirectory: true,
+      type: 'image/*',
+    });
+    if (res.canceled) return;
+    const a = res.assets?.[0];
+    if (!a?.uri) return;
+    setThumbnail({ name: a.name ?? 'thumbnail.jpg', uri: a.uri });
+  }, []);
+
   const toggleTag = (t: (typeof TAGS)[number]) => {
     setSelectedTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   };
@@ -81,6 +94,11 @@ export function MediaProposalWizard({ navigation }: Props) {
     const uploaded: string[] = [];
     const url = await uploadProposalAttachment(user.id, 'media', video.uri, video.name);
     if (url) uploaded.push(url);
+    if (thumbnail?.uri && thumbnail.name) {
+      // Important: upload thumbnail AFTER video so attachment order doesn't break media publishing.
+      const tUrl = await uploadProposalAttachment(user.id, 'media', thumbnail.uri, thumbnail.name);
+      if (tUrl) uploaded.push(tUrl);
+    }
     const result = await masterInstantPublish(
       user.id,
       'media',
@@ -135,6 +153,11 @@ export function MediaProposalWizard({ navigation }: Props) {
           {video ? 'Change video' : '+ Upload video'}
         </Text>
         {video ? <Text style={styles.fileRow}>{video.name}</Text> : null}
+        <Text style={styles.label}>Thumbnail (recommended)</Text>
+        {thumbnail?.uri ? <Image source={{ uri: thumbnail.uri }} style={styles.thumb} /> : null}
+        <Text style={styles.linkBtn} onPress={() => void pickThumbnail()}>
+          {thumbnail ? 'Change thumbnail' : '+ Set thumbnail'}
+        </Text>
       </>,
       { nextDisabled: !video },
     );
@@ -201,12 +224,23 @@ export function MediaProposalWizard({ navigation }: Props) {
   if (step === 4) {
     return chrome(
       <>
-        <Text style={styles.lead}>Review before publishing.</Text>
-        <Text style={styles.reviewTitle}>{title}</Text>
-        <Text style={styles.reviewMeta}>{category}</Text>
-        <Text style={styles.reviewBody}>{pitch}</Text>
-        {selectedTags.length ? <Text style={styles.reviewMeta}>Tags: {tagsLine}</Text> : null}
-        {video ? <Text style={styles.reviewMeta}>Video: {video.name}</Text> : null}
+        <Text style={styles.lead}>Preview how this looks to a standard user.</Text>
+        <View style={styles.previewCard}>
+          {thumbnail?.uri ? <Image source={{ uri: thumbnail.uri }} style={styles.previewImg} /> : null}
+          <View style={styles.previewBody}>
+            <View style={styles.previewBadgeRow}>
+              <View style={styles.previewBadgePill}>
+                <Text style={styles.previewBadgeText}>{category}</Text>
+              </View>
+              {selectedTags.length ? <Text style={styles.previewMeta}>{tagsLine}</Text> : null}
+            </View>
+            <Text style={styles.previewTitle}>{title.trim()}</Text>
+            <Text style={styles.previewDesc} numberOfLines={6}>
+              {pitch.trim()}
+            </Text>
+            {video ? <Text style={styles.previewMeta}>Video: {video.name}</Text> : null}
+          </View>
+        </View>
       </>,
       {
         nextLabel: publishing ? 'Publishing…' : 'Create media',
@@ -281,6 +315,12 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     marginBottom: 4,
   },
+  thumb: {
+    width: '100%',
+    height: 160,
+    borderRadius: DS.radius.lg,
+    marginBottom: DS.space.md,
+  },
   tagPreview: {
     marginTop: DS.space.md,
     fontFamily: DS.font.body,
@@ -306,6 +346,27 @@ const styles = StyleSheet.create({
     color: DS.color.text,
     lineHeight: 22,
   },
+  previewCard: {
+    marginTop: DS.space.md,
+    backgroundColor: DS.color.surface,
+    borderRadius: DS.radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  previewImg: { width: '100%', height: 180 },
+  previewBody: { padding: DS.space.lg },
+  previewBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: DS.space.sm, marginBottom: DS.space.sm },
+  previewBadgePill: {
+    backgroundColor: 'rgba(197, 168, 106, 0.18)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  previewBadgeText: { color: DS.color.gold, fontFamily: DS.font.bodyMedium, fontSize: 12 },
+  previewTitle: { color: DS.color.text, fontFamily: DS.font.heading, fontSize: 18, marginTop: DS.space.xs },
+  previewDesc: { color: DS.color.textMuted, fontFamily: DS.font.body, marginTop: DS.space.sm, lineHeight: 20 },
+  previewMeta: { color: DS.color.textMuted, fontFamily: DS.font.bodyMedium, fontSize: 12, marginTop: DS.space.sm, flex: 1 },
   confirmHero: { alignItems: 'center', marginTop: DS.space.lg, marginBottom: DS.space.lg },
   confirmTitle: {
     fontFamily: DS.font.heading,

@@ -3,6 +3,7 @@ import {
   Alert,
   Image,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,13 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { OptionMenuModal } from '../components/OptionMenuModal';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { HighlightVideoModal } from '../components/HighlightVideoModal';
+import {
+  formatMediaDisplayTitle,
+  isVideoMediaAsset,
+  mediaThumbnailUri,
+} from '../lib/mediaDisplay';
 import { useAuth } from '../auth/AuthContext';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
@@ -209,6 +217,38 @@ const RELATED_ITEMS = [
 
 const BROWSE = ['All Media', 'Training', 'Mindset', 'Nutrition', 'Recovery', 'Career'] as const;
 
+function MediaThumbnail({
+  asset,
+  style,
+  imageStyle,
+}: {
+  asset: MediaAssetRow;
+  style?: object;
+  imageStyle?: object;
+}) {
+  const uri = mediaThumbnailUri(asset);
+  if (uri) {
+    return <Image source={{ uri }} style={imageStyle ?? style} resizeMode="cover" />;
+  }
+  if (isVideoMediaAsset(asset)) {
+    return (
+      <View
+        style={[
+          style,
+          {
+            backgroundColor: '#141414',
+            alignItems: 'center',
+            justifyContent: 'center',
+          },
+        ]}
+      >
+        <FontAwesome name="play-circle" size={36} color={DS.color.gold} />
+      </View>
+    );
+  }
+  return <Image source={{ uri: THUMB }} style={imageStyle ?? style} resizeMode="cover" />;
+}
+
 export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>) {
   const insets = useSafeAreaInsets();
   const showBanner = useActionBanner();
@@ -232,8 +272,17 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
       listFullyWatchedIds(),
     ]);
     setBrowseAssets(rows);
-    setContinueItems(cont);
-    setWatchedIds(watched);
+    const watchedSet = watched;
+    const seen = new Set<string>();
+    setContinueItems(
+      cont.filter((item) => {
+        if (watchedSet.has(item.mediaId)) return false;
+        if (seen.has(item.mediaId)) return false;
+        seen.add(item.mediaId);
+        return true;
+      }),
+    );
+    setWatchedIds(watchedSet);
   }, []);
   const { refreshing, onRefresh } = useRefreshWithMinimum(
     useCallback(async () => {
@@ -350,11 +399,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
             </Text>
           ) : (
             browseAssets.map((asset) => {
-              const thumb = asset.thumbnail_url || asset.public_url || THUMB;
-              const label =
-                asset.title?.trim() ||
-                asset.storage_path?.split('/').pop() ||
-                asset.kind.toUpperCase();
+              const label = formatMediaDisplayTitle(asset);
               const open = () =>
                 navigation.navigate('MediaPlayer', {
                   title: label,
@@ -385,7 +430,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
                   onLongPress={user?.masterControl ? promptDelete : undefined}
                 >
                   <View style={styles.thumbWrap}>
-                    <Image source={{ uri: thumb }} style={styles.thumbImg} />
+                    <MediaThumbnail asset={asset} imageStyle={styles.thumbImg} />
                     <View style={styles.thumbDur}>
                       <Text style={styles.thumbDurText}>{asset.kind}</Text>
                     </View>
@@ -418,7 +463,9 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
                   style={styles.continueThumb}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.continueTitle}>{item.title}</Text>
+                  <Text style={styles.continueTitle}>
+                    {formatMediaDisplayTitle({ title: item.title, storage_path: item.title, kind: 'video' })}
+                  </Text>
                   <Text style={styles.muted}>
                     {Math.round((1 - item.progress) * 100)}% remaining
                   </Text>
@@ -434,9 +481,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
             <Text style={styles.browseLabel}>Recommended for you</Text>
             <View style={styles.grid2}>
               {browseAssets.slice(0, 4).map((asset) => {
-                const thumb = asset.thumbnail_url || asset.public_url || THUMB;
-                const label =
-                  asset.storage_path?.split('/').pop() || asset.kind.toUpperCase();
+                const label = formatMediaDisplayTitle(asset);
                 return (
                   <Pressable
                     key={`rec-${asset.id}`}
@@ -449,7 +494,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
                     }
                   >
                     <View style={styles.thumbWrap}>
-                      <Image source={{ uri: thumb }} style={styles.thumbImg} />
+                      <MediaThumbnail asset={asset} imageStyle={styles.thumbImg} />
                     </View>
                     <Text style={styles.thumbTitle} numberOfLines={2}>
                       {label}
@@ -897,6 +942,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const { user } = useAuth();
   const title = route.params?.title ?? 'Advanced Boxing Combinations for Power';
   const mediaId = route.params?.mediaId ?? `demo:${title}`;
+  const isDemoMedia = mediaId.startsWith('demo:');
   const paramPlayback = route.params?.playbackUrl?.trim() || '';
   const meta = playerMeta(title);
   const playerNotice = (msg: string) => Alert.alert('The Dalton Grant Academy', msg);
@@ -904,12 +950,18 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const [saved, setSaved] = useState(false);
   const [progress, setProgress] = useState(0.35);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
   const videoRef = useRef<Video | null>(null);
   const playbackUrl = paramPlayback || asset?.public_url?.trim() || '';
-  const thumb = asset?.thumbnail_url?.trim() || asset?.public_url?.trim() || PLAYER_STILL;
+  const thumb = mediaThumbnailUri(asset ?? { kind: 'video', thumbnail_url: null, public_url: playbackUrl }) || PLAYER_STILL;
   const isVideo = asset?.kind === 'video' || (!!playbackUrl && !playbackUrl.match(/\.(png|jpe?g|webp|gif)(\?|$)/i));
-  const displayTitle = asset?.title?.trim() || title;
-  const displayDesc = asset?.description?.trim() || meta.desc;
+  const displayTitle = useMemo(
+    () => formatMediaDisplayTitle(asset ?? { title, storage_path: title, kind: 'video' }, title),
+    [asset, title],
+  );
+  const displayDesc = isDemoMedia && !asset?.description?.trim() ? meta.desc : asset?.description?.trim() || '';
   const displayTags =
     Array.isArray(asset?.tags) && asset.tags.length ? asset.tags.join(', ') : null;
   const parsedCategory = useMemo(() => {
@@ -922,12 +974,16 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
     return desc.replace(/\n*Category:\s*[^\n]+\s*/gi, '\n').trim();
   }, [asset?.description, displayDesc]);
   const onFullscreen = useCallback(() => {
+    if (isVideo && playbackUrl) {
+      setVideoModalOpen(true);
+      return;
+    }
     try {
       void videoRef.current?.presentFullscreenPlayerAsync();
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [isVideo, playbackUrl]);
 
   useEffect(() => {
     if (!mediaId || mediaId.startsWith('demo:')) return;
@@ -942,21 +998,22 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   );
 
   useEffect(() => {
+    if (isDemoMedia) return;
     void setMediaWatchProgress({
       mediaId,
-      title,
+      title: displayTitle,
       thumb,
       progress,
     });
     return () => {
       void setMediaWatchProgress({
         mediaId,
-        title,
+        title: displayTitle,
         thumb,
         progress,
       });
     };
-  }, [mediaId, title, thumb, progress]);
+  }, [mediaId, displayTitle, thumb, progress, isDemoMedia]);
 
   const toggleSave = useCallback(() => {
     if (!user?.id || user.id.startsWith('demo-')) {
@@ -968,6 +1025,36 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
       if (ok) setSaved((s) => !s);
     })();
   }, [user?.id, mediaId]);
+
+  const goEditMedia = useCallback(() => {
+    const id = asset?.id || (mediaId && !mediaId.startsWith('demo:') ? mediaId : '');
+    if (!id) return;
+    try {
+      navigation.navigate('EditMedia', { mediaId: id });
+      return;
+    } catch {
+      // ignore
+    }
+    // Fallback for nested navigation contexts
+    try {
+      navigation
+        .getParent()
+        ?.navigate('Media' as never, { screen: 'EditMedia', params: { mediaId: id } } as never);
+    } catch {
+      Alert.alert('Media', 'Could not open the editor.');
+    }
+  }, [asset?.id, mediaId, navigation]);
+
+  const confirmDeleteMedia = useCallback(async () => {
+    const id = asset?.id || (mediaId && !isDemoMedia ? mediaId : '');
+    if (!id) return;
+    setDeleteBusy(true);
+    const ok = await deleteMediaAsset(id);
+    setDeleteBusy(false);
+    setDeleteConfirmOpen(false);
+    if (ok) navigation.goBack();
+    else Alert.alert('Could not delete', 'You may not have permission to delete this media.');
+  }, [asset?.id, mediaId, isDemoMedia, navigation]);
 
   return (
     <View style={styles.root}>
@@ -991,7 +1078,10 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
           {
             key: 'edit',
             label: 'Edit media',
-            onPress: () => playerNotice('Editing media is coming soon.'),
+            onPress: () => {
+              setMenuOpen(false);
+              goEditMedia();
+            },
           },
           {
             key: 'share',
@@ -1002,25 +1092,25 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
             key: 'delete',
             label: 'Delete media',
             destructive: true,
-            onPress: () => {
-              if (!asset?.id) return;
-              Alert.alert('Delete media?', 'Removes this media for everyone.', [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () => {
-                    void (async () => {
-                      const ok = await deleteMediaAsset(asset.id);
-                      if (ok) navigation.goBack();
-                      else Alert.alert('Could not delete', 'Check permissions and try again.');
-                    })();
-                  },
-                },
-              ]);
-            },
+            onPress: () => setDeleteConfirmOpen(true),
           },
         ]}
+      />
+      <ConfirmModal
+        visible={deleteConfirmOpen}
+        title="Delete media?"
+        message="Removes this media for everyone."
+        confirmLabel="Delete"
+        destructive
+        busy={deleteBusy}
+        onCancel={() => !deleteBusy && setDeleteConfirmOpen(false)}
+        onConfirm={() => void confirmDeleteMedia()}
+      />
+      <HighlightVideoModal
+        visible={videoModalOpen}
+        title={displayTitle}
+        videoUrl={playbackUrl}
+        onClose={() => setVideoModalOpen(false)}
       />
       <View style={styles.playerStage}>
         {isVideo && playbackUrl ? (
@@ -1050,15 +1140,23 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
         contentContainerStyle={[styles.padded, { paddingBottom: 100 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.playerBadgeRow}>
-          <View style={styles.playerBadgePill}>
-            <Text style={styles.playerBadgeText}>{parsedCategory ?? meta.badge}</Text>
+        {isDemoMedia ? (
+          <View style={styles.playerBadgeRow}>
+            <View style={styles.playerBadgePill}>
+              <Text style={styles.playerBadgeText}>{parsedCategory ?? meta.badge}</Text>
+            </View>
+            <Text style={styles.playerDurationLabel}>{meta.duration}</Text>
           </View>
-          <Text style={styles.playerDurationLabel}>{meta.duration}</Text>
-        </View>
+        ) : parsedCategory ? (
+          <View style={styles.playerBadgeRow}>
+            <View style={styles.playerBadgePill}>
+              <Text style={styles.playerBadgeText}>{parsedCategory}</Text>
+            </View>
+          </View>
+        ) : null}
         <Text style={styles.playerTitle}>{displayTitle}</Text>
-        <Text style={styles.muted}>{meta.channelLine}</Text>
-        <Text style={styles.body}>{cleanedDesc}</Text>
+        {isDemoMedia ? <Text style={styles.muted}>{meta.channelLine}</Text> : null}
+        {cleanedDesc ? <Text style={styles.body}>{cleanedDesc}</Text> : null}
         {parsedCategory ? <Text style={styles.muted}>Category: {parsedCategory}</Text> : null}
         {displayTags ? <Text style={styles.muted}>Tags: {displayTags}</Text> : null}
 
@@ -1200,10 +1298,11 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
     const rows: SavedMediaItem[] = assets
       .filter((a): a is MediaAssetRow => !!a)
       .map((a) => {
-        const label = a.storage_path?.split('/').pop() || a.kind.toUpperCase();
+        const label = formatMediaDisplayTitle(a);
+        const thumbUri = mediaThumbnailUri(a) || THUMB;
         return {
           id: a.id,
-          uri: a.thumbnail_url?.trim() || a.public_url?.trim() || THUMB,
+          uri: thumbUri,
           duration: a.kind === 'video' ? 'Video' : 'Media',
           category: 'Training',
           badgeVariant: 'gold' as SavedBadgeVariant,
@@ -1241,6 +1340,9 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
   return (
     <View style={styles.root}>
       <View style={[styles.savedHeader, { paddingTop: insets.top + DS.space.md }]}>
+        <Pressable style={styles.savedIconBtn} onPress={() => navigation.navigate('MediaLibrary')} accessibilityLabel="Back to media">
+          <FontAwesome name="arrow-left" size={16} color={DS.color.text} />
+        </Pressable>
         <Text style={styles.savedTitle}>Saved</Text>
         <View style={styles.savedHeaderActions}>
           <Pressable
@@ -1701,10 +1803,13 @@ const styles = StyleSheet.create({
     height: 280,
     backgroundColor: DS.color.black,
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   playerImg: {
     width: '100%',
     height: '100%',
+    alignSelf: 'center',
   },
   playerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1779,6 +1884,49 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(28, 28, 28, 0.85)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  webFullscreenBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    padding: DS.space.base,
+    justifyContent: 'center',
+  },
+  webFullscreenSheet: {
+    width: '100%',
+    maxWidth: 980,
+    alignSelf: 'center',
+    backgroundColor: DS.color.background,
+    borderRadius: DS.radius.xl,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: DS.color.borderWhite5,
+  },
+  webFullscreenTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: DS.space.base,
+    paddingVertical: DS.space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: DS.color.borderWhite5,
+  },
+  webFullscreenTitle: {
+    flex: 1,
+    marginRight: DS.space.md,
+    color: DS.color.text,
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 14,
+  },
+  webFullscreenStage: {
+    backgroundColor: DS.color.black,
+    width: '100%',
+    aspectRatio: 16 / 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webFullscreenVideo: {
+    width: '100%',
+    height: '100%',
   },
   ctrlRow: {
     flexDirection: 'row',
@@ -2335,6 +2483,8 @@ const styles = StyleSheet.create({
   },
   savedTitle: {
     ...tabRootTitleText,
+    flex: 1,
+    textAlign: 'center',
   },
   savedHeaderActions: {
     flexDirection: 'row',

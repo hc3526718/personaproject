@@ -557,6 +557,37 @@ export async function deleteSubscriptionOfferPage(id: string): Promise<boolean> 
   return !error;
 }
 
+export type UpdateSubscriptionOfferPagePatch = Partial<
+  Pick<
+    SubscriptionOfferPageRow,
+    'business_name' | 'description' | 'hero_image_url' | 'video_url' | 'website_url' | 'social_links'
+  >
+>;
+
+export async function updateSubscriptionOfferPage(
+  id: string,
+  patch: UpdateSubscriptionOfferPagePatch,
+): Promise<SubscriptionOfferPageRow | null> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleOfferPageId(id)) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('subscription_offer_pages')
+    .update({
+      ...(patch.business_name !== undefined ? { business_name: patch.business_name?.trim() || '' } : {}),
+      ...(patch.description !== undefined ? { description: patch.description?.trim() || null } : {}),
+      ...(patch.hero_image_url !== undefined ? { hero_image_url: patch.hero_image_url?.trim() || null } : {}),
+      ...(patch.video_url !== undefined ? { video_url: patch.video_url?.trim() || null } : {}),
+      ...(patch.website_url !== undefined ? { website_url: patch.website_url?.trim() || null } : {}),
+      ...(patch.social_links !== undefined ? { social_links: patch.social_links ?? [] } : {}),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return data as SubscriptionOfferPageRow;
+}
+
 export async function getMediaAssetById(assetId: string): Promise<MediaAssetRow | null> {
   const supabase = getSupabase();
   if (!supabase) return null;
@@ -571,6 +602,32 @@ export async function deleteMediaAsset(assetId: string): Promise<boolean> {
   if (!supabase) return false;
   const { error } = await supabase.from('media_assets').delete().eq('id', assetId);
   return !error;
+}
+
+export type UpdateMediaAssetPatch = Partial<
+  Pick<MediaAssetRow, 'title' | 'description' | 'tags' | 'thumbnail_url' | 'public_url' | 'mime_type' | 'kind'>
+>;
+
+export async function updateMediaAsset(assetId: string, patch: UpdateMediaAssetPatch): Promise<MediaAssetRow | null> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleMediaId(assetId)) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('media_assets')
+    .update({
+      ...(patch.title !== undefined ? { title: patch.title?.trim() || null } : {}),
+      ...(patch.description !== undefined ? { description: patch.description?.trim() || null } : {}),
+      ...(patch.tags !== undefined ? { tags: Array.isArray(patch.tags) ? patch.tags : [] } : {}),
+      ...(patch.thumbnail_url !== undefined ? { thumbnail_url: patch.thumbnail_url?.trim() || null } : {}),
+      ...(patch.public_url !== undefined ? { public_url: patch.public_url?.trim() || null } : {}),
+      ...(patch.mime_type !== undefined ? { mime_type: patch.mime_type?.trim() || null } : {}),
+      ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
+    })
+    .eq('id', assetId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return data as MediaAssetRow;
 }
 
 /** Latest media visible under RLS (public + own + master). */
