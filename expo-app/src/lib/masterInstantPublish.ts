@@ -22,7 +22,13 @@ type EventPayload = {
 type SponsorPayload = {
   brand_name?: string;
   contact_email?: string;
-  goals?: string;
+  hook?: string;
+  helps_athletes?: string;
+  website_url?: string;
+  video_url?: string;
+  gallery_urls?: string[];
+  external_links?: { label: string; url: string }[];
+  promo_codes?: { code: string; details: string }[];
 };
 
 type MediaPayload = {
@@ -97,18 +103,37 @@ export async function publishSponsorFromProposalPayload(
   payload: SponsorPayload,
   attachmentUrls: string[],
 ): Promise<MasterPublishResult> {
+  const hook = payload.hook?.trim() ?? '';
+  const helps = payload.helps_athletes?.trim() ?? '';
+  const contact = payload.contact_email?.trim() ?? '';
   const descParts = [
-    payload.goals?.trim() ?? '',
-    payload.contact_email?.trim() ? `Contact: ${payload.contact_email.trim()}` : '',
+    hook,
+    helps ? `How this helps athletes:\n${helps}` : '',
+    contact ? `Contact: ${contact}` : '',
   ].filter(Boolean);
+  const heroUrl =
+    attachmentUrls.find((u) => /\.(jpe?g|png|webp|gif)(\?|$)/i.test(u)) ??
+    payload.gallery_urls?.[0] ??
+    null;
+  const videoUrl =
+    payload.video_url?.trim() ||
+    attachmentUrls.find((u) => /\.(mp4|mov|webm|m4v)(\?|$)/i.test(u)) ||
+    null;
+  const website = payload.website_url?.trim() || null;
+  const social_links = {
+    external_links: Array.isArray(payload.external_links) ? payload.external_links : [],
+    promo_codes: Array.isArray(payload.promo_codes) ? payload.promo_codes : [],
+    gallery_urls: Array.isArray(payload.gallery_urls) ? payload.gallery_urls : [],
+    contact_email: contact || null,
+  };
   const row = await insertSubscriptionOfferPage({
     created_by: userId,
     business_name: (payload.brand_name ?? 'Partner').trim(),
     description: descParts.join('\n\n') || null,
-    hero_image_url: attachmentUrls[0] ?? null,
-    website_url: null,
-    video_url: null,
-    social_links: [],
+    hero_image_url: heroUrl,
+    website_url: website,
+    video_url: videoUrl,
+    social_links,
   });
   if (!row) return { ok: false, error: 'Could not publish sponsor page.' };
   return { ok: true, sponsorPageId: row.id };
