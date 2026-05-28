@@ -253,14 +253,31 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
         <Text style={styles.mediaTitle}>MEDIA</Text>
         <View style={styles.mediaHeaderActions}>
           {user?.masterControl ? (
-            <Pressable
-              style={styles.roundIconBtnSm}
-              hitSlop={8}
-              onPress={() => navigation.navigate('MediaProposalWizard')}
-              accessibilityLabel="Upload media"
-            >
-              <FontAwesome name="plus" size={15} color={DS.color.text} />
-            </Pressable>
+            <>
+              <Pressable
+                style={styles.roundIconBtnSm}
+                hitSlop={8}
+                onPress={() => navigation.navigate('MediaProposalWizard')}
+                accessibilityLabel="Upload media"
+              >
+                <FontAwesome name="plus" size={15} color={DS.color.text} />
+              </Pressable>
+              <Pressable
+                style={styles.roundIconBtnSm}
+                hitSlop={8}
+                onPress={() => navigation.navigate('SavedMedia')}
+                accessibilityLabel="Saved library"
+              >
+                <FontAwesome name="bookmark" size={16} color={DS.color.text} />
+              </Pressable>
+              <Pressable
+                style={styles.roundIconBtn}
+                onPress={() => navigation.navigate('MediaSearch')}
+                accessibilityLabel="Search media"
+              >
+                <FontAwesome name="search" size={18} color={DS.color.text} />
+              </Pressable>
+            </>
           ) : (
             <>
               <Pressable

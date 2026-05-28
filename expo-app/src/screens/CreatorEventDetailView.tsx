@@ -142,19 +142,73 @@ export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onD
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
         <Text style={styles.topBadge}>HOST DASHBOARD</Text>
-        <Pressable
-          style={styles.roundBtn}
-          onPress={
-            onShare ??
-            (() =>
-              void Share.share({
-                message: `${event.title} — Dalton Grant Sports`,
-              }).catch(() => undefined))
-          }
-        >
-          <FontAwesome name="share-alt" size={16} color={DS.color.text} />
-        </Pressable>
+        {user?.masterControl ? (
+          <Pressable
+            style={styles.roundBtn}
+            onPress={() => setMenuOpen(true)}
+            accessibilityLabel="Event options"
+          >
+            <FontAwesome name="ellipsis-v" size={18} color={DS.color.text} />
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.roundBtn}
+            onPress={
+              onShare ??
+              (() =>
+                void Share.share({
+                  message: `${event.title} — Dalton Grant Sports`,
+                }).catch(() => undefined))
+            }
+            accessibilityLabel="Share event"
+          >
+            <FontAwesome name="share-alt" size={16} color={DS.color.text} />
+          </Pressable>
+        )}
       </View>
+      <OptionMenuModal
+        visible={menuOpen}
+        title="Event"
+        onClose={() => setMenuOpen(false)}
+        options={[
+          {
+            key: 'edit',
+            label: 'Edit event',
+            onPress: () => {
+              if (onEdit) onEdit();
+              else {
+                Alert.alert(
+                  'Edit event',
+                  'Event editing is coming soon. For now, delete and recreate the event if needed.',
+                );
+              }
+            },
+          },
+          {
+            key: 'share',
+            label: 'Share event',
+            onPress: () => {
+              if (onShare) onShare();
+              else {
+                void Share.share({
+                  message: `${event.title} — Dalton Grant Sports`,
+                }).catch(() => undefined);
+              }
+            },
+          },
+          {
+            key: 'delete',
+            label: 'Delete event',
+            destructive: true,
+            onPress: () => {
+              if (onDelete) onDelete();
+              else {
+                Alert.alert('Delete event', 'Delete is not available here yet.');
+              }
+            },
+          },
+        ]}
+      />
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
         showsVerticalScrollIndicator={false}

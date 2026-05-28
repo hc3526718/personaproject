@@ -1836,9 +1836,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
             <FontAwesome name="arrow-left" size={20} color={colors.gold} />
           </Pressable>
           <Text style={styles.notifTitle}>NOTIFICATIONS</Text>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.notifClose}>
-            <FontAwesome name="times" size={20} color={colors.textMuted} />
-          </Pressable>
+          <View style={styles.notifClose} />
         </View>
         <View style={styles.notifHeaderActions}>
           <Pressable onPress={markAllRead} hitSlop={8}>
