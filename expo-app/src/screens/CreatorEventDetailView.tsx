@@ -175,13 +175,11 @@ export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onD
             key: 'edit',
             label: 'Edit event',
             onPress: () => {
-              if (onEdit) onEdit();
-              else {
-                Alert.alert(
-                  'Edit event',
-                  'Event editing is coming soon. For now, delete and recreate the event if needed.',
-                );
+              if (onEdit) {
+                onEdit();
+                return;
               }
+              navigation.navigate('EditEvent', { eventId: event.id });
             },
           },
           {

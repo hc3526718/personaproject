@@ -444,6 +444,45 @@ export async function deleteCommunityEvent(eventId: string): Promise<boolean> {
   return !error;
 }
 
+export type UpdateCommunityEventInput = Partial<{
+  title: string;
+  description: string;
+  starts_at: string;
+  ends_at: string | null;
+  venue: string | null;
+  hero_image_url: string | null;
+  entry_payment_mode: 'none' | 'payment_on_arrival' | 'internal_costs' | null;
+  entry_payment_amount: string | null;
+  entry_payment_note: string | null;
+}>;
+
+export async function updateCommunityEvent(
+  eventId: string,
+  patch: UpdateCommunityEventInput,
+): Promise<EventRow | null> {
+  if (isAppStoreScreenshotMode() && isScreenshotSampleEventId(eventId)) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('events')
+    .update({
+      ...(patch.title != null ? { title: patch.title.trim() } : {}),
+      ...(patch.description != null ? { description: patch.description.trim() || null } : {}),
+      ...(patch.starts_at != null ? { starts_at: patch.starts_at } : {}),
+      ...(patch.ends_at !== undefined ? { ends_at: patch.ends_at } : {}),
+      ...(patch.venue !== undefined ? { venue: patch.venue?.trim() || null } : {}),
+      ...(patch.hero_image_url !== undefined ? { hero_image_url: patch.hero_image_url?.trim() || null } : {}),
+      ...(patch.entry_payment_mode !== undefined ? { entry_payment_mode: patch.entry_payment_mode ?? 'none' } : {}),
+      ...(patch.entry_payment_amount !== undefined ? { entry_payment_amount: patch.entry_payment_amount?.trim() || null } : {}),
+      ...(patch.entry_payment_note !== undefined ? { entry_payment_note: patch.entry_payment_note?.trim() || null } : {}),
+    })
+    .eq('id', eventId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return data as EventRow;
+}
+
 export async function listSubscriptionOfferPages(limit = 100): Promise<SubscriptionOfferPageRow[]> {
   const supabase = getSupabase();
   if (!supabase) {

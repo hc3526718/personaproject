@@ -1108,11 +1108,13 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           {
             key: 'edit',
             label: 'Edit event',
-            onPress: () =>
-              Alert.alert(
-                'Edit event',
-                'Event editing is coming soon. For now, delete and recreate the event if needed.',
-              ),
+            onPress: () => {
+              if (!supabaseEventId) {
+                Alert.alert('Not available', 'Only live events can be edited right now.');
+                return;
+              }
+              navigation.navigate('EditEvent', { eventId: supabaseEventId });
+            },
           },
           {
             key: 'share',
