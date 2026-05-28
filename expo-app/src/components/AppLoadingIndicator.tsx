@@ -1,17 +1,17 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { DaltonVideoLoop } from './DaltonVideoLoop';
+import { BootCircleLoader } from './BootCircleLoader';
 
 type Props = {
   style?: StyleProp<ViewStyle>;
-  /** Box size (width & height) for the looping video. */
+  /** Loader diameter (gold ring). */
   size?: number;
 };
 
-/** Standard Dalton loading indicator — loops brand video. */
-export function AppLoadingIndicator({ style, size = 72 }: Props) {
+/** Standard Dalton loading indicator — gold single-segment ring. */
+export function AppLoadingIndicator({ style, size = 52 }: Props) {
   return (
     <View style={[styles.wrap, style]}>
-      <DaltonVideoLoop style={{ width: size, height: size }} />
+      <BootCircleLoader size={size} compact />
     </View>
   );
 }

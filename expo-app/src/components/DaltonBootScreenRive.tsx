@@ -1,20 +1,14 @@
-import { useEffect, useLayoutEffect, useMemo } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useEffect, useLayoutEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hideNativeSplashWhenBootVisualReady } from '../boot/nativeSplashGate';
 import { MAX_NATIVE_SPLASH_WAIT_MS } from '../constants/bootTiming';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
-import { DaltonVideoLoop } from './DaltonVideoLoop';
+import { BootCircleLoader } from './BootCircleLoader';
 
-/** App boot screen — loops brand video on pure black. */
+/** App boot screen — gold ring loader on pure black. */
 export function DaltonBootScreenRive() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-
-  const videoStyle = useMemo(() => {
-    const box = Math.min(380, Math.round(width * 0.88));
-    return { width: box, height: box, maxWidth: '92%' as const };
-  }, [width]);
 
   useEffect(() => {
     const t = setTimeout(() => hideNativeSplashWhenBootVisualReady(), MAX_NATIVE_SPLASH_WAIT_MS);
@@ -29,10 +23,7 @@ export function DaltonBootScreenRive() {
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.center}>
-        <DaltonVideoLoop
-          style={videoStyle}
-          onReady={hideNativeSplashWhenBootVisualReady}
-        />
+        <BootCircleLoader size={64} compact />
       </View>
     </View>
   );

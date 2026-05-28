@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { ResizeMode, Video } from 'expo-av';
 import {
-  allowMediaSearchDemoFallback,
   isAppStoreScreenshotMode,
   isSupabaseConfigured,
 } from '../lib/env';
@@ -40,7 +39,9 @@ import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import {
+  clearMediaWatchProgress,
   listContinueWatching,
+  pruneContinueWatching,
   listFullyWatchedIds,
   setMediaWatchProgress,
 } from '../lib/mediaWatchProgress';
@@ -184,44 +185,6 @@ function playerMeta(title: string) {
   };
 }
 
-const UP_NEXT_ITEMS = [
-  {
-    title: 'Footwork Fundamentals',
-    channel: 'Elite Boxing',
-    duration: '8:45',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/38b2a2e045-566bd50dd7ade8850f92.png',
-  },
-  {
-    title: 'Defensive Boxing',
-    channel: 'Boxing Academy',
-    duration: '15:22',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/99b51df8b7-817bb84e9fd20a41ab2c.png',
-  },
-  {
-    title: 'Sparring Strategies',
-    channel: 'Pro Boxing',
-    duration: '22:18',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/a6bf06ab69-e4b020b342fade24340e.png',
-  },
-] as const;
-
-const RELATED_ITEMS = [
-  {
-    title: 'Boxing Conditioning',
-    meta: 'Fitness Boxing • 2.5M views',
-    duration: '18:07',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/7489c70a33-f137e7f5db66644a0808.png',
-    rating: '4.8',
-  },
-  {
-    title: 'Mental Boxing Prep',
-    meta: 'Mind Sports • 890K views',
-    duration: '11:02',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/2572604e70-24280542fbd1badb649c.png',
-    rating: '4.9',
-  },
-] as const;
-
 const BROWSE = ['All Media', 'Training', 'Mindset', 'Nutrition', 'Recovery', 'Career'] as const;
 
 function MediaThumbnail({ asset, fill }: { asset: MediaAssetRow; fill?: boolean }) {
@@ -257,27 +220,28 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
   const [featuredHero, setFeaturedHero] = useState<MediaAssetRow | null>(null);
   const [featuredPickerOpen, setFeaturedPickerOpen] = useState(false);
   const [continueItems, setContinueItems] = useState<Awaited<ReturnType<typeof listContinueWatching>>>([]);
-  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const loadBrowse = useCallback(async () => {
-    const [rows, cont, watched, featured] = await Promise.all([
+    const [rows, watched, featured] = await Promise.all([
       listBrowseMediaAssets(80),
-      listContinueWatching(),
       listFullyWatchedIds(),
       getFeaturedSeriesHead(),
     ]);
+    const validIds = new Set(rows.map((r) => r.id));
+    await pruneContinueWatching(validIds);
+    const contFresh = await listContinueWatching();
     setBrowseAssets(rows);
     setFeaturedHero(featured);
     const watchedSet = watched;
     const seen = new Set<string>();
     setContinueItems(
-      cont.filter((item) => {
+      contFresh.filter((item) => {
+        if (!validIds.has(item.mediaId)) return false;
         if (watchedSet.has(item.mediaId)) return false;
         if (seen.has(item.mediaId)) return false;
         seen.add(item.mediaId);
         return true;
       }),
     );
-    setWatchedIds(watchedSet);
   }, []);
   const { refreshing, onRefresh } = useRefreshWithMinimum(
     useCallback(async () => {
@@ -509,35 +473,6 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
               </Pressable>
             ))}
           </>
-        ) : browseAssets.length > 0 && watchedIds.size >= browseAssets.length ? (
-          <>
-            <Text style={styles.browseLabel}>Recommended for you</Text>
-            <View style={styles.grid2}>
-              {browseAssets.slice(0, 4).map((asset) => {
-                const pres = getMediaPresentation(asset);
-                const label = pres.title;
-                return (
-                  <Pressable
-                    key={`rec-${asset.id}`}
-                    style={styles.gridCell}
-                    onPress={() =>
-                      navigation.navigate('MediaPlayer', {
-                        title: label,
-                        mediaId: asset.id,
-                      })
-                    }
-                  >
-                    <View style={styles.thumbWrap}>
-                      <MediaThumbnail asset={asset} fill />
-                    </View>
-                    <Text style={styles.thumbTitle} numberOfLines={2}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </>
         ) : null}
       </ScrollView>
     </View>
@@ -628,69 +563,6 @@ type ResultRow = {
   rating: string;
 };
 
-const SEARCH_DEMO_RESULTS: ResultRow[] = [
-  {
-    id: '1',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/93d0cf48f4-a5cea2538cdb2fa62a17.png',
-    duration: '12:34',
-    badge: 'Training',
-    badgeVariant: 'gold',
-    title: 'Advanced Boxing Combinations for Power',
-    meta: 'Champion Training • 2.1M views',
-    rating: '4.8',
-  },
-  {
-    id: '2',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/38b2a2e045-8b3de2140e5664ce87de.png',
-    duration: '8:45',
-    badge: 'Training',
-    badgeVariant: 'gold',
-    title: 'Footwork Fundamentals: Moving Like a Pro',
-    meta: 'Elite Boxing • 1.8M views',
-    rating: '4.9',
-  },
-  {
-    id: '3',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/99b51df8b7-f98b1760c36b12a9d324.png',
-    duration: '15:22',
-    badge: 'Training',
-    badgeVariant: 'gold',
-    title: 'Defensive Boxing: Block, Slip, and Counter',
-    meta: 'Boxing Academy • 950K views',
-    rating: '4.7',
-  },
-  {
-    id: '4',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/a6bf06ab69-efbb06f2fd9c2cd73640.png',
-    duration: '22:18',
-    badge: 'Training',
-    badgeVariant: 'gold',
-    title: 'Sparring Strategies for Competition',
-    meta: 'Pro Boxing • 1.3M views',
-    rating: '4.6',
-  },
-  {
-    id: '5',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/7489c70a33-ab35b5f349626c86682c.png',
-    duration: '18:07',
-    badge: 'Training',
-    badgeVariant: 'gold',
-    title: 'Boxing Conditioning: Build Power & Endurance',
-    meta: 'Fitness Boxing • 2.5M views',
-    rating: '4.8',
-  },
-  {
-    id: '6',
-    uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/2572604e70-46425f8aaca7e7df2f16.png',
-    duration: '9:33',
-    badge: 'Mindset',
-    badgeVariant: 'accent',
-    title: 'Mental Boxing: Visualization Techniques',
-    meta: 'Mind Sports • 780K views',
-    rating: '4.9',
-  },
-];
-
 function mediaAssetToResultRow(r: MediaAssetRow): ResultRow {
   const uri = r.thumbnail_url?.trim() || r.public_url?.trim() || THUMB;
   const label = r.kind === 'video' ? 'Video' : r.kind === 'image' ? 'Image' : 'Media';
@@ -727,11 +599,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
   }, [liveMediaMode]);
 
   const results = useMemo(() => {
-    let base: ResultRow[] = liveMediaMode
-      ? liveMedia.map(mediaAssetToResultRow)
-      : allowMediaSearchDemoFallback()
-        ? [...SEARCH_DEMO_RESULTS]
-        : [];
+    let base: ResultRow[] = liveMediaMode ? liveMedia.map(mediaAssetToResultRow) : [];
     const q = searchText.trim().toLowerCase();
     if (q) {
       base = base.filter(
@@ -739,30 +607,6 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
           r.title.toLowerCase().includes(q) ||
           r.meta.toLowerCase().includes(q) ||
           r.badge.toLowerCase().includes(q),
-      );
-    }
-    if (loadMoreDone && !liveMediaMode && allowMediaSearchDemoFallback() && !isAppStoreScreenshotMode()) {
-      base.push(
-        {
-          id: '7',
-          uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/93d0cf48f4-a5cea2538cdb2fa62a17.png',
-          duration: '11:02',
-          badge: 'Training',
-          badgeVariant: 'gold',
-          title: 'Heavy Bag: Power Sessions',
-          meta: 'Champion Training • 640K views',
-          rating: '4.7',
-        },
-        {
-          id: '8',
-          uri: 'https://storage.googleapis.com/uxpilot-auth.appspot.com/38b2a2e045-8b3de2140e5664ce87de.png',
-          duration: '6:15',
-          badge: 'Training',
-          badgeVariant: 'gold',
-          title: 'Speed Ladder for Fighters',
-          meta: 'Elite Boxing • 420K views',
-          rating: '4.8',
-        },
       );
     }
     if (trainingFilter) {
@@ -975,9 +819,9 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const showBanner = useActionBanner();
-  const title = route.params?.title ?? 'Advanced Boxing Combinations for Power';
-  const mediaId = route.params?.mediaId ?? `demo:${title}`;
-  const isDemoMedia = mediaId.startsWith('demo:');
+  const title = route.params?.title ?? 'Media';
+  const mediaId = route.params?.mediaId?.trim() ?? '';
+  const isDemoMedia = !mediaId || mediaId.startsWith('demo:');
   const paramPlayback = route.params?.playbackUrl?.trim() || '';
   const meta = playerMeta(title);
   const playerNotice = (msg: string) => Alert.alert('The Dalton Grant Academy', msg);
@@ -1018,9 +862,19 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   }, [videoModalOpen]);
 
   useEffect(() => {
-    if (!mediaId || mediaId.startsWith('demo:')) return;
-    void getMediaAssetById(mediaId).then(setAsset);
-  }, [mediaId]);
+    if (isDemoMedia) {
+      navigation.goBack();
+      return;
+    }
+    void getMediaAssetById(mediaId).then((row) => {
+      if (!row) {
+        void clearMediaWatchProgress(mediaId);
+        navigation.goBack();
+        return;
+      }
+      setAsset(row);
+    });
+  }, [isDemoMedia, mediaId, navigation]);
 
   useEffect(() => {
     const seriesTitle = asset?.series_title?.trim();
@@ -1247,91 +1101,46 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
           </Pressable>
         </View>
 
-        <Text style={styles.playerSectionTitle}>
-          {seriesUpNext.length ? 'More in this series' : 'Up Next'}
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.upNextScroll}
-        >
-          {(seriesUpNext.length
-            ? seriesUpNext.map((a) => {
+        {seriesUpNext.length > 0 ? (
+          <>
+            <Text style={styles.playerSectionTitle}>More in this series</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.upNextScroll}
+            >
+              {seriesUpNext.map((a) => {
                 const pres = getMediaPresentation(a);
-                return {
-                  key: a.id,
-                  title: pres.title,
-                  uri: mediaThumbnailUri(a) || THUMB,
-                  mediaId: a.id,
-                  playbackUrl: a.public_url ?? undefined,
-                  channel: a.series_title?.trim() || pres.category,
-                };
-              })
-            : UP_NEXT_ITEMS.map((u) => ({
-                key: u.title,
-                title: u.title,
-                uri: u.uri,
-                mediaId: undefined as string | undefined,
-                playbackUrl: undefined as string | undefined,
-                channel: u.channel,
-              }))
-          ).map((u) => (
-            <Pressable
-              key={u.key}
-              style={styles.upNextCard}
-              onPress={() =>
-                navigation.replace('MediaPlayer', {
-                  title: u.title,
-                  mediaId: u.mediaId,
-                  playbackUrl: u.playbackUrl,
-                })
-              }
-            >
-              <View style={styles.upNextThumbWrap}>
-                <Image source={{ uri: u.uri }} style={styles.upNextThumb} />
-              </View>
-              <Text style={styles.upNextCardTitle} numberOfLines={2}>
-                {u.title}
-              </Text>
-              <Text style={styles.upNextChannel}>{u.channel}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-
-        <Text style={styles.playerSectionTitle}>Related Videos</Text>
-        <View style={styles.relatedGrid}>
-          {RELATED_ITEMS.map((r) => (
-            <Pressable
-              key={r.title}
-              style={styles.relatedCard}
-              onPress={() => navigation.replace('MediaPlayer', { title: r.title })}
-            >
-              <View style={styles.relatedImageWrap}>
-                <Image source={{ uri: r.uri }} style={styles.relatedImage} />
-                <Text style={styles.relatedDur}>{r.duration}</Text>
-                <View style={styles.relatedBadge}>
-                  <Text style={styles.relatedBadgeText}>Training</Text>
-                </View>
-              </View>
-              <View style={styles.relatedBody}>
-                <Text style={styles.relatedTitle} numberOfLines={2}>
-                  {r.title}
-                </Text>
-                <Text style={styles.relatedMeta}>{r.meta}</Text>
-                <View style={styles.relatedFooter}>
-                  <View style={styles.mediaCardActions}>
-                    <FontAwesome name="heart-o" size={12} color={DS.color.textMuted} />
-                    <FontAwesome name="bookmark-o" size={12} color={DS.color.textMuted} />
-                  </View>
-                  <View style={styles.mediaCardRating}>
-                    <FontAwesome name="star" size={11} color={DS.color.gold} />
-                    <Text style={styles.mediaCardRatingText}>{r.rating}</Text>
-                  </View>
-                </View>
-              </View>
-            </Pressable>
-          ))}
-        </View>
+                return (
+                  <Pressable
+                    key={a.id}
+                    style={styles.upNextCard}
+                    onPress={() =>
+                      navigation.replace('MediaPlayer', {
+                        title: pres.title,
+                        mediaId: a.id,
+                        playbackUrl: a.public_url ?? undefined,
+                      })
+                    }
+                  >
+                    <View style={styles.upNextThumbWrap}>
+                      <Image
+                        source={{ uri: mediaThumbnailUri(a) || THUMB }}
+                        style={styles.upNextThumb}
+                      />
+                    </View>
+                    <Text style={styles.upNextCardTitle} numberOfLines={2}>
+                      {pres.title}
+                    </Text>
+                    <Text style={styles.upNextChannel}>
+                      {a.series_title?.trim() || pres.category}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </>
+        ) : null}
 
         <Pressable style={styles.secondaryBtn} onPress={() => navigation.navigate('SavedMedia')}>
           <Text style={styles.secondaryBtnText}>Open saved library</Text>

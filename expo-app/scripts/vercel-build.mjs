@@ -78,6 +78,18 @@ async function copyMarketingSite() {
   console.log('[vercel-build] Marketing site at / (index.html + shared + showcase)');
 }
 
+/** Marketing page transitions load /VideoP.mp4 from site root (not /app). */
+async function stageBootVideoForMarketing() {
+  const src = path.join(expoDir, 'assets', 'VideoP.mp4');
+  const dest = path.join(distDir, 'VideoP.mp4');
+  if (!existsSync(src)) {
+    console.warn('[vercel-build] assets/VideoP.mp4 missing — skip marketing video');
+    return;
+  }
+  await cp(src, dest);
+  console.log('[vercel-build] Staged VideoP.mp4 → dist/ (marketing transitions at /VideoP.mp4)');
+}
+
 async function main() {
   const { rmSync, mkdirSync } = await import('node:fs');
   if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
@@ -86,6 +98,7 @@ async function main() {
   await stageBootVideoPublic();
   runExpoExport();
   await copyMarketingSite();
+  await stageBootVideoForMarketing();
 
   console.log('[vercel-build] Done:', distDir);
 }

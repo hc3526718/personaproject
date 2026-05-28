@@ -14,6 +14,7 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { useAccessibility } from '../accessibility/AccessibilityContext';
 import { DS } from '../designSystem';
+import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { useThemedStackScreenOptions } from '../theme/useThemeStyles';
 import { CommunityThemeProvider } from '../screens/community/CommunityStylesContext';
 import { getSupabase } from '../lib/supabase';
@@ -252,8 +253,15 @@ function ProfileStackNavigator() {
 
 function AuthStackNavigator() {
   const screenOptions = useThemedStackScreenOptions();
+  const authScreenOptions = useMemo(
+    () => ({
+      ...screenOptions,
+      contentStyle: { backgroundColor: DALTON_BOOT_VIDEO_BG },
+    }),
+    [screenOptions],
+  );
   return (
-    <AuthStack.Navigator initialRouteName="WelcomeHub" screenOptions={screenOptions}>
+    <AuthStack.Navigator initialRouteName="WelcomeHub" screenOptions={authScreenOptions}>
       <AuthStack.Screen name="WelcomeHub" component={WelcomeHubScreen} />
       <AuthStack.Screen name="GrantAccess" component={GrantAccessScreen} />
       <AuthStack.Screen name="LogIn" component={LogInScreen} />

@@ -1,15 +1,15 @@
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
-import { DaltonVideoLoop } from './DaltonVideoLoop';
+import { BootCircleLoader } from './BootCircleLoader';
 
-/** Web app boot — loops brand video on pure black. */
+/** Web app boot — gold ring loader on pure black. */
 export function DaltonBootScreen() {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      <DaltonVideoLoop style={styles.video} />
+      <BootCircleLoader size={64} compact />
     </View>
   );
 }
@@ -20,11 +20,5 @@ const styles = StyleSheet.create({
     backgroundColor: DALTON_BOOT_VIDEO_BG,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-    maxWidth: 360,
-    maxHeight: 360,
   },
 });

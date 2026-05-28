@@ -22,7 +22,7 @@ import { capitalizeProfileTag, capitalizeProfileTags } from '../lib/capitalizePr
 import { getSupabase } from '../lib/supabase';
 import type { OnboardingStackParamList } from '../navigation/types';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
-import { DaltonVideoLoop } from '../components/DaltonVideoLoop';
+import { BootCircleLoader } from '../components/BootCircleLoader';
 import { UsernameSetupFields, canProceedWithUsername } from '../components/UsernameSetupFields';
 import {
   allocateAutoUsername,
@@ -80,10 +80,8 @@ function useOnboardingCtx() {
   return v;
 }
 
-function OnboardingCompleteVideo() {
-  return (
-    <DaltonVideoLoop style={{ width: 220, height: 220, maxWidth: '90%' }} />
-  );
+function OnboardingCompleteLoader() {
+  return <BootCircleLoader size={64} compact />;
 }
 
 type Props = { onFinished: () => void };
@@ -513,7 +511,7 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.riveBlock}>
-          <OnboardingCompleteVideo />
+          <OnboardingCompleteLoader />
         </View>
         <Text style={styles.completeTitle}>You&apos;re in</Text>
         <Text style={styles.completeBody}>

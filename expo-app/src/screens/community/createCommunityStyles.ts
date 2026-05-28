@@ -409,12 +409,20 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     lineHeight: 20,
     color: c.text,
   },
+  feedEmptyWrap: {
+    alignSelf: 'stretch',
+    paddingTop: DS.space.sm,
+    paddingBottom: DS.space.md,
+  },
+  feedListEmpty: {
+    flexGrow: 0,
+  },
   feedEmptyText: {
     fontFamily: DS.font.body,
     fontSize: 14,
     color: c.textMuted,
     textAlign: 'center',
-    marginVertical: DS.space.lg,
+    marginVertical: 0,
   },
   feedSampleKicker: {
     fontFamily: DS.font.bodyMedium,

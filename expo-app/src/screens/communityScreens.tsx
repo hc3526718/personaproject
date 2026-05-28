@@ -372,8 +372,6 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     setFeedPosts((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const feedIsWeb = Platform.OS === 'web';
-
   const renderFeedPost = useCallback(
     (p: CommunityPostFeedRow) => {
       const { displayBody, eventId } = parsePostBody(p.body);
@@ -399,27 +397,14 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     [eventTitleMap, removePost],
   );
 
-  const feedPane = feedIsWeb && !demoCommunityAudience ? (
-    <View style={[styles.feedWebColumn, webCommunityFeedPaneStyle()]}>
-      {feedLoading ? (
-        <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
-      ) : feedPosts.length === 0 ? (
-        <Text style={[styles.feedEmptyText, styles.feedList]}>No posts yet. Yours can be the first.</Text>
-      ) : (
-        <FlatList
-          data={feedPosts}
-          keyExtractor={(p) => p.id}
-          renderItem={({ item }) => <View>{renderFeedPost(item)}</View>}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
-          refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
-        />
-      )}
+  const feedEmpty = (
+    <View style={styles.feedEmptyWrap}>
+      <Text style={styles.feedEmptyText}>No posts yet. Yours can be the first.</Text>
     </View>
-  ) : null;
+  );
 
   return (
-    <View style={[styles.root, feedIsWeb && styles.rootWebFull]}>
+    <View style={[styles.root, Platform.OS === 'web' && styles.rootWebFull]}>
       <PullRefreshRiveOverlay visible={refreshing} topInset={insets.top} />
       <View
         style={[
@@ -461,35 +446,35 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           </View>
         </View>
       </View>
-      {feedPane ? (
-        feedPane
-      ) : (
+      {demoCommunityAudience ? (
         <ScrollView
           contentContainerStyle={[styles.feedList, { paddingBottom: 124 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
-          refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
         >
-          {demoCommunityAudience ? (
-            <>
-              {!liveMode ? (
-                <Text style={styles.feedSampleKicker}>
-                  Example posts shown while the database is not configured.
-                </Text>
-              ) : null}
-              {!liveMode ? <CommunityDemoPostList navigation={navigation} /> : null}
-            </>
-          ) : (
-            <>
-              {feedLoading ? (
-                <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
-              ) : feedPosts.length === 0 ? (
-                <Text style={styles.feedEmptyText}>No posts yet. Yours can be the first.</Text>
-              ) : (
-                feedPosts.map((p) => <View key={p.id}>{renderFeedPost(p)}</View>)
-              )}
-            </>
-          )}
+          <Text style={styles.feedSampleKicker}>
+            Example posts shown while the database is not configured.
+          </Text>
+          <CommunityDemoPostList navigation={navigation} />
         </ScrollView>
+      ) : (
+        <FlatList
+          style={[styles.feedWebColumn, webCommunityFeedPaneStyle()]}
+          data={feedPosts}
+          keyExtractor={(p) => p.id}
+          renderItem={({ item }) => <View>{renderFeedPost(item)}</View>}
+          ListEmptyComponent={
+            feedLoading
+              ? () => <AppLoadingIndicator style={{ marginVertical: DS.space.md }} />
+              : () => feedEmpty
+          }
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.feedList,
+            feedPosts.length === 0 && !feedLoading ? styles.feedListEmpty : null,
+            { paddingBottom: 124 + insets.bottom },
+          ]}
+          refreshControl={liveMode ? pullRefreshControl(refreshing, onRefresh) : undefined}
+        />
       )}
       <Pressable
         accessibilityRole="button"

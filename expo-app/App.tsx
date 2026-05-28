@@ -16,7 +16,7 @@ import { EventInAppAlerts } from './src/activity/EventInAppAlerts';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
-import { DaltonVideoLoop } from './src/components/DaltonVideoLoop';
+import { BootCircleLoader } from './src/components/BootCircleLoader';
 import { DALTON_BOOT_VIDEO_BG } from './src/constants/daltonBootVideo';
 import { appFontSources } from './src/loadAppFonts';
 import WebDemoApp from './src/WebDemoApp';
@@ -55,7 +55,7 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
               </>
             ) : (
               <View style={styles.bootLoader}>
-                <DaltonVideoLoop style={styles.bootVideo} />
+                <BootCircleLoader size={64} compact />
               </View>
             )}
           </View>
@@ -103,10 +103,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: DALTON_BOOT_VIDEO_BG,
-  },
-  bootVideo: {
-    width: 280,
-    height: 280,
-    maxWidth: '88%',
   },
 });
