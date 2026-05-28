@@ -2720,9 +2720,13 @@ const BRAND_PRODUCTS: { uri: string; title: string; price: string }[] = [
 ];
 
 function normalizePartnerLinks(raw: unknown): { label: string; url: string }[] {
-  if (!Array.isArray(raw)) return [];
+  const source: unknown =
+    raw && typeof raw === 'object' && !Array.isArray(raw) && 'external_links' in raw
+      ? (raw as { external_links?: unknown }).external_links
+      : raw;
+  if (!Array.isArray(source)) return [];
   const out: { label: string; url: string }[] = [];
-  for (const item of raw) {
+  for (const item of source) {
     if (typeof item === 'string' && /^https?:\/\//i.test(item)) {
       out.push({ label: 'Link', url: item });
       continue;
@@ -2912,6 +2916,25 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
   const page = offer;
   const insets = useSafeAreaInsets();
   const links = normalizePartnerLinks(page.social_links);
+  const socialObj =
+    page.social_links && typeof page.social_links === 'object' && !Array.isArray(page.social_links)
+      ? (page.social_links as {
+          promo_codes?: unknown;
+          gallery_urls?: unknown;
+        })
+      : null;
+  const promoCodes =
+    socialObj && Array.isArray(socialObj.promo_codes)
+      ? (socialObj.promo_codes as { code?: unknown; details?: unknown }[])
+          .map((p) => ({ code: String(p.code ?? '').trim(), details: String(p.details ?? '').trim() }))
+          .filter((p) => p.code && p.details)
+      : [];
+  const galleryUrls =
+    socialObj && Array.isArray(socialObj.gallery_urls)
+      ? (socialObj.gallery_urls as unknown[])
+          .map((u) => String(u ?? '').trim())
+          .filter((u) => /^https?:\/\//i.test(u))
+      : [];
   const heroUri = page.hero_image_url?.trim();
   const videoUri = page.video_url?.trim();
   const siteUri = page.website_url?.trim();
@@ -2969,6 +2992,32 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
             </View>
             <Text style={styles.brandCodeHint}>Opens in your browser</Text>
           </Pressable>
+        ) : null}
+        {promoCodes.length ? (
+          <View style={[styles.brandAbout, { marginTop: DS.space.sm }]}>
+            <Text style={styles.brandAboutTitle}>Promo codes</Text>
+            {promoCodes.map((p) => (
+              <View key={p.code} style={{ marginBottom: DS.space.md }}>
+                <Text style={{ fontFamily: DS.font.bodyBold, color: colors.gold }}>{p.code}</Text>
+                <Text style={styles.brandAboutBody}>{p.details}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        {galleryUrls.length ? (
+          <View style={[styles.brandAbout, { marginTop: DS.space.sm }]}>
+            <Text style={styles.brandAboutTitle}>Gallery</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {galleryUrls.slice(0, 12).map((u) => (
+                <Image
+                  key={u}
+                  source={{ uri: u }}
+                  style={{ width: 140, height: 90, borderRadius: DS.radius.md, marginRight: DS.space.sm }}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          </View>
         ) : null}
         {links.length ? (
           <View style={[styles.brandAbout, { marginTop: DS.space.sm }]}>

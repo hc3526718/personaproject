@@ -152,6 +152,9 @@ export async function publishMediaFromProposalPayload(
   const description = [payload.pitch?.trim(), payload.category ? `Category: ${payload.category}` : '']
     .filter(Boolean)
     .join('\n\n');
+  const tags = Array.isArray(payload.tags)
+    ? payload.tags.map((t) => String(t).trim()).filter(Boolean).slice(0, 12)
+    : [];
   const tagSuffix =
     Array.isArray(payload.tags) && payload.tags.length
       ? `tags-${payload.tags
@@ -187,6 +190,9 @@ export async function publishMediaFromProposalPayload(
         public_url: publicUrl,
         mime_type: `video/${ext === 'mov' ? 'quicktime' : ext}`,
         visibility: 'public',
+        title,
+        description: description || null,
+        tags,
       })
       .select('id')
       .single();
@@ -208,6 +214,9 @@ export async function publishMediaFromProposalPayload(
         storage_path: `library/${userId}/${Date.now()}-${slug || 'video'}${tagSuffix ? `-${tagSuffix}` : ''}-link.${ext}`,
         public_url: url,
         visibility: 'public',
+        title,
+        description: description || null,
+        tags,
       })
       .select('id')
       .single();

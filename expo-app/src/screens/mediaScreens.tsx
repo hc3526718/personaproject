@@ -351,10 +351,13 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
             browseAssets.map((asset) => {
               const thumb = asset.thumbnail_url || asset.public_url || THUMB;
               const label =
-                asset.storage_path?.split('/').pop() || asset.kind.toUpperCase();
+                asset.title?.trim() ||
+                asset.storage_path?.split('/').pop() ||
+                asset.kind.toUpperCase();
               const open = () =>
                 navigation.navigate('MediaPlayer', {
                   title: label,
+                  mediaId: asset.id,
                 });
               const promptDelete = () => {
                 if (!user?.masterControl) return;
@@ -903,6 +906,10 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const playbackUrl = paramPlayback || asset?.public_url?.trim() || '';
   const thumb = asset?.thumbnail_url?.trim() || asset?.public_url?.trim() || PLAYER_STILL;
   const isVideo = asset?.kind === 'video' || (!!playbackUrl && !playbackUrl.match(/\.(png|jpe?g|webp|gif)(\?|$)/i));
+  const displayTitle = asset?.title?.trim() || title;
+  const displayDesc = asset?.description?.trim() || meta.desc;
+  const displayTags =
+    Array.isArray(asset?.tags) && asset.tags.length ? asset.tags.join(', ') : null;
 
   useEffect(() => {
     if (!mediaId || mediaId.startsWith('demo:')) return;
@@ -1015,9 +1022,10 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
           </View>
           <Text style={styles.playerDurationLabel}>{meta.duration}</Text>
         </View>
-        <Text style={styles.playerTitle}>{title}</Text>
+        <Text style={styles.playerTitle}>{displayTitle}</Text>
         <Text style={styles.muted}>{meta.channelLine}</Text>
-        <Text style={styles.body}>{meta.desc}</Text>
+        <Text style={styles.body}>{displayDesc}</Text>
+        {displayTags ? <Text style={styles.muted}>Tags: {displayTags}</Text> : null}
 
         <View style={styles.playerActionsRow}>
           <Pressable

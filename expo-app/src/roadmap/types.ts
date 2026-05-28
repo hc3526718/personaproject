@@ -97,6 +97,9 @@ export type MediaAssetRow = {
   storage_path: string;
   public_url: string | null;
   thumbnail_url: string | null;
+  title?: string | null;
+  description?: string | null;
+  tags?: string[] | null;
   mime_type: string | null;
   visibility: 'private' | 'followers' | 'public';
   created_at: string;
