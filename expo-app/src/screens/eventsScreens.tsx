@@ -30,6 +30,7 @@ import {
   removeSavedEventKey,
   unifiedEventSlug,
 } from '../lib/eventsStorage';
+import { notifyBookingConfirmationEmail } from '../lib/bookingConfirmationEmail';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
@@ -1478,6 +1479,9 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
       } finally {
         setBookingBusy(false);
       }
+    }
+    if (bookingId) {
+      void notifyBookingConfirmationEmail({ bookingId, reference });
     }
     showBanner(`Signed up · ${title}`, `Reference ${reference}`);
     navigation.navigate('BookingConfirm', {

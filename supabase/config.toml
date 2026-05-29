@@ -28,3 +28,7 @@ verify_jwt = false
 
 [functions.notify-masters-proposal]
 verify_jwt = false
+
+[functions.send-booking-confirmation-email]
+# Caller JWT validated inside the function; uses service role to load booking + send Resend.
+verify_jwt = false
