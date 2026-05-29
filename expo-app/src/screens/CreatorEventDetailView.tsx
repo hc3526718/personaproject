@@ -20,7 +20,7 @@ import { AppleHeroButton } from '../components/AppleHeroButton';
 import { OptionMenuModal } from '../components/OptionMenuModal';
 import { EventDetailSections } from '../components/EventDetailSections';
 import { DS } from '../designSystem';
-import { formatEntryPaymentNotice } from '../lib/entryPaymentNotice';
+import { formatEntryPaymentNotice } from '../lib/eventEntryPayment';
 import { resolveEventPresentation } from '../lib/eventDescriptionParse';
 import type { EventsStackParamList } from '../navigation/types';
 import type { EventReviewRow, EventRow } from '../roadmap/types';
