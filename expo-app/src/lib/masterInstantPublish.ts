@@ -1,10 +1,10 @@
 import { uploadProposalAttachment } from './proposalAttachmentUpload';
+import { buildEventDetailsPayload } from './eventDescriptionParse';
 import { insertCommunityEvent, insertSubscriptionOfferPage } from '../roadmap/liveDataService';
 import { getSupabase } from './supabase';
 import { combineDateAndTime } from './scheduleValidation';
 import type { ProposalKind } from '../roadmap/proposalService';
 import type { EntryPaymentMode } from './eventEntryPayment';
-import { entryPaymentBlockForDescription } from './eventEntryPayment';
 
 type EventPayload = {
   title?: string;
@@ -54,25 +54,24 @@ function parseProposedDate(proposedDate?: string): { starts: string; ends: strin
   return { starts: dt.toISOString(), ends: ends.toISOString() };
 }
 
-function buildEventDescription(payload: EventPayload): string {
-  const parts: string[] = [];
-  if (payload.pitch?.trim()) parts.push(payload.pitch.trim());
-  if (payload.level) parts.push('', `Level: ${payload.level}`);
+function buildEventDetailsFromPayload(payload: EventPayload) {
   const agenda = Array.isArray(payload.agenda)
-    ? payload.agenda.filter((a) => a.title?.trim() && a.time?.trim())
+    ? payload.agenda
+        .filter((a) => a.title?.trim() && a.time?.trim())
+        .map((a) => ({ time: a.time.trim(), title: a.title.trim() }))
     : [];
-  if (agenda.length) {
-    parts.push('', 'Agenda:', ...agenda.map((a) => `• ${a.time.trim()} — ${a.title.trim()}`));
-  }
-  const cap = payload.max_attendance;
-  if (cap != null && String(cap).trim() !== '') {
-    parts.push('', `Capacity: ${String(cap).trim()}`);
-  }
-  const mode = payload.entry_payment_mode ?? 'none';
-  parts.push(
-    entryPaymentBlockForDescription(mode, payload.entry_payment_amount, payload.entry_payment_note),
-  );
-  return parts.join('\n').trim() || 'Community event';
+  const capRaw = payload.max_attendance;
+  const cap =
+    capRaw != null && String(capRaw).trim() !== '' ? parseInt(String(capRaw).replace(/\D/g, ''), 10) : 0;
+  return buildEventDetailsPayload({
+    level: payload.level ?? '',
+    capacity: Number.isFinite(cap) && cap > 0 ? cap : 0,
+    tags: '—',
+    bring: '—',
+    duration: '',
+    agenda,
+    faqs: [],
+  });
 }
 
 export async function publishEventFromProposalPayload(
@@ -87,7 +86,8 @@ export async function publishEventFromProposalPayload(
   const mode = payload.entry_payment_mode ?? 'none';
   const row = await insertCommunityEvent({
     title: (payload.title ?? 'Community event').trim(),
-    description: buildEventDescription(payload),
+    description: payload.pitch?.trim() || 'Community event',
+    event_details: buildEventDetailsFromPayload(payload),
     starts_at: schedule.starts,
     ends_at: schedule.ends,
     venue: payload.venue?.trim() || null,

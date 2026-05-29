@@ -67,7 +67,12 @@ import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { openEventCheckoutUrl, startEventStripeCheckout } from '../subscriptions/eventStripeCheckout';
 import { formatEntryPaymentNotice } from '../lib/eventEntryPayment';
-import { formatEventSpotsLabel, parseEventCapacity } from '../lib/eventDescriptionParse';
+import { EventDetailSections } from '../components/EventDetailSections';
+import {
+  formatEventSpotsLabel,
+  parseEventCapacity,
+  resolveEventPresentation,
+} from '../lib/eventDescriptionParse';
 import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
 import { CreatorEventDetailView } from './CreatorEventDetailView';
 import type { EventRow } from '../roadmap/types';
@@ -948,7 +953,9 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const displayHero = dbEvent?.hero_image_url?.trim() || heroUri;
   const displaySchedule = dbEvent ? formatEventSchedule(dbEvent) : heroScheduleLine;
   const displayVenue = dbEvent?.venue?.trim() || sub?.trim() || 'Elite Fitness Center';
-  const overviewFromHost = dbEvent?.description?.trim() ?? '';
+  const eventPresentation = dbEvent
+    ? resolveEventPresentation(dbEvent.description, dbEvent.event_details)
+    : null;
   const entryPaymentLine = dbEvent
     ? formatEntryPaymentNotice(
         dbEvent.entry_payment_mode ?? 'none',
@@ -956,7 +963,9 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         dbEvent.entry_payment_note,
       )
     : null;
-  const eventCapacity = dbEvent ? parseEventCapacity(dbEvent.description) : null;
+  const eventCapacity = dbEvent
+    ? parseEventCapacity(dbEvent.description, dbEvent.event_details)
+    : null;
   const registeredCount = dbEvent?.registered_count ?? 0;
   const spotsLabel = dbEvent ? formatEventSpotsLabel(registeredCount, eventCapacity) : null;
   const isAttending = Boolean(viewerBooking);
@@ -1200,24 +1209,9 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
               </View>
             </>
           ) : null}
-          {dbEvent ? (
-            <>
-              {entryPaymentLine ? (
-                <View style={styles.entryPaymentCard}>
-                  <FontAwesome name="info-circle" size={16} color={DS.color.gold} />
-                  <Text style={styles.entryPaymentText}>{entryPaymentLine}</Text>
-                </View>
-              ) : null}
-              <Text style={styles.detailSectionKicker}>OVERVIEW</Text>
-              {overviewFromHost ? (
-                <Text style={styles.detailBody}>{overviewFromHost}</Text>
-              ) : (
-                <Text style={[styles.detailBody, styles.muted]}>
-                  No extra description from the host yet.
-                </Text>
-              )}
-            </>
-          ) : (
+          {dbEvent && eventPresentation ? (
+            <EventDetailSections parsed={eventPresentation} entryPaymentLine={entryPaymentLine} />
+          ) : dbEvent ? null : (
             <>
               <Text style={styles.detailSectionKicker}>OVERVIEW</Text>
               <Text style={styles.detailBody}>

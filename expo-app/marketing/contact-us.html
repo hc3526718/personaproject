@@ -13,94 +13,55 @@
         background: radial-gradient(900px 600px at 20% 0%, rgba(200, 168, 75, 0.15), transparent 55%), var(--demo-bg);
         color: var(--demo-text);
       }
+      .contact-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
+        transition: border-color 0.2s ease, transform 0.2s ease;
+      }
+      .contact-card:hover {
+        border-color: rgba(200, 168, 75, 0.55);
+        transform: translateY(-2px);
+      }
+      .contact-card:focus-visible {
+        outline: 2px solid rgba(200, 168, 75, 0.7);
+        outline-offset: 3px;
+      }
     </style>
   </head>
   <body class="min-h-screen antialiased dalton-marketing">
     <div id="dalton-staggered-menu"></div>
     <main class="mx-auto max-w-3xl px-5 pt-20 pb-12">
       <p class="font-bebas text-gold tracking-[0.24em] text-sm">CONTACT</p>
-      <h1 class="font-bebas text-4xl text-mist mt-2">Talk to the team</h1>
+      <h1 class="font-bebas text-4xl text-mist mt-2">How can we help?</h1>
       <p class="text-dim mt-4 leading-relaxed">
-        Use the form below for billing, privacy, safety, account, and general questions. Mention whether you use
-        <strong class="text-mist font-medium">web</strong> or <strong class="text-mist font-medium">iOS</strong> and
-        include the email on your account where it helps. We do not show a public inbox address here — our team usually
-        replies within <strong class="text-mist font-medium">24–48 hours</strong>.
+        Choose the option that fits your question. Both are available on web and in the app under Profile → Settings →
+        Support.
       </p>
 
-      <form id="dga-contact-form" class="mt-10 space-y-6 rounded-2xl border border-line bg-panel p-6 md:p-8">
-        <div>
-          <label for="dga-contact-subject" class="block text-mist font-semibold text-sm">Subject</label>
-          <select
-            id="dga-contact-subject"
-            required
-            class="dga-contact-select mt-2 w-full rounded-xl border border-line bg-black text-white px-4 py-3 text-sm outline-none focus:border-gold/45"
-          >
-            <option value="general">General enquiry</option>
-            <option value="billing">Billing</option>
-            <option value="privacy_data">Privacy &amp; data requests</option>
-            <option value="safety">Safety / moderation</option>
-            <option value="account_verification">Account &amp; verification</option>
-            <option value="feedback">Feedback</option>
-            <option value="other">Other (custom subject)</option>
-          </select>
-        </div>
+      <div class="mt-10 grid gap-5 sm:grid-cols-2">
+        <a href="contact-team.html" class="contact-card rounded-2xl border border-line bg-panel p-6 md:p-7">
+          <p class="font-bebas text-gold tracking-[0.2em] text-sm">HUMAN SUPPORT</p>
+          <h2 class="font-bebas text-mist text-2xl mt-2">Talk to the team</h2>
+          <p class="text-dim text-sm mt-3 leading-relaxed">
+            Billing, privacy &amp; data requests, safety, account verification, and anything that needs a person on our
+            side.
+          </p>
+          <p class="text-mist text-sm mt-4 font-medium">Typical reply: 24–48 hours</p>
+          <p class="text-gold text-sm mt-5 font-semibold">Open team contact →</p>
+        </a>
 
-        <div id="dga-contact-subject-custom-wrap" hidden>
-          <label for="dga-contact-subject-custom" class="block text-mist font-semibold text-sm">Custom subject</label>
-          <input
-            id="dga-contact-subject-custom"
-            type="text"
-            maxlength="140"
-            class="mt-2 w-full rounded-xl border border-line bg-[rgba(0,0,0,0.35)] text-mist px-4 py-3 text-sm outline-none focus:border-gold/45"
-            placeholder="Briefly describe your topic"
-          />
-        </div>
-
-        <div>
-          <label for="dga-contact-message" class="block text-mist font-semibold text-sm">Message</label>
-          <textarea
-            id="dga-contact-message"
-            required
-            minlength="10"
-            maxlength="8000"
-            rows="7"
-            class="mt-2 w-full rounded-xl border border-line bg-[rgba(0,0,0,0.35)] text-mist px-4 py-3 text-sm outline-none focus:border-gold/45 resize-y"
-            placeholder="Include your account email, platform (web / iOS), and any relevant details."
-          ></textarea>
-        </div>
-
-        <button
-          type="submit"
-          id="dga-contact-submit"
-          class="w-full rounded-2xl bg-gold text-ink font-semibold py-3.5 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          Send message
-        </button>
-        <p id="dga-contact-status" class="hidden" role="status" aria-live="polite"></p>
-      </form>
-
-      <section id="ai-chatbot" class="mt-12">
-        <p class="font-bebas text-gold tracking-[0.22em] text-sm">AI CHATBOT</p>
-        <h2 class="font-bebas text-mist text-3xl mt-2">Talk to the Dalton assistant</h2>
-        <p class="text-dim text-sm mt-3 leading-relaxed">
-          For instant answers about accounts, billing, events, and the web app, use our AI chatbot below — trained on
-          the Help centre and academy policies.
-        </p>
-        <div class="mt-6 rounded-2xl border border-line overflow-hidden bg-panel">
-          <iframe
-            src="https://www.chatbase.co/chatbot-iframe/zEmQhZUYm1rliCblIg1mI"
-            width="100%"
-            style="height: 100%; min-height: 700px"
-            frameborder="0"
-            allow="microphone"
-            title="Dalton Grant Academy AI assistant"
-          ></iframe>
-        </div>
-      </section>
-      <p class="text-dim text-xs mt-10">In the app: Profile → Settings → Support.</p>
+        <a href="contact-assistant.html" class="contact-card rounded-2xl border border-line bg-panel p-6 md:p-7">
+          <p class="font-bebas text-gold tracking-[0.2em] text-sm">AI ASSISTANT</p>
+          <h2 class="font-bebas text-mist text-2xl mt-2">Dalton Grant Academy assistant</h2>
+          <p class="text-dim text-sm mt-3 leading-relaxed">
+            Instant answers about accounts, events, media, and academy policies — trained on our Help centre.
+          </p>
+          <p class="text-mist text-sm mt-4 font-medium">Typical wait: under a minute</p>
+          <p class="text-gold text-sm mt-5 font-semibold">Open assistant →</p>
+        </a>
+      </div>
     </main>
-    <script src="/shared/dalton-contact-config.js"></script>
-    <script src="/shared/contact-form.js"></script>
     <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-footer.js"></script>
   </body>

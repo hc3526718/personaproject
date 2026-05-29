@@ -423,6 +423,7 @@ export async function invokeNotifyEventAttendees(eventId: string): Promise<void>
 export type InsertCommunityEventInput = {
   title: string;
   description: string;
+  event_details?: Record<string, unknown> | null;
   starts_at: string;
   ends_at: string | null;
   venue?: string | null;
@@ -444,6 +445,7 @@ export async function insertCommunityEvent(row: InsertCommunityEventInput): Prom
     .insert({
       title: row.title.trim(),
       description: row.description.trim() || null,
+      event_details: row.event_details ?? null,
       starts_at: row.starts_at,
       ends_at: row.ends_at,
       venue: row.venue?.trim() || null,
@@ -472,6 +474,7 @@ export async function deleteCommunityEvent(eventId: string): Promise<boolean> {
 export type UpdateCommunityEventInput = Partial<{
   title: string;
   description: string;
+  event_details: Record<string, unknown> | null;
   starts_at: string;
   ends_at: string | null;
   venue: string | null;
@@ -493,6 +496,7 @@ export async function updateCommunityEvent(
     .update({
       ...(patch.title != null ? { title: patch.title.trim() } : {}),
       ...(patch.description != null ? { description: patch.description.trim() || null } : {}),
+      ...(patch.event_details !== undefined ? { event_details: patch.event_details } : {}),
       ...(patch.starts_at != null ? { starts_at: patch.starts_at } : {}),
       ...(patch.ends_at !== undefined ? { ends_at: patch.ends_at } : {}),
       ...(patch.venue !== undefined ? { venue: patch.venue?.trim() || null } : {}),

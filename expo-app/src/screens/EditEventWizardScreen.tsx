@@ -20,6 +20,7 @@ import { useAuth } from '../auth/AuthContext';
 import { FormField } from '../components/ui/FormField';
 import { DS } from '../designSystem';
 import { useWizardBack } from '../hooks/useWizardBack';
+import { buildEventDetailsPayload } from '../lib/eventDescriptionParse';
 import { endsAtAfterDuration } from '../lib/eventFormParse';
 import { combineDateAndTime, minScheduleStartDate } from '../lib/scheduleValidation';
 import { getSupabase } from '../lib/supabase';
@@ -457,25 +458,20 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
     const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
     const firstImage = sortedAssets.find((a) => a.kind === 'image');
 
-    const faqLines = faqs
-      .filter((f) => f.q.trim() && f.a.trim())
-      .map((f) => `Q: ${f.q.trim()}\nA: ${f.a.trim()}`);
-    const agendaBlock = completeAgenda.map((row) => `• ${row.time.trim()} — ${row.title.trim()}`).join('\n');
-    const descParts: string[] = [
-      description.trim(),
-      '',
-      `Level: ${level}`,
-      `Capacity: ${cap}`,
-      `Tags: ${eventTags.trim() || '—'}`,
-      duration.trim() ? `Duration: ${duration.trim()}` : '',
-      '',
-      'Agenda:',
-      agendaBlock,
-    ].filter(Boolean);
-    if (faqLines.length > 0) descParts.push('', 'FAQs:', ...faqLines);
-    descParts.push('', `What to bring: ${bring.trim() || '—'}`);
-    descParts.push(entryPaymentBlockForDescription(entryPaymentMode, entryPaymentAmount, entryPaymentNote));
-    const longDesc = descParts.join('\n').trim();
+    const eventDetails = buildEventDetailsPayload({
+      level,
+      capacity: cap,
+      tags: eventTags.trim() || '—',
+      bring: bring.trim() || '—',
+      duration: duration.trim(),
+      agenda: completeAgenda.map((row) => ({
+        time: row.time.trim(),
+        title: row.title.trim(),
+      })),
+      faqs: faqs
+        .filter((f) => f.q.trim() && f.a.trim())
+        .map((f) => ({ q: f.q.trim(), a: f.a.trim() })),
+    });
 
     let hero: string | null = null;
     if (firstImage?.uri) {
@@ -484,7 +480,8 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
 
     const updated = await updateCommunityEvent(eventId, {
       title: eventTitle.trim(),
-      description: longDesc,
+      description: description.trim(),
+      event_details: eventDetails,
       starts_at: starts,
       ends_at: ends,
       venue: venue.trim() || null,
