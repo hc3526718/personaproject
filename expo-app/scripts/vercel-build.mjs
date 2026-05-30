@@ -3,7 +3,7 @@
  * Marketing assets are vendored in expo-app/marketing/ (synced from repo root).
  */
 import { execSync } from 'node:child_process';
-import { cp, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -90,6 +90,26 @@ async function stageBootVideoForMarketing() {
   console.log('[vercel-build] Staged VideoP.mp4 → dist/ (marketing transitions at /VideoP.mp4)');
 }
 
+/** Preload auth hero video in the Expo web shell (`/app/index.html`). */
+async function injectAppVideoPreload() {
+  const indexPath = path.join(appOutDir, 'index.html');
+  if (!existsSync(indexPath)) {
+    console.warn('[vercel-build] dist/app/index.html missing — skip video preload inject');
+    return;
+  }
+  const base = (process.env.EXPO_PUBLIC_WEB_BASE_PATH || '/app').replace(/\/$/, '');
+  const href = `${base}/VideoP.mp4`;
+  let html = await readFile(indexPath, 'utf8');
+  if (html.includes('data-dga-boot-video-preload')) {
+    console.log('[vercel-build] App index.html already has VideoP preload');
+    return;
+  }
+  const tag = `<link rel="preload" href="${href}" as="video" type="video/mp4" data-dga-boot-video-preload="1">`;
+  html = html.replace('</head>', `  ${tag}\n</head>`);
+  await writeFile(indexPath, html, 'utf8');
+  console.log('[vercel-build] Injected VideoP preload into app index.html');
+}
+
 async function main() {
   const { rmSync, mkdirSync } = await import('node:fs');
   if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
@@ -97,6 +117,7 @@ async function main() {
 
   await stageBootVideoPublic();
   runExpoExport();
+  await injectAppVideoPreload();
   await copyMarketingSite();
   await stageBootVideoForMarketing();
 

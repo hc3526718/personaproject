@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -41,6 +41,7 @@ export function DaltonVideoLoop({
   accessibilityLabel = 'Loading',
 }: Props) {
   const readySent = useRef(false);
+  const webVideoRef = useRef<HTMLVideoElement | null>(null);
   const nativeSource = useNativeVideoSource();
   const webUri = Platform.OS === 'web' ? getDaltonBootVideoWebPath() : null;
 
@@ -49,6 +50,12 @@ export function DaltonVideoLoop({
     readySent.current = true;
     onReady?.();
   }, [onReady]);
+
+  const tryPlayWeb = useCallback(() => {
+    const el = webVideoRef.current;
+    if (!el) return;
+    void el.play().catch(() => {});
+  }, []);
 
   useEffect(() => {
     readySent.current = false;
@@ -73,14 +80,25 @@ export function DaltonVideoLoop({
         accessibilityLabel={accessibilityLabel}
       >
         <video
+          ref={(el) => {
+            webVideoRef.current = el;
+          }}
           src={webUri}
           autoPlay
           loop
           muted
           playsInline
+          preload="auto"
           style={styles.webVideo as object}
-          onLoadedData={() => fireReady()}
-          onCanPlay={() => fireReady()}
+          onLoadedData={() => {
+            tryPlayWeb();
+            fireReady();
+          }}
+          onCanPlay={() => {
+            tryPlayWeb();
+            fireReady();
+          }}
+          onPlaying={() => fireReady()}
           onError={() => onError?.()}
         />
       </View>
@@ -110,6 +128,8 @@ export function DaltonVideoLoop({
         isLooping
         shouldPlay
         isMuted
+        onLoad={() => fireReady()}
+        onReadyForDisplay={() => fireReady()}
         onPlaybackStatusUpdate={onPlaybackStatus}
         onError={() => onError?.()}
       />

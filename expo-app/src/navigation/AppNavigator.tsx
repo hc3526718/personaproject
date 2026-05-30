@@ -14,6 +14,7 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { useAccessibility } from '../accessibility/AccessibilityContext';
 import { DS } from '../designSystem';
+import { BootVideoWarmup } from '../components/BootVideoWarmup';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { useThemedStackScreenOptions } from '../theme/useThemeStyles';
 import { CommunityThemeProvider } from '../screens/community/CommunityStylesContext';
@@ -261,14 +262,17 @@ function AuthStackNavigator() {
     [screenOptions],
   );
   return (
-    <AuthStack.Navigator initialRouteName="WelcomeHub" screenOptions={authScreenOptions}>
-      <AuthStack.Screen name="WelcomeHub" component={WelcomeHubScreen} />
-      <AuthStack.Screen name="GrantAccess" component={GrantAccessScreen} />
-      <AuthStack.Screen name="LogIn" component={LogInScreen} />
-      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <AuthStack.Screen name="VerifyReset" component={VerifyResetScreen} />
-      <AuthStack.Screen name="CreatePassword" component={CreatePasswordScreen} />
-    </AuthStack.Navigator>
+    <>
+      <BootVideoWarmup />
+      <AuthStack.Navigator initialRouteName="WelcomeHub" screenOptions={authScreenOptions}>
+        <AuthStack.Screen name="WelcomeHub" component={WelcomeHubScreen} />
+        <AuthStack.Screen name="GrantAccess" component={GrantAccessScreen} />
+        <AuthStack.Screen name="LogIn" component={LogInScreen} />
+        <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <AuthStack.Screen name="VerifyReset" component={VerifyResetScreen} />
+        <AuthStack.Screen name="CreatePassword" component={CreatePasswordScreen} />
+      </AuthStack.Navigator>
+    </>
   );
 }
 
