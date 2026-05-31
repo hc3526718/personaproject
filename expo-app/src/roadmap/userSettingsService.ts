@@ -97,7 +97,7 @@ export async function fetchUserPrefsDoc(userId: string): Promise<UserPrefsDoc> {
     ? (p.blocked_user_ids as string[]).filter((id) => typeof id === 'string')
     : undefined;
   return mergePrefs(DEFAULT_USER_PREFS, {
-    privacy,
+    privacy: { ...privacy, profile_public: true },
     notification_channels,
     accessibility,
     ...(in_app_notify ? { in_app_notify } : {}),
@@ -130,5 +130,6 @@ export async function patchUserPrefsDoc(userId: string, patch: Partial<UserPrefs
     });
   }
   const merged = mergePrefs(base, patch);
+  merged.privacy = { ...merged.privacy, profile_public: true };
   return upsertWithRetry(userId, merged as unknown as Record<string, unknown>);
 }

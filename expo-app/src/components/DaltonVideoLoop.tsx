@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import {
-  Platform,
   StyleSheet,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import { ResizeMode, Video, type AVPlaybackStatus } from 'expo-av';
-import { DALTON_BOOT_VIDEO_BG, getDaltonBootVideoWebPath } from '../constants/daltonBootVideo';
+import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 
 type Props = {
   style?: StyleProp<ViewStyle>;
@@ -18,7 +17,6 @@ type Props = {
 };
 
 function useNativeVideoSource(): number | { uri: string } | null {
-  if (Platform.OS === 'web') return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('../constants/daltonBootVideo.native') as {
@@ -30,10 +28,7 @@ function useNativeVideoSource(): number | { uri: string } | null {
   }
 }
 
-/**
- * Looped Dalton brand video — replaces Rive boot / pull-refresh / welcome animations.
- * Web loads `/app/VideoP.mp4` statically (not Metro-bundled); native uses assets/VideoP.mp4.
- */
+/** Native: loops bundled `assets/VideoP.mp4`. Web uses `DaltonVideoLoop.web.tsx`. */
 export function DaltonVideoLoop({
   style,
   onReady,
@@ -41,9 +36,7 @@ export function DaltonVideoLoop({
   accessibilityLabel = 'Loading',
 }: Props) {
   const readySent = useRef(false);
-  const webVideoRef = useRef<HTMLVideoElement | null>(null);
   const nativeSource = useNativeVideoSource();
-  const webUri = Platform.OS === 'web' ? getDaltonBootVideoWebPath() : null;
 
   const fireReady = useCallback(() => {
     if (readySent.current) return;
@@ -51,15 +44,9 @@ export function DaltonVideoLoop({
     onReady?.();
   }, [onReady]);
 
-  const tryPlayWeb = useCallback(() => {
-    const el = webVideoRef.current;
-    if (!el) return;
-    void el.play().catch(() => {});
-  }, []);
-
   useEffect(() => {
     readySent.current = false;
-  }, [webUri]);
+  }, [nativeSource]);
 
   const onPlaybackStatus = useCallback(
     (status: AVPlaybackStatus) => {
@@ -71,39 +58,6 @@ export function DaltonVideoLoop({
     },
     [fireReady, onError],
   );
-
-  if (Platform.OS === 'web' && webUri) {
-    return (
-      <View
-        style={[styles.outer, style]}
-        accessibilityRole="progressbar"
-        accessibilityLabel={accessibilityLabel}
-      >
-        <video
-          ref={(el) => {
-            webVideoRef.current = el;
-          }}
-          src={webUri}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          style={styles.webVideo as object}
-          onLoadedData={() => {
-            tryPlayWeb();
-            fireReady();
-          }}
-          onCanPlay={() => {
-            tryPlayWeb();
-            fireReady();
-          }}
-          onPlaying={() => fireReady()}
-          onError={() => onError?.()}
-        />
-      </View>
-    );
-  }
 
   if (!nativeSource) {
     return (
@@ -147,12 +101,6 @@ const styles = StyleSheet.create({
   video: {
     width: '100%',
     height: '100%',
-    backgroundColor: DALTON_BOOT_VIDEO_BG,
-  },
-  webVideo: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain',
     backgroundColor: DALTON_BOOT_VIDEO_BG,
   },
 });

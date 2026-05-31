@@ -13,6 +13,7 @@ import { ActionBannerProvider } from './src/actionBanner/ActionBannerContext';
 import { ActivityBadgeProvider } from './src/activity/ActivityBadgeProvider';
 import { ConversationInAppAlerts } from './src/activity/ConversationInAppAlerts';
 import { EventInAppAlerts } from './src/activity/EventInAppAlerts';
+import { NotificationPushRelay } from './src/activity/NotificationPushRelay';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
@@ -52,6 +53,7 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
                 <AppNavigator />
                 <ConversationInAppAlerts />
                 <EventInAppAlerts />
+                <NotificationPushRelay />
               </>
             ) : (
               <View style={styles.bootLoader}>

@@ -3,7 +3,8 @@ import Constants from 'expo-constants';
 import { openCommunityMessageThread, openEventDetails } from '../navigation/rootNavigationRef';
 import { isSupabaseConfigured } from './env';
 import { isPushDeliveryEnabled } from './pushPrefsGate';
-import { registerDevicePushToken } from '../roadmap/notificationsService';
+import { fetchUserPrefsDoc } from '../roadmap/userSettingsService';
+import { registerDevicePushToken, unregisterDevicePushToken } from '../roadmap/notificationsService';
 
 let notificationResponseListenerAttached = false;
 
@@ -78,6 +79,14 @@ export async function configurePushPresentation(): Promise<void> {
 export async function tryRegisterPushToken(userId: string): Promise<void> {
   if (!userId || userId.startsWith('demo-') || !isSupabaseConfigured()) return;
   try {
+    const doc = await fetchUserPrefsDoc(userId);
+    if (doc.notification_channels?.push === false) {
+      setPushDeliveryEnabled(false);
+      await unregisterDevicePushToken(userId);
+      return;
+    }
+    setPushDeliveryEnabled(true);
+
     const Notifications = await import('expo-notifications');
     await configurePushPresentation();
     const { status: existing } = await Notifications.getPermissionsAsync();

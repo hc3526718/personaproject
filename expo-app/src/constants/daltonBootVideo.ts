@@ -7,7 +7,11 @@ export function getDaltonBootVideoWebPath(): string {
   const env = process.env.EXPO_PUBLIC_BOOT_VIDEO_URL?.trim();
   if (env) return env;
   const base = (process.env.EXPO_PUBLIC_WEB_BASE_PATH ?? '/app').replace(/\/$/, '');
-  return `${base}/VideoP.mp4`;
+  const path = `${base}/VideoP.mp4`;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`;
+  }
+  return path;
 }
 
 let warmupStarted = false;

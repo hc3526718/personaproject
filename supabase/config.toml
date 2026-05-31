@@ -32,3 +32,7 @@ verify_jwt = false
 [functions.send-booking-confirmation-email]
 # Caller JWT validated inside the function; uses service role to load booking + send Resend.
 verify_jwt = false
+
+[functions.dispatch-in-app-push]
+# Called from pg_net trigger or client when app is backgrounded; uses service role.
+verify_jwt = false

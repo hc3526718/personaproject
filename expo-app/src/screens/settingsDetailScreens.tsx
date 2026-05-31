@@ -354,7 +354,6 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const showBanner = useActionBanner();
-  const [pub, setPub] = useState(true);
   const [showResults, setShowResults] = useState(true);
   const [dataShare, setDataShare] = useState(false);
   const [dmPolicy, setDmPolicy] = useState<AllowMessagesFrom>(() => getAllowMessagesFrom());
@@ -370,8 +369,10 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
           setDmPolicy(raw);
         }
         const pr = doc.privacy;
-        if (pr?.profile_public != null) setPub(pr.profile_public);
         if (pr?.show_recent_results != null) setShowResults(pr.show_recent_results);
+        if (pr?.profile_public === false) {
+          void patchUserPrefsDoc(user.id, { privacy: { profile_public: true } });
+        }
         if (pr?.partner_analytics != null) setDataShare(pr.partner_analytics);
       })();
     }, [user?.id]),
@@ -399,10 +400,9 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
 
   const applyPrivacy = useCallback(
     (
-      patch: Partial<{ profile_public: boolean; show_recent_results: boolean; partner_analytics: boolean }>,
-      rollback: { pub: boolean; showResults: boolean; dataShare: boolean },
+      patch: Partial<{ show_recent_results: boolean; partner_analytics: boolean }>,
+      rollback: { showResults: boolean; dataShare: boolean },
     ) => {
-      if (patch.profile_public != null) setPub(patch.profile_public);
       if (patch.show_recent_results != null) setShowResults(patch.show_recent_results);
       if (patch.partner_analytics != null) setDataShare(patch.partner_analytics);
 
@@ -411,9 +411,10 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
         return;
       }
       void (async () => {
-        const ok = await patchUserPrefsDoc(user.id, { privacy: patch });
+        const ok = await patchUserPrefsDoc(user.id, {
+          privacy: { ...patch, profile_public: true },
+        });
         if (!ok) {
-          setPub(rollback.pub);
           setShowResults(rollback.showResults);
           setDataShare(rollback.dataShare);
           showBanner('Could not save', 'Check your connection. Restored your previous choices.');
@@ -433,7 +434,8 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.bodyMuted}>
-          Control who sees your profile and how your information is used.
+          All member profiles are public and visible in search and community. Control messaging and
+          how your information is used below.
         </Text>
         <Text style={styles.cardKicker}>Direct messages</Text>
         <Text style={styles.bodyMutedSm}>Who can start a new conversation with you.</Text>
@@ -463,26 +465,12 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Public profile</Text>
-              <Text style={styles.toggleSub}>Discoverable in search and community.</Text>
-            </View>
-            <Switch
-              value={pub}
-              onValueChange={(v) => applyPrivacy({ profile_public: v }, { pub, showResults, dataShare })}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
-          </View>
-          <View style={styles.hairline} />
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
               <Text style={styles.toggleTitle}>Show recent results</Text>
               <Text style={styles.toggleSub}>Display meet marks on your profile.</Text>
             </View>
             <Switch
               value={showResults}
-              onValueChange={(v) =>
-                applyPrivacy({ show_recent_results: v }, { pub, showResults, dataShare })
-              }
+              onValueChange={(v) => applyPrivacy({ show_recent_results: v }, { showResults, dataShare })}
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
@@ -497,7 +485,7 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
                 <Switch
                   value={dataShare}
                   onValueChange={(v) =>
-                    applyPrivacy({ partner_analytics: v }, { pub, showResults, dataShare })
+                    applyPrivacy({ partner_analytics: v }, { showResults, dataShare })
                   }
                   trackColor={{ true: DS.color.goldTint30 }}
                 />

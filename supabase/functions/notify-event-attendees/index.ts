@@ -10,7 +10,7 @@ type Body = { event_id?: string };
 
 type Prefs = {
   push?: boolean;
-  events?: boolean;
+  event_reminders?: boolean;
 };
 
 Deno.serve(async (req) => {
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
 
     const prefs = (settingsRow?.preferences as { notification_channels?: Prefs } | null)
       ?.notification_channels;
-    const allowPush = prefs?.push !== false && prefs?.events !== false;
+    const allowPush = prefs?.push !== false && prefs?.event_reminders !== false;
     if (!allowPush) continue;
 
     const { data: tokenRow } = await admin
