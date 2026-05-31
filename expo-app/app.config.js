@@ -36,6 +36,13 @@ function buildPlugins() {
     'expo-web-browser',
     'expo-apple-authentication',
     [
+      'expo-notifications',
+      {
+        icon: './assets/dalton_logo_final_img-icons/Android/mipmap-xxxhdpi/ic_launcher_foreground.png',
+        color: '#C8A84B',
+      },
+    ],
+    [
       'expo-camera',
       {
         cameraPermission: 'Allow The Dalton Grant Academy to use your camera for event QR scanning.',

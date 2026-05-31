@@ -12,7 +12,7 @@
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { PKPass } from 'npm:passkit-generator@3.3.2';
+import { PKPass } from 'npm:passkit-generator@3.5.7';
 import { corsHeaders } from '../_shared/cors.ts';
 
 const PASS_TYPE = Deno.env.get('APPLE_PASS_TYPE_ID') ?? 'pass.com.grantaccess.event';
