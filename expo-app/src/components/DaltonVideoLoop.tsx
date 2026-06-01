@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { ResizeMode, Video, type AVPlaybackStatus } from 'expo-av';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
-import { DALTON_BOOT_VIDEO_NATIVE } from '../constants/daltonBootVideo.native';
+import { useBundledBootVideoSource } from '../hooks/useBundledBootVideoSource';
 
 type Props = {
   style?: StyleProp<ViewStyle>;
@@ -25,7 +25,7 @@ export function DaltonVideoLoop({
   accessibilityLabel = 'Loading',
 }: Props) {
   const readySent = useRef(false);
-  const nativeSource = DALTON_BOOT_VIDEO_NATIVE;
+  const nativeSource = useBundledBootVideoSource();
 
   const fireReady = useCallback(() => {
     if (readySent.current) return;
@@ -67,7 +67,7 @@ export function DaltonVideoLoop({
       <Video
         source={nativeSource}
         style={styles.video}
-        resizeMode={ResizeMode.CONTAIN}
+        resizeMode={ResizeMode.COVER}
         isLooping
         shouldPlay
         isMuted

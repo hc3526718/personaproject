@@ -14,17 +14,16 @@ export function getDaltonBootVideoWebPath(): string {
   return path;
 }
 
-let warmupStarted = false;
+let webWarmupStarted = false;
 
 /**
  * Start loading VideoP early (auth stack / logged-out shell).
- * Web: `<link rel="preload">` + hidden `<video preload="auto">`. Native: relies on `BootVideoWarmup` mount.
+ * Web: `<link rel="preload">` + hidden `<video preload="auto">`. Native: `BootVideoWarmup` + expo-asset in `DaltonVideoLoop`.
  */
 export function warmDaltonBootVideoCache(): void {
-  if (warmupStarted) return;
-  warmupStarted = true;
-
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+  if (webWarmupStarted) return;
+  webWarmupStarted = true;
 
   const uri = getDaltonBootVideoWebPath();
 

@@ -23,7 +23,13 @@ import {
 } from '../lib/notificationBannerPrefs';
 import { inAppNotifyCategoriesForUser, isMasterControlUser } from '../lib/notifyPrefsAccess';
 import { setPushDeliveryEnabled } from '../lib/pushPrefsGate';
-import { tryRegisterPushToken } from '../lib/pushRegistration';
+import {
+  getPushPermissionSnapshot,
+  openDeviceNotificationSettings,
+  requestPushPermissions,
+  tryRegisterPushToken,
+  type PushPermissionSnapshot,
+} from '../lib/pushRegistration';
 import { unregisterDevicePushToken } from '../roadmap/notificationsService';
 
 const BANNER_TOGGLE_SUB: Partial<Record<InAppNotifyCategory, string>> = {
@@ -498,6 +504,13 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
   );
 }
 
+function pushPermissionLabel(snapshot: PushPermissionSnapshot): string {
+  if (snapshot.status === 'granted') return 'Allowed on this device';
+  if (snapshot.status === 'denied') return 'Blocked on this device — open system settings';
+  if (snapshot.status === 'undetermined') return 'Not set yet — tap Enable below';
+  return 'Unavailable in this build (reinstall dev client with notifications)';
+}
+
 export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPrefs'>) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -508,12 +521,24 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
   const [community, setCommunity] = useState(false);
   const [masterProposals, setMasterProposals] = useState(true);
   const [bannerPrefs, setBannerPrefs] = useState<InAppNotifyPrefs>(DEFAULT_NOTIFY_PREFS);
+  const [pushPermission, setPushPermission] = useState<PushPermissionSnapshot>({
+    status: 'undetermined',
+    canAskAgain: true,
+  });
   const isMaster = isMasterControlUser(user);
   const bannerToggleOrder = inAppNotifyCategoriesForUser(isMaster);
+
+  const refreshPushPermission = useCallback(async () => {
+    setPushPermission(await getPushPermissionSnapshot());
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       void (async () => {
+        await refreshPushPermission();
+        if (user?.id && !user.id.startsWith('demo-')) {
+          void tryRegisterPushToken(user.id);
+        }
         let prefs = await loadInAppNotifyPrefs();
         if (user?.id && !user.id.startsWith('demo-')) {
           const doc = await fetchUserPrefsDoc(user.id);
@@ -537,8 +562,19 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
         }
         setBannerPrefs(sanitizeInAppPrefsForAccount(prefs, isMaster));
       })();
-    }, [isMaster, user?.id]),
+    }, [isMaster, refreshPushPermission, user?.id]),
   );
+
+  const onEnableDevicePush = useCallback(async () => {
+    const next = await requestPushPermissions();
+    setPushPermission(next);
+    if (next.status === 'granted' && user?.id && !user.id.startsWith('demo-')) {
+      await tryRegisterPushToken(user.id);
+      showBanner('Notifications enabled', 'This device can receive push alerts from the academy.');
+    } else if (next.status === 'denied') {
+      showBanner('Notifications blocked', 'Open system notification settings to allow alerts.');
+    }
+  }, [showBanner, user?.id]);
 
   const patchNotifyChannel = useCallback(
     (
@@ -613,6 +649,41 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
         contentContainerStyle={[styles.padded, { paddingBottom: 32 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={styles.cardKicker}>Device notification manager</Text>
+        <Text style={styles.bodyMuted}>
+          iOS and Android control alerts in system settings. Enable here first, then choose which types
+          of academy notifications you want below.
+        </Text>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={{ flex: 1, paddingRight: DS.space.md }}>
+              <Text style={styles.toggleTitle}>System permission</Text>
+              <Text style={styles.toggleSub}>{pushPermissionLabel(pushPermission)}</Text>
+            </View>
+          </View>
+          {pushPermission.status !== 'granted' ? (
+            <>
+              <View style={styles.hairline} />
+              <Pressable style={styles.notifyActionRow} onPress={() => void onEnableDevicePush()}>
+                <FontAwesome name="bell-o" size={16} color={DS.color.gold} />
+                <Text style={styles.notifyActionTxt}>Enable notifications on this device</Text>
+              </Pressable>
+            </>
+          ) : null}
+          <View style={styles.hairline} />
+          <Pressable
+            style={styles.notifyActionRow}
+            onPress={() => {
+              openDeviceNotificationSettings();
+              void refreshPushPermission();
+            }}
+          >
+            <FontAwesome name="cog" size={16} color={DS.color.gold} />
+            <Text style={styles.notifyActionTxt}>Open system notification settings</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.cardKickerSpaced}>Academy channels</Text>
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <Text style={styles.toggleTitle}>Push notifications</Text>
@@ -1043,6 +1114,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: DS.color.text,
+  },
+  notifyActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.md,
+    paddingVertical: DS.space.md,
+  },
+  notifyActionTxt: {
+    flex: 1,
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 15,
+    color: DS.color.gold,
   },
   toggleRow: {
     flexDirection: 'row',

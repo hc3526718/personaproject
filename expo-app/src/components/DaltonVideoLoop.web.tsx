@@ -50,7 +50,7 @@ export function DaltonVideoLoop({
       <Video
         source={{ uri }}
         style={styles.video}
-        resizeMode={ResizeMode.CONTAIN}
+        resizeMode={ResizeMode.COVER}
         isLooping
         shouldPlay
         isMuted
