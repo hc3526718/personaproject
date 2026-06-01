@@ -22,18 +22,19 @@ export function BootVideoWarmup() {
 }
 
 const styles = StyleSheet.create({
+  /** Off-screen but large enough for iOS/Android to decode frames before auth hero mounts. */
   hidden: {
     position: 'absolute',
-    width: 1,
-    height: 1,
-    opacity: 0,
+    width: 320,
+    height: 568,
+    opacity: 0.01,
     overflow: 'hidden',
-    left: -9999,
+    left: -400,
     top: 0,
     zIndex: -1,
   },
   video: {
-    width: 1,
-    height: 1,
+    width: '100%',
+    height: '100%',
   },
 });

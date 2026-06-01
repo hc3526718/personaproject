@@ -100,7 +100,7 @@ const baseExpo = {
   name: 'The Dalton Grant Academy',
   slug: 'dalton-demo',
   scheme: 'dalton-demo',
-  version: '1.0.0',
+  version: '1.0.1',
   orientation: 'portrait',
   icon: ICON_1024,
   userInterfaceStyle: 'dark',
@@ -125,6 +125,7 @@ const baseExpo = {
       usesNonExemptEncryption: false,
     },
     infoPlist: {
+      CFBundleDisplayName: 'The Dalton Grant Academy',
       ITSAppUsesNonExemptEncryption: false,
       NSPhotoLibraryAddUsageDescription:
         'The Dalton Grant Academy saves your event ticket QR code to your photo library when you choose Save ticket as PNG.',

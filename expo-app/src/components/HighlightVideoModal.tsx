@@ -9,7 +9,7 @@ import {
   resolveHighlightOpenUrl,
   resolveHighlightPlaybackUrl,
 } from '../lib/profileHighlights';
-import { isYouTubeUrl } from '../lib/youtube';
+import { isYouTubeUrl, parseYouTubeVideoId, youTubeEmbedHtml, youTubeEmbedUrl } from '../lib/youtube';
 
 type Props = {
   visible: boolean;
@@ -43,9 +43,11 @@ export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props
   const insets = useSafeAreaInsets();
   const playbackUrl = resolveHighlightPlaybackUrl(videoUrl);
   const openUrl = resolveHighlightOpenUrl(videoUrl);
-  const playable = playbackUrl != null;
+  const youtubeId = parseYouTubeVideoId(videoUrl);
+  const playable = playbackUrl != null || youtubeId != null;
   const isYoutube = isYouTubeUrl(videoUrl);
-  const useWebIframe = Platform.OS === 'web' && isYoutube && playbackUrl;
+  const webEmbedSrc = youtubeId ? youTubeEmbedUrl(youtubeId) : playbackUrl;
+  const useWebIframe = Platform.OS === 'web' && isYoutube && webEmbedSrc;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -59,15 +61,18 @@ export function HighlightVideoModal({ visible, title, videoUrl, onClose }: Props
           </Pressable>
         </View>
         <View style={styles.playerWrap}>
-          {playable && useWebIframe ? (
-            <WebYouTubeEmbed src={playbackUrl} title={title} />
-          ) : playable && isYoutube && playbackUrl && Platform.OS !== 'web' ? (
+          {playable && useWebIframe && webEmbedSrc ? (
+            <WebYouTubeEmbed src={webEmbedSrc} title={title} />
+          ) : playable && isYoutube && youtubeId && Platform.OS !== 'web' ? (
             <WebView
-              source={{ uri: playbackUrl }}
+              source={{ html: youTubeEmbedHtml(youtubeId), baseUrl: 'https://www.youtube.com' }}
               style={styles.embed}
               allowsFullscreenVideo
+              allowsInlineMediaPlayback
               mediaPlaybackRequiresUserAction={false}
               javaScriptEnabled
+              domStorageEnabled
+              originWhitelist={['https://*', 'http://*']}
             />
           ) : playable && playbackUrl && isPlayableVideoUrl(playbackUrl) && Platform.OS === 'web' ? (
             <video
