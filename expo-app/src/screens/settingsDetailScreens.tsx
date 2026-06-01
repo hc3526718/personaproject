@@ -915,12 +915,22 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
-        <Pressable style={styles.supportCard} onPress={() => void open('/contact-us')}>
+        <Pressable style={styles.supportCard} onPress={() => void open('/contact-team')}>
           <FontAwesome name="envelope-o" size={18} color={DS.color.gold} />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
-            <Text style={styles.supportTitle}>Contact us</Text>
+            <Text style={styles.supportTitle}>Email support</Text>
             <Text style={styles.supportSub}>
-              Subject + message form on the website (no public inbox shown). {BRAND_CONTACT_RESPONSE_WINDOW}
+              Detailed issues, billing, privacy, and safety — secure form on the website. {BRAND_CONTACT_RESPONSE_WINDOW}
+            </Text>
+          </View>
+          <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+        </Pressable>
+        <Pressable style={styles.supportCard} onPress={() => void open('/contact-assistant')}>
+          <FontAwesome name="comments-o" size={18} color={DS.color.gold} />
+          <View style={{ flex: 1, marginLeft: DS.space.md }}>
+            <Text style={styles.supportTitle}>AI assistant</Text>
+            <Text style={styles.supportSub}>
+              Simple how-to questions and learning about the academy — typical reply under a minute.
             </Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />

@@ -16,6 +16,8 @@
     { "source": "/athlete-agreement", "destination": "/athlete-agreement.html" },
     { "source": "/help-center", "destination": "/help-center.html" },
     { "source": "/contact-us", "destination": "/contact-us.html" },
+    { "source": "/contact-team", "destination": "/contact-team.html" },
+    { "source": "/contact-assistant", "destination": "/contact-assistant.html" },
     { "source": "/live-chat", "destination": "/live-chat.html" },
     { "source": "/demo", "destination": "/app/index.html" },
     { "source": "/demo/:path*", "destination": "/app/index.html" },

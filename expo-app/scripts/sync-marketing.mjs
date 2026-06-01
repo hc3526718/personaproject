@@ -10,6 +10,8 @@ const htmlPages = [
   'index.html',
   'help-center.html',
   'contact-us.html',
+  'contact-team.html',
+  'contact-assistant.html',
   'privacy.html',
   'terms.html',
   'cookie-policy.html',
