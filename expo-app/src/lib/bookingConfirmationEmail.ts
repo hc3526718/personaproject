@@ -1,4 +1,5 @@
-import { getSupabase, isSupabaseConfigured } from './supabase';
+import { getSupabase } from './supabase';
+import { isSupabaseConfigured } from './env';
 
 /**
  * Fire-and-forget booking confirmation email (Resend via Edge Function).

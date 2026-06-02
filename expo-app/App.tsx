@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { wrapWithSentry } from './src/monitoring/sentryBoot';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { hideNativeSplash, scheduleNativeSplashFailsafe } from './src/boot/nativeSplashGate';
+import { AppErrorBoundary } from './src/components/AppErrorBoundary';
+import { preloadNativeBootVideo } from './src/lib/preloadNativeBootVideo';
 import { configurePushPresentation } from './src/lib/pushRegistration';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -28,11 +30,18 @@ const USE_WEBVIEW_DEMO = process.env.EXPO_PUBLIC_USE_WEBVIEW_DEMO === '1';
 function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
   const { ready: authReady } = useAuth();
   const coreReady = fontsReady && authReady;
+  const [navEpoch, setNavEpoch] = useState(0);
+  const remountNavigator = useCallback(() => setNavEpoch((n) => n + 1), []);
 
   useEffect(() => {
     scheduleNativeSplashFailsafe();
     void configurePushPresentation();
     warmDaltonBootVideoCache();
+    preloadNativeBootVideo();
+  }, []);
+
+  useEffect(() => {
+    hideNativeSplash();
   }, []);
 
   useEffect(() => {
@@ -50,12 +59,12 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
           <ActivityBadgeProvider>
           <View style={styles.shell}>
             {coreReady ? (
-              <>
-                <AppNavigator />
+              <AppErrorBoundary onRetry={remountNavigator}>
+                <AppNavigator key={navEpoch} />
                 <ConversationInAppAlerts />
                 <EventInAppAlerts />
                 <NotificationPushRelay />
-              </>
+              </AppErrorBoundary>
             ) : (
               <View style={styles.bootLoader}>
                 <BootCircleLoader size={64} compact />

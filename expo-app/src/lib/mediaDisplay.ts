@@ -1,4 +1,6 @@
+import { Image } from 'react-native';
 import type { MediaAssetRow } from '../roadmap/types';
+import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 
 export type MediaPresentation = {
   title: string;
@@ -96,6 +98,10 @@ export function getMediaPresentation(
   };
 }
 
+/** Default still when a video has no custom thumbnail (library grid + continue watching). */
+export const DEFAULT_VIDEO_THUMBNAIL_URI =
+  Image.resolveAssetSource(DALTON_LOGO_FINAL_IMG).uri;
+
 export function mediaThumbnailUri(
   asset: Pick<MediaAssetRow, 'thumbnail_url' | 'public_url' | 'kind'>,
 ): string | null {
@@ -103,7 +109,16 @@ export function mediaThumbnailUri(
   if (thumb) return thumb;
   const pub = asset.public_url?.trim() || '';
   if (pub && !pub.match(/\.(mp4|mov|m4v|webm)(\?|$)/i)) return pub;
+  if (isVideoMediaAsset(asset)) return DEFAULT_VIDEO_THUMBNAIL_URI;
   return null;
+}
+
+/** Thumbnail for UI lists — never null for video assets. */
+export function mediaThumbnailUriForDisplay(
+  asset: Pick<MediaAssetRow, 'thumbnail_url' | 'public_url' | 'kind'>,
+  fallback = DEFAULT_VIDEO_THUMBNAIL_URI,
+): string {
+  return mediaThumbnailUri(asset) ?? fallback;
 }
 
 export function isVideoMediaAsset(asset: Pick<MediaAssetRow, 'kind' | 'public_url'>): boolean {

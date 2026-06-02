@@ -1,4 +1,4 @@
-﻿import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { DS, tabRootTitleText } from '../../designSystem';
 import type { AccessibleColors } from '../../lib/accessibilityTheme';
 
@@ -592,6 +592,14 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     fontFamily: DS.font.bodyMedium,
     fontWeight: '600',
   },
+  mentionTag: {
+    color: c.gold,
+    fontFamily: DS.font.bodyMedium,
+    fontWeight: '700',
+  },
+  mentionTagMuted: {
+    opacity: 0.75,
+  },
   clapEmoji: {
     fontSize: 13,
     lineHeight: 16,
@@ -864,6 +872,84 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     paddingLeft: 36,
     paddingRight: DS.space.md,
     minHeight: 48,
+  },
+  searchInputWrapCompact: {
+    flex: 1,
+    minWidth: 0,
+    maxWidth: 300,
+  },
+  searchHeaderIconSlot: {
+    width: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchAtModeHint: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: c.textMuted,
+    marginTop: DS.space.xs,
+  },
+  searchTypeaheadPanel: {
+    marginBottom: DS.space.md,
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.surface,
+    overflow: 'hidden',
+  },
+  searchSuggestUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.md,
+    paddingVertical: DS.space.md,
+    paddingHorizontal: DS.space.base,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderWhite5,
+  },
+  searchSuggestAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: c.surfaceAlt,
+  },
+  searchSuggestName: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 15,
+    color: c.text,
+  },
+  searchSuggestMeta: {
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: c.textMuted,
+    marginTop: 2,
+  },
+  searchSuggestPostRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DS.space.sm,
+    paddingVertical: DS.space.md,
+    paddingHorizontal: DS.space.base,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderWhite5,
+  },
+  searchSuggestPostText: {
+    flex: 1,
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: c.text,
+    lineHeight: 20,
+  },
+  searchPeopleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.md,
+    paddingVertical: DS.space.md,
+    paddingHorizontal: DS.space.base,
+    marginBottom: DS.space.sm,
+    borderRadius: DS.radius.lg,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
   },
   searchInputIcon: {
     position: 'absolute',

@@ -43,4 +43,17 @@ eas build --platform ios --profile production --auto-submit
 2. Add internal/external testers.
 3. Install on device; confirm icon label **The Dalton Grant Academy**.
 
+## Crash right after splash (never reaches login)
+
+Common causes and fixes:
+
+| Cause | Fix |
+|-------|-----|
+| **Stale EAS build** (wrong git commit) | `git push`, then `eas build --platform ios --profile production --clear-cache` |
+| **Missing production env** on Expo | Set `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` (use `appl_…`, never `test_…`) |
+| **JS-only splash fix** not in binary | After splash fix landed, run `eas update --channel production` **or** ship a new native build |
+| **Native crash** (not JS) | Check Sentry / Xcode Organizer crash logs; RevenueCat paywall before `configure` is a known fatal |
+
+Boot hardening in app code: single `expo-av` instance on auth, `AppErrorBoundary`, no RevenueCat `logOut` on cold start.
+
 See also `docs/STORE_RELEASE.md`.

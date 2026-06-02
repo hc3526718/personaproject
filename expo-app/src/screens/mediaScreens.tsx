@@ -31,7 +31,9 @@ import {
   formatMediaDisplayTitle,
   getMediaPresentation,
   isVideoMediaAsset,
+  DEFAULT_VIDEO_THUMBNAIL_URI,
   mediaThumbnailUri,
+  mediaThumbnailUriForDisplay,
 } from '../lib/mediaDisplay';
 import { subscribeSavedMediaChange } from '../lib/savedMediaEvents';
 import { useAuth } from '../auth/AuthContext';
@@ -65,8 +67,7 @@ const HERO_LIB =
   'https://storage.googleapis.com/uxpilot-auth.appspot.com/1a75224564-2a540432ce03b03b0b14.png';
 const PLAYER_STILL =
   'https://storage.googleapis.com/uxpilot-auth.appspot.com/93d0cf48f4-ce5f5c9499d653769bad.png';
-const THUMB =
-  'https://storage.googleapis.com/uxpilot-auth.appspot.com/31c2b75d62-cdb79732e3d7fcb5be97.png';
+const THUMB = DEFAULT_VIDEO_THUMBNAIL_URI;
 
 type SavedBadgeVariant = 'gold' | 'blue' | 'accent' | 'green' | 'purple';
 
@@ -188,19 +189,20 @@ function playerMeta(title: string) {
 const BROWSE = ['All Media', 'Training', 'Mindset', 'Nutrition', 'Recovery', 'Career'] as const;
 
 function MediaThumbnail({ asset, fill }: { asset: MediaAssetRow; fill?: boolean }) {
-  const boxStyle = fill ? styles.thumbMediaFill : undefined;
+  // Many of our “box” styles are valid for both Views and Images; TS treats them as ViewStyle.
+  const boxStyle = fill ? (styles.thumbMediaFill as any) : undefined;
   const uri = mediaThumbnailUri(asset);
   if (uri) {
-    return <Image source={{ uri }} style={[boxStyle, styles.thumbImg]} resizeMode="cover" />;
+    return <Image source={{ uri }} style={[boxStyle, styles.thumbImg] as any} resizeMode="cover" />;
   }
   if (isVideoMediaAsset(asset)) {
     return (
-      <View style={[boxStyle, styles.thumbVideoPlaceholder]}>
+      <View style={[boxStyle, styles.thumbVideoPlaceholder] as any}>
         <FontAwesome name="play-circle" size={40} color={DS.color.gold} />
       </View>
     );
   }
-  return <Image source={{ uri: THUMB }} style={[boxStyle, styles.thumbImg]} resizeMode="cover" />;
+  return <Image source={{ uri: THUMB }} style={[boxStyle, styles.thumbImg] as any} resizeMode="cover" />;
 }
 
 export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>) {
@@ -227,6 +229,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
       getFeaturedSeriesHead(),
     ]);
     const validIds = new Set(rows.map((r) => r.id));
+    const assetById = new Map(rows.map((r) => [r.id, r]));
     await pruneContinueWatching(validIds);
     const contFresh = await listContinueWatching();
     setBrowseAssets(rows);
@@ -234,13 +237,21 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
     const watchedSet = watched;
     const seen = new Set<string>();
     setContinueItems(
-      contFresh.filter((item) => {
-        if (!validIds.has(item.mediaId)) return false;
-        if (watchedSet.has(item.mediaId)) return false;
-        if (seen.has(item.mediaId)) return false;
-        seen.add(item.mediaId);
-        return true;
-      }),
+      contFresh
+        .filter((item) => {
+          if (!validIds.has(item.mediaId)) return false;
+          if (watchedSet.has(item.mediaId)) return false;
+          if (seen.has(item.mediaId)) return false;
+          seen.add(item.mediaId);
+          return true;
+        })
+        .map((item) => {
+          const asset = assetById.get(item.mediaId);
+          const thumb = asset
+            ? mediaThumbnailUriForDisplay(asset, item.thumb || THUMB)
+            : item.thumb || THUMB;
+          return { ...item, thumb };
+        }),
     );
   }, []);
   const { refreshing, onRefresh } = useRefreshWithMinimum(
@@ -337,7 +348,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
             >
               <Image
                 source={{ uri: mediaThumbnailUri(featuredHero) || HERO_LIB }}
-                style={styles.heroImage}
+                style={styles.heroImage as any}
               />
               <View style={styles.heroPlay}>
                 <View style={styles.playCircle}>
@@ -457,7 +468,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
               >
                 <Image
                   source={{ uri: item.thumb || THUMB }}
-                  style={styles.continueThumb}
+                  style={styles.continueThumb as any}
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.continueTitle}>
@@ -564,7 +575,7 @@ type ResultRow = {
 };
 
 function mediaAssetToResultRow(r: MediaAssetRow): ResultRow {
-  const uri = r.thumbnail_url?.trim() || r.public_url?.trim() || THUMB;
+  const uri = mediaThumbnailUriForDisplay(r, THUMB);
   const label = r.kind === 'video' ? 'Video' : r.kind === 'image' ? 'Image' : 'Media';
   const name = r.storage_path?.split('/').pop() || 'Media asset';
   return {
@@ -705,7 +716,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
                 onPress={() => openPlayer(item.title, item.id)}
               >
                 <View style={styles.mediaCardImageWrap}>
-                  <Image source={{ uri: item.uri }} style={styles.mediaCardImage} />
+                  <Image source={{ uri: item.uri }} style={styles.mediaCardImage as any} />
                   <View style={styles.mediaCardPlay}>
                     <View style={styles.mediaCardPlayBtn}>
                       <FontAwesome name="play" size={16} color={DS.color.background} style={{ marginLeft: 3 }} />
@@ -755,7 +766,7 @@ export function MediaSearchResultsScreen({ navigation }: MProps<'MediaSearchResu
                 style={styles.resultLine}
                 onPress={() => openPlayer(item.title, item.id)}
               >
-                <Image source={{ uri: item.uri }} style={styles.resultThumb} />
+                <Image source={{ uri: item.uri }} style={styles.resultThumb as any} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.thumbTitle} numberOfLines={2}>
                     {item.title}
@@ -835,7 +846,12 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
   const [seriesUpNext, setSeriesUpNext] = useState<MediaAssetRow[]>([]);
   const videoRef = useRef<Video | null>(null);
   const playbackUrl = paramPlayback || asset?.public_url?.trim() || '';
-  const thumb = mediaThumbnailUri(asset ?? { kind: 'video', thumbnail_url: null, public_url: playbackUrl }) || PLAYER_STILL;
+  const thumb = asset
+    ? mediaThumbnailUriForDisplay(asset, PLAYER_STILL)
+    : mediaThumbnailUriForDisplay(
+        { kind: 'video', thumbnail_url: null, public_url: playbackUrl },
+        PLAYER_STILL,
+      );
   const isVideo = asset?.kind === 'video' || (!!playbackUrl && !playbackUrl.match(/\.(png|jpe?g|webp|gif)(\?|$)/i));
   const presentation = useMemo(
     () =>
@@ -941,9 +957,8 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
     }
     // Fallback for nested navigation contexts
     try {
-      navigation
-        .getParent()
-        ?.navigate('Media' as never, { screen: 'EditMedia', params: { mediaId: id } } as never);
+      const parent = navigation.getParent() as unknown as { navigate: (...args: any[]) => void } | undefined;
+      parent?.navigate('Media', { screen: 'EditMedia', params: { mediaId: id } });
     } catch {
       Alert.alert('Media', 'Could not open the editor.');
     }
@@ -1024,7 +1039,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
                 src={playbackUrl}
                 controls
                 playsInline
-                style={styles.playerVideoWeb as object}
+                style={[styles.playerVideoWeb as any, styles.playerVideoWebInner as any] as any}
                 onTimeUpdate={(e) => {
                   const el = e.currentTarget;
                   if (!el.duration || !Number.isFinite(el.duration)) return;
@@ -1048,7 +1063,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
               />
             )
           ) : !isVideo || !playbackUrl ? (
-            <Image source={{ uri: thumb }} style={styles.playerVideo} resizeMode="contain" />
+            <Image source={{ uri: thumb }} style={styles.playerVideo as any} resizeMode="contain" />
           ) : (
             <View style={styles.playerVideoPoster}>
               <FontAwesome name="play-circle" size={48} color={DS.color.gold} />
@@ -1080,7 +1095,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
           </>
         ) : (
           <MediaMetaPanel
-            category={presentation.category}
+            category={presentation.category ?? ''}
             title={presentation.title}
             description={presentation.description}
             tags={presentation.tags}
@@ -1126,7 +1141,7 @@ export function MediaPlayerScreen({ navigation, route }: MProps<'MediaPlayer'>) 
                     <View style={styles.upNextThumbWrap}>
                       <Image
                         source={{ uri: mediaThumbnailUri(a) || THUMB }}
-                        style={styles.upNextThumb}
+                        style={styles.upNextThumb as any}
                       />
                     </View>
                     <Text style={styles.upNextCardTitle} numberOfLines={2}>
@@ -1314,7 +1329,7 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
                 <View key={item.id} style={styles.savedCard}>
                   <Pressable onPress={() => openPlayer(item.title, item.id)}>
                     <View style={styles.savedCardImageWrap}>
-                      <Image source={{ uri: item.uri }} style={styles.savedCardImage} />
+                      <Image source={{ uri: item.uri }} style={styles.savedCardImage as any} />
                       <View style={styles.savedCardPlay}>
                         <View style={styles.savedPlayCircle}>
                           <FontAwesome name="play" size={12} color={DS.color.background} style={{ marginLeft: 2 }} />
@@ -1359,7 +1374,7 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
         >
           {filtered.map((item) => (
             <Pressable key={item.id} style={styles.resultLine} onPress={() => openPlayer(item.title, item.id)}>
-              <Image source={{ uri: item.uri }} style={styles.resultThumb} />
+              <Image source={{ uri: item.uri }} style={styles.resultThumb as any} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.thumbTitle} numberOfLines={2}>
                   {item.title}
@@ -1795,10 +1810,14 @@ const styles = StyleSheet.create({
     height: '100%',
     maxWidth: '100%',
     maxHeight: '100%',
+    // Web-only CSS properties; keep loose to satisfy RN style typing.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  playerVideoWebInner: {
     objectFit: 'contain',
-    display: 'block',
     backgroundColor: '#000',
-  },
+  } as any,
   playerVideoPoster: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

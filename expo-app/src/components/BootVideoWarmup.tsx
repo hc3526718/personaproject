@@ -1,40 +1,16 @@
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { preloadNativeBootVideo } from '../lib/preloadNativeBootVideo';
 import { warmDaltonBootVideoCache } from '../constants/daltonBootVideo';
-import { DaltonVideoLoop } from './DaltonVideoLoop';
 
-/** Hidden preload for auth hero video — mounted once on the auth stack (web + native). */
+/**
+ * Preloads auth hero video without mounting a second `expo-av` player.
+ * (Two simultaneous Video instances on iOS release builds can crash at auth mount.)
+ */
 export function BootVideoWarmup() {
   useEffect(() => {
     warmDaltonBootVideoCache();
+    preloadNativeBootVideo();
   }, []);
 
-  return (
-    <View
-      style={styles.hidden}
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <DaltonVideoLoop style={styles.video} accessibilityLabel="" />
-    </View>
-  );
+  return null;
 }
-
-const styles = StyleSheet.create({
-  /** Off-screen but large enough for iOS/Android to decode frames before auth hero mounts. */
-  hidden: {
-    position: 'absolute',
-    width: 320,
-    height: 568,
-    opacity: 0.01,
-    overflow: 'hidden',
-    left: -400,
-    top: 0,
-    zIndex: -1,
-  },
-  video: {
-    width: '100%',
-    height: '100%',
-  },
-});

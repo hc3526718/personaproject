@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -121,6 +121,7 @@ export function OnboardingNavigator({ onFinished }: Props) {
         <Stack.Screen name="OnboardingSports" component={SportsStep} />
         <Stack.Screen name="OnboardingInterests" component={InterestsStep} />
         <Stack.Screen name="OnboardingDiscovery" component={DiscoveryStep} />
+        <Stack.Screen name="OnboardingMembership" component={MembershipStep} />
         <Stack.Screen name="OnboardingComplete" component={CompleteStep} />
       </Stack.Navigator>
     </Ctx.Provider>
@@ -273,9 +274,7 @@ function RoleStep({ navigation }: StepProps<'OnboardingRole'>) {
             style={styles.footerHalf}
             onPress={() =>
               navigation.navigate(
-                showCompeteOrCoachSportStep(draft.personaRole)
-                  ? 'OnboardingSports'
-                  : 'OnboardingInterests',
+                draft.personaRole === 'coach' ? 'OnboardingSports' : 'OnboardingInterests',
               )
             }
           >
@@ -327,9 +326,7 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
           <AppleHeroButton
             disabled={!draft.primarySport}
             style={styles.footerHalf}
-            onPress={() =>
-              navigation.navigate(draft.personaRole === 'athlete' ? 'OnboardingInterests' : 'OnboardingDiscovery')
-            }
+            onPress={() => navigation.navigate('OnboardingDiscovery')}
           >
             Continue
           </AppleHeroButton>
@@ -361,6 +358,8 @@ function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
 function InterestsStep({ navigation }: StepProps<'OnboardingInterests'>) {
   const { draft, setDraft } = useOnboardingCtx();
   const canNext = draft.interests.length > 0;
+  const nextRoute =
+    draft.personaRole === 'athlete' ? 'OnboardingSports' : 'OnboardingDiscovery';
   return (
     <StepChrome
       title="What are you interested in?"
@@ -373,7 +372,7 @@ function InterestsStep({ navigation }: StepProps<'OnboardingInterests'>) {
           <AppleHeroButton
             disabled={!canNext}
             style={styles.footerHalf}
-            onPress={() => navigation.navigate('OnboardingDiscovery')}
+            onPress={() => navigation.navigate(nextRoute)}
           >
             Continue
           </AppleHeroButton>
@@ -403,7 +402,7 @@ function DiscoveryStep({ navigation }: StepProps<'OnboardingDiscovery'>) {
           <AppleHeroButton
             disabled={!draft.discoverySource}
             style={styles.footerHalf}
-            onPress={() => navigation.navigate('OnboardingComplete')}
+            onPress={() => navigation.navigate('OnboardingMembership')}
           >
             Continue
           </AppleHeroButton>
@@ -425,6 +424,33 @@ function DiscoveryStep({ navigation }: StepProps<'OnboardingDiscovery'>) {
           );
         })}
       </View>
+    </StepChrome>
+  );
+}
+
+function MembershipStep({ navigation }: StepProps<'OnboardingMembership'>) {
+  return (
+    <StepChrome
+      title="Academy access"
+      subtitle="After you save your profile, a small monthly fee keeps the app running and funds high-quality content from Dalton — plus a community of aspiring athletes who support, encourage, and guide each other."
+      footer={
+        <View style={styles.footerRow}>
+          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
+            Back
+          </AppleHeroButton>
+          <AppleHeroButton
+            style={styles.footerHalf}
+            onPress={() => navigation.navigate('OnboardingComplete')}
+          >
+            Continue
+          </AppleHeroButton>
+        </View>
+      }
+    >
+      <Text style={styles.membershipBody}>
+        Your £2/month subscription unlocks media, events, sponsors, and the full community feed. You can cancel
+        anytime in your device or account settings.
+      </Text>
     </StepChrome>
   );
 }
@@ -478,7 +504,7 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
         first_name: draft.firstName.trim(),
         last_name: draft.lastName.trim(),
         display_name: displayName,
-        persona_role: draft.personaRole,
+        persona_role: capitalizeProfileTag(draft.personaRole),
         sports: capitalizeProfileTags(draft.sports),
         primary_sport: capitalizeProfileTag(draft.primarySport || (draft.sports[0] ?? '')),
         interests: capitalizeProfileTags(interestsForDb),
@@ -515,11 +541,10 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
         </View>
         <Text style={styles.completeTitle}>You&apos;re in</Text>
         <Text style={styles.completeBody}>
-          Welcome to the premium experience. Tutorial flows and deeper profile customization will arrive in a future
-          update — for now, dive into the community.
+          Save your profile, then complete the quick academy access step to enter the community.
         </Text>
         <AppleHeroButton loading={saving} onPress={() => void saveAndEnter()} style={styles.enterBtn}>
-          Enter the community
+          Save profile & continue
         </AppleHeroButton>
         <Pressable
           onPress={() => {
@@ -561,6 +586,12 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     lineHeight: 22,
     marginBottom: DS.space.xl,
+  },
+  membershipBody: {
+    fontFamily: DS.font.body,
+    fontSize: 15,
+    color: DS.color.textMuted,
+    lineHeight: 22,
   },
   field: { marginBottom: DS.apple.fieldGap },
   label: {

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  InteractionManager,
   StyleSheet,
   View,
   type StyleProp,
@@ -15,6 +16,8 @@ type Props = {
   onReady?: () => void;
   onError?: () => void;
   accessibilityLabel?: string;
+  /** When true (default), wait until after navigation transitions before mounting Video. */
+  deferMount?: boolean;
 };
 
 /** Native: loops bundled `assets/VideoP.mp4`. Web uses `DaltonVideoLoop.web.tsx`. */
@@ -23,9 +26,23 @@ export function DaltonVideoLoop({
   onReady,
   onError,
   accessibilityLabel = 'Loading',
+  deferMount = true,
 }: Props) {
   const readySent = useRef(false);
   const nativeSource = useBundledBootVideoSource();
+  const [mountVideo, setMountVideo] = useState(!deferMount);
+
+  useEffect(() => {
+    if (!deferMount) {
+      setMountVideo(true);
+      return;
+    }
+    setMountVideo(false);
+    const task = InteractionManager.runAfterInteractions(() => {
+      setMountVideo(true);
+    });
+    return () => task.cancel();
+  }, [deferMount, nativeSource]);
 
   const fireReady = useCallback(() => {
     if (readySent.current) return;
@@ -48,7 +65,7 @@ export function DaltonVideoLoop({
     [fireReady, onError],
   );
 
-  if (!nativeSource) {
+  if (!nativeSource || !mountVideo) {
     return (
       <View
         style={[styles.outer, style]}

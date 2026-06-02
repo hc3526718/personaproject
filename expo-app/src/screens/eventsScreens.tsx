@@ -88,7 +88,7 @@ const eventCtaLabelStyle = {
 };
 
 type EProps<K extends keyof EventsStackParamList> = NativeStackScreenProps<EventsStackParamList, K>;
-type EventsNavigation = NativeStackNavigationProp<EventsStackParamList>;
+type EventsNavigation = NativeStackNavigationProp<EventsStackParamList, keyof EventsStackParamList>;
 
 const DEFAULT_HERO =
   'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600&auto=format&fit=crop';
@@ -944,6 +944,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           eventStorageKey: storageKeyEarly,
           title: route.params?.title ?? 'Event',
           imageUri: route.params?.imageUri,
+          seenAt: Date.now(),
         });
       })();
       return undefined;

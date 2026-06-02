@@ -327,6 +327,44 @@ export async function searchCommunityPosts(query: string, limit = 40): Promise<C
   return merged.filter((row) => (row.body ?? '').toLowerCase().includes(qLower)).slice(0, limit);
 }
 
+export type CommunityUserSearchRow = {
+  id: string;
+  display_name: string;
+  username: string | null;
+  avatar_url: string | null;
+};
+
+/** Search profiles by username or display name (strip leading @). */
+export async function searchCommunityUsers(
+  query: string,
+  limit = 25,
+): Promise<CommunityUserSearchRow[]> {
+  const supabase = getSupabase();
+  const q = query.trim().replace(/^@+/, '');
+  if (!q) return [];
+  if (!supabase) return [];
+  const pattern = `%${escapeIlike(q)}%`;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, first_name, last_name, avatar_url')
+    .or(
+      `username.ilike.${pattern},display_name.ilike.${pattern},first_name.ilike.${pattern},last_name.ilike.${pattern}`,
+    )
+    .limit(limit);
+  if (error || !data) return [];
+  return data.map((row) => ({
+    id: row.id as string,
+    display_name: formatAuthorDisplayName({
+      display_name: row.display_name as string | null,
+      first_name: row.first_name as string | null,
+      last_name: row.last_name as string | null,
+      username: row.username as string | null,
+    }),
+    username: typeof row.username === 'string' ? row.username.trim() || null : null,
+    avatar_url: (row.avatar_url as string | null) ?? null,
+  }));
+}
+
 export async function getEventsByIds(ids: string[]): Promise<Map<string, Pick<EventRow, 'id' | 'title'>>> {
   const out = new Map<string, Pick<EventRow, 'id' | 'title'>>();
   if (isAppStoreScreenshotMode()) {
@@ -692,6 +730,7 @@ export async function listMediaSeriesOptions(): Promise<{
   const { data, error } = await supabase
     .from('media_assets')
     .select('series_title, series_part, featured_series')
+    .is('post_id', null)
     .not('series_title', 'is', null);
   if (error || !data?.length) return { options: [], featuredSeriesTitle: null };
 
@@ -754,6 +793,7 @@ export async function listMediaInSeries(
   let q = supabase
     .from('media_assets')
     .select('*')
+    .is('post_id', null)
     .eq('series_title', title)
     .order('series_part', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
@@ -771,6 +811,7 @@ export async function getFeaturedSeriesHead(): Promise<MediaAssetRow | null> {
   const { data, error } = await supabase
     .from('media_assets')
     .select('*')
+    .is('post_id', null)
     .eq('featured_series', true)
     .order('series_part', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: true })
@@ -789,12 +830,13 @@ export async function listBrowseMediaAssets(limit = 80): Promise<MediaAssetRow[]
   const { data, error } = await supabase
     .from('media_assets')
     .select('*')
+    .is('post_id', null)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
     return isAppStoreScreenshotMode() ? getScreenshotSampleMediaAssets().slice(0, limit) : [];
   }
-  const rows = (data ?? []) as MediaAssetRow[];
+  const rows = ((data ?? []) as MediaAssetRow[]).filter((r) => !r.post_id);
   if (!isAppStoreScreenshotMode()) return rows;
   return mergeScreenshotMedia(rows).slice(0, limit);
 }

@@ -119,6 +119,7 @@ export type MediaAssetRow = {
   featured_series?: boolean;
   mime_type: string | null;
   visibility: 'private' | 'followers' | 'public';
+  post_id?: string | null;
   created_at: string;
 };
 

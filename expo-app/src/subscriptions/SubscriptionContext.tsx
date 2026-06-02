@@ -110,8 +110,9 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
+    if (!sessionEmail?.trim()) return;
     void identifyRevenueCatUser(user?.id ?? null);
-  }, [user?.id]);
+  }, [sessionEmail, user?.id]);
 
   const value = useMemo(
     () => ({

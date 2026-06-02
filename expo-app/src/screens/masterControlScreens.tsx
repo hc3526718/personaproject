@@ -208,7 +208,7 @@ export function MasterVerificationQueueScreen({ navigation }: PProps<'MasterVeri
     if (Platform.OS === 'ios') {
       Alert.prompt('Master PIN', `Approve Dalton verification for ${label}.`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Approve', onPress: (p) => runApprove(p ?? '') },
+        { text: 'Approve', onPress: (p?: string) => runApprove(p ?? '') },
       ]);
       return;
     }
@@ -459,7 +459,7 @@ export function MasterUserAccountsScreen({ navigation }: PProps<'MasterUserAccou
         {
           text: destructive ? 'Confirm' : 'Apply',
           style: destructive ? 'destructive' : 'default',
-          onPress: (p) => void action((p ?? '').replace(/\D/g, '')),
+          onPress: (p?: string) => void action((p ?? '').replace(/\D/g, '')),
         },
       ]);
       return;

@@ -25,6 +25,7 @@ type SponsorPayload = {
   hook?: string;
   helps_athletes?: string;
   website_url?: string;
+  hero_image_url?: string;
   video_url?: string;
   logo_url?: string;
   gallery_urls?: string[];
@@ -116,8 +117,9 @@ export async function publishSponsorFromProposalPayload(
     contact ? `Contact: ${contact}` : '',
   ].filter(Boolean);
   const heroUrl =
-    attachmentUrls.find((u) => /\.(jpe?g|png|webp|gif)(\?|$)/i.test(u)) ??
-    payload.gallery_urls?.[0] ??
+    payload.hero_image_url?.trim() ||
+    attachmentUrls.find((u) => /\.(jpe?g|png|webp|gif|heic)(\?|$)/i.test(u)) ||
+    payload.gallery_urls?.[0] ||
     null;
   const videoUrl =
     payload.video_url?.trim() ||

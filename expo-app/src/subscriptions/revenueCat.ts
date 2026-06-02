@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
-import { getRevenueCatEntitlementId } from '../lib/env';
+import { getRevenueCatEntitlementId, getRevenueCatOfferingIdentifier } from '../lib/env';
 
 const ENTITLEMENT_PREMIUM = getRevenueCatEntitlementId();
 
@@ -38,6 +38,9 @@ type PurchasesModule = typeof import('react-native-purchases').default;
 
 /** True after `Purchases.configure` succeeded — RevenueCatUI asserts if paywall runs before this. */
 let purchasesSdkConfigured = false;
+
+/** Avoid `logOut()` on cold start before any `logIn` (can fatal in release when RC is configured). */
+let lastIdentifiedAppUserId: string | null = null;
 
 /**
  * Never `import` Purchases at module scope — that loads the native module and breaks **Expo Go**.
@@ -87,11 +90,10 @@ export async function initRevenueCat(): Promise<boolean> {
 export async function fetchOfferingForPaywall(): Promise<PurchasesOffering | null> {
   const Purchases = tryPurchases();
   if (!Purchases) return null;
-  const fromEnv = process.env.EXPO_PUBLIC_REVENUECAT_OFFERING_IDENTIFIER?.trim();
+  const fromEnv = getRevenueCatOfferingIdentifier();
   const preferredKeys = [
     ...(fromEnv ? [fromEnv] : []),
     'Official Offering',
-    'default',
   ];
   try {
     const offerings = await Purchases.getOfferings();
@@ -142,10 +144,14 @@ export async function identifyRevenueCatUser(appUserId: string | null): Promise<
   if (!ready) return;
   try {
     if (!appUserId?.trim()) {
+      if (!lastIdentifiedAppUserId) return;
       await Purchases.logOut();
+      lastIdentifiedAppUserId = null;
       return;
     }
-    await Purchases.logIn(appUserId.trim());
+    const id = appUserId.trim();
+    await Purchases.logIn(id);
+    lastIdentifiedAppUserId = id;
   } catch (e) {
     if (__DEV__) console.warn('[RevenueCat] identify user failed', e);
   }

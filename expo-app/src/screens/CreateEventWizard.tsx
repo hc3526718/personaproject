@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import * as ImagePicker from 'expo-image-picker';
+import { pickLocalImage, pickLocalVideo } from '../lib/pickLocalMedia';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
@@ -26,6 +26,7 @@ import {
   schedule48HourError,
 } from '../lib/scheduleValidation';
 import { getSupabase } from '../lib/supabase';
+import { readLocalFileAsArrayBuffer } from '../lib/readLocalFileBytes';
 import { pickWebMediaFile } from '../lib/webFilePicker';
 import type { EventsStackParamList } from '../navigation/types';
 import { insertCommunityEvent } from '../roadmap/liveDataService';
@@ -70,14 +71,15 @@ async function uploadEventHero(userId: string, uri: string): Promise<string | nu
   const supabase = getSupabase();
   if (!supabase) return null;
   try {
-    const blob = await (await fetch(uri)).blob();
+    const body = await readLocalFileAsArrayBuffer(uri);
+    if (body.byteLength === 0) return null;
     const ext = inferImageExt(uri);
     const contentType = inferImageContentType(uri);
     const rand = Math.random().toString(36).slice(2, 8);
     const storage_path = `events/${userId}/hero-${Date.now()}-${rand}.${ext}`;
     const { error } = await supabase.storage
       .from('media_assets')
-      .upload(storage_path, blob, { contentType, upsert: false });
+      .upload(storage_path, body, { contentType, upsert: false });
     if (error) return null;
     const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
     return pub.data.publicUrl ?? null;
@@ -164,17 +166,11 @@ export function CreateEventWizard({ navigation }: Props) {
       if (picked?.uri) setAssets((prev) => [...prev, { uri: picked.uri, kind: 'image' }]);
       return;
     }
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      quality: 0.9,
-    });
-    if (res.canceled) return;
+    const picked = await pickLocalImage({ multiple: true, title: 'Event images' });
+    if (!picked.length) return;
     setAssets((prev) => [
       ...prev,
-      ...res.assets.filter((a) => a.uri).map((a) => ({ uri: a.uri, kind: 'image' as const })),
+      ...picked.map((f) => ({ uri: f.uri, kind: 'image' as const })),
     ]);
   }, []);
 
@@ -184,11 +180,10 @@ export function CreateEventWizard({ navigation }: Props) {
       if (picked?.uri) setAssets((prev) => [...prev, { uri: picked.uri, kind: 'video' }]);
       return;
     }
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1 });
-    if (res.canceled || !res.assets[0]?.uri) return;
-    setAssets((prev) => [...prev, { uri: res.assets[0].uri, kind: 'video' }]);
+    const picked = await pickLocalVideo({ title: 'Event video' });
+    const file = picked[0];
+    if (!file) return;
+    setAssets((prev) => [...prev, { uri: file.uri, kind: 'video' }]);
   }, []);
 
   const removeAsset = useCallback((uri: string) => {
@@ -245,9 +240,8 @@ export function CreateEventWizard({ navigation }: Props) {
         }
         const start = combineDateAndTime(eventDate, eventTime);
         if (!isScheduleAtLeast48HoursAhead(start)) return schedule48HourError();
-        if (!costFree) {
-          const n = parseFloat(price.replace(/[^0-9.]/g, ''));
-          if (!price.trim() || Number.isNaN(n) || n < 0) return 'Enter a valid price for paid events.';
+        if (entryPaymentMode === 'payment_on_arrival' && !entryPaymentAmount.trim()) {
+          return 'Enter the payment amount for arrival (e.g. £15).';
         }
       }
       if (s === 4) {

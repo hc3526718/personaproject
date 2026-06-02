@@ -29,7 +29,9 @@ import { OptionMenuModal, type OptionMenuItem } from '../components/OptionMenuMo
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PostCommentsSheet } from '../components/PostCommentsSheet';
 import { CaptionComposer } from '../components/CaptionComposer';
+import { MentionRichText } from '../components/MentionRichText';
 import { BrandLogo } from '../components/BrandLogo';
+import { RemoteImage } from '../components/RemoteImage';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
@@ -58,9 +60,21 @@ import {
   getSubscriptionOfferPageById,
   deleteSubscriptionOfferPage,
   searchCommunityPosts,
+  searchCommunityUsers,
   subscribeCommunityPosts,
   type CommunityPostFeedRow,
+  type CommunityUserSearchRow,
 } from '../roadmap/liveDataService';
+import {
+  addRecentCommunitySearch,
+  getRecentCommunitySearches,
+  removeRecentCommunitySearch,
+} from '../lib/communityRecentSearches';
+import {
+  communitySearchPlaceholder,
+  parseCommunitySearchQuery,
+  type CommunitySearchKind,
+} from '../lib/communitySearchQuery';
 import {
   addPostComment,
   getPostCommentCount,
@@ -150,38 +164,6 @@ function parseSponsorDescriptionForFeatured(
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function RichTextMentions({ text }: { text: string }) {
-  const styles = useCommunityStyles();
-  const parts = useMemo(() => {
-    const re = /([@#][A-Za-z0-9_]+)/g;
-    const out: { k: string; v: string; gold: boolean }[] = [];
-    let i = 0;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      const start = m.index;
-      const end = start + m[0].length;
-      if (start > i) out.push({ k: `${i}-t`, v: text.slice(i, start), gold: false });
-      out.push({ k: `${start}-m`, v: m[0], gold: true });
-      i = end;
-    }
-    if (i < text.length) out.push({ k: `${i}-e`, v: text.slice(i), gold: false });
-    return out.length ? out : [{ k: '0', v: text, gold: false }];
-  }, [text]);
-  return (
-    <Text style={styles.postBody}>
-      {parts.map((p) =>
-        p.gold ? (
-          <Text key={p.k} style={styles.mentionGold}>
-            {p.v}
-          </Text>
-        ) : (
-          p.v
-        ),
-      )}
-    </Text>
-  );
 }
 
 function HighlightBody({ text, query }: { text: string; query: string }) {
@@ -611,33 +593,30 @@ function PostCard({
     bodyParagraphs ? (
       <View style={styles.postBodyBlock}>
         {bodyParagraphs.map((p, i) => (
-          <RichTextMentions key={i} text={p} />
+          <MentionRichText key={i} text={p} />
         ))}
       </View>
     ) : (
-      <RichTextMentions text={body ?? ''} />
+      <MentionRichText text={body ?? ''} />
     );
 
   const mediaSection = (
     <PostFeedMedia
-      items={(media ?? []).filter((m) => m.kind === 'image' || m.kind === 'video')}
+      items={(media ?? []).filter((m): m is { kind: 'image' | 'video'; uri: string } => m.kind === 'image' || m.kind === 'video')}
       fallbackImageUri={imageUri}
     />
   );
 
   const goEvent = useCallback(() => {
     if (!eventId) return;
-    const tabNav = navigation.getParent();
-    tabNav?.navigate(
-      'Events' as never,
-      {
-        screen: 'EventDetails',
-        params: {
-          supabaseEventId: eventId,
-          title: eventTitle ?? 'Event',
-        },
-      } as never,
-    );
+    const tabNav = navigation.getParent() as unknown as { navigate: (...args: any[]) => void } | undefined;
+    tabNav?.navigate('Events', {
+      screen: 'EventDetails',
+      params: {
+        supabaseEventId: eventId,
+        title: eventTitle ?? 'Event',
+      },
+    });
   }, [navigation, eventId, eventTitle]);
 
   const openProfile = useCallback(() => {
@@ -1095,20 +1074,80 @@ function CommunityDemoPostList({
   );
 }
 
-const DEFAULT_RECENT = ['sprint technique', 'Coach Williams', 'high jump'] as const;
-const TRENDING = [
-  { topic: 'nutrition tips', count: '142 posts this week' },
-  { topic: 'recovery methods', count: '89 posts this week' },
-  { topic: 'block start', count: '67 posts this week' },
-] as const;
+const SEARCH_FILTER_CHIPS = ['All', 'Posts', 'People'] as const;
+
+function searchFilterFromChip(chipI: number): CommunitySearchKind {
+  if (chipI === 1) return 'posts';
+  if (chipI === 2) return 'people';
+  return 'all';
+}
 
 export function CommunitySearchScreen({ navigation }: CProps<'CommunitySearch'>) {
   const { styles, colors } = useCommunityTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const useLive = isSupabaseConfigured() && Boolean(user);
   const [q, setQ] = useState('');
-  const [recent, setRecent] = useState<string[]>([...DEFAULT_RECENT]);
-  const runSearch = (query: string) =>
-    navigation.navigate('CommunitySearchResults', { query: query.trim() || 'sprint technique' });
+  const [recent, setRecent] = useState<string[]>([]);
+  const [suggestPosts, setSuggestPosts] = useState<CommunityPostFeedRow[]>([]);
+  const [suggestUsers, setSuggestUsers] = useState<CommunityUserSearchRow[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const { usernameMode } = parseCommunitySearchQuery(q);
+
+  useFocusEffect(
+    useCallback(() => {
+      void getRecentCommunitySearches().then(setRecent);
+    }, []),
+  );
+
+  const runSearch = useCallback(
+    (query: string) => {
+      const trimmed = query.trim();
+      if (!trimmed) return;
+      void addRecentCommunitySearch(trimmed);
+      navigation.navigate('CommunitySearchResults', { query: trimmed });
+    },
+    [navigation],
+  );
+
+  useEffect(() => {
+    const { usernameMode: atMode, term } = parseCommunitySearchQuery(q);
+    if (!useLive || term.length < 2) {
+      setSuggestPosts([]);
+      setSuggestUsers([]);
+      setSuggestLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSuggestLoading(true);
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (atMode) {
+          const users = await searchCommunityUsers(term, 6);
+          if (!cancelled) {
+            setSuggestUsers(users);
+            setSuggestPosts([]);
+            setSuggestLoading(false);
+          }
+        } else {
+          const [posts, users] = await Promise.all([
+            searchCommunityPosts(term, 4),
+            searchCommunityUsers(term, 4),
+          ]);
+          if (!cancelled) {
+            setSuggestPosts(posts);
+            setSuggestUsers(users);
+            setSuggestLoading(false);
+          }
+        }
+      })();
+    }, 280);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [q, useLive]);
+
   return (
     <View style={styles.root}>
       <View
@@ -1134,12 +1173,14 @@ export function CommunitySearchScreen({ navigation }: CProps<'CommunitySearch'>)
             />
             <TextInput
               style={styles.searchInputInner}
-              placeholder="Search posts, people, tags"
+              placeholder={communitySearchPlaceholder(usernameMode)}
               placeholderTextColor={colors.textMuted}
               value={q}
               onChangeText={setQ}
               onSubmitEditing={() => runSearch(q)}
               returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
         </View>
@@ -1150,6 +1191,9 @@ export function CommunitySearchScreen({ navigation }: CProps<'CommunitySearch'>)
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.commSearchSectionTitle}>Recent Searches</Text>
+        {recent.length === 0 ? (
+          <Text style={styles.feedEmptyText}>Your recent community searches will appear here.</Text>
+        ) : null}
         {recent.map((term) => (
           <View key={term} style={styles.recentRow}>
             <Pressable
@@ -1162,28 +1206,64 @@ export function CommunitySearchScreen({ navigation }: CProps<'CommunitySearch'>)
               <FontAwesome name="clock-o" size={14} color={colors.textMuted} />
               <Text style={styles.recentRowText}>{term}</Text>
             </Pressable>
-            <Pressable onPress={() => setRecent((r) => r.filter((x) => x !== term))} hitSlop={8}>
+            <Pressable
+              onPress={() => {
+                void removeRecentCommunitySearch(term).then(() =>
+                  setRecent((r) => r.filter((x) => x !== term)),
+                );
+              }}
+              hitSlop={8}
+            >
               <FontAwesome name="times" size={14} color={colors.textMuted} />
             </Pressable>
           </View>
         ))}
-        <Text style={styles.commSearchSectionTitle}>Trending</Text>
-        {TRENDING.map((t) => (
-          <Pressable key={t.topic} style={styles.trendingRow} onPress={() => runSearch(t.topic)}>
-            <FontAwesome5 name="fire" size={14} color="#f97316" solid />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.trendingTopic}>{t.topic}</Text>
-              <Text style={styles.trendingMeta}>{t.count}</Text>
-            </View>
-          </Pressable>
-        ))}
+        {useLive && q.trim().length >= 2 ? (
+          <>
+            <Text style={styles.commSearchSectionTitle}>Suggestions</Text>
+            {suggestLoading ? <AppLoadingIndicator style={{ marginVertical: DS.space.md }} /> : null}
+            {suggestUsers.map((u) => (
+              <Pressable
+                key={`su-${u.id}`}
+                style={styles.searchSuggestUserRow}
+                onPress={() => runSearch(u.username ? `@${u.username}` : u.display_name)}
+              >
+                <Image
+                  source={resolveProfileAvatarSource(u.avatar_url)}
+                  style={styles.searchSuggestAvatar}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchSuggestName}>{u.display_name}</Text>
+                  {u.username ? (
+                    <Text style={styles.searchSuggestMeta}>@{u.username}</Text>
+                  ) : null}
+                </View>
+                <FontAwesome name="user" size={14} color={colors.textMuted} />
+              </Pressable>
+            ))}
+            {suggestPosts.map((p) => {
+              const { displayBody } = parsePostBody(p.body);
+              return (
+                <Pressable
+                  key={`sp-${p.id}`}
+                  style={styles.searchSuggestPostRow}
+                  onPress={() => runSearch(q.trim())}
+                >
+                  <FontAwesome name="file-text-o" size={14} color={colors.gold} />
+                  <Text style={styles.searchSuggestPostText} numberOfLines={2}>
+                    {displayBody || 'Post'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </>
+        ) : null}
       </ScrollView>
     </View>
   );
 }
 
 const SEARCH_SORT = ['Recent', 'Top', 'Most Relevant'] as const;
-const SEARCH_FILTER_CHIPS = ['All', 'Posts', 'People', 'Videos'] as const;
 
 const SEARCH_RESULT_POSTS: {
   avatar: string;
@@ -1243,35 +1323,104 @@ export function CommunitySearchResultsScreen({
   const { styles, colors } = useCommunityTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const q = route.params?.query?.trim() || 'sprint technique';
-  const displayQ = q.length > 28 ? `${q.slice(0, 28)}…` : q;
+  const { unreadNotifications, unreadMessages, clearNotificationBadge, clearMessageBadge } =
+    useActivityBadges();
+  const routeQ = route.params?.query?.trim() ?? '';
+  const [draftQ, setDraftQ] = useState(routeQ);
+  const searchInputRef = useRef<TextInput>(null);
   const [sortI, setSortI] = useState(0);
   const [chipI, setChipI] = useState(0);
   const liveConfigured = isSupabaseConfigured();
   const useLiveSearch = liveConfigured && Boolean(user);
 
+  const { usernameMode, term: searchTerm } = parseCommunitySearchQuery(routeQ);
+  const activeFilter = usernameMode ? 'people' : searchFilterFromChip(chipI);
+  const displayQ = routeQ.length > 28 ? `${routeQ.slice(0, 28)}…` : routeQ;
+
+  useEffect(() => {
+    setDraftQ(routeQ);
+  }, [routeQ]);
+
+  useEffect(() => {
+    if (usernameMode) setChipI(2);
+  }, [usernameMode]);
+
+  const commitSearch = useCallback(() => {
+    const trimmed = draftQ.trim();
+    if (!trimmed) return;
+    void addRecentCommunitySearch(trimmed);
+    navigation.setParams({ query: trimmed });
+  }, [draftQ, navigation]);
+
   const [livePosts, setLivePosts] = useState<CommunityPostFeedRow[]>([]);
+  const [liveUsers, setLiveUsers] = useState<CommunityUserSearchRow[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [eventTitleMap, setEventTitleMap] = useState<Map<string, string>>(new Map());
   const [removedPostIds, setRemovedPostIds] = useState<Set<string>>(new Set());
+  const [typeaheadPosts, setTypeaheadPosts] = useState<CommunityPostFeedRow[]>([]);
+  const [typeaheadUsers, setTypeaheadUsers] = useState<CommunityUserSearchRow[]>([]);
+
   useEffect(() => {
-    if (!useLiveSearch) {
+    if (!useLiveSearch || !routeQ) {
       setLivePosts([]);
+      setLiveUsers([]);
       return;
     }
     let cancelled = false;
     setSearchLoading(true);
     void (async () => {
-      const rows = await searchCommunityPosts(q);
+      const term = searchTerm || routeQ;
+      const wantPosts = !usernameMode && (activeFilter === 'all' || activeFilter === 'posts');
+      const wantPeople = usernameMode || activeFilter === 'all' || activeFilter === 'people';
+      const [posts, users] = await Promise.all([
+        wantPosts ? searchCommunityPosts(term, 40) : Promise.resolve([]),
+        wantPeople ? searchCommunityUsers(term, 40) : Promise.resolve([]),
+      ]);
       if (!cancelled) {
-        setLivePosts(rows);
+        setLivePosts(posts);
+        setLiveUsers(users);
         setSearchLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [useLiveSearch, q]);
+  }, [useLiveSearch, routeQ, searchTerm, usernameMode, activeFilter]);
+
+  useEffect(() => {
+    const { term } = parseCommunitySearchQuery(draftQ);
+    if (!useLiveSearch || term.length < 2 || term === searchTerm) {
+      setTypeaheadPosts([]);
+      setTypeaheadUsers([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        const atMode = draftQ.trim().startsWith('@');
+        if (atMode) {
+          const users = await searchCommunityUsers(term, 5);
+          if (!cancelled) {
+            setTypeaheadUsers(users);
+            setTypeaheadPosts([]);
+          }
+        } else {
+          const [posts, users] = await Promise.all([
+            searchCommunityPosts(term, 3),
+            searchCommunityUsers(term, 3),
+          ]);
+          if (!cancelled) {
+            setTypeaheadPosts(posts);
+            setTypeaheadUsers(users);
+          }
+        }
+      })();
+    }, 220);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [draftQ, useLiveSearch, searchTerm]);
 
   useEffect(() => {
     if (!useLiveSearch || livePosts.length === 0) {
@@ -1297,20 +1446,27 @@ export function CommunitySearchResultsScreen({
 
   const demoPostsFiltered = useMemo(() => {
     if (useLiveSearch) return [];
-    const needle = q.toLowerCase();
+    const needle = routeQ.toLowerCase();
     if (!needle) return SEARCH_RESULT_POSTS;
     return SEARCH_RESULT_POSTS.filter(
       (p) =>
         p.name.toLowerCase().includes(needle) || p.body.toLowerCase().includes(needle),
     );
-  }, [useLiveSearch, q]);
+  }, [useLiveSearch, routeQ]);
 
   const visibleLivePosts = useMemo(
     () => livePosts.filter((p) => !removedPostIds.has(p.id)),
     [livePosts, removedPostIds],
   );
 
-  const resultCount = useLiveSearch ? visibleLivePosts.length : demoPostsFiltered.length;
+  const showPosts = !usernameMode && (activeFilter === 'all' || activeFilter === 'posts');
+  const showPeople = usernameMode || activeFilter === 'all' || activeFilter === 'people';
+
+  const resultCount = useLiveSearch
+    ? (showPosts ? visibleLivePosts.length : 0) + (showPeople ? liveUsers.length : 0)
+    : demoPostsFiltered.length;
+
+  const draftUsernameMode = draftQ.trim().startsWith('@');
 
   return (
     <View style={styles.root}>
@@ -1324,32 +1480,62 @@ export function CommunitySearchResultsScreen({
           <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}>
             <FontAwesome name="arrow-left" size={20} color={colors.gold} />
           </Pressable>
-          <View style={styles.searchInputWrap}>
+          <View style={[styles.searchInputWrap, styles.searchInputWrapCompact]}>
             <FontAwesome
               name="search"
               size={14}
               color={colors.textMuted}
               style={styles.searchInputIcon}
             />
-            <Text style={styles.searchResultsInputText} numberOfLines={1}>
-              {q}
-            </Text>
-            <Pressable
-              onPress={() => navigation.navigate('CommunitySearch')}
-              hitSlop={8}
-              style={styles.searchClearHit}
-            >
-              <FontAwesome name="times" size={14} color={colors.textMuted} />
-            </Pressable>
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInputInner}
+              placeholder={communitySearchPlaceholder(draftUsernameMode)}
+              placeholderTextColor={colors.textMuted}
+              value={draftQ}
+              onChangeText={setDraftQ}
+              onSubmitEditing={commitSearch}
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {draftQ.length > 0 ? (
+              <Pressable
+                onPress={() => {
+                  setDraftQ('');
+                  searchInputRef.current?.focus();
+                }}
+                hitSlop={8}
+                style={styles.searchClearHit}
+              >
+                <FontAwesome name="times" size={14} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
-          <Pressable onPress={() => navigation.navigate('Notifications')}>
-            <View>
-              <FontAwesome name="bell" size={20} color={colors.textMuted} />
-              <View style={styles.searchBellDot} />
-            </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            onPress={() => {
+              void clearNotificationBadge();
+              navigation.navigate('Notifications');
+            }}
+            hitSlop={8}
+            style={styles.searchHeaderIconSlot}
+          >
+            <TabIconWithBadge show={unreadNotifications > 0}>
+              <FontAwesome name="bell-o" size={20} color={colors.gold} />
+            </TabIconWithBadge>
           </Pressable>
-          <Pressable onPress={() => navigation.navigate('MessagesInbox')}>
-            <FontAwesome5 name="paper-plane" size={18} color={colors.textMuted} solid={false} />
+          <Pressable
+            onPress={() => {
+              void clearMessageBadge();
+              navigation.navigate('MessagesInbox');
+            }}
+            style={styles.searchHeaderIconSlot}
+          >
+            <TabIconWithBadge show={unreadMessages > 0}>
+              <FontAwesome5 name="paper-plane" size={18} color={colors.gold} solid={false} />
+            </TabIconWithBadge>
           </Pressable>
         </View>
         <View style={styles.sortRow}>
@@ -1372,25 +1558,31 @@ export function CommunitySearchResultsScreen({
             ))}
           </ScrollView>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.searchFilterChipsRow}
-        >
-          {SEARCH_FILTER_CHIPS.map((label, i) => (
-            <Pressable
-              key={label}
-              onPress={() => setChipI(i)}
-              style={[styles.searchFilterChip, chipI === i && styles.searchFilterChipOn]}
-            >
-              <Text
-                style={chipI === i ? styles.searchFilterChipTextOn : styles.searchFilterChipTextOff}
+        {!usernameMode ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.searchFilterChipsRow}
+          >
+            {SEARCH_FILTER_CHIPS.map((label, i) => (
+              <Pressable
+                key={label}
+                onPress={() => setChipI(i)}
+                style={[styles.searchFilterChip, chipI === i && styles.searchFilterChipOn]}
               >
-                {label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+                <Text
+                  style={
+                    chipI === i ? styles.searchFilterChipTextOn : styles.searchFilterChipTextOff
+                  }
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : (
+          <Text style={styles.searchAtModeHint}>Searching usernames matching @{searchTerm || '…'}</Text>
+        )}
       </View>
       <ScrollView
         contentContainerStyle={[
@@ -1399,16 +1591,79 @@ export function CommunitySearchResultsScreen({
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {useLiveSearch && draftQ.trim().length >= 2 && draftQ.trim() !== routeQ ? (
+          <View style={styles.searchTypeaheadPanel}>
+            {typeaheadUsers.map((u) => (
+              <Pressable
+                key={`ta-u-${u.id}`}
+                style={styles.searchSuggestUserRow}
+                onPress={() => {
+                  const next = u.username ? `@${u.username}` : u.display_name;
+                  setDraftQ(next);
+                  void addRecentCommunitySearch(next);
+                  navigation.setParams({ query: next });
+                }}
+              >
+                <Image
+                  source={resolveProfileAvatarSource(u.avatar_url)}
+                  style={styles.searchSuggestAvatar}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchSuggestName}>{u.display_name}</Text>
+                  {u.username ? (
+                    <Text style={styles.searchSuggestMeta}>@{u.username}</Text>
+                  ) : null}
+                </View>
+              </Pressable>
+            ))}
+            {typeaheadPosts.map((p) => {
+              const { displayBody } = parsePostBody(p.body);
+              return (
+                <Pressable
+                  key={`ta-p-${p.id}`}
+                  style={styles.searchSuggestPostRow}
+                  onPress={commitSearch}
+                >
+                  <FontAwesome name="file-text-o" size={14} color={colors.gold} />
+                  <Text style={styles.searchSuggestPostText} numberOfLines={2}>
+                    {displayBody || 'Post'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
         <Text style={styles.searchResultCount}>
           {resultCount} result{resultCount === 1 ? '' : 's'} for &quot;{displayQ}&quot;
         </Text>
         {useLiveSearch && searchLoading ? (
           <AppLoadingIndicator style={{ marginVertical: DS.space.lg }} />
         ) : null}
-        {useLiveSearch && !searchLoading && visibleLivePosts.length === 0 ? (
-          <Text style={styles.feedEmptyText}>No posts match your search.</Text>
+        {useLiveSearch && !searchLoading && resultCount === 0 ? (
+          <Text style={styles.feedEmptyText}>No results match your search.</Text>
         ) : null}
-        {useLiveSearch && !searchLoading
+        {useLiveSearch && !searchLoading && showPeople
+          ? liveUsers.map((u) => (
+              <Pressable
+                key={u.id}
+                style={styles.searchPeopleRow}
+                onPress={() => navigation.navigate('PublicProfile', { userId: u.id })}
+              >
+                <Image
+                  source={resolveProfileAvatarSource(u.avatar_url)}
+                  style={styles.searchResultAvatar}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.searchResultName}>{u.display_name}</Text>
+                  {u.username ? (
+                    <Text style={styles.searchSuggestMeta}>@{u.username}</Text>
+                  ) : null}
+                </View>
+                <FontAwesome name="chevron-right" size={12} color={colors.textMuted} />
+              </Pressable>
+            ))
+          : null}
+        {useLiveSearch && !searchLoading && showPosts
           ? visibleLivePosts.map((p) => {
               const { displayBody, eventId } = parsePostBody(p.body);
               return (
@@ -1445,7 +1700,7 @@ export function CommunitySearchResultsScreen({
                       <Text style={styles.searchResultDot}> • </Text>
                       <Text style={styles.searchResultTime}>{post.time}</Text>
                     </View>
-                    <HighlightBody text={post.body} query={q} />
+                    <HighlightBody text={post.body} query={routeQ} />
                   </View>
                 </View>
                 {post.imageUri ? (
@@ -1779,7 +2034,7 @@ export function NotificationsScreen({ navigation }: CProps<'Notifications'>) {
       });
       return;
     }
-    setReadIds(new Set(NOTIFICATION_ROWS.map((r) => r.id)));
+    setReadIds(new Set(demoNotificationRows.map((r) => r.id)));
     showBanner('Marked all read');
   }, [useServerNotifs, user, showBanner]);
 
@@ -2120,7 +2375,7 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
                 name: t.name,
                 conversationId: t.conversationId,
                 peerUserId: t.peerUserId,
-                avatarUrl: t.avatar,
+                avatarUrl: t.peerAvatarUrl ?? undefined,
               })
             }
           >
@@ -2495,28 +2750,38 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
 
   const pickAttachment = useCallback(async () => {
     if (!isLive || !cidFinal || !user?.id || attachBusy) return;
-    if (Platform.OS !== 'web') {
+    let media: ComposerMedia | null = null;
+    if (Platform.OS === 'web') {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: false,
-      quality: 0.92,
-      videoMaxDuration: Math.floor(MAX_COMPOSER_VIDEO_MS / 1000),
-    });
-    if (res.canceled || !res.assets[0]) return;
-    const a = res.assets[0];
-    let media: ComposerMedia | null = null;
-    if (pickerAssetIsVideo(a)) {
-      const durMs = pickerVideoDurationMs(a) ?? MAX_COMPOSER_VIDEO_MS;
-      if (durMs > MAX_COMPOSER_VIDEO_MS) {
-        Alert.alert('Video too long', 'Videos must be 30 seconds or shorter.');
-        return;
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsMultipleSelection: false,
+        quality: 0.92,
+        videoMaxDuration: Math.floor(MAX_COMPOSER_VIDEO_MS / 1000),
+      });
+      if (res.canceled || !res.assets[0]) return;
+      const a = res.assets[0];
+      if (pickerAssetIsVideo(a)) {
+        const durMs = pickerVideoDurationMs(a) ?? MAX_COMPOSER_VIDEO_MS;
+        if (durMs > MAX_COMPOSER_VIDEO_MS) {
+          Alert.alert('Video too long', 'Videos must be 30 seconds or shorter.');
+          return;
+        }
+        media = { kind: 'video', uri: a.uri, durationMs: durMs, mimeType: a.mimeType ?? undefined };
+      } else if (a.uri) {
+        media = { kind: 'image', uri: a.uri, mimeType: a.mimeType ?? undefined };
       }
-      media = { kind: 'video', uri: a.uri, durationMs: durMs, mimeType: a.mimeType ?? undefined };
-    } else if (a.uri) {
-      media = { kind: 'image', uri: a.uri, mimeType: a.mimeType ?? undefined };
+    } else {
+      const { pickLocalComposerMedia } = await import('../lib/pickLocalMedia');
+      const picked = await pickLocalComposerMedia({ title: 'Message attachment' });
+      const file = picked[0];
+      if (!file) return;
+      if (file.kind === 'video') {
+        media = { kind: 'video', uri: file.uri, durationMs: MAX_COMPOSER_VIDEO_MS };
+      } else {
+        media = { kind: 'image', uri: file.uri };
+      }
     }
     if (!media) return;
     setAttachBusy(true);
@@ -2861,6 +3126,9 @@ function BrandPartnerAthleticXLegacy({
   );
 }
 
+const SPONSOR_MEDIA_FALLBACK =
+  'https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1200&auto=format&fit=crop';
+
 export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProps) {
   const { styles, colors } = useCommunityTheme();
   const { user } = useAuth();
@@ -2880,7 +3148,8 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
       /* nested stack */
     }
     try {
-      navigation.getParent()?.navigate('Sponsors' as never, { screen: 'EditSponsor', params: { pageId } } as never);
+      const parent = navigation.getParent() as unknown as { navigate: (...args: any[]) => void } | undefined;
+      parent?.navigate('Sponsors', { screen: 'EditSponsor', params: { pageId } });
     } catch {
       Alert.alert('Sponsor', 'Could not open the editor.');
     }
@@ -2950,8 +3219,11 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
       ? (page.social_links as {
           promo_codes?: unknown;
           gallery_urls?: unknown;
+          logo_url?: unknown;
         })
       : null;
+  const logoUri =
+    socialObj && typeof socialObj.logo_url === 'string' ? socialObj.logo_url.trim() : '';
   const promoCodes =
     socialObj && Array.isArray(socialObj.promo_codes)
       ? (socialObj.promo_codes as { code?: unknown; details?: unknown }[])
@@ -2965,6 +3237,9 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
           .filter((u) => /^https?:\/\//i.test(u))
       : [];
   const heroUri = page.hero_image_url?.trim();
+  const heroOrLogo =
+    (heroUri && /^https?:\/\//i.test(heroUri) ? heroUri : null) ||
+    (logoUri && /^https?:\/\//i.test(logoUri) ? logoUri : null);
   const videoUri = page.video_url?.trim();
   const siteUri = page.website_url?.trim();
 
@@ -3042,9 +3317,10 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
         contentContainerStyle={[styles.brandScroll, { paddingBottom: 120 + insets.bottom }]}
       >
         <View style={styles.brandHero}>
-          {heroUri ? (
-            <Image
-              source={{ uri: heroUri }}
+          {heroOrLogo ? (
+            <RemoteImage
+              uri={heroOrLogo}
+              fallbackUri={SPONSOR_MEDIA_FALLBACK}
               style={{
                 width: '100%',
                 height: 200,
@@ -3140,9 +3416,10 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
             <Text style={styles.brandAboutTitle}>Gallery</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {galleryUrls.slice(0, 12).map((u) => (
-                <Image
+                <RemoteImage
                   key={u}
-                  source={{ uri: u }}
+                  uri={u}
+                  fallbackUri={SPONSOR_MEDIA_FALLBACK}
                   style={{ width: 140, height: 90, borderRadius: DS.radius.md, marginRight: DS.space.sm }}
                   resizeMode="cover"
                 />

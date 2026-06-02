@@ -1,6 +1,7 @@
-import { Alert, Linking, Platform, type RefObject } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
+import type { RefObject } from 'react';
 import type { View } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';

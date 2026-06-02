@@ -2,12 +2,16 @@ import { InteractionManager, Linking, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { openCommunityMessageThread, openEventDetails } from '../navigation/rootNavigationRef';
 import { isSupabaseConfigured } from './env';
-import { isPushDeliveryEnabled } from './pushPrefsGate';
+import { isPushDeliveryEnabled, setPushDeliveryEnabled } from './pushPrefsGate';
 import { fetchUserPrefsDoc } from '../roadmap/userSettingsService';
 import { registerDevicePushToken, unregisterDevicePushToken } from '../roadmap/notificationsService';
 
 let notificationResponseListenerAttached = false;
 let androidChannelReady = false;
+let pushTokenRegistrationInFlight: Promise<void> | null = null;
+
+const EXPO_PUSH_TOKEN_MAX_ATTEMPTS = 4;
+const EXPO_PUSH_TOKEN_RETRY_MS = [2000, 5000, 10000];
 
 export type PushPermissionStatus = 'granted' | 'denied' | 'undetermined' | 'unavailable';
 
@@ -27,6 +31,60 @@ function pushDebug(step: string, detail?: unknown): void {
 
 async function loadNotificationsModule() {
   return import('expo-notifications');
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getEasProjectId(): string | null {
+  const id =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    (Constants.expoConfig as { extra?: { easProjectId?: string } })?.extra?.easProjectId;
+  const trimmed = id != null ? String(id).trim() : '';
+  return trimmed || null;
+}
+
+/** Expo `exp.host` token API — often flaky (503 / connection timeout). */
+function isTransientExpoPushTokenError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /upstream connect error|connection timeout|connection termination|503|504|ECONNRESET|ECONNREFUSED|no healthy upstream|fetching Expo token/i.test(
+    msg,
+  );
+}
+
+type NotificationsModule = Awaited<ReturnType<typeof loadNotificationsModule>>;
+
+async function fetchExpoPushTokenWithRetry(
+  Notifications: NotificationsModule,
+  projectId: string,
+): Promise<string | null> {
+  const useSandboxApns = Platform.OS === 'ios' && __DEV__;
+  for (let attempt = 1; attempt <= EXPO_PUSH_TOKEN_MAX_ATTEMPTS; attempt++) {
+    try {
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId,
+        ...(useSandboxApns ? { development: true } : {}),
+      });
+      const token = tokenData.data?.trim();
+      if (token) {
+        if (attempt > 1) pushDebug(`getExpoPushTokenAsync succeeded on attempt ${attempt}`);
+        return token;
+      }
+      pushDebug(`getExpoPushTokenAsync empty on attempt ${attempt}`);
+    } catch (err) {
+      const transient = isTransientExpoPushTokenError(err);
+      pushDebug(
+        `getExpoPushTokenAsync attempt ${attempt}/${EXPO_PUSH_TOKEN_MAX_ATTEMPTS} failed`,
+        err,
+      );
+      if (!transient || attempt === EXPO_PUSH_TOKEN_MAX_ATTEMPTS) throw err;
+    }
+    const waitMs = EXPO_PUSH_TOKEN_RETRY_MS[attempt - 1] ?? 10000;
+    pushDebug(`retrying Expo push token in ${waitMs}ms (exp.host timeout or 503)`);
+    await delay(waitMs);
+  }
+  return null;
 }
 
 export async function ensureAndroidNotificationChannel(): Promise<void> {
@@ -152,7 +210,7 @@ export async function configurePushPresentation(): Promise<void> {
   }
 }
 
-export async function tryRegisterPushToken(userId: string): Promise<void> {
+async function registerPushTokenForUser(userId: string): Promise<void> {
   if (!userId || userId.startsWith('demo-')) {
     pushDebug('skip: no user or demo account');
     return;
@@ -185,15 +243,13 @@ export async function tryRegisterPushToken(userId: string): Promise<void> {
       return;
     }
 
-    const projectId =
-      Constants.expoConfig?.extra?.eas?.projectId ??
-      (Constants.expoConfig as { extra?: { easProjectId?: string } })?.extra?.easProjectId;
+    const projectId = getEasProjectId();
     if (!projectId) {
       pushDebug('missing EAS projectId in app.config extra.eas.projectId');
       return;
     }
-    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId: String(projectId) });
-    const token = tokenData.data?.trim();
+
+    const token = await fetchExpoPushTokenWithRetry(Notifications, projectId);
     if (!token) {
       pushDebug('getExpoPushTokenAsync returned empty (simulator or missing push entitlement?)');
       return;
@@ -207,10 +263,31 @@ export async function tryRegisterPushToken(userId: string): Promise<void> {
       tokenPrefix: token.slice(0, 24),
     });
   } catch (err) {
-    pushDebug(
-      'registration failed — rebuild dev client after adding expo-notifications plugin',
-      err,
-    );
+    if (isTransientExpoPushTokenError(err)) {
+      pushDebug(
+        'Expo push token server timed out (exp.host) — try Wi‑Fi, disable VPN, or retry from Settings → Notifications',
+        err,
+      );
+    } else {
+      pushDebug(
+        'registration failed — rebuild dev client after adding expo-notifications plugin',
+        err,
+      );
+    }
+  }
+}
+
+/** Register Expo push token + persist to Supabase (dedupes concurrent calls). */
+export async function tryRegisterPushToken(userId: string): Promise<void> {
+  if (pushTokenRegistrationInFlight) {
+    await pushTokenRegistrationInFlight;
+    return;
+  }
+  pushTokenRegistrationInFlight = registerPushTokenForUser(userId);
+  try {
+    await pushTokenRegistrationInFlight;
+  } finally {
+    pushTokenRegistrationInFlight = null;
   }
 }
 

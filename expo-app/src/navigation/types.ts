@@ -151,6 +151,7 @@ export type OnboardingStackParamList = {
   OnboardingSports: undefined;
   OnboardingInterests: undefined;
   OnboardingDiscovery: undefined;
+  OnboardingMembership: undefined;
   OnboardingComplete: undefined;
 };
 
