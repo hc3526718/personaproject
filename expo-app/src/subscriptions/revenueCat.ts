@@ -12,6 +12,17 @@ const PREMIUM_ENTITLEMENT_KEYS = [
   'premium',
 ].filter((k, i, arr) => arr.indexOf(k) === i);
 
+/** RevenueCat **terminates store-signed apps** that call `configure` with a Test Store `test_` key. */
+function isAllowedRevenueCatApiKey(key: string): boolean {
+  const trimmed = key.trim();
+  if (!trimmed) return false;
+  if (__DEV__) return true;
+  if (trimmed.startsWith('test_')) return false;
+  if (Platform.OS === 'ios' && !trimmed.startsWith('appl_')) return false;
+  if (Platform.OS === 'android' && !trimmed.startsWith('goog_')) return false;
+  return true;
+}
+
 function getRevenueCatKeysForPlatform(): { ios: string; android: string } {
   const fromEnvIos = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS?.trim() ?? '';
   const fromEnvAndroid = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID?.trim() ?? '';
@@ -68,7 +79,10 @@ export async function initRevenueCat(): Promise<boolean> {
   if (!Purchases) return false;
   const { ios, android } = getRevenueCatKeysForPlatform();
   const key = Platform.OS === 'ios' ? ios : android;
-  if (!key) return false;
+  if (!key || !isAllowedRevenueCatApiKey(key)) {
+    if (__DEV__ && key) console.warn('[RevenueCat] skipping configure — invalid key for this platform/build');
+    return false;
+  }
   try {
     Purchases.configure({ apiKey: key });
     purchasesSdkConfigured = true;

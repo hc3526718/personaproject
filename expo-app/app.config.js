@@ -171,9 +171,15 @@ module.exports = () => {
 
   const expo = { ...baseExpo };
 
-  expo.updates = {
-    url: EAS_UPDATE_URL,
-  };
+  const disableOta = process.env.EXPO_PUBLIC_DISABLE_OTA === '1';
+  expo.updates = disableOta
+    ? { enabled: false }
+    : {
+        url: EAS_UPDATE_URL,
+        /** Dev client loads Metro; store builds must not swap JS on launch (common instant-crash cause). */
+        checkAutomatically: 'NEVER',
+        fallbackToCacheTimeout: 0,
+      };
   expo.runtimeVersion = {
     policy: 'appVersion',
   };

@@ -45,15 +45,31 @@ eas build --platform ios --profile production --auto-submit
 
 ## Crash right after splash (never reaches login)
 
-Common causes and fixes:
+### Why dev builds work but TestFlight “instant quits”
+
+| | **Development build** | **Production (TestFlight)** |
+|--|-------------------------|-----------------------------|
+| JavaScript | Loaded from **Metro** on your machine | **Embedded** in the `.ipa` (+ optional EAS Update) |
+| `__DEV__` | `true` — softer failures, warnings | `false` — native SDKs can **abort** (RevenueCat `test_` key, etc.) |
+| Sentry | Often no DSN locally | Needs time to init; **native** crashes may never upload |
+| Error UI | Redbox / Metro | `AppErrorBoundary` only helps **JS** errors after React mounts |
+| OTA | Usually off | `expo-updates` can replace JS on launch if misconfigured |
+
+If the app **closes with no Sentry event and no “Could not open Dalton”**, treat it as a **native crash** or **bundle load failure** (not a normal React render error).
+
+### Common causes and fixes
 
 | Cause | Fix |
 |-------|-----|
 | **Stale EAS build** (wrong git commit) | `git push`, then `eas build --platform ios --profile production --clear-cache` |
 | **Missing production env** on Expo | Set `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PUBLIC_REVENUECAT_API_KEY_IOS` (use `appl_…`, never `test_…`) |
-| **JS-only splash fix** not in binary | After splash fix landed, run `eas update --channel production` **or** ship a new native build |
-| **Native crash** (not JS) | Check Sentry / Xcode Organizer crash logs; RevenueCat paywall before `configure` is a known fatal |
+| **EAS Update on launch** | Production uses `checkAutomatically: 'NEVER'`. To disable OTA entirely: `EXPO_PUBLIC_DISABLE_OTA=1` on EAS production + rebuild |
+| **Native crash** | iPhone **Settings → Privacy → Analytics → Analytics Data** → look for `daltondemo` / `The Dalton Grant Academy`; or Xcode **Organizer → Crashes** |
 
-Boot hardening in app code: single `expo-av` instance on auth, `AppErrorBoundary`, no RevenueCat `logOut` on cold start.
+### Isolate the binary (one build)
+
+On EAS **production** env, set `EXPO_PUBLIC_MINIMAL_BOOT=1`, rebuild, install TestFlight. If you see **“Dalton boot OK”**, the native shell is fine and the crash is in the full app stack. Remove the flag and rebuild for the real app.
+
+Boot hardening in app code: safe boot spinner (no SVG), deferred push/video preload, RevenueCat key guard, Sentry init after registration, `AppErrorBoundary` around the full tree.
 
 See also `docs/STORE_RELEASE.md`.

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { wrapWithSentry } from './src/monitoring/sentryBoot';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
+import { runAfterFirstFrame } from './src/boot/deferNativeSideEffects';
 import { hideNativeSplash, scheduleNativeSplashFailsafe } from './src/boot/nativeSplashGate';
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
-import { preloadNativeBootVideo } from './src/lib/preloadNativeBootVideo';
+import { BootSafeLoader } from './src/components/BootSafeLoader';
 import { configurePushPresentation } from './src/lib/pushRegistration';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -19,13 +19,15 @@ import { NotificationPushRelay } from './src/activity/NotificationPushRelay';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { SubscriptionProvider } from './src/subscriptions/SubscriptionContext';
 import { DS } from './src/designSystem';
-import { BootCircleLoader } from './src/components/BootCircleLoader';
-import { DALTON_BOOT_VIDEO_BG, warmDaltonBootVideoCache } from './src/constants/daltonBootVideo';
+import { DALTON_BOOT_VIDEO_BG } from './src/constants/daltonBootVideo';
 import { appFontSources } from './src/loadAppFonts';
 import WebDemoApp from './src/WebDemoApp';
 
 /** Set EXPO_PUBLIC_USE_WEBVIEW_DEMO=1 to load static HTML in WebView instead of native screens. */
 const USE_WEBVIEW_DEMO = process.env.EXPO_PUBLIC_USE_WEBVIEW_DEMO === '1';
+
+/** Set EXPO_PUBLIC_MINIMAL_BOOT=1 to verify the binary boots (isolates native vs app JS). */
+const MINIMAL_BOOT = process.env.EXPO_PUBLIC_MINIMAL_BOOT === '1';
 
 function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
   const { ready: authReady } = useAuth();
@@ -35,46 +37,46 @@ function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
 
   useEffect(() => {
     scheduleNativeSplashFailsafe();
-    void configurePushPresentation();
-    warmDaltonBootVideoCache();
-    preloadNativeBootVideo();
   }, []);
 
   useEffect(() => {
+    if (!fontsReady) return;
     hideNativeSplash();
-  }, []);
-
-  useEffect(() => {
-    if (fontsReady) hideNativeSplash();
   }, [fontsReady]);
 
   useEffect(() => {
-    if (coreReady) hideNativeSplash();
+    if (!coreReady) return;
+    hideNativeSplash();
+    runAfterFirstFrame(() => {
+      void configurePushPresentation();
+    });
   }, [coreReady]);
 
   return (
-    <AccessibilityProvider>
-      <SubscriptionProvider>
-        <ActionBannerProvider>
-          <ActivityBadgeProvider>
-          <View style={styles.shell}>
-            {coreReady ? (
-              <AppErrorBoundary onRetry={remountNavigator}>
-                <AppNavigator key={navEpoch} />
-                <ConversationInAppAlerts />
-                <EventInAppAlerts />
-                <NotificationPushRelay />
-              </AppErrorBoundary>
-            ) : (
-              <View style={styles.bootLoader}>
-                <BootCircleLoader size={64} compact />
+    <AppErrorBoundary onRetry={remountNavigator}>
+      <AccessibilityProvider>
+        <SubscriptionProvider>
+          <ActionBannerProvider>
+            <ActivityBadgeProvider>
+              <View style={styles.shell}>
+                {coreReady ? (
+                  <>
+                    <AppNavigator key={navEpoch} />
+                    <ConversationInAppAlerts />
+                    <EventInAppAlerts />
+                    <NotificationPushRelay />
+                  </>
+                ) : (
+                  <View style={styles.bootLoader}>
+                    <BootSafeLoader compact />
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-          </ActivityBadgeProvider>
-        </ActionBannerProvider>
-      </SubscriptionProvider>
-    </AccessibilityProvider>
+            </ActivityBadgeProvider>
+          </ActionBannerProvider>
+        </SubscriptionProvider>
+      </AccessibilityProvider>
+    </AppErrorBoundary>
   );
 }
 
@@ -94,7 +96,22 @@ function NativeShell() {
   );
 }
 
+function MinimalBootScreen() {
+  useEffect(() => {
+    hideNativeSplash();
+  }, []);
+  return (
+    <View style={[styles.flex, styles.minimalBoot]}>
+      <Text style={styles.minimalBootText}>Dalton boot OK</Text>
+    </View>
+  );
+}
+
 function App() {
+  if (MINIMAL_BOOT) {
+    return <MinimalBootScreen />;
+  }
+
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
@@ -105,7 +122,7 @@ function App() {
   );
 }
 
-export default wrapWithSentry(App);
+export default App;
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: DS.color.background },
@@ -115,5 +132,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: DALTON_BOOT_VIDEO_BG,
+  },
+  minimalBoot: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: DS.color.background,
+  },
+  minimalBootText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 18,
+    color: DS.color.gold,
   },
 });

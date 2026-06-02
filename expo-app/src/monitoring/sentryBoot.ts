@@ -73,6 +73,7 @@ export function initSentryFromEnv(): void {
     Sentry.init({
       dsn,
       enableAutoSessionTracking: true,
+      enableNativeCrashHandling: true,
       tracesSampleRate: __DEV__ ? 1 : 0.12,
       debug: __DEV__,
     });
@@ -87,9 +88,15 @@ function sentryEnabled(): boolean {
   return Boolean(dsn && inited && loadSentry());
 }
 
+/**
+ * Optional touch-event wrapper. Intentionally **not** used on the root export — loading
+ * `@sentry/react-native` at bundle evaluation has correlated with release-only aborts
+ * before React mounts. Call `initSentryFromEnv()` from `index.ts` after registration instead.
+ */
 export function wrapWithSentry<P extends Record<string, unknown>>(
   Component: ComponentType<P>,
 ): ComponentType<P> {
+  if (!inited) return Component;
   const Sentry = loadSentry();
   if (Sentry?.wrap) return Sentry.wrap(Component) as ComponentType<P>;
   return Component;
