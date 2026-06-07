@@ -11,6 +11,17 @@ By default the app runs a **native** app shell that mirrors the static HTML flow
 
 `The Dalton Grant Academy` (`32-…`) is **splash + create account** only; **Continue** switches to the **Community** tab (feed).
 
+## Boot stability (avoid stack overflows)
+
+Startup uses `index.ts` → `RootGate.tsx` → `App.tsx`. Before changing those files, notify prefs, or `*.native.ts` platform modules, run:
+
+```bash
+npm run check:boot
+npm run check:cycles
+```
+
+Rules and architecture: **`docs/BOOT_GUARDRAILS.md`**.
+
 ## Post report → email (moderation)
 
 The Edge Function **`send-post-report-email`** is in `supabase/functions/send-post-report-email/`. It accepts Supabase **Database Webhook** payloads for **`post_reports` INSERT** and sends mail through **[Resend](https://resend.com)**.

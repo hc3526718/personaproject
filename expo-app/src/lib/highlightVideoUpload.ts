@@ -3,8 +3,8 @@ import { Platform } from 'react-native';
 import { getSupabase } from './supabase';
 import { readLocalFileAsArrayBuffer } from './readLocalFileBytes';
 
-/** Supabase `media_assets` bucket limit (50 MB). */
-export const HIGHLIGHT_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+/** Supabase `media_assets` bucket — client-side size gate removed; server may still enforce limits. */
+export const HIGHLIGHT_VIDEO_MAX_BYTES = Number.MAX_SAFE_INTEGER;
 
 export type HighlightUploadResult =
   | { ok: true; url: string }
@@ -23,8 +23,7 @@ function formatPhotoLibraryError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err ?? '');
   if (/PHPhotosErrorDomain|3164|asset.*not available|cloud/i.test(msg)) {
     return (
-      'This video could not be read from Photos. Try “Browse files” instead, download it to Files first, ' +
-      'or choose a shorter clip under 50 MB.'
+      'This video could not be read from Photos. Try “Browse files” instead or download it to Files first.'
     );
   }
   if (/empty|ENOENT|not found/i.test(msg)) {
@@ -63,13 +62,6 @@ export async function uploadHighlightVideo(
     const byteLength = await measureLocalFileBytes(uri);
     if (byteLength === 0) {
       return { ok: false, error: 'The selected video file is empty.' };
-    }
-    if (byteLength > HIGHLIGHT_VIDEO_MAX_BYTES) {
-      const mb = Math.round(byteLength / (1024 * 1024));
-      return {
-        ok: false,
-        error: `This video is about ${mb} MB. Highlights must be 50 MB or smaller. Try a shorter clip or use Browse files to pick a compressed copy.`,
-      };
     }
 
     const { ext, contentType } = inferVideoExt(uri, fileName);

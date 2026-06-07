@@ -38,3 +38,4 @@ expo-app/app.json.json
 
 # Supabase CLI local link metadata
 supabase/.temp/
+.vercel

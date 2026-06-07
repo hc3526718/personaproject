@@ -626,7 +626,8 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
   },
   postActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: DS.space.lg,
     marginTop: DS.space.sm,
     paddingTop: DS.space.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -640,8 +641,20 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  actionPillLg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
   actionTxt: {
     fontSize: 12,
+    color: c.textMuted,
+  },
+  actionTxtLg: {
+    fontSize: 14,
+    fontFamily: DS.font.bodyMedium,
     color: c.textMuted,
   },
   topReactionsRow: {
@@ -1197,11 +1210,14 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     borderLeftWidth: 2,
   },
   notifItemUnread: {
-    backgroundColor: 'rgba(28, 28, 28, 0.5)',
+    backgroundColor: c.surfaceAlt,
     borderLeftColor: c.gold,
+    opacity: 1,
   },
   notifItemRead: {
+    backgroundColor: c.surface,
     borderLeftColor: 'transparent',
+    opacity: 1,
   },
   notifAvatar: {
     width: 40,
@@ -1319,6 +1335,19 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
   inboxMid: {
     flex: 1,
     minWidth: 0,
+  },
+  inboxRowMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DS.space.md,
+    minWidth: 0,
+  },
+  inboxRowMenuBtn: {
+    paddingLeft: DS.space.sm,
+    paddingTop: 4,
+    alignSelf: 'stretch',
+    justifyContent: 'center',
   },
   inboxNameRow: {
     flexDirection: 'row',

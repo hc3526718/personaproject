@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { DALTON_BOOT_VIDEO_NATIVE } from '../constants/daltonBootVideo.native';
+import { DALTON_BOOT_VIDEO_NATIVE } from '../constants/daltonBootVideoNativeAsset.native';
 
 type BootVideoSource = { uri: string } | number;
 

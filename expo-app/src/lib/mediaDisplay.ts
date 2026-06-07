@@ -1,6 +1,6 @@
-import { Image } from 'react-native';
 import type { MediaAssetRow } from '../roadmap/types';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
+import { resolveAssetSourceUri } from './resolveAssetSource';
 
 export type MediaPresentation = {
   title: string;
@@ -99,8 +99,7 @@ export function getMediaPresentation(
 }
 
 /** Default still when a video has no custom thumbnail (library grid + continue watching). */
-export const DEFAULT_VIDEO_THUMBNAIL_URI =
-  Image.resolveAssetSource(DALTON_LOGO_FINAL_IMG).uri;
+export const DEFAULT_VIDEO_THUMBNAIL_URI = resolveAssetSourceUri(DALTON_LOGO_FINAL_IMG);
 
 export function mediaThumbnailUri(
   asset: Pick<MediaAssetRow, 'thumbnail_url' | 'public_url' | 'kind'>,

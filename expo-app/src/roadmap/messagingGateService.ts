@@ -42,13 +42,20 @@ export async function resolveCanMessagePeer(
     isMutualFriend: mutual,
   });
   if (!gate.ok) {
-    return {
-      ok: false,
-      message:
-        gate.reason === 'recipient_blocks_unknown'
-          ? 'This user only accepts messages from people they follow or mutual connections.'
-          : 'You cannot message this user.',
-    };
+    if (pref === 'followers_only') {
+      return {
+        ok: false,
+        message: 'This user only accepts messages from people who follow them. Follow them to start a conversation.',
+      };
+    }
+    if (pref === 'friends_only') {
+      return {
+        ok: false,
+        message:
+          'This user only accepts messages from mutual friends. You both need to follow each other.',
+      };
+    }
+    return { ok: false, message: 'You cannot message this user.' };
   }
   return { ok: true };
 }

@@ -1,7 +1,8 @@
-import { Alert, Platform } from 'react-native';
+import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { pickWebMediaFile } from './webFilePicker';
+import { pickWebComposerFile, pickWebMediaFile } from './webFilePicker';
+import { requestMediaSourceChoice } from './mediaSourcePickerBridge';
 
 export type PickedLocalFile = {
   uri: string;
@@ -52,12 +53,39 @@ async function pickFromFiles(kind: 'image' | 'video', multiple: boolean): Promis
     }));
 }
 
+/** Native device menu (ActionSheet on iOS, Alert on Android). */
+function pickMediaSourceNative(title: string): Promise<'library' | 'files' | null> {
+  if (Platform.OS === 'ios') {
+    return new Promise((resolve) => {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title,
+          options: ['Cancel', 'Photo library', 'Browse files'],
+          cancelButtonIndex: 0,
+        },
+        (index) => {
+          if (index === 1) resolve('library');
+          else if (index === 2) resolve('files');
+          else resolve(null);
+        },
+      );
+    });
+  }
+  return new Promise((resolve) => {
+    Alert.alert(title, 'Choose a source', [
+      { text: 'Photo library', onPress: () => resolve('library') },
+      { text: 'Browse files', onPress: () => resolve('files') },
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(null) },
+    ]);
+  });
+}
+
 /**
  * Photo library or device files (master wizards, highlights, sponsor media).
  */
 export function pickLocalMedia(
   kind: 'image' | 'video',
-  options?: { multiple?: boolean; title?: string },
+  options?: { multiple?: boolean; title?: string; nativeSourcePicker?: boolean },
 ): Promise<PickedLocalFile[]> {
   const multiple = options?.multiple ?? false;
   if (Platform.OS === 'web') {
@@ -65,56 +93,53 @@ export function pickLocalMedia(
       f ? [{ uri: f.uri, name: f.name || (kind === 'video' ? 'video.mp4' : 'image.jpg'), kind }] : [],
     );
   }
+  const title = options?.title ?? (kind === 'video' ? 'Add video' : 'Add image');
+
+  if (options?.nativeSourcePicker) {
+    return pickMediaSourceNative(title).then((key) => {
+      if (key === 'library') return pickFromPhotoLibrary(kind, multiple);
+      if (key === 'files') return pickFromFiles(kind, multiple);
+      return [];
+    });
+  }
+
   const videoHint =
     kind === 'video'
-      ? 'Large clips: use Browse files (under 50 MB). Photo library may fail for iCloud-only videos.'
+      ? 'Large clips: use Browse files if Photo library fails for iCloud-only videos.'
       : undefined;
 
-  return new Promise((resolve) => {
-    const sources =
+  return requestMediaSourceChoice({
+    title,
+    hint: videoHint ?? 'Choose a source',
+    options:
       kind === 'video'
         ? [
-            {
-              text: 'Browse files',
-              onPress: () => {
-                void pickFromFiles(kind, multiple).then(resolve);
-              },
-            },
-            {
-              text: 'Photo library',
-              onPress: () => {
-                void pickFromPhotoLibrary(kind, multiple).then(resolve);
-              },
-            },
+            { key: 'files', label: 'Browse files' },
+            { key: 'library', label: 'Photo library' },
           ]
         : [
-            {
-              text: 'Photo library',
-              onPress: () => {
-                void pickFromPhotoLibrary(kind, multiple).then(resolve);
-              },
-            },
-            {
-              text: 'Browse files',
-              onPress: () => {
-                void pickFromFiles(kind, multiple).then(resolve);
-              },
-            },
-          ];
-
-    Alert.alert(
-      options?.title ?? (kind === 'video' ? 'Add video' : 'Add image'),
-      videoHint ?? 'Choose a source',
-      [...sources, { text: 'Cancel', style: 'cancel', onPress: () => resolve([]) }],
-    );
+            { key: 'library', label: 'Photo library' },
+            { key: 'files', label: 'Browse files' },
+          ],
+  }).then((key) => {
+    if (key === 'library') return pickFromPhotoLibrary(kind, multiple);
+    if (key === 'files') return pickFromFiles(kind, multiple);
+    return [];
   });
 }
 
-export function pickLocalImage(options?: { multiple?: boolean; title?: string }): Promise<PickedLocalFile[]> {
+export function pickLocalImage(options?: {
+  multiple?: boolean;
+  title?: string;
+  nativeSourcePicker?: boolean;
+}): Promise<PickedLocalFile[]> {
   return pickLocalMedia('image', options);
 }
 
-export function pickLocalVideo(options?: { title?: string }): Promise<PickedLocalFile[]> {
+export function pickLocalVideo(options?: {
+  title?: string;
+  nativeSourcePicker?: boolean;
+}): Promise<PickedLocalFile[]> {
   return pickLocalMedia('video', { ...options, multiple: false });
 }
 
@@ -162,28 +187,39 @@ async function pickComposerFromFiles(): Promise<PickedLocalFile[]> {
     });
 }
 
-/** Photos and videos for community post composer (library or files). */
-export function pickLocalComposerMedia(options?: { title?: string }): Promise<PickedLocalFile[]> {
+/** Photos and videos for community post composer (library or device files). */
+export function pickLocalComposerMedia(options?: {
+  title?: string;
+  /** Use native ActionSheet / Alert instead of the in-app source menu. */
+  nativeSourcePicker?: boolean;
+}): Promise<PickedLocalFile[]> {
   if (Platform.OS === 'web') {
-    return pickWebMediaFile('image').then((f) =>
-      f ? [{ uri: f.uri, name: f.name || 'image.jpg', kind: 'image' as const }] : [],
-    );
+    return pickWebComposerFile().then((f) => {
+      if (!f) return [];
+      const isVideo = /^video\//i.test(f.mimeType ?? '') || /\.(mp4|mov|webm)$/i.test(f.name ?? '');
+      return [{ uri: f.uri, name: f.name || (isVideo ? 'video.mp4' : 'image.jpg'), kind: isVideo ? 'video' : 'image' }];
+    });
   }
-  return new Promise((resolve) => {
-    Alert.alert(options?.title ?? 'Add media', 'Choose a source', [
-      {
-        text: 'Photo library',
-        onPress: () => {
-          void pickComposerFromPhotoLibrary().then(resolve);
-        },
-      },
-      {
-        text: 'Browse files',
-        onPress: () => {
-          void pickComposerFromFiles().then(resolve);
-        },
-      },
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve([]) },
-    ]);
+
+  const title = options?.title ?? 'Add media';
+
+  if (options?.nativeSourcePicker) {
+    return pickMediaSourceNative(title).then((key) => {
+      if (key === 'library') return pickComposerFromPhotoLibrary();
+      if (key === 'files') return pickComposerFromFiles();
+      return [];
+    });
+  }
+
+  return requestMediaSourceChoice({
+    title,
+    options: [
+      { key: 'library', label: 'Photo library' },
+      { key: 'files', label: 'Browse files' },
+    ],
+  }).then((key) => {
+    if (key === 'library') return pickComposerFromPhotoLibrary();
+    if (key === 'files') return pickComposerFromFiles();
+    return [];
   });
 }

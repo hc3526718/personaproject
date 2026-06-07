@@ -27,11 +27,16 @@ function buildPlugins() {
   const sentryOrg = (process.env.SENTRY_ORG || '').trim();
   const sentryProject = (process.env.SENTRY_PROJECT || '').trim();
   const androidAllowCleartext = process.env.EXPO_PUBLIC_ANDROID_ALLOW_CLEARTEXT === 'true';
+  const disableSentryNativePlugin = process.env.EXPO_PUBLIC_DISABLE_SENTRY_NATIVE === '1';
+
+  const sentryPlugin =
+    !disableSentryNativePlugin &&
+    (sentryOrg && sentryProject
+      ? ['@sentry/react-native/expo', { organization: sentryOrg, project: sentryProject }]
+      : '@sentry/react-native/expo');
 
   return [
-    sentryOrg && sentryProject
-      ? ['@sentry/react-native/expo', { organization: sentryOrg, project: sentryProject }]
-      : '@sentry/react-native/expo',
+    ...(sentryPlugin ? [sentryPlugin] : []),
     'expo-font',
     'expo-web-browser',
     'expo-apple-authentication',

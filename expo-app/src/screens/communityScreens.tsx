@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement } from 'react';
 import {
-  ActionSheetIOS,
   Alert,
   AppState,
   Image,
   type ImageSourcePropType,
   type LayoutChangeEvent,
-  FlatList,
+  Keyboard,
   KeyboardAvoidingView,
+  FlatList,
   Linking,
   Modal,
   Platform,
@@ -28,14 +28,15 @@ import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { OptionMenuModal, type OptionMenuItem } from '../components/OptionMenuModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { PostCommentsSheet } from '../components/PostCommentsSheet';
+import { SharePostSheet } from '../components/SharePostSheet';
+import type { SharePostTarget } from '../lib/sharePostTargets';
+import { EditCommunityPostModal } from '../components/EditCommunityPostModal';
 import { CaptionComposer } from '../components/CaptionComposer';
 import { MentionRichText } from '../components/MentionRichText';
 import { BrandLogo } from '../components/BrandLogo';
 import { RemoteImage } from '../components/RemoteImage';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
-import { assertCanMessageRecipient } from '../messaging/messagingPolicy';
-import { listFollowingProfiles } from '../roadmap/followService';
 import { resolveCanMessagePeer } from '../roadmap/messagingGateService';
 import { formatAuthorDisplayName } from '../lib/communityPostBody';
 import {
@@ -44,7 +45,6 @@ import {
 } from '../data/appStoreScreenshotSamples';
 import { isAppStoreScreenshotMode, isSupabaseConfigured } from '../lib/env';
 import { webCommunityFeedPaneStyle, webPageShellStyle } from '../layout/webLayout';
-import * as ImagePicker from 'expo-image-picker';
 import { Video, ResizeMode } from 'expo-av';
 import { PostFeedMedia } from '../components/PostFeedMedia';
 import { canSubmitCommunityPost } from '../roadmap/communityPolicy';
@@ -57,6 +57,7 @@ import {
   listAllEvents,
   getEventsByIds,
   deleteCommunityPost,
+  updateCommunityPost,
   getSubscriptionOfferPageById,
   deleteSubscriptionOfferPage,
   searchCommunityPosts,
@@ -79,18 +80,14 @@ import {
   addPostComment,
   getPostCommentCount,
   getPostLikeCount,
-  getTopPostReactions,
   getUserHasLikedPost,
   likePost,
   listPostComments,
-  setPostReaction,
   submitPostReport,
   unlikePost,
   type PostCommentRow,
   type PostReportReason,
-  type ReactionSummary,
 } from '../roadmap/communityInteractionsService';
-import { logShareActivity } from '../sharing/shareActivityLog';
 import {
   clearInAppNotifications,
   listInAppNotifications,
@@ -116,8 +113,6 @@ import {
   MAX_COMPOSER_IMAGES,
   MAX_COMPOSER_VIDEOS,
   MAX_COMPOSER_VIDEO_MS,
-  pickerAssetIsVideo,
-  pickerVideoDurationMs,
   type ComposerMedia,
 } from '../lib/mediaComposer';
 import { resolveProfileAvatarSource, isDaltonDefaultAvatarSource } from '../lib/profileAvatar';
@@ -354,6 +349,10 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     setFeedPosts((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  const updatePostInFeed = useCallback((id: string, body: string) => {
+    setFeedPosts((prev) => prev.map((p) => (p.id === id ? { ...p, body } : p)));
+  }, []);
+
   const renderFeedPost = useCallback(
     (p: CommunityPostFeedRow) => {
       const { displayBody, eventId } = parsePostBody(p.body);
@@ -365,6 +364,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           name={p.author_display_name?.trim() || 'Member'}
           time={formatRelativePostTime(p.created_at)}
           body={displayBody}
+          storedBody={p.body ?? undefined}
           imageUri={p.attachments?.find((a) => a.kind === 'image')?.uri}
           media={p.attachments}
           likes={0}
@@ -373,10 +373,11 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
           eventId={eventId}
           eventTitle={eventId ? eventTitleMap.get(eventId) : undefined}
           onPostDeleted={removePost}
+          onPostUpdated={updatePostInFeed}
         />
       );
     },
-    [eventTitleMap, removePost],
+    [eventTitleMap, removePost, updatePostInFeed],
   );
 
   const feedEmpty = (
@@ -476,7 +477,6 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
 export { CreateCommunityPostScreen } from './community/CreateCommunityPostScreen';
 
 
-type SecondaryReaction = { kind: 'fire' | 'clap' | 'lightbulb'; count: number };
 
 function resolvePostAvatar(src: string | ImageSourcePropType): ImageSourcePropType {
   return typeof src === 'string' ? { uri: src } : src;
@@ -498,13 +498,14 @@ function PostCard({
   media,
   likes: initialLikes,
   heartFilled: initialLiked,
-  secondary: initialSecondary,
   comments: initialCommentCount,
   badge,
   onPressCard,
   eventId,
   eventTitle,
   onPostDeleted,
+  onPostUpdated,
+  storedBody,
 }: {
   postId: string;
   /** When set and looks like a real profile id, avatar/name open public profile. */
@@ -518,13 +519,14 @@ function PostCard({
   media?: { kind: 'image' | 'video' | 'file'; uri: string; name?: string }[];
   likes: number;
   heartFilled?: boolean;
-  secondary?: SecondaryReaction;
   comments: number;
   badge?: string;
   onPressCard?: () => void;
   eventId?: string | null;
   eventTitle?: string;
   onPostDeleted?: (postId: string) => void;
+  onPostUpdated?: (postId: string, body: string) => void;
+  storedBody?: string;
 }) {
   const { styles, colors } = useCommunityTheme();
   const { user } = useAuth();
@@ -532,8 +534,6 @@ function PostCard({
   const liveMode = isSupabaseConfigured() && user && !user.id.startsWith('demo-');
   const [liked, setLiked] = useState(!!initialLiked);
   const [likeCount, setLikeCount] = useState(initialLikes);
-  const [secondary, setSecondary] = useState<SecondaryReaction | undefined>(initialSecondary);
-  const [topReactions, setTopReactions] = useState<ReactionSummary[]>([]);
   const [commentCount, setCommentCount] = useState(initialCommentCount);
   const [syncing, setSyncing] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -544,6 +544,10 @@ function PostCard({
   const [postMenuOptions, setPostMenuOptions] = useState<OptionMenuItem[]>([]);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [reportMenuVisible, setReportMenuVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
   const showActionBanner = useActionBanner();
   const insets = useSafeAreaInsets();
 
@@ -554,17 +558,15 @@ function PostCard({
     if (!liveMode || !user) return;
     let cancelled = false;
     void (async () => {
-      const [has, cLikes, cComments, tops] = await Promise.all([
+      const [has, cLikes, cComments] = await Promise.all([
         getUserHasLikedPost(_postId, user.id),
         getPostLikeCount(_postId),
         getPostCommentCount(_postId),
-        getTopPostReactions(_postId, 3),
       ]);
       if (cancelled) return;
       setLiked(has);
       setLikeCount(cLikes);
       setCommentCount(cComments);
-      setTopReactions(tops);
     })();
     return () => {
       cancelled = true;
@@ -651,150 +653,89 @@ function PostCard({
     })();
   }, [liveMode, user, syncing, liked, _postId, name, showActionBanner]);
 
-  const sharePost = useCallback(async () => {
-    try {
-      await Share.share({
-        title: `${name} · The Dalton Grant Academy`,
-        message: `${name}\n\n${bodyText}`.slice(0, 4000),
+  const sharePostToUser = useCallback(
+    (target: SharePostTarget, message: string) => {
+      navigation.navigate('MessageThread', {
+        peerUserId: target.id,
+        name: target.name,
+        avatarUrl: target.avatarUrl ?? undefined,
+        initialDraft: message,
       });
-      await logShareActivity({
-        kind: 'post',
-        title: `Shared ${name}'s post`,
-        detail: bodyText.slice(0, 160),
-      });
-      showActionBanner('Shared', 'Logged in Share activity');
-    } catch {
-      /* dismissed */
-    }
-  }, [bodyText, name, showActionBanner]);
+    },
+    [navigation],
+  );
 
-  const pickEmojiReaction = useCallback(() => {
-    const apply = (kind: SecondaryReaction['kind']) => {
-      const run = async () => {
-        if (liveMode && user) {
-          const ok = await setPostReaction(_postId, user.id, kind);
-          if (ok) {
-            const tops = await getTopPostReactions(_postId, 3);
-            setTopReactions(tops);
-          }
-        }
-        setSecondary((prev) => {
-          if (prev?.kind === kind) {
-            return { kind, count: prev.count + 1 };
-          }
-          const seed = initialSecondary?.kind === kind ? initialSecondary.count : 0;
-          return { kind, count: seed + 1 };
-        });
-        const label = kind === 'fire' ? 'Fire' : kind === 'clap' ? 'Clap' : 'Insight';
-        showActionBanner('Reaction sent', label);
-      };
-      void run();
-    };
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', '🔥 Fire', '👏 Clap', '💡 Insight'],
-          cancelButtonIndex: 0,
-        },
-        (i) => {
-          if (i === 1) apply('fire');
-          if (i === 2) apply('clap');
-          if (i === 3) apply('lightbulb');
-        },
-      );
-    } else {
-      Alert.alert('React', 'Choose a reaction', [
-        { text: '🔥', onPress: () => apply('fire') },
-        { text: '👏', onPress: () => apply('clap') },
-        { text: '💡', onPress: () => apply('lightbulb') },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    }
-  }, [initialSecondary, liveMode, user, _postId, showActionBanner]);
+  const onShareCopied = useCallback(() => {
+    showActionBanner('Copied', 'Post text copied to clipboard');
+  }, [showActionBanner]);
 
   const reportPost = useCallback(() => {
     if (!liveMode || !user?.id || user.id.startsWith('demo-')) {
       Alert.alert('Report', 'Sign in with your account to report posts.');
       return;
     }
-    const reporterId = user.id;
-    const run = async (reason: PostReportReason) => {
-      const ok = await submitPostReport(_postId, reporterId, reason);
+    setReportMenuVisible(true);
+  }, [liveMode, user]);
+
+  const submitReportReason = useCallback(
+    async (reason: PostReportReason) => {
+      if (!user?.id) return;
+      const ok = await submitPostReport(_postId, user.id, reason);
       if (ok) showActionBanner('Report sent', 'Thanks for helping keep the community safe.');
       else Alert.alert('Could not send report', 'Check your connection and try again.');
-    };
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Spam', 'Harassment', 'Misinformation', 'Copyright', 'Something else'],
-          cancelButtonIndex: 0,
-        },
-        (i) => {
-          if (i === 1) void run('spam');
-          if (i === 2) void run('harassment');
-          if (i === 3) void run('misinformation');
-          if (i === 4) void run('copyright');
-          if (i === 5) void run('other');
-        },
-      );
-    } else {
-      Alert.alert('Report post', 'What best describes the issue?', [
-        { text: 'Spam', onPress: () => void run('spam') },
-        { text: 'Harassment', onPress: () => void run('harassment') },
-        { text: 'Misinformation', onPress: () => void run('misinformation') },
-        { text: 'Copyright', onPress: () => void run('copyright') },
-        { text: 'Other', onPress: () => void run('other') },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    }
-  }, [liveMode, user, _postId, showActionBanner]);
+    },
+    [_postId, user?.id, showActionBanner],
+  );
+
+  const reportMenuOptions: OptionMenuItem[] = useMemo(
+    () => [
+      { key: 'spam', label: 'Spam', onPress: () => void submitReportReason('spam') },
+      { key: 'harassment', label: 'Harassment', onPress: () => void submitReportReason('harassment') },
+      {
+        key: 'misinformation',
+        label: 'Misinformation',
+        onPress: () => void submitReportReason('misinformation'),
+      },
+      { key: 'copyright', label: 'Copyright', onPress: () => void submitReportReason('copyright') },
+      { key: 'other', label: 'Something else', onPress: () => void submitReportReason('other') },
+    ],
+    [submitReportReason],
+  );
 
   const openPostMenu = useCallback(() => {
     const isAuthor = Boolean(user?.id && authorId && user.id === authorId);
     const canDelete = isAuthor || Boolean(user?.masterControl);
-    const sharePost = () => {
-      const shareBody = (bodyParagraphs?.join('\n\n') ?? body ?? '').trim();
-      void Share.share({
-        message: shareBody || 'Post on Dalton Grant Academy',
-        title: name ? `Post by ${name}` : 'Community post',
-      }).catch(() => undefined);
-    };
-    const copyId = () => {
-      Alert.alert('Post reference', _postId, [{ text: 'OK' }]);
-    };
-    const deletePost = () => {
-      if (!canDelete) return;
-      setDeleteConfirmVisible(true);
-    };
+    const canEdit = isAuthor && liveMode;
 
     const items: OptionMenuItem[] = [
-      { key: 'share', label: 'Share', onPress: sharePost },
+      ...(canEdit
+        ? [
+            {
+              key: 'edit',
+              label: 'Edit post',
+              onPress: () => setEditModalVisible(true),
+            },
+          ]
+        : []),
+      {
+        key: 'share',
+        label: 'Share',
+        onPress: () => setShareModalVisible(true),
+      },
       ...(canDelete
-        ? [{ key: 'delete', label: 'Delete post', destructive: true, onPress: deletePost }]
+        ? [{ key: 'delete', label: 'Delete post', destructive: true, onPress: () => setDeleteConfirmVisible(true) }]
         : []),
       { key: 'report', label: 'Report post', onPress: reportPost },
-      { key: 'copy', label: 'Copy reference', onPress: copyId },
+      {
+        key: 'copy',
+        label: 'Copy reference',
+        onPress: () => Alert.alert('Post reference', _postId, [{ text: 'OK' }]),
+      },
     ];
-
-    if (Platform.OS === 'ios') {
-      const labels = ['Cancel', ...items.map((i) => i.label)];
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: labels,
-          cancelButtonIndex: 0,
-          destructiveButtonIndex: canDelete ? 2 : undefined,
-        },
-        (i) => {
-          if (i <= 0) return;
-          items[i - 1]?.onPress();
-        },
-      );
-      return;
-    }
 
     setPostMenuOptions(items);
     setPostMenuVisible(true);
-  }, [user, authorId, _postId, body, bodyParagraphs, name, onPostDeleted, showActionBanner, reportPost]);
+  }, [user, authorId, liveMode, _postId, reportPost]);
 
   const submitComment = useCallback(async () => {
     if (!liveMode || !user) {
@@ -816,6 +757,20 @@ function PostCard({
     }
   }, [liveMode, user, commentDraft, _postId, reloadComments, showActionBanner]);
 
+  const saveEditedPost = useCallback(
+    async (newBody: string) => {
+      setEditBusy(true);
+      const ok = await updateCommunityPost(_postId, newBody);
+      setEditBusy(false);
+      if (ok) {
+        onPostUpdated?.(_postId, newBody);
+        showActionBanner('Updated', 'Post saved');
+      }
+      return ok;
+    },
+    [_postId, onPostUpdated, showActionBanner],
+  );
+
   const confirmDeletePost = useCallback(async () => {
     setDeleteBusy(true);
     const ok = await deleteCommunityPost(_postId);
@@ -832,9 +787,6 @@ function PostCard({
     }
   }, [_postId, onPostDeleted, showActionBanner]);
 
-  const postMediaItems = (media ?? []).filter(
-    (m): m is { kind: 'image' | 'video'; uri: string } => m.kind === 'image' || m.kind === 'video',
-  );
   const avatarSource = resolvePostAvatar(avatar);
 
   return (
@@ -855,13 +807,33 @@ function PostCard({
         options={postMenuOptions}
         onClose={() => setPostMenuVisible(false)}
       />
+      <OptionMenuModal
+        visible={reportMenuVisible}
+        title="Report post"
+        options={reportMenuOptions}
+        onClose={() => setReportMenuVisible(false)}
+      />
+      <SharePostSheet
+        visible={shareModalVisible}
+        onClose={() => setShareModalVisible(false)}
+        postId={_postId}
+        authorName={name}
+        bodyText={bodyText}
+        userId={user?.id}
+        onShareToUser={sharePostToUser}
+        onCopied={onShareCopied}
+      />
+      <EditCommunityPostModal
+        visible={editModalVisible}
+        postId={_postId}
+        storedBody={storedBody ?? bodyText}
+        busy={editBusy}
+        onClose={() => setEditModalVisible(false)}
+        onSave={saveEditedPost}
+      />
       <PostCommentsSheet
         visible={commentsOpen}
         onClose={() => setCommentsOpen(false)}
-        postName={name}
-        postBody={bodyParagraphs?.join('\n\n') ?? body ?? ''}
-        postMedia={postMediaItems}
-        postImageFallback={imageUri}
         comments={comments}
         commentDraft={commentDraft}
         onChangeDraft={setCommentDraft}
@@ -921,63 +893,29 @@ function PostCard({
           {mediaSection}
         </>
       )}
-      {liveMode && topReactions.length > 0 ? (
-        <View style={styles.topReactionsRow}>
-          {topReactions.map((r) => (
-            <Text key={r.emoji} style={styles.topReactionTxt}>
-              {r.emoji} {r.count}
-            </Text>
-          ))}
-        </View>
-      ) : null}
       <View style={styles.postActions}>
-        <View style={styles.postActionsLeft}>
-          <Pressable style={styles.actionPill} onPress={toggleLike}>
-            <FontAwesome
-              name={liked ? 'heart' : 'heart-o'}
-              size={14}
-              color={liked ? colors.gold : colors.textMuted}
-            />
-            <Text style={styles.actionTxt}> {likeCount}</Text>
-          </Pressable>
-          {!liveMode && secondary ? (
-            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
-              {secondary.kind === 'fire' ? (
-                <FontAwesome5 name="fire" size={13} color="#f97316" solid />
-              ) : null}
-              {secondary.kind === 'clap' ? (
-                <Text style={styles.clapEmoji}>👏</Text>
-              ) : null}
-              {secondary.kind === 'lightbulb' ? (
-                <FontAwesome5 name="lightbulb" size={13} color="#facc15" solid />
-              ) : null}
-              <Text style={styles.actionTxt}> {secondary.count}</Text>
-            </Pressable>
-          ) : !liveMode ? (
-            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
-              <Text style={styles.actionTxt}>＋ 😊</Text>
-            </Pressable>
-          ) : null}
-          {liveMode ? (
-            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
-              <FontAwesome name="smile-o" size={14} color={colors.gold} />
-            </Pressable>
-          ) : (
-            <Pressable style={styles.actionPill} onPress={pickEmojiReaction}>
-              <FontAwesome name="smile-o" size={14} color={colors.textMuted} />
-            </Pressable>
-          )}
-          <Pressable
-            style={styles.actionPill}
-            onPress={() => void sharePost()}
-            accessibilityLabel="Share post"
-          >
-            <FontAwesome name="share-alt" size={14} color={colors.gold} />
-          </Pressable>
-        </View>
-        <Pressable style={styles.actionPill} onPress={() => setCommentsOpen(true)}>
-          <Text style={styles.actionTxt}>{commentCount} </Text>
-          <FontAwesome name="comment-o" size={14} color={colors.textMuted} />
+        <Pressable style={styles.actionPillLg} onPress={toggleLike} accessibilityLabel="Like">
+          <FontAwesome
+            name={liked ? 'heart' : 'heart-o'}
+            size={18}
+            color={liked ? colors.gold : colors.textMuted}
+          />
+          <Text style={styles.actionTxtLg}> {likeCount}</Text>
+        </Pressable>
+        <Pressable
+          style={styles.actionPillLg}
+          onPress={() => setCommentsOpen(true)}
+          accessibilityLabel="Comments"
+        >
+          <FontAwesome name="comment-o" size={18} color={colors.textMuted} />
+          <Text style={styles.actionTxtLg}> {commentCount}</Text>
+        </Pressable>
+        <Pressable
+          style={styles.actionPillLg}
+          onPress={() => setShareModalVisible(true)}
+          accessibilityLabel="Share post"
+        >
+          <FontAwesome name="share-alt" size={18} color={colors.gold} />
         </Pressable>
       </View>
 
@@ -999,7 +937,6 @@ function CommunityDemoPostList({
         imageUri="https://picsum.photos/seed/dalton-run1/800/520"
         likes={34}
         heartFilled={false}
-        secondary={{ kind: 'fire', count: 18 }}
         comments={9}
       />
       <PostCard
@@ -1014,7 +951,6 @@ function CommunityDemoPostList({
         ]}
         likes={52}
         heartFilled
-        secondary={{ kind: 'clap', count: 21 }}
         comments={14}
       />
       <PostCard
@@ -1027,7 +963,6 @@ function CommunityDemoPostList({
         imageUri="https://picsum.photos/seed/dalton-recovery/780/540"
         likes={67}
         heartFilled={false}
-        secondary={{ kind: 'lightbulb', count: 12 }}
         comments={6}
       />
       <PostCard
@@ -1053,7 +988,6 @@ function CommunityDemoPostList({
         imageUri="https://picsum.photos/seed/dalton-coachposter/820/560"
         likes={156}
         heartFilled={false}
-        secondary={{ kind: 'fire', count: 44 }}
         comments={28}
       />
       <PostCard
@@ -1066,7 +1000,6 @@ function CommunityDemoPostList({
         imageUri="https://picsum.photos/seed/dalton-foodtrack/760/520"
         likes={198}
         heartFilled={false}
-        secondary={{ kind: 'lightbulb', count: 62 }}
         comments={36}
         onPressCard={() => navigation.navigate('BrandPartner')}
       />
@@ -2221,24 +2154,14 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
   const { refreshing, onRefresh } = useRefreshWithMinimum(reloadInboxThreads, 4000);
 
   const [filter, setFilter] = useState('');
-  const openThreadToPeer = useCallback(
-    async (peerUserId: string, name: string, avatarUrl?: string | null) => {
-      if (!user?.id) return;
-      const gate = await resolveCanMessagePeer(user.id, peerUserId);
-      if (!gate.ok) {
-        Alert.alert('Cannot message', gate.message);
-        return;
-      }
-      navigation.navigate('MessageThread', {
-        name,
-        peerUserId,
-        avatarUrl: avatarUrl?.trim() || undefined,
-      });
-    },
-    [navigation, user?.id],
-  );
+  const [inboxMenuThread, setInboxMenuThread] = useState<InboxRowUi | null>(null);
+  const [inboxMenuVisible, setInboxMenuVisible] = useState(false);
+  const [inboxClearConfirmVisible, setInboxClearConfirmVisible] = useState(false);
+  const [inboxClearBusy, setInboxClearBusy] = useState(false);
+  const [inboxBlockConfirmVisible, setInboxBlockConfirmVisible] = useState(false);
+  const [inboxBlockBusy, setInboxBlockBusy] = useState(false);
 
-  const newMessageDemo = useCallback(() => {
+  const openNewMessageSearch = useCallback(() => {
     if (!user?.id || user.id.startsWith('demo-')) {
       Alert.alert('New message', 'Sign in with your account to start real conversations.');
       return;
@@ -2247,61 +2170,78 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
       Alert.alert('New message', 'Connect Supabase to use live messaging.');
       return;
     }
-    if (isAppStoreScreenshotMode()) {
-      Alert.alert('New message', 'Screenshot shortcuts', [
-        {
-          text: 'Marcus (policy demo)',
-          onPress: () => {
-            const gate = assertCanMessageRecipient({
-              recipientPref: 'followers_only',
-              isFollowingRecipient: false,
-            });
-            if (!gate.ok) {
-              Alert.alert('Cannot send', 'Recipient requires a follow relationship.');
-              return;
-            }
-            navigation.navigate('MessageThread', { name: 'Marcus Johnson' });
-          },
-        },
-        {
-          text: 'Coach (screenshot)',
-          onPress: () => navigation.navigate('MessageThread', { name: 'Coach Williams' }),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
+    navigation.navigate('NewMessageSearch');
+  }, [liveMsgs, navigation, user?.id]);
+
+  const inboxMenuOptions: OptionMenuItem[] = useMemo(() => {
+    const t = inboxMenuThread;
+    if (!t || !liveMsgs) return [];
+    const opts: OptionMenuItem[] = [];
+    if (t.peerUserId) {
+      opts.push({
+        key: 'profile',
+        label: 'View profile',
+        onPress: () => navigation.navigate('PublicProfile', { userId: t.peerUserId! }),
+      });
+    }
+    if (t.conversationId) {
+      opts.push({
+        key: 'clear',
+        label: 'Clear chat',
+        destructive: true,
+        onPress: () => setInboxClearConfirmVisible(true),
+      });
+    }
+    if (t.peerUserId && user?.id) {
+      opts.push({
+        key: 'block',
+        label: 'Block user',
+        destructive: true,
+        onPress: () => setInboxBlockConfirmVisible(true),
+      });
+    }
+    return opts;
+  }, [inboxMenuThread, liveMsgs, navigation, user?.id]);
+
+  const openInboxRowMenu = useCallback((thread: InboxRowUi) => {
+    if (!liveMsgs) {
+      Alert.alert('Conversation', 'Sign in with your account to manage conversations.');
       return;
     }
-    void (async () => {
-      const following = await listFollowingProfiles(user.id);
-      if (!following.length) {
-        Alert.alert(
-          'New message',
-          'Follow someone first, then open their profile and tap Message — or message from a proposal thread.',
-        );
-        return;
-      }
-      const picks = following.slice(0, 10);
-      Alert.alert(
-        'New message',
-        'Choose someone you follow:',
-        [
-          ...picks.map((p) => ({
-            text:
-              p.display_name?.trim() ||
-              (p.username?.trim() ? `@${p.username.trim()}` : 'Member'),
-            onPress: () =>
-              void openThreadToPeer(
-                p.id,
-                p.display_name?.trim() ||
-                  (p.username?.trim() ? `@${p.username.trim()}` : 'Member'),
-                p.avatar_url,
-              ),
-          })),
-          { text: 'Cancel', style: 'cancel' },
-        ],
-      );
-    })();
-  }, [liveMsgs, navigation, openThreadToPeer, user?.id]);
+    setInboxMenuThread(thread);
+    setInboxMenuVisible(true);
+  }, [liveMsgs]);
+
+  const confirmInboxClearChat = useCallback(async () => {
+    const cid = inboxMenuThread?.conversationId;
+    if (!cid) return;
+    setInboxClearBusy(true);
+    const ok = await clearConversationMessages(cid);
+    setInboxClearBusy(false);
+    setInboxClearConfirmVisible(false);
+    setInboxMenuThread(null);
+    if (ok) {
+      void reloadInboxThreads();
+    } else {
+      Alert.alert('Could not clear', 'Try again when you are back online.');
+    }
+  }, [inboxMenuThread?.conversationId, reloadInboxThreads]);
+
+  const confirmInboxBlockUser = useCallback(async () => {
+    const peerId = inboxMenuThread?.peerUserId;
+    if (!peerId || !user?.id) return;
+    setInboxBlockBusy(true);
+    const ok = await blockUser(user.id, peerId);
+    setInboxBlockBusy(false);
+    setInboxBlockConfirmVisible(false);
+    setInboxMenuThread(null);
+    if (ok) {
+      void reloadInboxThreads();
+    } else {
+      Alert.alert('Could not block', 'Try again when you are back online.');
+    }
+  }, [inboxMenuThread?.peerUserId, reloadInboxThreads, user?.id]);
+
   const threads = useMemo(() => {
     const liveRows: InboxRowUi[] = liveThreads.map((t) => {
       const extras = SCREENSHOT_INBOX_EXTRAS[t.conversation_id] ?? {};
@@ -2333,7 +2273,7 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
             <FontAwesome name="arrow-left" size={20} color={colors.gold} />
           </Pressable>
           <Text style={styles.inboxTitle}>MESSAGES</Text>
-          <Pressable hitSlop={8} onPress={newMessageDemo}>
+          <Pressable hitSlop={8} onPress={openNewMessageSearch}>
             <FontAwesome5 name="pen-square" size={18} color={colors.gold} solid />
           </Pressable>
         </View>
@@ -2364,54 +2304,92 @@ export function MessagesInboxScreen({ navigation }: CProps<'MessagesInbox'>) {
           </Text>
         ) : null}
         {threads.map((t) => (
-          <Pressable
+          <View
             key={t.id}
             style={[
               styles.inboxRow,
               t.selected ? styles.inboxRowSelected : styles.inboxRowIdle,
             ]}
-            onPress={() =>
-              navigation.navigate('MessageThread', {
-                name: t.name,
-                conversationId: t.conversationId,
-                peerUserId: t.peerUserId,
-                avatarUrl: t.peerAvatarUrl ?? undefined,
-              })
-            }
           >
-            <View style={styles.inboxAvatarWrap}>
-              <Image
-                source={resolveProfileAvatarSource(t.peerAvatarUrl)}
-                style={[
-                  styles.inboxAvatar,
-                  isDaltonDefaultAvatarSource(resolveProfileAvatarSource(t.peerAvatarUrl)) &&
-                    styles.inboxAvatarGoldRing,
-                ]}
-              />
-              {t.online ? <View style={styles.inboxOnlineDot} /> : null}
-            </View>
-            <View style={styles.inboxMid}>
-              <View style={styles.inboxNameRow}>
-                <Text style={styles.inboxName} numberOfLines={1}>
-                  {t.name}
+            <Pressable
+              style={styles.inboxRowMain}
+              onPress={() =>
+                navigation.navigate('MessageThread', {
+                  name: t.name,
+                  conversationId: t.conversationId,
+                  peerUserId: t.peerUserId,
+                  avatarUrl: t.peerAvatarUrl ?? undefined,
+                })
+              }
+            >
+              <View style={styles.inboxAvatarWrap}>
+                <Image
+                  source={resolveProfileAvatarSource(t.peerAvatarUrl)}
+                  style={[
+                    styles.inboxAvatar,
+                    isDaltonDefaultAvatarSource(resolveProfileAvatarSource(t.peerAvatarUrl)) &&
+                      styles.inboxAvatarGoldRing,
+                  ]}
+                />
+                {t.online ? <View style={styles.inboxOnlineDot} /> : null}
+              </View>
+              <View style={styles.inboxMid}>
+                <View style={styles.inboxNameRow}>
+                  <Text style={styles.inboxName} numberOfLines={1}>
+                    {t.name}
+                  </Text>
+                  <Text style={styles.inboxTime}>{t.time}</Text>
+                </View>
+                <Text
+                  style={t.previewMuted ? styles.inboxPreviewMuted : styles.inboxPreview}
+                  numberOfLines={1}
+                >
+                  {t.preview}
                 </Text>
-                <Text style={styles.inboxTime}>{t.time}</Text>
               </View>
-              <Text
-                style={t.previewMuted ? styles.inboxPreviewMuted : styles.inboxPreview}
-                numberOfLines={1}
-              >
-                {t.preview}
-              </Text>
-            </View>
-            {t.unread ? (
-              <View style={styles.inboxUnreadBadge}>
-                <Text style={styles.inboxUnreadBadgeTxt}>{t.unread}</Text>
-              </View>
-            ) : null}
-          </Pressable>
+              {t.unread ? (
+                <View style={styles.inboxUnreadBadge}>
+                  <Text style={styles.inboxUnreadBadgeTxt}>{t.unread}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable
+              style={styles.inboxRowMenuBtn}
+              hitSlop={8}
+              onPress={() => openInboxRowMenu(t)}
+              accessibilityLabel={`Options for ${t.name}`}
+            >
+              <FontAwesome name="ellipsis-v" size={16} color={colors.textMuted} />
+            </Pressable>
+          </View>
         ))}
       </ScrollView>
+      <OptionMenuModal
+        visible={inboxMenuVisible}
+        title={inboxMenuThread?.name ?? 'Conversation'}
+        options={inboxMenuOptions}
+        onClose={() => setInboxMenuVisible(false)}
+      />
+      <ConfirmModal
+        visible={inboxClearConfirmVisible}
+        title="Clear chat?"
+        message="This removes all messages in this conversation for you. The other person still has their copy."
+        confirmLabel="Clear chat"
+        destructive
+        busy={inboxClearBusy}
+        onConfirm={() => void confirmInboxClearChat()}
+        onCancel={() => setInboxClearConfirmVisible(false)}
+      />
+      <ConfirmModal
+        visible={inboxBlockConfirmVisible}
+        title="Block user?"
+        message={`Block ${inboxMenuThread?.name ?? 'this user'}? They will no longer be able to message you.`}
+        confirmLabel="Block"
+        destructive
+        busy={inboxBlockBusy}
+        onConfirm={() => void confirmInboxBlockUser()}
+        onCancel={() => setInboxBlockConfirmVisible(false)}
+      />
     </View>
   );
 }
@@ -2493,6 +2471,10 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
   const [chatSearch, setChatSearch] = useState('');
   const [showChatSearch, setShowChatSearch] = useState(false);
   const [threadMenuVisible, setThreadMenuVisible] = useState(false);
+  const [clearChatConfirmVisible, setClearChatConfirmVisible] = useState(false);
+  const [blockUserConfirmVisible, setBlockUserConfirmVisible] = useState(false);
+  const [clearChatBusy, setClearChatBusy] = useState(false);
+  const [blockUserBusy, setBlockUserBusy] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(
     conversationIdParam,
   );
@@ -2643,30 +2625,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         key: 'clear',
         label: 'Clear chat',
         destructive: true,
-        onPress: () => {
-          Alert.alert(
-            'Clear chat?',
-            'All messages in this conversation will be removed for everyone in the thread.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Clear',
-                style: 'destructive',
-                onPress: () => {
-                  void (async () => {
-                    const ok = await clearConversationMessages(cidFinal);
-                    if (ok) {
-                      setLiveMessages([]);
-                      showBanner('Chat cleared', '');
-                    } else {
-                      Alert.alert('Could not clear', 'Try again when you are back online.');
-                    }
-                  })();
-                },
-              },
-            ],
-          );
-        },
+        onPress: () => setClearChatConfirmVisible(true),
       },
     ];
     if (peerUserId && user?.id) {
@@ -2674,28 +2633,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
         key: 'block',
         label: 'Block user',
         destructive: true,
-        onPress: () => {
-          Alert.alert(
-            'Block user?',
-            'They will not be able to message you and this thread will be hidden from new messages.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Block',
-                style: 'destructive',
-                onPress: () => {
-                  void (async () => {
-                    const ok = await blockUser(user.id, peerUserId);
-                    if (ok) {
-                      showBanner('User blocked', '');
-                      navigation.goBack();
-                    }
-                  })();
-                },
-              },
-            ],
-          );
-        },
+        onPress: () => setBlockUserConfirmVisible(true),
       });
     }
     return opts;
@@ -2711,77 +2649,46 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
       return;
     }
     if (threadMenuOptions.length === 0) return;
+    setThreadMenuVisible(true);
+  }, [cidFinal, isLive, threadMenuOptions.length]);
 
-    if (Platform.OS === 'web') {
-      setThreadMenuVisible(true);
-      return;
+  const confirmClearChat = useCallback(async () => {
+    if (!cidFinal) return;
+    setClearChatBusy(true);
+    const ok = await clearConversationMessages(cidFinal);
+    setClearChatBusy(false);
+    setClearChatConfirmVisible(false);
+    if (ok) {
+      setLiveMessages([]);
+      showBanner('Chat cleared', '');
+    } else {
+      Alert.alert('Could not clear', 'Try again when you are back online.');
     }
+  }, [cidFinal, showBanner]);
 
-    if (Platform.OS === 'ios') {
-      const labels = [...threadMenuOptions.map((o) => o.label), 'Cancel'];
-      const destructiveIndex = threadMenuOptions.findIndex((o) => o.destructive);
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: labels,
-          cancelButtonIndex: labels.length - 1,
-          destructiveButtonIndex: destructiveIndex >= 0 ? destructiveIndex : undefined,
-        },
-        (index) => {
-          if (index == null || index === labels.length - 1) return;
-          threadMenuOptions[index]?.onPress();
-        },
-      );
-      return;
+  const confirmBlockUser = useCallback(async () => {
+    if (!peerUserId || !user?.id) return;
+    setBlockUserBusy(true);
+    const ok = await blockUser(user.id, peerUserId);
+    setBlockUserBusy(false);
+    setBlockUserConfirmVisible(false);
+    if (ok) {
+      showBanner('User blocked', '');
+      navigation.goBack();
     }
-
-    Alert.alert(
-      'Conversation',
-      'Choose an action',
-      [
-        ...threadMenuOptions.map((o) => ({
-          text: o.label,
-          style: o.destructive ? ('destructive' as const) : undefined,
-          onPress: o.onPress,
-        })),
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    );
-  }, [cidFinal, isLive, threadMenuOptions]);
+  }, [peerUserId, user?.id, navigation, showBanner]);
 
   const pickAttachment = useCallback(async () => {
     if (!isLive || !cidFinal || !user?.id || attachBusy) return;
     let media: ComposerMedia | null = null;
-    if (Platform.OS === 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images', 'videos'],
-        allowsMultipleSelection: false,
-        quality: 0.92,
-        videoMaxDuration: Math.floor(MAX_COMPOSER_VIDEO_MS / 1000),
-      });
-      if (res.canceled || !res.assets[0]) return;
-      const a = res.assets[0];
-      if (pickerAssetIsVideo(a)) {
-        const durMs = pickerVideoDurationMs(a) ?? MAX_COMPOSER_VIDEO_MS;
-        if (durMs > MAX_COMPOSER_VIDEO_MS) {
-          Alert.alert('Video too long', 'Videos must be 30 seconds or shorter.');
-          return;
-        }
-        media = { kind: 'video', uri: a.uri, durationMs: durMs, mimeType: a.mimeType ?? undefined };
-      } else if (a.uri) {
-        media = { kind: 'image', uri: a.uri, mimeType: a.mimeType ?? undefined };
-      }
+    const { pickLocalComposerMedia } = await import('../lib/pickLocalMedia');
+    const picked = await pickLocalComposerMedia({ title: 'Message attachment' });
+    const file = picked[0];
+    if (!file) return;
+    if (file.kind === 'video') {
+      media = { kind: 'video', uri: file.uri, durationMs: MAX_COMPOSER_VIDEO_MS };
     } else {
-      const { pickLocalComposerMedia } = await import('../lib/pickLocalMedia');
-      const picked = await pickLocalComposerMedia({ title: 'Message attachment' });
-      const file = picked[0];
-      if (!file) return;
-      if (file.kind === 'video') {
-        media = { kind: 'video', uri: file.uri, durationMs: MAX_COMPOSER_VIDEO_MS };
-      } else {
-        media = { kind: 'image', uri: file.uri };
-      }
+      media = { kind: 'image', uri: file.uri };
     }
     if (!media) return;
     setAttachBusy(true);
@@ -2815,12 +2722,36 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
     : bubbles;
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
       <OptionMenuModal
         visible={threadMenuVisible}
         title="Conversation"
         options={threadMenuOptions}
         onClose={() => setThreadMenuVisible(false)}
+      />
+      <ConfirmModal
+        visible={clearChatConfirmVisible}
+        title="Clear chat?"
+        message="All messages in this conversation will be removed for everyone in the thread."
+        confirmLabel="Clear"
+        destructive
+        busy={clearChatBusy}
+        onCancel={() => setClearChatConfirmVisible(false)}
+        onConfirm={() => void confirmClearChat()}
+      />
+      <ConfirmModal
+        visible={blockUserConfirmVisible}
+        title="Block user?"
+        message="They will not be able to message you and this thread will be hidden from new messages."
+        confirmLabel="Block"
+        destructive
+        busy={blockUserBusy}
+        onCancel={() => setBlockUserConfirmVisible(false)}
+        onConfirm={() => void confirmBlockUser()}
       />
       <View style={[styles.threadHeader, { paddingTop: insets.top + DS.space.md }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={8}>
@@ -2871,6 +2802,9 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
       <ScrollView
         contentContainerStyle={[styles.threadBody, { paddingBottom: DS.space.lg }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onScrollBeginDrag={Keyboard.dismiss}
       >
         {loading && (isLive || isScreenshotThread) ? (
           <AppLoadingIndicator style={{ marginVertical: 16 }} />
@@ -2962,7 +2896,7 @@ export function MessageThreadScreen({ navigation, route }: CProps<'MessageThread
           <FontAwesome5 name="paper-plane" size={16} color={colors.background} solid />
         </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

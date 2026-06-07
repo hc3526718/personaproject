@@ -1,6 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { captureException } from '../monitoring/sentryBoot';
 import { DS } from '../designSystem';
 import { hideNativeSplash } from '../boot/nativeSplashGate';
 
@@ -27,10 +26,15 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     hideNativeSplash();
-    captureException(error, {
-      componentStack: info.componentStack ?? '',
-      area: 'app_error_boundary',
-    });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('../monitoring/sentryBoot').captureException(error, {
+        componentStack: info.componentStack ?? '',
+        area: 'app_error_boundary',
+      });
+    } catch {
+      /* non-fatal */
+    }
     if (__DEV__) {
       console.error('[AppErrorBoundary]', error, info.componentStack);
     }

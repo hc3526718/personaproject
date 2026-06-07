@@ -36,3 +36,11 @@ verify_jwt = false
 [functions.dispatch-in-app-push]
 # Called from pg_net trigger or client when app is backgrounded; uses service role.
 verify_jwt = false
+
+[functions.wallet-generate-pass]
+# Validates caller JWT inside the function; returns signed .pkpass when Apple certs are set.
+verify_jwt = false
+
+[functions.wallet-passes]
+# PassKit web service — Apple devices call with ApplePass auth, not Supabase JWT.
+verify_jwt = false

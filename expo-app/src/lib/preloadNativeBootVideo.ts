@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import { DALTON_BOOT_VIDEO_NATIVE } from '../constants/daltonBootVideo.native';
+import { DALTON_BOOT_VIDEO_NATIVE } from '../constants/daltonBootVideoNativeAsset.native';
 
 let preloadStarted = false;
 

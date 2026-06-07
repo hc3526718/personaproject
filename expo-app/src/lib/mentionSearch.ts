@@ -5,26 +5,34 @@ export type MentionCandidate = {
   name: string;
 };
 
-/** Search profiles for @mention suggestions (username or display name). */
+function escapeIlike(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+/** Search profiles for @mention suggestions — username prefix match preferred. */
 export async function searchMentionableUsers(keyword: string): Promise<MentionCandidate[]> {
   const supabase = getSupabase();
   if (!supabase) return [];
   const q = keyword.trim();
   if (!q) return [];
 
+  const pattern = `${escapeIlike(q)}%`;
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, display_name')
-    .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
-    .limit(12);
+    .select('id, username')
+    .ilike('username', pattern)
+    .limit(20);
 
   if (error || !data) return [];
 
-  return data.map((row) => {
-    const name =
-      (typeof row.username === 'string' && row.username.trim()) ||
-      (typeof row.display_name === 'string' && row.display_name.trim()) ||
-      'member';
-    return { id: row.id as string, name };
-  });
+  const qLower = q.toLowerCase();
+  return data
+    .map((row) => {
+      const username =
+        typeof row.username === 'string' && row.username.trim() ? row.username.trim() : '';
+      if (!username) return null;
+      return { id: row.id as string, name: username };
+    })
+    .filter((r): r is MentionCandidate => r != null && r.name.toLowerCase().startsWith(qLower))
+    .slice(0, 12);
 }

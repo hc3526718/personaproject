@@ -11,13 +11,11 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { useAuth } from '../../auth/AuthContext';
 import { DS } from '../../designSystem';
-import { pickWebMediaFile } from '../../lib/webFilePicker';
 import { uploadProposalAttachment } from '../../lib/proposalAttachmentUpload';
 import {
   runProposalSubmitFlow,
@@ -151,35 +149,19 @@ export function EventProposalWizard({ navigation }: Props) {
   );
 
   const pickMedia = useCallback(async (kind: 'image' | 'video') => {
-    if (Platform.OS === 'web') {
-      const picked = await pickWebMediaFile(kind);
-      if (!picked?.uri) return;
-      setAttachments((prev) => [
-        ...prev,
-        { uri: picked.uri, kind, name: picked.name ?? `${kind}-${prev.length + 1}` },
-      ]);
-      return;
-    }
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow photo library access to attach media.');
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: kind === 'image' ? ['images'] : ['videos'],
-      allowsMultipleSelection: kind === 'image',
-      quality: 0.9,
+    const { pickLocalMedia } = await import('../../lib/pickLocalMedia');
+    const picked = await pickLocalMedia(kind, {
+      multiple: kind === 'image',
+      title: kind === 'video' ? 'Add event video' : 'Add event photos',
     });
-    if (res.canceled) return;
+    if (!picked.length) return;
     setAttachments((prev) => [
       ...prev,
-      ...res.assets
-        .filter((a) => a.uri)
-        .map((a, i) => ({
-          uri: a.uri,
-          kind,
-          name: a.fileName ?? `${kind}-${prev.length + i + 1}`,
-        })),
+      ...picked.map((a, i) => ({
+        uri: a.uri,
+        kind: a.kind,
+        name: a.name ?? `${kind}-${prev.length + i + 1}`,
+      })),
     ]);
   }, []);
 

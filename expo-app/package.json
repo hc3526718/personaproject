@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "vercel-build": "node scripts/vercel-build.mjs",
     "sync-marketing": "node scripts/sync-marketing.mjs",
-    "test:resend": "node scripts/test-resend-email.mjs"
+    "test:resend": "node scripts/test-resend-email.mjs",
+    "check:boot": "node scripts/boot-guardrails.mjs",
+    "check:cycles": "node scripts/boot-guardrails.mjs --cycles"
   },
   "dependencies": {
     "@expo-google-fonts/bebas-neue": "^0.4.1",
@@ -75,7 +77,8 @@
     "patch-package": "^8.0.1",
     "react-native-svg-transformer": "^1.5.3",
     "resend": "^4.5.1",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "madge": "^8.0.0"
   },
   "private": true
 }

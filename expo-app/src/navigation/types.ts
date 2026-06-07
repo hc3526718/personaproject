@@ -13,6 +13,8 @@ export type CommunityStackParamList = {
   ShareActivity: undefined;
   Notifications: undefined;
   MessagesInbox: undefined;
+  /** Search people by name or username to start a new conversation. */
+  NewMessageSearch: undefined;
   MessageThread: {
     name?: string;
     conversationId?: string;

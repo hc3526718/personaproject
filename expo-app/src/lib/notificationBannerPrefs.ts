@@ -1,69 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { InAppNotification } from '../roadmap/notificationsService';
+import {
+  DEFAULT_NOTIFY_PREFS,
+  IN_APP_NOTIFY_LABELS,
+  IN_APP_NOTIFY_PREF_KEYS,
+  type InAppNotificationLike,
+  type InAppNotifyCategory,
+  type InAppNotifyPrefs,
+} from './inAppNotifyTypes';
 import {
   canAccessInAppNotifyCategory,
   inAppNotifyCategoriesForUser,
 } from './notifyPrefsAccess';
 
+export type { InAppNotifyCategory, InAppNotifyPrefs } from './inAppNotifyTypes';
+export { DEFAULT_NOTIFY_PREFS, IN_APP_NOTIFY_LABELS } from './inAppNotifyTypes';
+
 const KEY = 'dalton_inapp_notify_prefs';
 
 let prefsCache: InAppNotifyPrefs | null = null;
-
-export type InAppNotifyPrefs = {
-  /** Master toggle for dropdown / banners */
-  enabled: boolean;
-  /** Likes, comments, follows, @mentions */
-  postInteraction: boolean;
-  messages: boolean;
-  eventAttendance: boolean;
-  eventBooking: boolean;
-  eventCreation: boolean;
-  mediaCreation: boolean;
-  /** Master accounts: incoming proposals */
-  masterProposals: boolean;
-  system: boolean;
-};
-
-export type InAppNotifyCategory = keyof Omit<InAppNotifyPrefs, 'enabled'>;
-
-export const IN_APP_NOTIFY_LABELS: Record<InAppNotifyCategory, string> = {
-  postInteraction: 'Post interactions',
-  messages: 'Messages',
-  eventAttendance: 'Event attendance',
-  eventBooking: 'Event booking',
-  eventCreation: 'Event creation',
-  mediaCreation: 'Media creation',
-  masterProposals: 'Master proposals',
-  system: 'System & other',
-};
-
-export const DEFAULT_NOTIFY_PREFS: InAppNotifyPrefs = {
-  enabled: true,
-  postInteraction: true,
-  messages: true,
-  eventAttendance: true,
-  eventBooking: true,
-  eventCreation: true,
-  mediaCreation: true,
-  masterProposals: true,
-  system: true,
-};
-
-const KEYS: (keyof InAppNotifyPrefs)[] = [
-  'enabled',
-  'postInteraction',
-  'messages',
-  'eventAttendance',
-  'eventBooking',
-  'eventCreation',
-  'mediaCreation',
-  'masterProposals',
-  'system',
-];
-
-export function invalidateInAppNotifyPrefsCache(): void {
-  prefsCache = null;
-}
 
 export async function loadInAppNotifyPrefs(): Promise<InAppNotifyPrefs> {
   if (prefsCache) return { ...prefsCache };
@@ -76,7 +30,7 @@ export async function loadInAppNotifyPrefs(): Promise<InAppNotifyPrefs> {
     const o = JSON.parse(raw) as Record<string, unknown>;
     const out: InAppNotifyPrefs = { ...DEFAULT_NOTIFY_PREFS };
 
-    for (const k of KEYS) {
+    for (const k of IN_APP_NOTIFY_PREF_KEYS) {
       if (typeof o[k] === 'boolean') {
         out[k] = o[k] as boolean;
       }
@@ -107,6 +61,10 @@ export async function saveInAppNotifyPrefs(prefs: Partial<InAppNotifyPrefs>): Pr
   await AsyncStorage.setItem(KEY, JSON.stringify(next));
 }
 
+export function invalidateInAppNotifyPrefsCache(): void {
+  prefsCache = null;
+}
+
 /** Whether an in-app banner should surface for this category (respects master-only gates). */
 export function isInAppBannerAllowed(
   category: InAppNotifyCategory,
@@ -124,7 +82,7 @@ export function sanitizeInAppPrefsForAccount(
 ): InAppNotifyPrefs {
   const allowed = new Set(inAppNotifyCategoriesForUser(isMaster));
   const out: InAppNotifyPrefs = { ...DEFAULT_NOTIFY_PREFS, ...prefs };
-  for (const key of KEYS) {
+  for (const key of IN_APP_NOTIFY_PREF_KEYS) {
     if (key === 'enabled') continue;
     if (!allowed.has(key as InAppNotifyCategory)) {
       out[key] = false;
@@ -134,7 +92,7 @@ export function sanitizeInAppPrefsForAccount(
 }
 
 /** Rough bucket for dropdown filtering until DB adds a typed `notification_kind` column. */
-export function classifyInAppNotification(n: InAppNotification): InAppNotifyCategory {
+export function classifyInAppNotification(n: InAppNotificationLike): InAppNotifyCategory {
   const t = `${n.title} ${n.body}`.toLowerCase();
 
   if (

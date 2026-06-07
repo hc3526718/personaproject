@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   View,
   type LayoutChangeEvent,
 } from 'react-native';
@@ -19,7 +20,10 @@ import { DS } from '../designSystem';
 
 export type PostMediaItem = { kind: 'image' | 'video'; uri: string };
 
-const FEED_MEDIA_HEIGHT = 220;
+const FEED_MEDIA_HEIGHT_SINGLE = 220;
+const FEED_MEDIA_HEIGHT_MULTI = 168;
+const FEED_SLIDE_PEEK_RATIO = 0.88;
+const FEED_SLIDE_GAP = 8;
 
 type Props = {
   items: PostMediaItem[];
@@ -80,7 +84,11 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
         ? [{ kind: 'image', uri: fallbackImageUri }]
         : [];
 
+  const multi = displayItems.length > 1;
+  const feedHeight = multi ? FEED_MEDIA_HEIGHT_MULTI : FEED_MEDIA_HEIGHT_SINGLE;
   const feedPageW = feedCarouselW > 0 ? feedCarouselW : screenW;
+  const feedSlideW = multi ? Math.round(feedPageW * FEED_SLIDE_PEEK_RATIO) : feedPageW;
+  const feedSnap = feedSlideW + FEED_SLIDE_GAP;
   const modalPageW = modalCarouselW > 0 ? modalCarouselW : screenW;
   const modalMaxH = Math.round(Dimensions.get('window').height * 0.78);
 
@@ -91,14 +99,13 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
 
   const closeModal = useCallback(() => {
     setModalOpen(false);
-    const w = feedPageW;
     const idx = feedIndex;
     requestAnimationFrame(() => {
-      if (w > 0) {
-        feedScrollRef.current?.scrollTo({ x: idx * w, animated: false });
+      if (feedSnap > 0) {
+        feedScrollRef.current?.scrollTo({ x: idx * feedSnap, animated: false });
       }
     });
-  }, [feedIndex, feedPageW]);
+  }, [feedIndex, feedSnap]);
 
   useEffect(() => {
     if (!modalOpen || modalPageW <= 0) return;
@@ -110,7 +117,7 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
 
   const onFeedScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = e.nativeEvent.contentOffset.x;
-    const w = e.nativeEvent.layoutMeasurement.width || feedPageW;
+    const w = multi ? feedSnap : e.nativeEvent.layoutMeasurement.width || feedPageW;
     setFeedIndex(pageFromOffset(x, w));
   };
 
@@ -121,20 +128,24 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
   };
 
   const renderFeedSlide = (m: PostMediaItem, idx: number) => {
-    const slideW = feedPageW;
+    const slideW = multi ? feedSlideW : feedPageW;
     return (
       <Pressable
         key={`feed-${m.kind}-${m.uri}-${idx}`}
         onPress={() => openModal(idx)}
-        style={[styles.slide, slideW ? { width: slideW } : styles.slideFallback, { height: FEED_MEDIA_HEIGHT }]}
+        style={[
+          styles.slide,
+          slideW ? { width: slideW, marginRight: multi ? FEED_SLIDE_GAP : 0 } : styles.slideFallback,
+          { height: feedHeight },
+        ]}
       >
         {m.kind === 'image' ? (
-          <Image source={{ uri: m.uri }} style={styles.media} resizeMode="cover" />
+          <Image source={{ uri: m.uri }} style={styles.media} resizeMode="contain" />
         ) : (
           <Video
             source={{ uri: m.uri }}
             style={styles.media}
-            resizeMode={ResizeMode.COVER}
+            resizeMode={ResizeMode.CONTAIN}
             shouldPlay
             isMuted
             isLooping
@@ -144,6 +155,11 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
         {m.kind === 'video' ? (
           <View style={styles.muteBadge} pointerEvents="none">
             <FontAwesome name="volume-off" size={12} color={DS.color.white} />
+          </View>
+        ) : null}
+        {multi && idx === feedIndex && displayItems.length - feedIndex > 1 ? (
+          <View style={styles.moreBadge} pointerEvents="none">
+            <Text style={styles.moreBadgeTxt}>+{displayItems.length - feedIndex - 1}</Text>
           </View>
         ) : null}
       </Pressable>
@@ -174,11 +190,13 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
   return (
     <>
       <View style={styles.feedBlock}>
-        <View onLayout={onFeedLayout} style={styles.wrap}>
+        <View onLayout={onFeedLayout} style={[styles.wrap, { height: feedHeight }]}>
           <ScrollView
             ref={feedScrollRef}
             horizontal
-            pagingEnabled
+            pagingEnabled={!multi}
+            snapToInterval={multi ? feedSnap : undefined}
+            decelerationRate={multi ? 'fast' : 'normal'}
             showsHorizontalScrollIndicator={false}
             nestedScrollEnabled
             onMomentumScrollEnd={onFeedScroll}
@@ -188,7 +206,7 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
             {displayItems.map((m, idx) => renderFeedSlide(m, idx))}
           </ScrollView>
         </View>
-        {displayItems.length > 1 ? (
+        {multi ? (
           <View style={styles.dotsBelow}>
             <MediaDotPager count={displayItems.length} activeIndex={feedIndex} />
           </View>
@@ -197,7 +215,11 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
 
       <Modal visible={modalOpen} transparent animationType="fade" onRequestClose={closeModal}>
         <View style={[styles.modalRoot, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-          <Pressable style={styles.modalClose} onPress={closeModal} accessibilityLabel="Close media">
+          <Pressable
+            style={[styles.modalClose, { top: insets.top + DS.space.lg + 12 }]}
+            onPress={closeModal}
+            accessibilityLabel="Close media"
+          >
             <FontAwesome name="times" size={14} color={DS.color.white} />
           </Pressable>
           <View style={styles.modalPager} onLayout={onModalLayout}>
@@ -232,15 +254,14 @@ const styles = StyleSheet.create({
   },
   wrap: {
     width: '100%',
-    height: FEED_MEDIA_HEIGHT,
     borderRadius: DS.radius.lg,
     overflow: 'hidden',
     backgroundColor: DS.color.surfaceAlt,
   },
   slide: {
-    height: FEED_MEDIA_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: DS.color.surfaceAlt,
   },
   slideFallback: {
     width: '100%',
@@ -256,6 +277,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
     borderRadius: 12,
     padding: 6,
+  },
+  moreBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  moreBadgeTxt: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    color: DS.color.white,
   },
   dotsBelow: {
     alignItems: 'center',
@@ -273,7 +308,6 @@ const styles = StyleSheet.create({
   },
   modalClose: {
     position: 'absolute',
-    top: DS.space.lg,
     right: DS.space.lg,
     zIndex: 2,
     width: 32,

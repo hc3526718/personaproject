@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -8,7 +8,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
@@ -24,10 +23,11 @@ import {
   MAX_COMPOSER_IMAGES,
   MAX_COMPOSER_VIDEOS,
   MAX_COMPOSER_VIDEO_MS,
-  pickerAssetIsVideo,
   pickerVideoDurationMs,
   type ComposerMedia,
 } from '../../lib/mediaComposer';
+import { pickLocalComposerMedia } from '../../lib/pickLocalMedia';
+import { buildCaptionPlainText, buildCaptionForStorage } from '../../lib/captionHashtags';
 import { getSupabase } from '../../lib/supabase';
 import { isSupabaseConfigured } from '../../lib/env';
 import { uploadLocalUriToStorage } from '../../lib/uploadLocalFile';
@@ -36,6 +36,7 @@ import { normalizePostBodyForStorage, validateMentionsInText } from '../../lib/p
 import { insertCommunityPost, listAllEvents } from '../../roadmap/liveDataService';
 import type { CommunityStackParamList } from '../../navigation/types';
 import { useCommunityTheme } from './CommunityStylesContext';
+import { useKeyboardInset } from '../../hooks/useKeyboardInset';
 
 type Props = NativeStackScreenProps<CommunityStackParamList, 'CreateCommunityPost'>;
 
@@ -47,7 +48,6 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
   const isDemoUser = Boolean(user?.id?.startsWith('demo-'));
 
   const [captionValue, setCaptionValue] = useState({ body: '', hashtags: [] as string[] });
-  const [captionPlain, setCaptionPlain] = useState('');
   const [busy, setBusy] = useState(false);
   const [media, setMedia] = useState<ComposerMedia[]>([]);
   const [events, setEvents] = useState<{ id: string; title: string; starts_at: string }[]>([]);
@@ -55,6 +55,16 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
   const [eventPickerOpen, setEventPickerOpen] = useState(false);
 
   const showBanner = useActionBanner();
+  const keyboardInset = useKeyboardInset();
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollBottomPad =
+    32 + insets.bottom + keyboardInset + (keyboardInset > 0 ? 48 : 0);
+
+  const scrollCaptionIntoView = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
 
   useEffect(() => {
     if (!liveMode) return;
@@ -64,47 +74,29 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
   }, [liveMode]);
 
   const openPicker = useCallback(async () => {
-    if (Platform.OS !== 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
-    }
-
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsMultipleSelection: true,
-      quality: 0.92,
-      videoMaxDuration: Math.floor(MAX_COMPOSER_VIDEO_MS / 1000),
-      selectionLimit: MAX_COMPOSER_IMAGES + MAX_COMPOSER_VIDEOS,
+    const picked = await pickLocalComposerMedia({
+      title: 'Add photos or videos',
+      nativeSourcePicker: true,
     });
+    if (!picked.length) return;
 
-    if (res.canceled) return;
-
-    const nextIncoming: ComposerMedia[] = [];
-    for (const a of res.assets) {
-      const uri = a.uri;
-      if (pickerAssetIsVideo(a)) {
-        const durMs = pickerVideoDurationMs(a) ?? MAX_COMPOSER_VIDEO_MS;
-        if (durMs > MAX_COMPOSER_VIDEO_MS) continue;
-        nextIncoming.push({
-          kind: 'video',
-          uri,
-          durationMs: durMs,
-          mimeType: a.mimeType ?? undefined,
-        });
-      } else if (uri) {
-        nextIncoming.push({ kind: 'image', uri, mimeType: a.mimeType ?? undefined });
-      }
-    }
+    const nextIncoming: ComposerMedia[] = picked.map((f) => ({
+      kind: f.kind,
+      uri: f.uri,
+      mimeType: f.kind === 'video' ? 'video/mp4' : 'image/jpeg',
+    }));
 
     setMedia((prev) => clampComposerMedia([...prev, ...nextIncoming]));
   }, []);
+
+  const captionPlainPreview = buildCaptionPlainText(captionValue.body, captionValue.hashtags);
 
   const canPost = Boolean(
     user &&
       !isDemoUser &&
       liveMode &&
       media.length > 0 &&
-      canSubmitCommunityPost(user.id, { body: captionPlain }) &&
+      canSubmitCommunityPost(user.id, { body: captionPlainPreview }) &&
       !busy,
   );
 
@@ -119,19 +111,20 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
       Alert.alert('Add media', 'Choose at least one photo or video.');
       return;
     }
-    if (!canSubmitCommunityPost(user.id, { body: captionPlain })) {
+    if (!canSubmitCommunityPost(user.id, { body: buildCaptionPlainText(captionValue.body, captionValue.hashtags) })) {
       Alert.alert('Caption required', 'Add a caption before posting.');
       return;
     }
     setBusy(true);
     try {
-      const mentionErr = await validateMentionsInText(captionPlain);
+      const captionFinal = buildCaptionForStorage(captionValue.body);
+      const mentionErr = await validateMentionsInText(captionFinal);
       if (mentionErr) {
         Alert.alert('Unknown mention', mentionErr);
         return;
       }
       const eventTag = eventId ? `\n\n#event:${eventId}` : '';
-      const bodyStored = normalizePostBodyForStorage(captionPlain.trim());
+      const bodyStored = normalizePostBodyForStorage(captionFinal.trim());
       const created = await insertCommunityPost(user.id, `${bodyStored}${eventTag}`);
       if ('error' in created) {
         Alert.alert('Could not post', created.error);
@@ -185,7 +178,7 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [user, isDemoUser, liveMode, captionPlain, eventId, navigation, media, showBanner]);
+  }, [user, isDemoUser, liveMode, captionValue, eventId, navigation, media, showBanner]);
 
   const first = media[0];
 
@@ -206,8 +199,10 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.createBody, { paddingBottom: 32 + insets.bottom }]}
+        ref={scrollRef}
+        contentContainerStyle={[styles.createBody, { paddingBottom: scrollBottomPad }]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.composerSectionKicker}>MEDIA</Text>
@@ -278,10 +273,10 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
         <View style={styles.captionCard}>
           <CaptionComposer
             value={captionValue}
-            onChange={(v, plain) => {
+            onChange={(v) => {
               setCaptionValue(v);
-              setCaptionPlain(plain);
             }}
+            onInputFocus={scrollCaptionIntoView}
             placeholder="@mention teammates — #hashtags"
             maxLength={4000}
           />

@@ -43,6 +43,7 @@ import {
   MessagesInboxScreen,
   NotificationsScreen,
 } from '../screens/communityScreens';
+import { NewMessageSearchScreen } from '../screens/community/NewMessageSearchScreen';
 import { PublicProfileScreen } from '../screens/PublicProfileScreen';
 import { FollowUserListScreen } from '../screens/FollowUserListScreen';
 import { ShareActivityScreen } from '../screens/ShareActivityScreen';
@@ -148,6 +149,7 @@ function CommunityStackNavigator() {
       <CommunityStack.Screen name="ShareActivity" component={ShareActivityScreen} />
       <CommunityStack.Screen name="Notifications" component={NotificationsScreen} />
       <CommunityStack.Screen name="MessagesInbox" component={MessagesInboxScreen} />
+      <CommunityStack.Screen name="NewMessageSearch" component={NewMessageSearchScreen} />
       <CommunityStack.Screen name="MessageThread" component={MessageThreadScreen} />
       <CommunityStack.Screen name="BrandPartner" component={BrandPartnerScreen} />
       <CommunityStack.Screen name="EditSponsor" component={EditSponsorWizardScreen} />

@@ -15,19 +15,14 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PostFeedMedia, type PostMediaItem } from './PostFeedMedia';
 import { DS } from '../designSystem';
 import type { PostCommentRow } from '../roadmap/communityInteractionsService';
 
-const SHEET_HEIGHT_RATIO = 0.62;
+const SHEET_HEIGHT_RATIO = 0.5;
 
 type Props = {
   visible: boolean;
   onClose: () => void;
-  postName: string;
-  postBody: string;
-  postMedia: PostMediaItem[];
-  postImageFallback?: string | null;
   comments: PostCommentRow[];
   commentDraft: string;
   onChangeDraft: (t: string) => void;
@@ -47,10 +42,6 @@ type Props = {
 export function PostCommentsSheet({
   visible,
   onClose,
-  postName,
-  postBody,
-  postMedia,
-  postImageFallback,
   comments,
   commentDraft,
   onChangeDraft,
@@ -90,21 +81,6 @@ export function PostCommentsSheet({
     <Modal visible={visible} transparent animationType="none" onRequestClose={closeAnimated}>
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={closeAnimated} />
-        <View style={[styles.postPeek, { paddingTop: insets.top + 8 }]}>
-          <Text style={[styles.peekName, { color: colors.gold }]} numberOfLines={1}>
-            {postName}
-          </Text>
-          {postBody.trim() ? (
-            <Text style={[styles.peekBody, { color: colors.text }]} numberOfLines={3}>
-              {postBody}
-            </Text>
-          ) : null}
-          {postMedia.length > 0 || postImageFallback ? (
-            <View style={styles.peekMedia}>
-              <PostFeedMedia items={postMedia} fallbackImageUri={postImageFallback} />
-            </View>
-          ) : null}
-        </View>
         <Animated.View
           style={[
             styles.sheet,
@@ -190,28 +166,7 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  postPeek: {
-    paddingHorizontal: DS.space.base,
-    paddingBottom: DS.space.sm,
-    maxHeight: '36%',
-  },
-  peekName: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  peekBody: {
-    fontFamily: DS.font.body,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: DS.space.sm,
-  },
-  peekMedia: {
-    borderRadius: DS.radius.lg,
-    overflow: 'hidden',
-    maxHeight: 140,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   sheet: {
     borderTopLeftRadius: 20,

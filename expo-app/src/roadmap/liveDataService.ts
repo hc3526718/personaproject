@@ -249,9 +249,18 @@ export async function insertCommunityPost(
 export async function deleteCommunityPost(postId: string): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase) return false;
-  // PostgREST often returns `{ error: null }` when RLS denies delete (0 rows);
-  // only treat delete as successful when we get a returning row back.
   const { data, error } = await supabase.from('posts').delete().eq('id', postId).select('id');
+  if (error) return false;
+  return Array.isArray(data) && data.length > 0;
+}
+
+/** Updates post body (RLS: author). */
+export async function updateCommunityPost(postId: string, body: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const trimmed = body.trim();
+  if (!trimmed) return false;
+  const { data, error } = await supabase.from('posts').update({ body: trimmed }).eq('id', postId).select('id');
   if (error) return false;
   return Array.isArray(data) && data.length > 0;
 }

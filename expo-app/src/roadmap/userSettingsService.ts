@@ -1,6 +1,6 @@
 import { getSupabase } from '../lib/supabase';
 import type { AccessibilityPrefsCloud } from '../lib/accessibilityPrefs';
-import type { InAppNotifyPrefs } from '../lib/notificationBannerPrefs';
+import type { InAppNotifyPrefs } from '../lib/inAppNotifyTypes';
 
 /** Stored in `user_settings.preferences` (JSON). */
 export type UserPrefsDoc = {

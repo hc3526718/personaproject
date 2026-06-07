@@ -37,7 +37,6 @@ import { getSignInMethods } from '../lib/authSignInMethods';
 import { getSupabase } from '../lib/supabase';
 import type { ProfileStackParamList } from '../navigation/types';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
-import * as ImagePicker from 'expo-image-picker';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import { capitalizeProfileTag } from '../lib/capitalizeProfileTags';
 import { STRIPE_CUSTOMER_PORTAL_LOGIN_URL } from '../constants/stripePortal';
@@ -922,26 +921,9 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
 
   const pickPhoto = useCallback(async () => {
     if (!user?.id || !live) return;
-    let uri: string | undefined;
-    if (Platform.OS === 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission needed', 'Allow photo library access to choose a profile photo.');
-        return;
-      }
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.9,
-      });
-      if (res.canceled || !res.assets[0]?.uri) return;
-      uri = res.assets[0].uri;
-    } else {
-      const picked = await pickLocalImage({ title: 'Profile photo' });
-      if (!picked[0]?.uri) return;
-      uri = picked[0].uri;
-    }
+    const picked = await pickLocalImage({ title: 'Profile photo' });
+    const uri = picked[0]?.uri;
+    if (!uri) return;
     const previousPreview = localPreview ?? avatarUri;
     setLocalPreview(uri);
     setBusy(true);
@@ -1497,26 +1479,9 @@ export function EditProfileSectionDetailScreen({
 
   const pickBannerImage = useCallback(async () => {
     if (!user?.id || !live) return;
-    let pickedUri: string | undefined;
-    if (Platform.OS === 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission needed', 'Allow photo library access to choose a banner image.');
-        return;
-      }
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [3, 1],
-        quality: 0.9,
-      });
-      if (res.canceled || !res.assets[0]?.uri) return;
-      pickedUri = res.assets[0].uri;
-    } else {
-      const picked = await pickLocalImage({ title: 'Banner image' });
-      if (!picked[0]?.uri) return;
-      pickedUri = picked[0].uri;
-    }
+    const picked = await pickLocalImage({ title: 'Banner image' });
+    const pickedUri = picked[0]?.uri;
+    if (!pickedUri) return;
     setUploadingImage(true);
     const uploaded = await uploadAndSaveProfileImage(user.id, pickedUri, 'banner');
     setUploadingImage(false);

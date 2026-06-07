@@ -166,7 +166,11 @@ export function CreateEventWizard({ navigation }: Props) {
       if (picked?.uri) setAssets((prev) => [...prev, { uri: picked.uri, kind: 'image' }]);
       return;
     }
-    const picked = await pickLocalImage({ multiple: true, title: 'Event images' });
+    const picked = await pickLocalImage({
+      multiple: true,
+      title: 'Event images',
+      nativeSourcePicker: true,
+    });
     if (!picked.length) return;
     setAssets((prev) => [
       ...prev,
@@ -180,7 +184,7 @@ export function CreateEventWizard({ navigation }: Props) {
       if (picked?.uri) setAssets((prev) => [...prev, { uri: picked.uri, kind: 'video' }]);
       return;
     }
-    const picked = await pickLocalVideo({ title: 'Event video' });
+    const picked = await pickLocalVideo({ title: 'Event video', nativeSourcePicker: true });
     const file = picked[0];
     if (!file) return;
     setAssets((prev) => [...prev, { uri: file.uri, kind: 'video' }]);

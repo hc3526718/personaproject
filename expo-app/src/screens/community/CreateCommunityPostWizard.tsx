@@ -10,7 +10,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { pickLocalComposerMedia } from '../../lib/pickLocalMedia';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
@@ -27,8 +26,6 @@ import {
   MAX_COMPOSER_IMAGES,
   MAX_COMPOSER_VIDEOS,
   MAX_COMPOSER_VIDEO_MS,
-  pickerAssetIsVideo,
-  pickerVideoDurationMs,
   type ComposerMedia,
 } from '../../lib/mediaComposer';
 import { getSupabase } from '../../lib/supabase';
@@ -69,32 +66,10 @@ export function CreateCommunityPostWizard({ navigation }: Props) {
   }, [liveMode]);
 
   const openPicker = useCallback(async () => {
-    if (Platform.OS === 'web') {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) return;
-      const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images', 'videos'],
-        allowsMultipleSelection: true,
-        quality: 0.92,
-        videoMaxDuration: Math.floor(MAX_COMPOSER_VIDEO_MS / 1000),
-        selectionLimit: MAX_COMPOSER_IMAGES + MAX_COMPOSER_VIDEOS,
-      });
-      if (res.canceled) return;
-      const next: ComposerMedia[] = [];
-      for (const a of res.assets) {
-        const uri = a.uri;
-        if (pickerAssetIsVideo(a)) {
-          const durMs = pickerVideoDurationMs(a) ?? MAX_COMPOSER_VIDEO_MS;
-          if (durMs > MAX_COMPOSER_VIDEO_MS) continue;
-          next.push({ kind: 'video', uri, durationMs: durMs, mimeType: a.mimeType ?? undefined });
-        } else if (uri) {
-          next.push({ kind: 'image', uri, mimeType: a.mimeType ?? undefined });
-        }
-      }
-      setMedia((prev) => clampComposerMedia([...prev, ...next]));
-      return;
-    }
-    const picked = await pickLocalComposerMedia({ title: 'Post photos or video' });
+    const picked = await pickLocalComposerMedia({
+      title: 'Post photos or video',
+      nativeSourcePicker: true,
+    });
     if (!picked.length) return;
     const next: ComposerMedia[] = [];
     for (const f of picked) {

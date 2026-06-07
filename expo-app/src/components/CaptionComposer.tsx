@@ -13,8 +13,9 @@ import { useMentions, type TriggersConfig } from 'react-native-controlled-mentio
 import { DS } from '../designSystem';
 import {
   buildCaptionPlainText,
-  peelHashtagsFromCaption,
-  removeHashtag,
+  getPendingHashtagFromCaption,
+  removeHashtagFromText,
+  syncHashtagsFromCaption,
 } from '../lib/captionHashtags';
 import { searchMentionableUsers, type MentionCandidate } from '../lib/mentionSearch';
 
@@ -26,6 +27,7 @@ export type CaptionComposerValue = {
 type Props = {
   value: CaptionComposerValue;
   onChange: (value: CaptionComposerValue, plainText: string) => void;
+  onInputFocus?: () => void;
   placeholder?: string;
   maxLength?: number;
   style?: StyleProp<ViewStyle>;
@@ -105,11 +107,12 @@ function MentionSuggestions({
 
 /**
  * Caption with gold @mentions (controlled-mentions) and a separate hashtag tray.
- * Typing `#tag` + space moves the tag into the tray instantly.
+ * Hashtags complete when followed by space, another `#`, or on post submit — not per keystroke.
  */
 export function CaptionComposer({
   value,
   onChange,
+  onInputFocus,
   placeholder = "What's happening? @mention teammates",
   maxLength = 4000,
   style,
@@ -126,15 +129,14 @@ export function CaptionComposer({
 
   const handleBodyChange = useCallback(
     (raw: string) => {
-      const { body, addedTags, pendingTag: pending } = peelHashtagsFromCaption(raw);
-      setPendingTag(pending);
-      const mergedTags = [...value.hashtags];
-      for (const t of addedTags) {
-        if (!mergedTags.some((x) => x.toLowerCase() === t.toLowerCase())) mergedTags.push(t);
-      }
-      emit(body, mergedTags);
+      const hashtags = syncHashtagsFromCaption(raw, false);
+      const pending = getPendingHashtagFromCaption(raw);
+      const pendingDisplay =
+        pending && !hashtags.some((t) => t.toLowerCase() === pending.toLowerCase()) ? pending : null;
+      setPendingTag(pendingDisplay);
+      emit(raw, hashtags);
     },
-    [emit, value.hashtags],
+    [emit],
   );
 
   const { textInputProps, triggers } = useMentions({
@@ -144,7 +146,8 @@ export function CaptionComposer({
   });
 
   const removeTag = (tag: string) => {
-    emit(value.body, removeHashtag(value.hashtags, tag));
+    const nextBody = removeHashtagFromText(value.body, tag);
+    emit(nextBody, syncHashtagsFromCaption(nextBody, false));
   };
 
   const showHashtagTray = value.hashtags.length > 0 || Boolean(pendingTag);
@@ -162,6 +165,9 @@ export function CaptionComposer({
         multiline
         style={styles.input}
         maxLength={maxLength}
+        onFocus={() => {
+          onInputFocus?.();
+        }}
       />
       {showHashtagTray ? (
         <View style={styles.hashtagTray}>
@@ -173,7 +179,7 @@ export function CaptionComposer({
                 <Text style={styles.hashtagChipX}> ×</Text>
               </Pressable>
             ))}
-            {pendingTag != null ? (
+            {pendingTag != null && pendingTag.length > 0 ? (
               <View style={[styles.hashtagChip, styles.hashtagChipPending]}>
                 <Text style={styles.hashtagChipText}>#{pendingTag}</Text>
               </View>

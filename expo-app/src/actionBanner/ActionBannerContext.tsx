@@ -155,7 +155,7 @@ function createActionBannerStyles(c: AccessibleColors) {
     card: {
       width: '92%' as const,
       maxWidth: 520,
-      backgroundColor: c.panelStrong ?? c.surfaceAlt,
+      backgroundColor: c.surface,
       borderRadius: DS.radius.xl,
       paddingVertical: DS.space.md,
       paddingHorizontal: DS.space.base,

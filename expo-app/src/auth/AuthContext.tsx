@@ -25,7 +25,6 @@ import { AUTH_BOOT_UNLOCK_MS, AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/b
 import { warmDaltonBootVideoCache } from '../constants/daltonBootVideo';
 import { setAllowMessagesFrom } from '../messaging/messagingPrefs';
 import { ensureProfileRow, fetchProfileByUserId } from '../roadmap/profileService';
-import { captureAuthSessionTimeout } from '../monitoring/sentryBoot';
 import { ensureDefaultDaltonVerifiedMetadata } from './userMetadataSupabase';
 import {
   DEMO_EMAIL,
@@ -222,7 +221,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const slowSessionId = setTimeout(() => {
       if (cancelled || sessionResolved) return;
-      captureAuthSessionTimeout();
+      try {
+        require('../monitoring/sentryBoot').captureAuthSessionTimeout();
+      } catch {
+        /* Sentry optional */
+      }
     }, AUTH_GET_SESSION_TIMEOUT_MS);
 
     (async () => {

@@ -61,6 +61,7 @@ function patchConsoleErrorForSentry(): void {
 
 /** Call once at startup (from `index.ts`). No-op when DSN unset or SDK missing. */
 export function initSentryFromEnv(): void {
+  if (process.env.EXPO_PUBLIC_DISABLE_SENTRY_NATIVE === '1') return;
   if (inited || !dsn) return;
   const Sentry = loadSentry();
   if (!Sentry) {

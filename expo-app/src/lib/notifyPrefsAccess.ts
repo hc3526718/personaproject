@@ -1,4 +1,7 @@
-import type { InAppNotifyCategory } from './notificationBannerPrefs';
+/** Types only from inAppNotifyTypes — never import notificationBannerPrefs (Metro cycle). See docs/BOOT_GUARDRAILS.md */
+import type { InAppNotifyCategory } from './inAppNotifyTypes';
+
+export type { InAppNotifyCategory } from './inAppNotifyTypes';
 
 export type NotifyPrefsUser = {
   masterControl?: boolean;
