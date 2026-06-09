@@ -1,3 +1,4 @@
+import { safeGetSession } from '../auth/authSessionRecovery';
 import { getMasterDeleteUserEdgeUrl, getSupabaseAnonKey, getVerifyMasterPinEdgeUrl } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 
@@ -8,8 +9,8 @@ export async function verifyMasterPin(
   const supabase = getSupabase();
   if (!supabase) return { ok: false, message: 'Supabase is not configured.' };
 
-  const { data: sess } = await supabase.auth.getSession();
-  const token = sess.session?.access_token;
+  const session = await safeGetSession(supabase);
+  const token = session?.access_token;
   if (!token) return { ok: false, message: 'Sign in required.' };
 
   try {
@@ -188,8 +189,8 @@ export async function masterDeleteUserAccount(
 ): Promise<{ ok: boolean; message?: string }> {
   const supabase = getSupabase();
   if (!supabase) return { ok: false, message: 'Supabase not configured' };
-  const { data: sess } = await supabase.auth.getSession();
-  const token = sess.session?.access_token;
+  const session = await safeGetSession(supabase);
+  const token = session?.access_token;
   if (!token) return { ok: false, message: 'Not signed in' };
   try {
     const res = await fetch(getMasterDeleteUserEdgeUrl(), {

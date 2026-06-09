@@ -1,3 +1,4 @@
+import { safeGetSession } from '../auth/authSessionRecovery';
 import { getSupabase } from '../lib/supabase';
 import { getApiBaseUrl } from '../lib/env';
 
@@ -21,8 +22,8 @@ export async function apiFetch(
   const headers = new Headers(init.headers);
   const supabase = getSupabase();
   if (supabase) {
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    const session = await safeGetSession(supabase);
+    const token = session?.access_token;
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
   return fetch(url, { ...init, headers });

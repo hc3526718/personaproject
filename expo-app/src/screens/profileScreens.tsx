@@ -20,6 +20,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { safeGetSession } from '../auth/authSessionRecovery';
 import { deleteOwnAccount } from '../auth/accountDeletionService';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { HighlightVideoModal } from '../components/HighlightVideoModal';
@@ -557,8 +558,8 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
             const confirmDelete = async (phrase: string) => {
               const client = getSupabase();
               if (!client) return;
-              const { data } = await client.auth.getSession();
-              const token = data.session?.access_token;
+              const session = await safeGetSession(client);
+              const token = session?.access_token;
               if (!token) {
                 Alert.alert('Delete account', 'Session expired. Sign in again and retry.');
                 return;

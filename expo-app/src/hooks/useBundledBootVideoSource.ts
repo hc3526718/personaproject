@@ -4,7 +4,7 @@ import { DALTON_BOOT_VIDEO_NATIVE } from '../constants/daltonBootVideoNativeAsse
 type BootVideoSource = { uri: string } | number;
 
 /**
- * Resolves bundled VideoP.mp4 to a local file URI on device (large assets need expo-asset).
+ * Resolves `expo-app/assets/VideoP.mp4` to a local file URI on device (large assets need expo-asset).
  */
 export function useBundledBootVideoSource(): BootVideoSource | null {
   const [source, setSource] = useState<BootVideoSource | null>(DALTON_BOOT_VIDEO_NATIVE);

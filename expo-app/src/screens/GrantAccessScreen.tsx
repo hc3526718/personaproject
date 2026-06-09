@@ -119,7 +119,7 @@ export default function GrantAccessScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={S.loginLogoRow}>
-          <AuthWelcomeRiveHero height={120} />
+          <AuthWelcomeRiveHero variant="form" />
         </View>
         {signupConfirmEmail ? (
           <View style={local.confirmBanner}>

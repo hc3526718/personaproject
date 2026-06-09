@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { attachSupabaseAuthRecovery } from '../auth/authSessionRecovery';
 import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from './env';
 import { supabaseAuthStorage } from './supabaseAuthStorage';
 
@@ -35,6 +36,7 @@ export function getSupabase(): SupabaseClient | null {
         flowType: 'pkce',
       },
     });
+    attachSupabaseAuthRecovery(client);
   }
   return client;
 }

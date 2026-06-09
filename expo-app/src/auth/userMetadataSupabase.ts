@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { safeGetSession } from './authSessionRecovery';
 
 /**
  * Ensures new and legacy users have an explicit `dalton_verified` key in auth user_metadata
@@ -6,11 +7,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  */
 export async function ensureDefaultDaltonVerifiedMetadata(supabase: SupabaseClient): Promise<void> {
   try {
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabase.auth.getUser();
-    if (userErr || !user?.id) return;
+    const session = await safeGetSession(supabase);
+    const user = session?.user;
+    if (!user?.id) return;
     const meta = user.user_metadata as Record<string, unknown> | undefined;
     if (meta && Object.prototype.hasOwnProperty.call(meta, 'dalton_verified')) {
       return;
@@ -31,11 +30,9 @@ export async function syncDaltonVerifiedFromProfileIfPremium(
   supabase: SupabaseClient,
   _isPro: boolean,
 ): Promise<{ updated: boolean }> {
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabase.auth.getUser();
-  if (userErr || !user?.id) return { updated: false };
+  const session = await safeGetSession(supabase);
+  const user = session?.user;
+  if (!user?.id) return { updated: false };
 
   const { data: profile, error: profileErr } = await supabase
     .from('profiles')

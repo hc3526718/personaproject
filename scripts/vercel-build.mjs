@@ -2,7 +2,8 @@
  * Vercel build: static HTML at repo root + Expo web export under /app.
  */
 import { execSync } from 'node:child_process';
-import { cp, mkdir, readdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -52,6 +53,41 @@ function runExpoExport() {
   }
 }
 
+/** Auth hero video — always `expo-app/assets/VideoP.mp4` (served at `/app/VideoP.mp4`). */
+async function stageAuthVideoForWeb() {
+  const src = join(expoDir, 'assets', 'VideoP.mp4');
+  if (!existsSync(src)) {
+    console.warn('[vercel-build] assets/VideoP.mp4 missing — skip auth video staging');
+    return null;
+  }
+  const pubDir = join(expoDir, 'public');
+  await mkdir(pubDir, { recursive: true });
+  await cp(src, join(pubDir, 'VideoP.mp4'));
+  console.log('[vercel-build] Staged assets/VideoP.mp4 → public/VideoP.mp4');
+  return src;
+}
+
+async function ensureAuthVideoInAppOutput(authVideoSrc) {
+  if (!authVideoSrc || !existsSync(authVideoSrc)) return;
+  await cp(authVideoSrc, join(appDir, 'VideoP.mp4'));
+  console.log('[vercel-build] Ensured /app/VideoP.mp4 from assets/VideoP.mp4');
+}
+
+async function injectAuthVideoPreload() {
+  const indexPath = join(appDir, 'index.html');
+  if (!existsSync(indexPath)) {
+    console.warn('[vercel-build] app/index.html missing — skip auth video preload');
+    return;
+  }
+  const href = '/app/VideoP.mp4';
+  let html = await readFile(indexPath, 'utf8');
+  if (html.includes('data-dga-auth-video-preload')) return;
+  const tag = `<link rel="preload" href="${href}" as="video" type="video/mp4" data-dga-auth-video-preload="1">`;
+  html = html.replace('</head>', `  ${tag}\n</head>`);
+  await writeFile(indexPath, html, 'utf8');
+  console.log('[vercel-build] Injected auth VideoP preload into app/index.html');
+}
+
 function runMarketingUiBuild() {
   const marketingDir = join(root, 'marketing-ui');
   console.log('[vercel-build] Building marketing-ui (StaggeredMenu + CardSwap)');
@@ -65,6 +101,7 @@ function runMarketingUiBuild() {
 
 async function main() {
   runMarketingUiBuild();
+  const authVideoSrc = await stageAuthVideoForWeb();
   runExpoExport();
 
   await mkdir(outDir, { recursive: true });
@@ -72,6 +109,8 @@ async function main() {
 
   const dist = join(expoDir, 'dist');
   await copyDir(dist, appDir);
+  await ensureAuthVideoInAppOutput(authVideoSrc);
+  await injectAuthVideoPreload();
 
   const entries = await readdir(root, { withFileTypes: true });
   for (const ent of entries) {

@@ -4,6 +4,7 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { safeGetSession } from './authSessionRecovery';
 import { BRAND_WEB_ORIGIN } from '../constants/brand';
 import { getDaltonWebUrl } from '../lib/env';
 
@@ -152,16 +153,16 @@ export async function completeWebOAuthSessionIfNeeded(
     const returnUrl = window.location.href;
     const code = parseOAuthCodeFromReturnUrl(returnUrl);
     if (code) {
-      const { data: existing } = await supabase.auth.getSession();
-      if (existing.session) {
+      const existing = await safeGetSession(supabase);
+      if (existing) {
         cleanupWebAuthUrlAfterSignIn();
         return { exchanged: true };
       }
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
         if (isPkceVerifierMissingError(error.message)) {
-          const { data: after } = await supabase.auth.getSession();
-          if (after.session) {
+          const after = await safeGetSession(supabase);
+          if (after) {
             cleanupWebAuthUrlAfterSignIn();
             return { exchanged: true };
           }

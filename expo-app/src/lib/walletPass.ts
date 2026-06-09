@@ -9,6 +9,7 @@ import {
   isAppleWalletPassNativeAvailable,
   presentAppleWalletPassFromBase64,
 } from 'apple-wallet-pass';
+import { safeGetSession } from '../auth/authSessionRecovery';
 import { getSupabase } from './supabase';
 import { getSupabaseUrl } from './env';
 
@@ -114,8 +115,8 @@ export async function addEventPassToAppleWallet(input: WalletPassInput): Promise
     return;
   }
 
-  const { data: session } = await supabase.auth.getSession();
-  const token = session.session?.access_token;
+  const session = await safeGetSession(supabase);
+  const token = session?.access_token;
   if (!token) {
     logWalletPass('blocked', { reason: 'no_auth_session', bookingId: input.bookingId });
     Alert.alert('Wallet unavailable', 'Sign in to add your pass to Apple Wallet.');

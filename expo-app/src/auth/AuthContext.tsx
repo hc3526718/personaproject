@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Session, SupabaseClient } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 import { isSupabaseConfigured } from '../lib/env';
@@ -22,7 +22,7 @@ import {
 } from './oauthSupabase';
 import { authAlert } from './authAlert';
 import { AUTH_BOOT_UNLOCK_MS, AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/bootTiming';
-import { warmDaltonBootVideoCache } from '../constants/daltonBootVideo';
+import { warmDaltonAuthVideoCache } from '../constants/daltonAuthVideo';
 import { setAllowMessagesFrom } from '../messaging/messagingPrefs';
 import { ensureProfileRow, fetchProfileByUserId } from '../roadmap/profileService';
 import { ensureDefaultDaltonVerifiedMetadata } from './userMetadataSupabase';
@@ -33,6 +33,12 @@ import {
   isPremiumDemoEmail,
   PREMIUM_DEMO_EMAIL,
 } from './demoAccounts';
+import {
+  clearStaleAuthSession,
+  isStaleRefreshTokenError,
+  recoverStaleAuthSession,
+  safeGetSession,
+} from './authSessionRecovery';
 import { hasVerifiedTotpFactor, needsMfaStepUp } from './mfaService';
 
 export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
@@ -106,30 +112,6 @@ function appUserFromSupabaseUser(u: {
   };
 }
 
-/** Stored Expo SecureSession tokens no longer valid server-side (e.g. after deleting Auth users). */
-function isStaleRefreshTokenError(err: unknown): boolean {
-  const raw =
-    typeof err === 'object' &&
-    err !== null &&
-    'message' in err &&
-    typeof (err as { message: unknown }).message === 'string'
-      ? (err as { message: string }).message
-      : '';
-  const m = raw.toLowerCase();
-  return (
-    m.includes('refresh token') &&
-    (m.includes('invalid') || m.includes('not found') || m.includes('revoked'))
-  );
-}
-
-async function clearLocalSupabaseSession(supabase: SupabaseClient): Promise<void> {
-  try {
-    await supabase.auth.signOut({ scope: 'local' });
-  } catch {
-    /* Storage may already be cleared */
-  }
-}
-
 function demoRoleForEmail(email: string): AppUser['role'] {
   const e = email.trim().toLowerCase();
   if (e === DEMO_EMAIL.toLowerCase()) return 'super_admin';
@@ -178,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Preload auth hero video while logged out (web preload + native hidden player). */
   useEffect(() => {
-    if (ready && !user) warmDaltonBootVideoCache();
+    if (ready && !user) warmDaltonAuthVideoCache();
   }, [ready, user]);
 
   useEffect(() => {
@@ -258,42 +240,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, AUTH_GET_SESSION_TIMEOUT_MS);
 
-    (async () => {
-      try {
-        if (Platform.OS === 'web') {
-          const oauth = await completeWebOAuthSessionIfNeeded(supabase);
-          if (oauth.error) {
-            const { data: afterOAuth } = await supabase.auth.getSession();
-            if (!afterOAuth.session) {
-              authAlert('Google sign in', oauth.error);
-            }
-          }
-        }
-        const { data, error } = await supabase.auth.getSession();
-        if (cancelled) return;
-        sessionResolved = true;
-        clearTimeout(unlockId);
-        clearTimeout(slowSessionId);
-        if (error && isStaleRefreshTokenError(error)) {
-          await clearLocalSupabaseSession(supabase);
-          setUser(null);
-          setReady(true);
-          return;
-        }
-        await applySessionUser(data.session ?? null);
-        setReady(true);
-      } catch (err) {
-        if (cancelled) return;
-        sessionResolved = true;
-        clearTimeout(unlockId);
-        clearTimeout(slowSessionId);
-        if (isStaleRefreshTokenError(err)) {
-          await clearLocalSupabaseSession(supabase);
-        }
-        setUser(null);
-        setReady(true);
-      }
-    })();
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (cancelled) return;
@@ -310,13 +256,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await applySessionUser(session);
       } catch (err) {
         if (!cancelled && isStaleRefreshTokenError(err)) {
-          await clearLocalSupabaseSession(supabase);
+          await recoverStaleAuthSession(supabase, err);
           setUser(null);
         }
       } finally {
         if (!cancelled) setReady(true);
       }
     });
+
+    (async () => {
+      try {
+        if (Platform.OS === 'web') {
+          const oauth = await completeWebOAuthSessionIfNeeded(supabase);
+          if (oauth.error) {
+            const afterOAuth = await safeGetSession(supabase);
+            if (!afterOAuth) {
+              authAlert('Google sign in', oauth.error);
+            }
+          }
+        }
+        const session = await safeGetSession(supabase);
+        if (cancelled) return;
+        sessionResolved = true;
+        clearTimeout(unlockId);
+        clearTimeout(slowSessionId);
+        await applySessionUser(session);
+        setReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        sessionResolved = true;
+        clearTimeout(unlockId);
+        clearTimeout(slowSessionId);
+        if (isStaleRefreshTokenError(err)) {
+          await recoverStaleAuthSession(supabase, err);
+        }
+        setUser(null);
+        setReady(true);
+      }
+    })();
     return () => {
       cancelled = true;
       clearTimeout(unlockId);
@@ -503,7 +480,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await supabase.auth.signOut();
       } catch {
-        await clearLocalSupabaseSession(supabase);
+        await clearStaleAuthSession(supabase);
       }
     }
     setUser(null);
@@ -531,19 +508,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return true;
     }
     setOAuthBusy(false);
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) {
-      setUser(appUserFromSupabaseUser(data.session.user));
+    const session = await safeGetSession(supabase);
+    if (session?.user) {
+      setUser(appUserFromSupabaseUser(session.user));
       void (async () => {
         try {
           const { data: profile } = await supabase
             .from('profiles')
             .select('dalton_verified, master_control')
-            .eq('id', data.session!.user.id)
+            .eq('id', session.user.id)
             .maybeSingle();
           if (profile?.dalton_verified || profile?.master_control === 'yes') {
             setUser((prev) =>
-              prev?.id === data.session!.user.id
+              prev?.id === session.user.id
                 ? {
                     ...prev,
                     daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
@@ -577,19 +554,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return false;
     }
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) {
-      setUser(appUserFromSupabaseUser(data.session.user));
+    const session = await safeGetSession(supabase);
+    if (session?.user) {
+      setUser(appUserFromSupabaseUser(session.user));
       void (async () => {
         try {
           const { data: profile } = await supabase
             .from('profiles')
             .select('dalton_verified, master_control')
-            .eq('id', data.session!.user.id)
+            .eq('id', session.user.id)
             .maybeSingle();
           if (profile?.dalton_verified || profile?.master_control === 'yes') {
             setUser((prev) =>
-              prev?.id === data.session!.user.id
+              prev?.id === session.user.id
                 ? {
                     ...prev,
                     daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,

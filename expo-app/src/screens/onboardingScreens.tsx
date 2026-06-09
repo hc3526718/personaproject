@@ -51,7 +51,7 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
       <AuthWebBackBar />
       <ScrollView contentContainerStyle={styles.welcomeScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeHero}>
-          <AuthWelcomeRiveHero height={220} />
+          <AuthWelcomeRiveHero variant="welcome" />
           <Text style={styles.welcomeAppName}>{BRAND_NAME}</Text>
         </View>
       </ScrollView>
@@ -133,7 +133,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.loginLogoRow}>
-          <AuthWelcomeRiveHero height={120} />
+          <AuthWelcomeRiveHero variant="form" />
         </View>
         <AuthFormField label="Email">
           <TextInput

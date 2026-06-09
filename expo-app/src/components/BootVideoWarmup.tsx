@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { preloadNativeBootVideo } from '../lib/preloadNativeBootVideo';
-import { warmDaltonBootVideoCache } from '../constants/daltonBootVideo';
+import { warmDaltonAuthVideoCache } from '../constants/daltonAuthVideo';
 
 /**
  * Preloads auth hero video without mounting a second `expo-av` player.
@@ -8,7 +8,7 @@ import { warmDaltonBootVideoCache } from '../constants/daltonBootVideo';
  */
 export function BootVideoWarmup() {
   useEffect(() => {
-    warmDaltonBootVideoCache();
+    warmDaltonAuthVideoCache();
     preloadNativeBootVideo();
   }, []);
 
