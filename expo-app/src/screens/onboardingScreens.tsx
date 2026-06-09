@@ -18,12 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AuthWebBackBar } from '../components/AuthWebBackBar';
 import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
+import { BrandLogo } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { authBackHandler } from '../lib/authNavigation';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { DS } from '../designSystem';
 import { BRAND_NAME } from '../constants/brand';
-import { openLegalPage } from '../lib/legalUrls';
 import type { AuthStackParamList } from '../navigation/types';
 
 type Props<K extends keyof AuthStackParamList> = NativeStackScreenProps<AuthStackParamList, K>;
@@ -39,22 +39,21 @@ function socialLabelStyle() {
 
 export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
   const insets = useSafeAreaInsets();
-  const { signInWithGoogle, signInWithApple, oAuthBusy } = useAuth();
   return (
     <View
       style={[
         styles.root,
-        { paddingBottom: insets.bottom + DS.space.lg },
-        Platform.OS !== 'web' && { paddingTop: insets.top + DS.space.md },
+        {
+          paddingBottom: insets.bottom + DS.space.lg,
+          paddingTop: (Platform.OS === 'web' ? DS.space.xl : insets.top) + DS.space.lg,
+        },
       ]}
     >
       <AuthWebBackBar />
-      <ScrollView contentContainerStyle={styles.welcomeScroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.welcomeHero}>
-          <AuthWelcomeRiveHero variant="welcome" />
-          <Text style={styles.welcomeAppName}>{BRAND_NAME}</Text>
-        </View>
-      </ScrollView>
+      <View style={styles.welcomeCenter}>
+        <BrandLogo width={88} height={88} style={styles.welcomeLogo} />
+        <Text style={styles.welcomeAppName}>{BRAND_NAME}</Text>
+      </View>
       <View style={styles.welcomeActions}>
         <AppleHeroButton onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}>
           Sign Up
@@ -62,45 +61,6 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
         <AppleHeroButton variant="ghost" onPress={() => navigation.navigate('LogIn')}>
           Log In
         </AppleHeroButton>
-        <View style={styles.orRow}>
-          <View style={styles.orLine} />
-          <Text style={styles.orText}>OR</Text>
-          <View style={styles.orLine} />
-        </View>
-        {Platform.OS === 'ios' ? (
-          <AppleHeroButton
-            variant="social"
-            loading={oAuthBusy}
-            onPress={() => void signInWithApple()}
-            style={styles.socialBtnMargin}
-          >
-            <View style={styles.socialInner}>
-              <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
-              <Text style={socialLabelStyle()}>Continue with Apple</Text>
-            </View>
-          </AppleHeroButton>
-        ) : null}
-        <AppleHeroButton
-          variant="social"
-          loading={oAuthBusy}
-          onPress={() => void signInWithGoogle()}
-          style={styles.socialBtnMargin}
-        >
-          <View style={styles.socialInner}>
-            <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
-            <Text style={socialLabelStyle()}>Continue with Google</Text>
-          </View>
-        </AppleHeroButton>
-        <Text style={styles.legal}>
-          By continuing, you agree to our{' '}
-          <Text style={styles.gold} onPress={() => void openLegalPage('/terms')}>
-            Terms
-          </Text>{' '}
-          and{' '}
-          <Text style={styles.gold} onPress={() => void openLegalPage('/privacy')}>
-            Privacy Policy
-          </Text>
-        </Text>
       </View>
     </View>
   );
@@ -230,7 +190,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
         </AppleHeroButton>
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Don&apos;t have an account? </Text>
-          <Pressable onPress={() => navigation.navigate('WelcomeHub')}>
+          <Pressable onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}>
             <Text style={styles.gold}>Create Account</Text>
           </Pressable>
         </View>
@@ -513,18 +473,14 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.md,
     textAlign: 'center',
   },
-  welcomeScroll: {
-    flexGrow: 1,
+  welcomeCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: DS.space.lg,
-    paddingTop: DS.space.xl,
-    alignItems: 'center',
-  },
-  welcomeHero: {
-    alignItems: 'center',
-    marginBottom: DS.space.md,
   },
   welcomeLogo: {
-    marginBottom: DS.space.md,
+    marginBottom: DS.space.lg,
   },
   welcomeAppName: {
     fontFamily: DS.font.heading,

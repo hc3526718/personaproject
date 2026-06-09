@@ -39,6 +39,7 @@ import {
   recoverStaleAuthSession,
   safeGetSession,
 } from './authSessionRecovery';
+import { mapSignUpErrorMessage } from './passwordValidation';
 import { hasVerifiedTotpFactor, needsMfaStepUp } from './mfaService';
 
 export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
@@ -440,7 +441,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
       if (error) {
-        return { ok: false, message: error.message };
+        return { ok: false, message: mapSignUpErrorMessage(error.message) };
       }
       if (data.session?.user) {
         return { ok: true, needsEmailConfirmation: false };

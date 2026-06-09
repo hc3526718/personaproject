@@ -14,10 +14,16 @@ import {
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { ScreenHeader } from '../components/ScreenHeader';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import {
+  signupPasswordErrorMessage,
+  validateSignupPassword,
+} from '../auth/passwordValidation';
 import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
+import { PasswordRequirementsHint } from '../components/PasswordRequirementsHint';
+import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { DS } from '../designSystem';
 import { isSupabaseConfigured } from '../lib/env';
 import type { AuthStackParamList } from '../navigation/types';
@@ -28,24 +34,17 @@ import { AuthFormField, authScreenSharedStyles as S } from './onboardingScreens'
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
 type GrantRoute = RouteProp<AuthStackParamList, 'GrantAccess'>;
 
-function socialLabelStyle() {
-  return {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: DS.color.text,
-  };
-}
-
 /** Sign-up form only. Opened from Welcome hub with `{ startAt: 'signup' }`. */
 export default function GrantAccessScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<GrantRoute>();
-  const { login, signUp, signInWithGoogle, signInWithApple, oAuthBusy } = useAuth();
+  const { login, signUp } = useAuth();
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [signupConfirmEmail, setSignupConfirmEmail] = useState<string | null>(null);
 
   useFocusEffect(
@@ -60,6 +59,15 @@ export default function GrantAccessScreen() {
     const trimmed = email.trim();
     if (!trimmed || !password) {
       Alert.alert('Missing fields', 'Enter email and password.');
+      return;
+    }
+    const strength = validateSignupPassword(password);
+    if (!strength.ok) {
+      Alert.alert('Weak password', signupPasswordErrorMessage(strength));
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Password', 'Passwords do not match.');
       return;
     }
     if (isSupabaseConfigured()) {
@@ -92,7 +100,7 @@ export default function GrantAccessScreen() {
       'Could not finish sign-up',
       'Please check your details and internet connection. If you already have an account, use Log In.',
     );
-  }, [email, password, login, signUp]);
+  }, [email, password, confirmPassword, login, signUp]);
 
   const dismissConfirmBanner = useCallback(() => {
     setSignupConfirmEmail(null);
@@ -101,6 +109,10 @@ export default function GrantAccessScreen() {
   const goWelcome = useCallback(() => {
     navigation.navigate('WelcomeHub');
   }, [navigation]);
+
+  const showConfirmField = password.length > 0;
+  const passwordsMismatch =
+    showConfirmField && confirmPassword.length > 0 && password !== confirmPassword;
 
   if (route.params?.startAt !== 'signup') {
     return <View style={local.hold} />;
@@ -154,6 +166,8 @@ export default function GrantAccessScreen() {
               secureTextEntry={!passwordVisible}
               value={password}
               onChangeText={setPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
             />
             <Pressable onPress={() => setPasswordVisible((v) => !v)} hitSlop={8}>
               <FontAwesome
@@ -164,37 +178,35 @@ export default function GrantAccessScreen() {
             </Pressable>
           </View>
         </AuthFormField>
+        <PasswordRequirementsHint password={password} />
+        {showConfirmField ? (
+          <AuthFormField label="Confirm password">
+            <View style={S.inputRow}>
+              <TextInput
+                style={[S.inputCompact, S.inputFlex, passwordsMismatch && local.inputMismatch]}
+                placeholder="Repeat password"
+                placeholderTextColor={DS.color.textMuted}
+                secureTextEntry={!confirmVisible}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Pressable onPress={() => setConfirmVisible((v) => !v)} hitSlop={8}>
+                <FontAwesome
+                  name={confirmVisible ? 'eye-slash' : 'eye'}
+                  size={18}
+                  color={DS.color.textMuted}
+                />
+              </Pressable>
+            </View>
+            {passwordsMismatch ? (
+              <Text style={local.mismatchHint}>Passwords do not match.</Text>
+            ) : null}
+          </AuthFormField>
+        ) : null}
         <AppleHeroButton style={{ marginTop: DS.space.sm }} onPress={() => void tryCreateAccount()}>
           Sign Up
-        </AppleHeroButton>
-        <View style={S.orRow}>
-          <View style={S.orLine} />
-          <Text style={S.orText}>OR</Text>
-          <View style={S.orLine} />
-        </View>
-        {Platform.OS === 'ios' ? (
-          <AppleHeroButton
-            variant="social"
-            loading={oAuthBusy}
-            onPress={() => void signInWithApple()}
-            style={S.socialBtnMargin}
-          >
-            <View style={S.socialInner}>
-              <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
-              <Text style={socialLabelStyle()}>Continue with Apple</Text>
-            </View>
-          </AppleHeroButton>
-        ) : null}
-        <AppleHeroButton
-          variant="social"
-          loading={oAuthBusy}
-          onPress={() => void signInWithGoogle()}
-          style={S.socialBtnMargin}
-        >
-          <View style={S.socialInner}>
-            <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
-            <Text style={socialLabelStyle()}>Continue with Google</Text>
-          </View>
         </AppleHeroButton>
         <View style={S.footerRow}>
           <Text style={S.muted}>Already have an account? </Text>
@@ -210,11 +222,21 @@ export default function GrantAccessScreen() {
 const local = StyleSheet.create({
   hold: {
     flex: 1,
-    backgroundColor: DS.color.background,
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
   },
   root: {
     flex: 1,
-    backgroundColor: DS.color.background,
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
+  },
+  inputMismatch: {
+    borderWidth: 1,
+    borderColor: 'rgba(220, 80, 80, 0.65)',
+  },
+  mismatchHint: {
+    marginTop: 6,
+    fontFamily: DS.font.body,
+    fontSize: 12,
+    color: '#e07070',
   },
   confirmBanner: {
     marginBottom: DS.space.md,
