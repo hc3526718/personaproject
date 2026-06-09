@@ -79,6 +79,20 @@ async function copyMarketingSite() {
 }
 
 /** Marketing page transitions load /VideoP.mp4 from site root (not /app). */
+/** Public logo for Supabase Auth email templates (absolute HTTPS URL). */
+async function stageBrandLogoForEmail() {
+  const src = path.join(expoDir, 'assets', 'dalton_logo_final_img.png');
+  const brandDir = path.join(distDir, 'brand');
+  const dest = path.join(brandDir, 'dalton_logo_final_img.png');
+  if (!existsSync(src)) {
+    console.warn('[vercel-build] dalton_logo_final_img.png missing — skip brand/');
+    return;
+  }
+  await mkdir(brandDir, { recursive: true });
+  await cp(src, dest);
+  console.log('[vercel-build] Staged brand logo → /brand/dalton_logo_final_img.png');
+}
+
 async function stageBootVideoForMarketing() {
   const src = path.join(expoDir, 'assets', 'VideoP.mp4');
   const dest = path.join(distDir, 'VideoP.mp4');
@@ -119,6 +133,7 @@ async function main() {
   runExpoExport();
   await injectAppVideoPreload();
   await copyMarketingSite();
+  await stageBrandLogoForEmail();
   await stageBootVideoForMarketing();
 
   console.log('[vercel-build] Done:', distDir);

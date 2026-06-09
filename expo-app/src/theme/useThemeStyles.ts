@@ -22,6 +22,8 @@ export function useThemedStackScreenOptions() {
     () => ({
       headerShown: false as const,
       contentStyle: { backgroundColor: colors.background },
+      // Keep inactive screens warm so returning does not feel frozen.
+      freezeOnBlur: false,
     }),
     [colors.background],
   );

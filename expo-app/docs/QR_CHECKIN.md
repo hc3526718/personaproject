@@ -6,7 +6,8 @@
 `base64url(JSON payload).hex_sha256(secret + "." + base64url)`
 
 - **Payload** (`TicketPayloadV1`): `{ v, ref, uid, eventId?, exp }` (see `src/booking/ticketToken.ts`).
-- **Secret**: `EXPO_PUBLIC_TICKET_SIGNING_SECRET` must match server `TICKET_HMAC_SECRET` in production (prefer server-only signing for prod).
+- **Production:** Edge Function `issue-ticket-token` signs with server-only `TICKET_HMAC_SECRET`. Remove `EXPO_PUBLIC_TICKET_SIGNING_SECRET` from release builds. Host check-in uses `verify-ticket-token` when the client secret is unset.
+- **Dev:** optional `EXPO_PUBLIC_TICKET_SIGNING_SECRET` for local signing fallback.
 
 ## Production flow
 1. On paid/confirmed booking, **API** issues token (or short-lived JWT) and stores `bookings.reference`.

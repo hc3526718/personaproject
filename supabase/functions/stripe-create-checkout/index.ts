@@ -121,12 +121,26 @@ Deno.serve(async (req) => {
       }
       const { data: ev, error: evErr } = await admin
         .from('events')
-        .select('id, title, requires_payment, stripe_price_id')
+        .select('id, title, requires_payment, stripe_price_id, registered_count, event_details')
         .eq('id', eventId)
         .maybeSingle();
       if (evErr || !ev?.id) {
         return new Response(JSON.stringify({ error: 'event_not_found' }), {
           status: 404,
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
+      const capRaw = (ev.event_details as { capacity?: unknown } | null)?.capacity;
+      const cap =
+        typeof capRaw === 'number'
+          ? capRaw
+          : typeof capRaw === 'string'
+            ? parseInt(capRaw, 10)
+            : NaN;
+      const registered = typeof ev.registered_count === 'number' ? ev.registered_count : 0;
+      if (Number.isFinite(cap) && cap > 0 && registered >= cap) {
+        return new Response(JSON.stringify({ error: 'event_full' }), {
+          status: 409,
           headers: { ...cors, 'Content-Type': 'application/json' },
         });
       }

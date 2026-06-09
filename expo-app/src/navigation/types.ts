@@ -76,8 +76,8 @@ export type EventsStackParamList = {
     imageUri?: string;
     scheduleLine?: string;
     supabaseEventId?: string;
-    requiresPayment?: boolean;
-    stripePriceId?: string | null;
+    /** Shown when host set entry payment notice (no in-app checkout). */
+    entryPaymentLine?: string | null;
   };
   BookingConfirm: BookingConfirmParams | undefined;
   StaffCheckIn: undefined;
@@ -108,6 +108,8 @@ export type ProfileStackParamList = {
   Accessibility: undefined;
   AccountSecurity: undefined;
   ChangePassword: undefined;
+  ChangeEmail: undefined;
+  MfaEnroll: { required?: boolean } | undefined;
   PrivacyVisibility: undefined;
   NotificationPrefs: undefined;
   FollowRequests: undefined;
@@ -171,4 +173,6 @@ export type RootStackParamList = {
   Main: undefined;
   /** Forced after email password-recovery deep link (temporary session). */
   PasswordRecovery: undefined;
+  /** TOTP step-up after sign-in when MFA is enrolled. */
+  MfaChallenge: undefined;
 };

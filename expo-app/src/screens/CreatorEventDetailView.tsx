@@ -211,8 +211,11 @@ export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onD
         ]}
       />
       <ScrollView
+        style={{ flex: 1 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + 28 }}
       >
         <Image source={{ uri: hero }} style={styles.hero} resizeMode="cover" />

@@ -11,15 +11,20 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { sendBookingConfirmationEmail } from '../_shared/bookingConfirmationEmail.ts';
-
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, isBrowserOriginAllowed } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
+  const cors = corsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: cors });
+  }
+
+  if (!isBrowserOriginAllowed(req)) {
+    return new Response(JSON.stringify({ error: 'origin_not_allowed' }), {
+      status: 403,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    });
   }
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), {

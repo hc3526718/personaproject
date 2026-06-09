@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusReload } from '../hooks/useFocusReload';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
@@ -44,13 +44,15 @@ export function PublicProfileScreen({ navigation, route }: Props) {
   const [following, setFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [bannerZoomOpen, setBannerZoomOpen] = useState(false);
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured() || !userId) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!profileRef.current) setLoading(true);
     const row = await fetchProfileByUserId(userId);
     setProfile(row);
     const counts = await getFollowCounts(userId);
@@ -63,11 +65,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
     setLoading(false);
   }, [userId, user?.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  useFocusReload(load);
 
   const bannerSource =
     profile?.banner_url?.trim()
@@ -142,29 +140,26 @@ export function PublicProfileScreen({ navigation, route }: Props) {
 
   return (
     <View style={[styles.root, webPageShellStyle()]}>
-      {loading ? (
-        <View style={[styles.loadingWrap, { paddingTop: insets.top + DS.space.xl }]}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={styles.backFab}>
-            <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
-          </Pressable>
-          <AppLoadingIndicator style={{ marginTop: 32 }} />
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={[
-            styles.scroll,
-            { paddingBottom: 48 + insets.bottom, paddingTop: insets.top },
-          ]}
-          showsVerticalScrollIndicator={false}
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: 48 + insets.bottom, paddingTop: insets.top },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={10}
+          style={[styles.backFab, { top: insets.top + DS.space.sm }]}
         >
-          <Pressable
-            onPress={() => navigation.goBack()}
-            hitSlop={10}
-            style={[styles.backFab, { top: insets.top + DS.space.sm }]}
-          >
-            <FontAwesome name="arrow-left" size={18} color="#FFFFFF" />
-          </Pressable>
+          <FontAwesome name="arrow-left" size={18} color="#FFFFFF" />
+        </Pressable>
 
+        {loading && !profile ? (
+          <AppLoadingIndicator style={{ marginTop: 48 }} />
+        ) : profile ? (
           <MemberProfileView
             profile={profile}
             displayName={displayName}
@@ -186,8 +181,10 @@ export function PublicProfileScreen({ navigation, route }: Props) {
             onToggleFollow={() => void toggleFollow()}
             onMessage={() => void openMessage()}
           />
-        </ScrollView>
-      )}
+        ) : (
+          <AppLoadingIndicator style={{ marginTop: 48 }} />
+        )}
+      </ScrollView>
 
       <Modal
         visible={bannerZoomOpen}

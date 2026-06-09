@@ -70,8 +70,23 @@ Deno.serve(async (req) => {
   }
 
   const userId = userData.user.id;
+  const clientIp =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    null;
 
   try {
+    const { error: auditErr } = await admin.from('security_audit_log').insert({
+      action: 'self_delete_account',
+      actor_user_id: userId,
+      target_user_id: userId,
+      client_ip: clientIp,
+      metadata: { user_agent: req.headers.get('user-agent') ?? null },
+    });
+    if (auditErr) {
+      console.error('[delete-own-account] audit_log_failed', auditErr.message);
+    }
+
     const { error: delErr } = await admin.auth.admin.deleteUser(userId);
     if (delErr) {
       return new Response(JSON.stringify({ error: delErr.message }), {

@@ -53,6 +53,8 @@ import type { AccessibleColors } from '../lib/accessibilityTheme';
 import { useThemeStyles } from '../theme/useThemeStyles';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
+import { hasVerifiedTotpFactor } from '../auth/mfaService';
+import { isStaffAccount } from '../auth/staffAccess';
 import { fetchProfileByUserId } from '../roadmap/profileService';
 import { fetchUserPrefsDoc, patchUserPrefsDoc } from '../roadmap/userSettingsService';
 
@@ -66,6 +68,8 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
   const [signingOutOthers, setSigningOutOthers] = useState(false);
   const [hasEmailPassword, setHasEmailPassword] = useState<boolean | null>(null);
   const [oauthLabel, setOauthLabel] = useState<string | null>(null);
+  const [mfaEnrolled, setMfaEnrolled] = useState<boolean | null>(null);
+  const staffAccount = isStaffAccount(user);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,25 +79,27 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
           if (alive) {
             setHasEmailPassword(false);
             setOauthLabel(null);
+            setMfaEnrolled(false);
           }
           return;
         }
-        const methods = await getSignInMethods();
+        const [methods, totp] = await Promise.all([getSignInMethods(), hasVerifiedTotpFactor()]);
         if (!alive) return;
         if (!methods) {
           setHasEmailPassword(null);
           setOauthLabel(null);
-          return;
-        }
-        setHasEmailPassword(methods.hasEmailPassword);
-        if (!methods.hasEmailPassword) {
-          if (methods.hasGoogle && methods.hasApple) setOauthLabel('Google and Apple');
-          else if (methods.hasGoogle) setOauthLabel('Google');
-          else if (methods.hasApple) setOauthLabel('Apple');
-          else setOauthLabel('your sign-in provider');
         } else {
-          setOauthLabel(null);
+          setHasEmailPassword(methods.hasEmailPassword);
+          if (!methods.hasEmailPassword) {
+            if (methods.hasGoogle && methods.hasApple) setOauthLabel('Google and Apple');
+            else if (methods.hasGoogle) setOauthLabel('Google');
+            else if (methods.hasApple) setOauthLabel('Apple');
+            else setOauthLabel('your sign-in provider');
+          } else {
+            setOauthLabel(null);
+          }
         }
+        setMfaEnrolled(totp);
       })();
       return () => {
         alive = false;
@@ -154,6 +160,19 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
           />
           {hasEmailPassword ? (
             <>
+              <Pressable
+                style={[styles.rowBtn, { marginTop: DS.space.md }]}
+                onPress={() => {
+                  if (isDemo) {
+                    showBanner('Sign in required', 'Email changes work for live accounts only.');
+                    return;
+                  }
+                  navigation.navigate('ChangeEmail');
+                }}
+              >
+                <Text style={styles.rowBtnText}>Change email address</Text>
+                <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+              </Pressable>
               <Text style={styles.labelSmSpaced}>Password</Text>
               <Pressable
                 style={styles.rowBtn}
@@ -177,21 +196,43 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
           ) : null}
         </View>
 
-        <Text style={styles.cardKickerSpaced}>Two-factor authentication</Text>
-        <View style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Authenticator app</Text>
-              <Text style={styles.toggleSub}>
-                Two-factor authentication is managed in Supabase Auth for your account. In-app enrollment will be added
-                in a future release; contact Support if you need MFA enabled before then.
-              </Text>
+        {staffAccount ? (
+          <>
+            <Text style={styles.cardKickerSpaced}>Two-factor authentication (required for staff)</Text>
+            <View style={styles.card}>
+              <View style={styles.toggleRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.toggleTitle}>Authenticator app</Text>
+                  <Text style={styles.toggleSub}>
+                    {mfaEnrolled
+                      ? 'Enrolled — you will enter a code when signing in and before Master Control.'
+                      : 'Required before Master Control. Scan a QR code with Google Authenticator, 1Password, or Authy.'}
+                  </Text>
+                </View>
+                <View style={[styles.statusPillMuted, mfaEnrolled && styles.statusPillOk]}>
+                  <Text style={[styles.statusPillMutedText, mfaEnrolled && styles.statusPillOkText]}>
+                    {mfaEnrolled ? 'On' : 'Off'}
+                  </Text>
+                </View>
+              </View>
+              {!mfaEnrolled ? (
+                <Pressable
+                  style={[styles.rowBtn, { marginTop: DS.space.md }]}
+                  onPress={() => {
+                    if (isDemo) {
+                      showBanner('Sign in required', 'MFA works for live accounts only.');
+                      return;
+                    }
+                    navigation.navigate('MfaEnroll', { required: false });
+                  }}
+                >
+                  <Text style={styles.rowBtnText}>Set up authenticator</Text>
+                  <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+                </Pressable>
+              ) : null}
             </View>
-            <View style={styles.statusPillMuted}>
-              <Text style={styles.statusPillMutedText}>Coming soon</Text>
-            </View>
-          </View>
-        </View>
+          </>
+        ) : null}
 
         <Text style={styles.cardKickerSpaced}>Sessions</Text>
         <View style={styles.card}>
@@ -350,6 +391,136 @@ export function ChangePasswordScreen({ navigation }: PProps<'ChangePassword'>) {
         </Pressable>
         <Pressable style={styles.ghostBtn} onPress={() => navigation.goBack()} disabled={busy}>
           <Text style={styles.ghostBtnText}>Cancel</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
+export function ChangeEmailScreen({ navigation }: PProps<'ChangeEmail'>) {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const showBanner = useActionBanner();
+  const [nextEmail, setNextEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        if (!user?.id || user.id.startsWith('demo-')) {
+          if (alive) setAllowed(false);
+          return;
+        }
+        const methods = await getSignInMethods();
+        if (!alive) return;
+        const ok = methods?.hasEmailPassword === true;
+        setAllowed(ok);
+        if (!ok) {
+          Alert.alert(
+            'Not available',
+            'Email changes apply only to accounts that sign in with email and password. Google and Apple manage your email separately.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }],
+          );
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [navigation, user?.id]),
+  );
+
+  const submit = useCallback(() => {
+    if (busy || allowed !== true) return;
+    const trimmed = nextEmail.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      Alert.alert('Email', 'Enter a valid email address.');
+      return;
+    }
+    if (trimmed.toLowerCase() === user?.email?.trim().toLowerCase()) {
+      Alert.alert('Email', 'That is already your current email.');
+      return;
+    }
+    Alert.alert(
+      'Change email address?',
+      'We will send confirmation links to your current and new addresses. Until you confirm, your sign-in email stays the same. Billing (Apple / Stripe) and messages may still use your old email until providers update. You will need to log in again with the new email after confirming.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send confirmations',
+          onPress: () => {
+            const supabase = getSupabase();
+            if (!supabase) {
+              Alert.alert('Not available', 'Supabase is not configured.');
+              return;
+            }
+            setBusy(true);
+            void (async () => {
+              const { error } = await supabase.auth.updateUser({ email: trimmed });
+              setBusy(false);
+              if (error) {
+                Alert.alert('Could not update email', error.message);
+                return;
+              }
+              setNextEmail('');
+              showBanner(
+                'Check both inboxes',
+                'Confirm the change from the emails we sent before signing in with your new address.',
+              );
+              navigation.goBack();
+            })();
+          },
+        },
+      ],
+    );
+  }, [allowed, busy, navigation, nextEmail, showBanner, user?.email]);
+
+  return (
+    <View style={styles.root}>
+      <ScreenHeader title="Change email" onBack={() => navigation.goBack()} largeTitle />
+      <ScrollView
+        contentContainerStyle={[styles.padded, { paddingBottom: 32 + insets.bottom }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <Text style={styles.labelSm}>Current email</Text>
+          <Text style={[styles.bodyMuted, { marginBottom: DS.space.md }]}>
+            {user?.email?.trim() || '—'}
+          </Text>
+          <Text style={styles.bodyMuted}>
+            Changing your email does not move Apple or Google sign-in automatically. Premium billing on
+            another platform may still use your previous email until you update it there. Only your login
+            email changes after you confirm both messages.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.labelSm}>New email address</Text>
+          <TextInput
+            style={[styles.input, { color: DS.color.text }]}
+            value={nextEmail}
+            onChangeText={setNextEmail}
+            placeholder="you@example.com"
+            placeholderTextColor={DS.color.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="emailAddress"
+          />
+        </View>
+
+        <Pressable
+          style={[styles.primaryBtn, (busy || allowed !== true) && { opacity: 0.6 }]}
+          onPress={submit}
+          disabled={busy || allowed !== true}
+        >
+          {busy ? (
+            <AppLoadingIndicator size={24} />
+          ) : (
+            <Text style={styles.primaryBtnText}>Request email change</Text>
+          )}
         </Pressable>
       </ScrollView>
     </View>
@@ -1213,6 +1384,13 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     fontWeight: '600',
     letterSpacing: 1,
+  },
+  statusPillOk: {
+    backgroundColor: 'rgba(200, 168, 75, 0.15)',
+    borderColor: 'rgba(200, 168, 75, 0.45)',
+  },
+  statusPillOkText: {
+    color: DS.color.gold,
   },
   primaryBtn: {
     marginTop: DS.space.xl,

@@ -56,50 +56,12 @@ async function buildPassForBooking(bookingId: string): Promise<Uint8Array | null
     exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
   });
 
-  const passJson = {
-    formatVersion: 1,
-    passTypeIdentifier: PASS_TYPE,
-    teamIdentifier: TEAM_ID,
-    serialNumber: booking.id,
-    organizationName: 'The Dalton Grant Academy',
-    description: 'The Dalton Grant Academy Event',
-    logoText: 'The Dalton Grant Academy',
-    foregroundColor: 'rgb(212, 208, 200)',
-    backgroundColor: 'rgb(10, 10, 10)',
-    labelColor: 'rgb(200, 168, 75)',
-    voided,
-    webServiceURL,
-    authenticationToken: booking.wallet_auth_token,
-    eventTicket: {
-      primaryFields: [
-        {
-          key: 'event',
-          label: 'EVENT',
-          value: voided ? `${ev?.title ?? 'Event'} — ATTENDED` : (ev?.title ?? 'Event'),
-        },
-      ],
-      secondaryFields: [
-        {
-          key: 'date',
-          label: 'DATE',
-          value: ev?.starts_at
-            ? new Date(ev.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-            : 'TBA',
-        },
-      ],
-      backFields: [
-        { key: 'booking_ref', label: 'BOOKING REF', value: booking.reference },
-        ...(voided
-          ? [{ key: 'thanks', label: 'NOTE', value: 'Thanks for attending. This pass can now be removed.' }]
-          : []),
-      ],
-    },
-    barcode: {
-      message: qrToken,
-      format: 'PKBarcodeFormatQR',
-      messageEncoding: 'iso-8859-1',
-    },
-  };
+  const eventDate = ev?.starts_at
+    ? new Date(ev.starts_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'TBA';
+  const eventTime = ev?.starts_at
+    ? new Date(ev.starts_at).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })
+    : 'TBA';
 
   const icon1 = Uint8Array.from(atob(ICON_B64_1X), (c) => c.charCodeAt(0));
   const icon2 = Uint8Array.from(atob(ICON_B64_2X), (c) => c.charCodeAt(0));
@@ -117,8 +79,50 @@ async function buildPassForBooking(bookingId: string): Promise<Uint8Array | null
       signerKey: Deno.env.get('APPLE_SIGNER_KEY_PEM')!,
       signerKeyPassphrase: Deno.env.get('APPLE_SIGNER_KEY_PASSPHRASE') ?? undefined,
     },
-    passJson,
+    {
+      formatVersion: 1,
+      passTypeIdentifier: PASS_TYPE,
+      teamIdentifier: TEAM_ID,
+      serialNumber: booking.id,
+      organizationName: 'The Dalton Grant Academy',
+      description: 'The Dalton Grant Academy Event',
+      logoText: 'The Dalton Grant Academy',
+      foregroundColor: 'rgb(212, 208, 200)',
+      backgroundColor: 'rgb(10, 10, 10)',
+      labelColor: 'rgb(200, 168, 75)',
+      voided,
+      webServiceURL,
+      authenticationToken: booking.wallet_auth_token,
+    },
   );
+
+  pass.type = 'eventTicket';
+  pass.primaryFields.push({
+    key: 'event',
+    label: 'EVENT',
+    value: voided ? `${ev?.title ?? 'Event'} — ATTENDED` : (ev?.title ?? 'Event'),
+  });
+  pass.secondaryFields.push(
+    { key: 'date', label: 'DATE', value: eventDate },
+    { key: 'time', label: 'TIME', value: eventTime },
+  );
+  pass.auxiliaryFields.push(
+    { key: 'location', label: 'LOCATION', value: ev?.venue?.trim() || 'Venue TBA' },
+    { key: 'member', label: 'MEMBER', value: memberName },
+  );
+  pass.backFields.push({ key: 'booking_ref', label: 'BOOKING REF', value: booking.reference });
+  if (voided) {
+    pass.backFields.push({
+      key: 'thanks',
+      label: 'NOTE',
+      value: 'Thanks for attending. This pass can now be removed.',
+    });
+  }
+  pass.setBarcodes({
+    message: qrToken,
+    format: 'PKBarcodeFormatQR',
+    messageEncoding: 'iso-8859-1',
+  });
   const buf = pass.getAsBuffer();
   return buf instanceof Uint8Array ? buf : new Uint8Array(buf);
 }

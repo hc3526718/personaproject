@@ -1009,12 +1009,16 @@ export async function createEventAndBooking(
 }
 
 /** Book an existing published event (does not create a duplicate event row). */
+export type BookExistingEventResult =
+  | { ok: true; reference: string; eventId: string; bookingId: string }
+  | { ok: false; reason: 'full' | 'duplicate' | 'failed' };
+
 export async function bookExistingEvent(
   userId: string,
   eventId: string,
-): Promise<{ reference: string; eventId: string; bookingId: string } | null> {
+): Promise<BookExistingEventResult> {
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { ok: false, reason: 'failed' };
   for (let attempt = 0; attempt < 8; attempt++) {
     const reference = newBookingReference();
     const { data: bk, error: bkErr } = await supabase
@@ -1027,12 +1031,14 @@ export async function bookExistingEvent(
       .select('id, reference')
       .single();
     if (!bkErr && bk?.id && bk.reference) {
-      return { reference: bk.reference, eventId, bookingId: bk.id };
+      return { ok: true, reference: bk.reference, eventId, bookingId: bk.id };
     }
-    const msg = bkErr?.message ?? '';
-    if (!msg.toLowerCase().includes('unique') && !msg.toLowerCase().includes('duplicate')) break;
+    const msg = (bkErr?.message ?? '').toLowerCase();
+    if (msg.includes('event_full')) return { ok: false, reason: 'full' };
+    if (msg.includes('unique') || msg.includes('duplicate')) return { ok: false, reason: 'duplicate' };
+    if (!msg.includes('unique') && !msg.includes('duplicate')) break;
   }
-  return null;
+  return { ok: false, reason: 'failed' };
 }
 
 export type HostEventDashboardRow = {

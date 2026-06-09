@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusReload } from '../hooks/useFocusReload';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
@@ -38,17 +38,13 @@ export function HostEventDashboardScreen({ navigation }: Props) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    setLoading((prev) => (rows.length === 0 ? true : prev));
     const data = await listHostEventDashboard(user.id);
     setRows(data);
     setLoading(false);
-  }, [live, user?.id]);
+  }, [live, rows.length, user?.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  useFocusReload(load);
 
   const totalBookings = rows.reduce((n, r) => n + r.bookingCount, 0);
   const totalChecked = rows.reduce((n, r) => n + r.checkedInCount, 0);

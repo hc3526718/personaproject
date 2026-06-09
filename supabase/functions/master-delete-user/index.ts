@@ -118,6 +118,31 @@ Deno.serve(async (req) => {
       });
     }
 
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      req.headers.get('x-real-ip') ??
+      null;
+
+    const { error: auditErr } = await admin.from('security_audit_log').insert({
+      action: 'master_delete_user',
+      actor_user_id: callerId,
+      target_user_id: targetId,
+      client_ip: clientIp,
+      metadata: {
+        user_agent: req.headers.get('user-agent') ?? null,
+        origin: req.headers.get('origin') ?? null,
+      },
+    });
+    if (auditErr) {
+      console.error('[master-delete-user] audit_log_failed', auditErr.message);
+    } else {
+      console.error('[master-delete-user] audit', {
+        actor: callerId,
+        target: targetId,
+        client_ip: clientIp,
+      });
+    }
+
     const { error: delErr } = await admin.auth.admin.deleteUser(targetId);
     if (delErr) {
       return new Response(JSON.stringify({ error: delErr.message }), {

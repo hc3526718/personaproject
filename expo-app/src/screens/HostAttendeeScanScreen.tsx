@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
-import { verifyTicketToken } from '../booking/ticketToken';
+import { verifyTicketTokenForCheckIn } from '../lib/ticketTokenService';
 import { DS } from '../designSystem';
 import { getSupabase } from '../lib/supabase';
 import { isSupabaseConfigured } from '../lib/env';
@@ -83,7 +83,7 @@ export function HostAttendeeScanScreen({ navigation }: HostAttendeeScanScreenPro
       }
       if (busy) return;
 
-      const v = await verifyTicketToken(token);
+      const v = await verifyTicketTokenForCheckIn(token);
       if (!v.ok) {
         showActionBanner('Invalid QR', v.reason);
         return;

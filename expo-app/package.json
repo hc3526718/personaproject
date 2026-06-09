@@ -27,6 +27,7 @@
     "@rive-app/react-canvas": "^4.28.6",
     "@sentry/react-native": "~7.2.0",
     "@supabase/supabase-js": "^2.100.1",
+    "apple-wallet-pass": "file:modules/apple-wallet-pass",
     "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.35",
     "expo-apple-authentication": "~8.0.8",
@@ -74,11 +75,11 @@
     "@babel/core": "^7.26.0",
     "@types/react": "~19.1.10",
     "dotenv": "^17.4.2",
+    "madge": "^8.0.0",
     "patch-package": "^8.0.1",
     "react-native-svg-transformer": "^1.5.3",
     "resend": "^4.5.1",
-    "typescript": "~5.9.2",
-    "madge": "^8.0.0"
+    "typescript": "~5.9.2"
   },
   "private": true
 }

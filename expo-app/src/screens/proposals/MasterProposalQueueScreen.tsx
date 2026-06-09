@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../auth/AuthContext';
 import { isMasterGateUnlocked } from '../../master/masterGateStorage';
+import { hasVerifiedTotpFactor } from '../../auth/mfaService';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,11 @@ export function MasterProposalQueueScreen({ navigation }: Props) {
       let alive = true;
       void (async () => {
         if (!user?.id || user.masterControl !== true) return;
+        const enrolled = await hasVerifiedTotpFactor();
+        if (alive && !enrolled) {
+          navigation.replace('MfaEnroll', { required: true });
+          return;
+        }
         const ok = await isMasterGateUnlocked(user.id);
         if (alive && !ok) {
           navigation.replace('MasterGate', { returnTo: 'MasterProposalQueue' });

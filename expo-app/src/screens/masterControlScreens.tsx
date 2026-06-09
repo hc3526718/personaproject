@@ -37,6 +37,7 @@ import {
   verifyMasterPin,
 } from '../master/masterControlService';
 import { clearMasterGate, isMasterGateUnlocked, setMasterGateUnlocked } from '../master/masterGateStorage';
+import { hasVerifiedTotpFactor } from '../auth/mfaService';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 
@@ -47,6 +48,21 @@ export function MasterGateScreen({ navigation, route }: PProps<'MasterGate'>) {
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const returnTo = route.params?.returnTo ?? 'MasterControlHub';
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void (async () => {
+        if (!user?.masterControl || !user.id) return;
+        const enrolled = await hasVerifiedTotpFactor();
+        if (!alive || enrolled) return;
+        navigation.replace('MfaEnroll', { required: true });
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [navigation, user?.id, user?.masterControl]),
+  );
 
   const verifyPinStep = useCallback(async () => {
     if (!user?.id) return;

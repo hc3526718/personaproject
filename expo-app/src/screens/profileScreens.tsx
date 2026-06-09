@@ -65,6 +65,7 @@ import {
 } from '../profile/usernameProfile';
 import { useUsernameAvailability } from '../profile/useUsernameAvailability';
 import { isMasterGateUnlocked } from '../master/masterGateStorage';
+import { hasVerifiedTotpFactor } from '../auth/mfaService';
 import {
   interestsForProfileDisplay,
   PROFILE_EMPTY_BIO,
@@ -395,6 +396,11 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
   const openMasterGated = useCallback(
     async (returnTo: 'MasterControlHub') => {
       if (!user?.id) return;
+      const enrolled = await hasVerifiedTotpFactor();
+      if (!enrolled) {
+        navigation.navigate('MfaEnroll', { required: true });
+        return;
+      }
       const unlocked = await isMasterGateUnlocked(user.id);
       if (unlocked) {
         navigation.navigate(returnTo);

@@ -181,8 +181,15 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
         <AppleHeroButton
           onPress={() => {
             void (async () => {
-              const ok = await login(email.trim(), password);
-              if (ok) return;
+              const result = await login(email.trim(), password);
+              if (result.ok) return;
+              if (result.reason === 'email_not_confirmed') {
+                Alert.alert(
+                  'Confirm your email',
+                  `Please check your inbox (${result.email}) and tap the confirmation link before logging in. Check spam if you do not see it within a few minutes.`,
+                );
+                return;
+              }
               Alert.alert(
                 'Log in failed',
                 'Check your email and password, or sign in with Apple or Google.',

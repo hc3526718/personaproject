@@ -20,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusReload } from '../hooks/useFocusReload';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -273,11 +274,11 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
       setFeedLoading(false);
       return;
     }
-    setFeedLoading(true);
+    setFeedLoading((was) => (feedPosts.length === 0 ? true : was));
     const rows = await listRecentCommunityPosts(30);
     setFeedPosts(rows);
     setFeedLoading(false);
-  }, [liveMode, user?.id]);
+  }, [feedPosts.length, liveMode, user?.id]);
 
   const reloadFeedQuiet = useCallback(async () => {
     if (!liveMode) return;
@@ -291,11 +292,7 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     void loadFeed();
   }, [loadFeed]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadFeed();
-    }, [loadFeed]),
-  );
+  useFocusReload(reloadFeedQuiet);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {

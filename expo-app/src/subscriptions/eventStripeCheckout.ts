@@ -30,6 +30,9 @@ export async function startEventStripeCheckout(
   if (error) {
     return { ok: false, error: error.message || 'Could not start checkout.' };
   }
+  if (data?.error === 'event_full') {
+    return { ok: false, error: 'This event is full — no more tickets are available.' };
+  }
   const url = typeof data?.url === 'string' ? data.url : '';
   if (!url) {
     const msg = typeof data?.error === 'string' ? data.error : 'Checkout URL missing.';

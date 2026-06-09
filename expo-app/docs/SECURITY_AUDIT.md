@@ -22,7 +22,7 @@ This document summarizes a **code-assisted security review** (not a formal penet
 | **`dalton_verified` metadata** | `syncDaltonVerifiedFromProfileIfPremium` called `auth.updateUser` when client believed user was pro — **metadata is not a billing source of truth**; a modified client could try to flip flags when server said otherwise. | **Implemented:** if `subscription_state` row exists and `is_pro === false`, **do not** set `dalton_verified` in metadata. **Manual:** complete RevenueCat **webhook → `subscription_state`** so pro is server-driven; treat **entitlements in API** as authoritative for paid features. |
 
 | **Missing RevenueCat webhook** | Native purchases update RC SDK locally but **`subscription_state` may stay empty** without an RC webhook Edge Function — web Stripe path works; cross-platform premium can desync. | **Manual:** deploy RC webhook → upsert `subscription_state` by `app_user_id` (see `docs/REVENUECAT_BILLING_SETUP.md`). **Implemented:** `Purchases.logIn(supabaseUserId)` on session. |
-| **No in-app account deletion** | Apple App Store requires deletion when accounts exist; users must email support. | **Manual:** ship self-serve delete (Edge Function + UI) or document support SLA. |
+| **No in-app account deletion** | Apple App Store requires deletion when accounts exist; users must email support. | **Implemented:** `delete-own-account` Edge Function + profile UI (`accountDeletionService.ts`). Writes `security_audit_log` before delete. **Manual:** verify function deployed and App Store review notes mention in-app path. |
 | **Stripe webhook single point** | Forged webhooks blocked by `STRIPE_WEBHOOK_SECRET`; misconfigured secret breaks billing. | **Manual:** rotate `whsec_` on compromise; monitor failed webhook deliveries in Stripe Dashboard. |
 
 ---
@@ -33,15 +33,15 @@ Top findings an external tester would report, and fixes:
 
 | # | Weakness | Exploit / impact | Fix |
 |---|----------|------------------|-----|
-| 1 | **Client-only premium checks** on some flows | Modified app might show UI early; real writes should fail at RLS/API. | Enforce premium on **RPC / Edge Functions / RLS** for `INSERT` on events, media, proposals. |
+| 1 | **Client-only premium checks** on some flows | Modified app might show UI early; real writes should fail at RLS/API. | **Implemented (Jun 2026):** RLS on `events` insert + `media_assets` insert requires `subscription_state.is_pro` or master; trigger on `content_proposals` for media/event kinds. Sponsor proposals remain open. |
 | 2 | **Broad profile read (authenticated)** | Scrape emails, bios, metadata at scale with one stolen session. | Column-level view + rate limits; CAPTCHA on sign-up. |
-| 3 | **Master delete + service role** | Stolen JWT + PIN or leaked service role → mass account deletion. | IP allowlist, audit log, separate break-glass credentials, MFA for admins. |
-| 4 | **CORS `*` on Edge Functions** | CSRF-style invocation from malicious sites if victim has valid JWT in browser. | Restrict `Access-Control-Allow-Origin` to `https://daltongrantacademy.vercel.app`. |
+| 3 | **Master delete + service role** | Stolen JWT + PIN or leaked service role → mass account deletion. | **Partial:** `security_audit_log` + structured logs on `master-delete-user` / `delete-own-account`. **Manual:** IP allowlist, MFA for master accounts, rotate service role on incident. |
+| 4 | **CORS `*` on Edge Functions** | CSRF-style invocation from malicious sites if victim has valid JWT in browser. | **Implemented:** shared `cors.ts` on browser-called functions (`master-delete-user`, `delete-own-account`, `send-booking-confirmation-email`, wallet, checkout). **Intentional `*`:** Stripe/RevenueCat/DB webhooks (`send-post-report-email`) — no browser Origin. |
 | 5 | **Ticket HMAC in `EXPO_PUBLIC_*`** | Secret in mobile bundle → forge QR tokens if same secret on server. | Server-only signing for production check-in; rotate secret. |
 | 6 | **No RC webhook** | User pays on iPhone, web still free (or reverse) until DB synced. | RC + Stripe webhooks both write `subscription_state`. |
 | 7 | **Placeholder legal / support emails** | Phishing trust issues; GDPR contact invalid. | Replace before launch; verify domain. |
 | 8 | **Supabase anon key in bundle** | Expected; abuse = RLS bypass attempts, credential stuffing. | RLS tests per table; Auth rate limits; leaked password protection on. |
-| 9 | **Storage bucket policies** | Direct upload URLs if policies too open. | Audit `media_assets` policies; virus scan pipeline for uploads. |
+| 9 | **Storage bucket policies** | Direct upload URLs if policies too open. | **Implemented:** `storage_media_assets_select_linked` — object read only when path exists in `media_assets` with allowed visibility (blocks bucket listing). **Manual:** virus scan pipeline for uploads. |
 | 10 | **Live chat shell** | No auth on `/live-chat` until widget added — bot spam to provider. | Rate limit; require login for chat; moderation. |
 
 **External tools:** Run [Supabase advisors](https://supabase.com/dashboard), Stripe radar, and optional Shannon on staging (`docs/SECURITY_AUDIT.md` § Agentic pentesting).
@@ -52,8 +52,8 @@ Top findings an external tester would report, and fixes:
 
 | Area | Finding | Mitigation |
 |------|---------|------------|
-| **Master account deletion Edge Function** | Valid JWT + master PIN allows **`auth.admin.deleteUser(target)`** for arbitrary `target_user_id` (by design for support). Risk is **credential + PIN compromise** or leaked **service role** secret. | **Manual:** rotate `SUPABASE_SERVICE_ROLE_KEY` on incident; use **short-lived** build secrets; restrict who has `master_control`; add **audit logging** (Supabase Logflare / external SIEM) for `master-delete-user` invocations; consider **IP allowlist** or second factor for destructive actions. |
-| **Edge Function CORS `*`** | `master-delete-user` and `send-post-report-email` use `Access-Control-Allow-Origin: *`. Browser-based abuse is limited by JWT / webhook secret, but wildcard is coarse. | **Manual:** narrow origins if you ever call these from a known web admin origin. |
+| **Master account deletion Edge Function** | Valid JWT + master PIN allows **`auth.admin.deleteUser(target)`** for arbitrary `target_user_id` (by design for support). Risk is **credential + PIN compromise** or leaked **service role** secret. | **Partial:** `security_audit_log` table + Edge Function logging. **Manual:** Logflare/SIEM alerts, IP allowlist, MFA, service-role rotation. |
+| **Edge Function CORS `*`** | DB webhooks (`send-post-report-email`) use permissive CORS; browser functions use `cors.ts`. | **Manual:** ensure webhook secret (`REPORT_WEBHOOK_SECRET`) stays long and rotated. |
 | **`profiles` SELECT for all authenticated** | `rls_policies.sql` allows any signed-in user to **read all profiles** (MVP for feeds). Increases **PII scraping** if account keys leak. | **Manual:** split policies (public profile columns vs private), or use a **view** exposing safe columns only. |
 | **RevenueCat / client trust** | Premium UX uses RevenueCat SDK; **server** must enforce paywalls on sensitive operations. | **Manual:** webhook + `subscription_state` + RLS on premium-gated tables or Edge Functions with service role. |
 | **Admin metadata in `notify_admins_on_post_report`** | Trigger notifies users whose `raw_user_meta_data` / `raw_app_meta_data` role is `admin` / `super_admin`. If clients could set `role` in metadata (Supabase usually restricts), that could be noisy — typically **only service role** sets app metadata. | **Manual:** ensure **no** client policy allows writing `auth.users`; use **custom claims** or `profiles` role with RLS instead of metadata where possible. |
@@ -104,8 +104,36 @@ Top findings an external tester would report, and fixes:
 - `userMetadataSupabase.ts` — refuse metadata premium flag when server `subscription_state.is_pro` is explicitly false.  
 - `WebDemoApp.tsx` — tighter WebView navigation / mixed content.  
 - `backend/migrations/012_subscription_state_rls.sql` + `backend/rls_policies.sql` — RLS for `subscription_state`.
+- **`038_event_booking_capacity.sql`** — race-safe booking cap trigger (applied to production).
+- **`039_security_audit_followup.sql`** — `security_audit_log`; revoke `anon` on all SECURITY DEFINER functions; premium RLS; storage listing fix.
+- **`040_revoke_trigger_rpc_from_authenticated.sql`** — trigger-only functions no longer callable via PostgREST.
+- **`.pre-commit-config.yaml` + `.gitleaks.toml`** — secret scanning (AthenaGuard-inspired). Run: `pip install pre-commit && pre-commit install`.
+- Edge Functions: audit logging + restricted CORS on `master-delete-user`, `delete-own-account`, `send-booking-confirmation-email`.
 
-Apply migration **`012_subscription_state_rls.sql`** on your Supabase project (CLI `db push` / SQL Editor) so the new RLS and client checks align.
+Migrations **038–040** applied to project `txehbzyntvqpkkegjrwp` via Supabase MCP (Jun 2026).
+
+---
+
+## Manual checklist — AthenaGuard-aligned (still required)
+
+These cannot be fully automated from the repo; complete in dashboards / ops:
+
+| Priority | Task | Where |
+|----------|------|--------|
+| **High** | Enable **leaked password protection** (HaveIBeenPwned) | Supabase Dashboard → Auth → Password security |
+| **High** | Deploy + verify **RevenueCat webhook** → `subscription_state` | `supabase/functions/revenuecat-webhook`, `docs/REVENUECAT_BILLING_SETUP.md` |
+| **High** | Move ticket signing **off `EXPO_PUBLIC_*`** for production check-in | Edge Function + `docs/QR_CHECKIN.md` |
+| **High** | **MFA (TOTP)** for all `master_control` staff | Supabase Auth MFA |
+| **Medium** | Email confirmation, password strength, Auth **rate limits** | Supabase Auth settings |
+| **Medium** | Narrow **`profiles` SELECT** to a public view (email/PII) | New migration + app query updates |
+| **Medium** | Replace placeholder **legal / support emails** | `contact-us.html`, App Store metadata |
+| **Medium** | **Rotate secrets** if ever pasted in chat, logs, or bundles | `SECRETS_CHECKLIST.md` |
+| **Medium** | Stripe webhook monitoring + `whsec_` rotation plan | Stripe Dashboard |
+| **Medium** | **MCP / AI tooling hygiene** — least-privilege DB keys, no service role in agent configs | AthenaGuard § MCP |
+| **Low** | Run **Shannon** pentest on staging | § Agentic pentesting below |
+| **Low** | Sentry PII scrubbing; separate prod/staging DSN | Sentry project settings |
+| **Low** | Live chat rate limits before widget goes live | Vercel `/live-chat` |
+| **Low** | Install pre-commit hooks locally / in CI | `pre-commit install` or GitHub Action |
 
 ---
 

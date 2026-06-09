@@ -98,6 +98,7 @@ import {
   AccountSecurityScreen,
   AccessibilityScreen,
   ChangePasswordScreen,
+  ChangeEmailScreen,
   LegalScreen,
   NotificationPrefsScreen,
   PrivacyVisibilityScreen,
@@ -124,6 +125,8 @@ import {
 } from '../screens/onboardingScreens';
 import GrantAccessScreen from '../screens/GrantAccessScreen';
 import { PasswordRecoveryScreen } from '../screens/PasswordRecoveryScreen';
+import { MfaChallengeScreen } from '../screens/MfaChallengeScreen';
+import { MfaEnrollScreen } from '../screens/MfaEnrollScreen';
 import { rootNavigationRef } from './rootNavigationRef';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -228,6 +231,8 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="Accessibility" component={AccessibilityScreen} />
       <ProfileStack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <ProfileStack.Screen name="ChangeEmail" component={ChangeEmailScreen} />
+      <ProfileStack.Screen name="MfaEnroll" component={MfaEnrollScreen} />
       <ProfileStack.Screen name="PrivacyVisibility" component={PrivacyVisibilityScreen} />
       <ProfileStack.Screen name="NotificationPrefs" component={NotificationPrefsScreen} />
       <ProfileStack.Screen name="FollowRequests" component={FollowRequestsScreen} />
@@ -533,7 +538,7 @@ function MainTabNavigator() {
 }
 
 export function AppNavigator() {
-  const { isAuthenticated, passwordRecoveryPending } = useAuth();
+  const { isAuthenticated, passwordRecoveryPending, mfaStepUpPending } = useAuth();
   const { colors } = useAccessibility();
   const navTheme = useMemo(
     () => ({
@@ -557,7 +562,9 @@ export function AppNavigator() {
             isAuthenticated
               ? passwordRecoveryPending
                 ? 'root-app-recovery'
-                : 'root-app'
+                : mfaStepUpPending
+                  ? 'root-app-mfa'
+                  : 'root-app'
               : 'root-auth'
           }
           screenOptions={{ headerShown: false }}
@@ -565,6 +572,8 @@ export function AppNavigator() {
           {isAuthenticated ? (
             passwordRecoveryPending ? (
               <RootStack.Screen name="PasswordRecovery" component={PasswordRecoveryScreen} />
+            ) : mfaStepUpPending ? (
+              <RootStack.Screen name="MfaChallenge" component={MfaChallengeScreen} />
             ) : (
               <RootStack.Screen name="Main" component={AuthenticatedShell} />
             )

@@ -192,3 +192,7 @@ export function formatEventSpotsLabel(registered: number, capacity: number | nul
   if (reg === 1) return '1 attending';
   return `${reg} attending`;
 }
+
+export function isEventAtCapacity(registered: number, capacity: number | null): boolean {
+  return capacity != null && capacity > 0 && registered >= capacity;
+}

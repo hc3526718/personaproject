@@ -10,10 +10,7 @@ export function formatEntryPaymentNotice(
     return amt ? `Payment on arrival: ${amt}` : 'Payment on arrival';
   }
   if (mode === 'internal_costs') {
-    const n = note?.trim();
-    return n
-      ? `Free entry — bring payment for internal costs: ${n}`
-      : 'Free entry — bring payment for any internal costs on the day.';
+    return 'Free entry — bring payment for any internal costs on the day.';
   }
   return null;
 }

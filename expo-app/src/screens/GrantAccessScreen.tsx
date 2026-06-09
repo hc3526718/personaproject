@@ -78,8 +78,16 @@ export default function GrantAccessScreen() {
       }
       setSignupConfirmEmail(null);
     }
-    const ok = await login(trimmed, password);
-    if (ok) return;
+    const loginResult = await login(trimmed, password);
+    if (loginResult.ok) return;
+    if (loginResult.reason === 'email_not_confirmed') {
+      setSignupConfirmEmail(trimmed);
+      Alert.alert(
+        'Confirm your email',
+        `Please confirm your account using the link we sent to ${trimmed} before logging in.`,
+      );
+      return;
+    }
     Alert.alert(
       'Could not finish sign-up',
       'Please check your details and internet connection. If you already have an account, use Log In.',

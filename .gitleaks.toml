@@ -1,0 +1,13 @@
+title = "Dalton gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''expo-app/docs/''',
+  '''_vercel_test/''',
+  '''\.md$''',
+  '''\.example$''',
+  '''package-lock\.json$''',
+]

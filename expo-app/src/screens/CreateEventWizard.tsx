@@ -36,6 +36,11 @@ import {
   formatEntryPaymentNotice,
   type EntryPaymentMode,
 } from '../lib/eventEntryPayment';
+import {
+  deriveEventScheduleFromAgenda,
+  nextAgendaTimeLabel,
+  type AgendaSplit,
+} from '../lib/agendaTiming';
 
 type Props = Pick<NativeStackScreenProps<EventsStackParamList, 'CreateEvent'>, 'navigation'>;
 
@@ -48,7 +53,6 @@ type ConfirmPayload = {
 
 type AssetItem = { uri: string; kind: 'image' | 'video' };
 const LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Elite', 'All levels'] as const;
-type AgendaSplit = '15' | '30' | '60' | 'custom';
 const DESC_MIN = 100;
 const TOTAL_STEPS = 6;
 
@@ -222,9 +226,29 @@ export function CreateEventWizard({ navigation }: Props) {
         });
       }
       setAgenda(items);
+      const derived = deriveEventScheduleFromAgenda(eventDate, items, split);
+      if (derived) {
+        setEventTime(derived.startTime);
+        setDuration(derived.durationLabel);
+      }
     },
-    [eventTime],
+    [eventDate, eventTime],
   );
+
+  useEffect(() => {
+    if (step < 4) return;
+    const derived = deriveEventScheduleFromAgenda(eventDate, agenda, agendaSplit);
+    if (!derived) return;
+    setEventTime(derived.startTime);
+    setDuration(derived.durationLabel);
+  }, [agenda, agendaSplit, eventDate, step]);
+
+  const addAgendaRow = useCallback(() => {
+    setAgenda((prev) => [
+      ...prev,
+      { title: '', time: nextAgendaTimeLabel(eventDate, prev, agendaSplit, eventTime) },
+    ]);
+  }, [agendaSplit, eventDate, eventTime]);
 
   const validateStep = useCallback(
     (s: number): string | null => {
@@ -275,17 +299,19 @@ export function CreateEventWizard({ navigation }: Props) {
   const publish = useCallback(() => {
     if (publishing || !user?.id || user.id.startsWith('demo-')) return;
     const completeAgenda = agenda.filter((row) => row.title.trim() && row.time.trim());
-    const starts = combineDateAndTime(eventDate, eventTime).toISOString();
-    const ends = endsAtAfterDuration(starts, duration);
+    const derived = deriveEventScheduleFromAgenda(eventDate, completeAgenda, agendaSplit);
+    const starts = derived?.startsIso ?? combineDateAndTime(eventDate, eventTime).toISOString();
+    const ends = derived?.endsIso ?? endsAtAfterDuration(starts, duration);
+    const effectiveDuration = derived?.durationLabel ?? duration.trim();
     const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
     const firstImage = sortedAssets.find((a) => a.kind === 'image');
-    const scheduleLine = `${formatDate(eventDate)} · ${formatTime(eventTime)}${duration.trim() ? ` · ${duration}` : ''}`;
+    const scheduleLine = `${formatDate(eventDate)} · ${formatTime(derived?.startTime ?? eventTime)}${effectiveDuration ? ` · ${effectiveDuration}` : ''}`;
     const eventDetails = buildEventDetailsPayload({
       level,
       capacity: cap,
       tags: eventTags.trim() || '—',
       bring: bring.trim() || '—',
-      duration: duration.trim(),
+      duration: effectiveDuration,
       agenda: completeAgenda.map((row) => ({
         time: row.time.trim(),
         title: row.title.trim(),
@@ -323,8 +349,7 @@ export function CreateEventWizard({ navigation }: Props) {
         entry_payment_mode: entryPaymentMode,
         entry_payment_amount:
           entryPaymentMode === 'payment_on_arrival' ? entryPaymentAmount.trim() : null,
-        entry_payment_note:
-          entryPaymentMode === 'internal_costs' ? entryPaymentNote.trim() : null,
+        entry_payment_note: null,
       });
       setPublishing(false);
       if (!row) {
@@ -555,12 +580,15 @@ export function CreateEventWizard({ navigation }: Props) {
               [
                 ['none', 'No notice'],
                 ['payment_on_arrival', 'Payment on arrival'],
-                ['internal_costs', 'Free + internal costs'],
+                ['internal_costs', 'Free — any internal costs'],
               ] as const
             ).map(([key, label]) => (
               <Pressable
                 key={key}
-                onPress={() => setEntryPaymentMode(key)}
+                onPress={() => {
+                  setEntryPaymentMode(key);
+                  if (key === 'internal_costs') setEntryPaymentNote('');
+                }}
                 style={[s.chip, entryPaymentMode === key && s.chipOn]}
               >
                 <Text style={[s.chipTxt, entryPaymentMode === key && s.chipTxtOn]}>{label}</Text>
@@ -574,16 +602,6 @@ export function CreateEventWizard({ navigation }: Props) {
               placeholder="e.g. £15"
               placeholderTextColor={DS.color.textMuted}
               style={[s.input, { marginTop: DS.space.md }]}
-            />
-          ) : null}
-          {entryPaymentMode === 'internal_costs' ? (
-            <TextInput
-              value={entryPaymentNote}
-              onChangeText={setEntryPaymentNote}
-              placeholder="e.g. facility hire split, equipment hire"
-              placeholderTextColor={DS.color.textMuted}
-              style={[s.input, s.inputMulti, { marginTop: DS.space.md, minHeight: 72 }]}
-              multiline
             />
           ) : null}
         </FormField>
@@ -637,7 +655,7 @@ export function CreateEventWizard({ navigation }: Props) {
             />
           </View>
         ))}
-        <Pressable onPress={() => setAgenda((r) => [...r, { title: '', time: '' }])} style={s.ghostBtn}>
+        <Pressable onPress={addAgendaRow} style={s.ghostBtn}>
           <Text style={s.ghostTxt}>+ Add agenda row</Text>
         </Pressable>
         <Text style={[s.sectionLabel, { marginTop: DS.space.lg }]}>FAQs (optional)</Text>

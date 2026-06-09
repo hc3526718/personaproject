@@ -33,6 +33,7 @@ import {
   isPremiumDemoEmail,
   PREMIUM_DEMO_EMAIL,
 } from './demoAccounts';
+import { hasVerifiedTotpFactor, needsMfaStepUp } from './mfaService';
 
 export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
 
@@ -51,6 +52,11 @@ export type SignUpResult =
   | { ok: true; needsEmailConfirmation: boolean }
   | { ok: false; message: string };
 
+export type LoginResult =
+  | { ok: true }
+  | { ok: false; reason: 'invalid_credentials' }
+  | { ok: false; reason: 'email_not_confirmed'; email: string };
+
 type AuthContextValue = {
   ready: boolean;
   isAuthenticated: boolean;
@@ -58,7 +64,7 @@ type AuthContextValue = {
   sessionEmail: string | null;
   oAuthBusy: boolean;
   /** Email/password via Supabase, or local preview when env is unset */
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<LoginResult>;
   /** Supabase email/password registration; no-op when Supabase is not configured */
   signUp: (email: string, password: string) => Promise<SignUpResult>;
   /** Email magic link → same redirect URL as OAuth (`/app/auth/callback` on web, native scheme deep link). */
@@ -68,6 +74,9 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<boolean>;
   signInWithApple: () => Promise<boolean>;
   logout: () => Promise<void>;
+  /** Session at AAL1 but TOTP step-up required before app access. */
+  mfaStepUpPending: boolean;
+  clearMfaStepUp: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -147,6 +156,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [oAuthBusy, setOAuthBusy] = useState(false);
   const [passwordRecoveryPending, setPasswordRecoveryPending] = useState(false);
+  const [mfaStepUpPending, setMfaStepUpPending] = useState(false);
+
+  const refreshMfaStepUp = useCallback(async () => {
+    if (!supabase) {
+      setMfaStepUpPending(false);
+      return;
+    }
+    const enrolled = await hasVerifiedTotpFactor();
+    if (!enrolled) {
+      setMfaStepUpPending(false);
+      return;
+    }
+    const stepUp = await needsMfaStepUp();
+    setMfaStepUpPending(stepUp);
+  }, [supabase]);
+
+  const clearMfaStepUp = useCallback(() => {
+    setMfaStepUpPending(false);
+  }, []);
 
   /** Preload auth hero video while logged out (web preload + native hidden player). */
   useEffect(() => {
@@ -207,9 +235,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             /* metadata refresh is best-effort */
           }
         })();
+        void refreshMfaStepUp();
       } else {
         setAllowMessagesFrom('everyone');
         setUser(null);
+        setMfaStepUpPending(false);
       }
     };
 
@@ -335,14 +365,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [supabase]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<LoginResult> => {
       const trimmed = email.trim();
       if (supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({
           email: trimmed,
           password,
         });
-        if (error || !data.session?.user) return false;
+        if (error) {
+          const code = (error as { code?: string }).code ?? '';
+          const msg = (error.message ?? '').toLowerCase();
+          if (
+            code === 'email_not_confirmed' ||
+            msg.includes('email not confirmed') ||
+            msg.includes('not confirmed')
+          ) {
+            return { ok: false, reason: 'email_not_confirmed', email: trimmed };
+          }
+          return { ok: false, reason: 'invalid_credentials' };
+        }
+        if (!data.session?.user) return { ok: false, reason: 'invalid_credentials' };
         setUser(appUserFromSupabaseUser(data.session.user));
         void ensureProfileRow(data.session.user.id, data.session.user.email ?? null);
         void (async () => {
@@ -367,10 +409,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             /* non-fatal */
           }
         })();
-        return true;
+        const enrolled = await hasVerifiedTotpFactor();
+        if (enrolled) {
+          const stepUp = await needsMfaStepUp();
+          setMfaStepUpPending(stepUp);
+        } else {
+          setMfaStepUpPending(false);
+        }
+        return { ok: true };
       }
       /** Offline demo login: __DEV__ only; passwords via EXPO_PUBLIC_DEV_DEMO_* (never bundled in release). */
-      if (!__DEV__) return false;
+      if (!__DEV__) return { ok: false, reason: 'invalid_credentials' };
 
       const legacyPw = getDevDemoLegacyPassword();
       const premiumPw = getDevDemoPremiumPassword();
@@ -395,7 +444,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           masterControl: false,
         });
       }
-      return ok;
+      return ok ? { ok: true } : { ok: false, reason: 'invalid_credentials' };
     },
     [supabase],
   );
@@ -458,6 +507,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setUser(null);
+    setMfaStepUpPending(false);
   }, [supabase]);
 
   const signInWithGoogle = useCallback(async () => {
@@ -571,6 +621,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithApple,
       logout,
+      mfaStepUpPending,
+      clearMfaStepUp,
     }),
     [
       ready,
@@ -584,6 +636,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signInWithGoogle,
       signInWithApple,
       logout,
+      mfaStepUpPending,
+      clearMfaStepUp,
     ],
   );
 

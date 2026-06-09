@@ -14,13 +14,17 @@ import {
   View,
 } from 'react-native';
 import { CommonActions, useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native';
+import { useFocusReload } from '../hooks/useFocusReload';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { saveTicketAsPdf, saveTicketAsPng } from '../lib/ticketExport';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
-import { signTicketPayload } from '../booking/ticketToken';
+import {
+  issueTicketTokenForBooking,
+  signTicketPayloadDevFallback,
+} from '../lib/ticketTokenService';
 import {
   addRecentEventSearch,
   addSavedEventKey,
@@ -66,11 +70,11 @@ import {
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
-import { openEventCheckoutUrl, startEventStripeCheckout } from '../subscriptions/eventStripeCheckout';
 import { formatEntryPaymentNotice } from '../lib/eventEntryPayment';
 import { EventDetailSections } from '../components/EventDetailSections';
 import {
   formatEventSpotsLabel,
+  isEventAtCapacity,
   parseEventCapacity,
   resolveEventPresentation,
 } from '../lib/eventDescriptionParse';
@@ -407,11 +411,7 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
 
   const { refreshing, onRefresh } = useRefreshWithMinimum(reloadData, 4000);
 
-  useFocusEffect(
-    useCallback(() => {
-      void reloadData();
-    }, [reloadData]),
-  );
+  useFocusReload(reloadData);
 
   useEffect(() => {
     const f = route.params?.initialFilter;
@@ -970,6 +970,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
     : null;
   const registeredCount = dbEvent?.registered_count ?? 0;
   const spotsLabel = dbEvent ? formatEventSpotsLabel(registeredCount, eventCapacity) : null;
+  const eventFull = dbEvent ? isEventAtCapacity(registeredCount, eventCapacity) : false;
   const isAttending = Boolean(viewerBooking);
 
   const storageKey = useMemo(
@@ -1026,15 +1027,19 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
     }
   }, [saved, storageKey, showBanner]);
 
-  const goConfirm = () =>
+  const goConfirm = () => {
+    if (eventFull) {
+      Alert.alert('Event full', 'This event has reached its attendee limit.');
+      return;
+    }
     navigation.navigate('ConfirmAttend', {
       title: displayTitle,
       imageUri: displayHero,
       scheduleLine: displaySchedule,
       supabaseEventId,
-      requiresPayment: dbEvent?.requires_payment ?? false,
-      stripePriceId: dbEvent?.stripe_price_id ?? null,
+      entryPaymentLine,
     });
+  };
 
   const addCal = () =>
     void shareEventCalendar(displayTitle, displayVenue, displaySchedule, displayTitle);
@@ -1152,7 +1157,10 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         ]}
       />
       <ScrollView
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: 220 + insets.bottom }}
       >
         <View style={styles.detailHeroTall}>
@@ -1340,6 +1348,23 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           >
             <Text style={styles.attendingCombinedLabel}>Attending</Text>
           </AppleHeroButton>
+        ) : eventFull ? (
+          <>
+            <Text
+              style={{
+                fontFamily: DS.font.body,
+                fontSize: 14,
+                color: DS.color.textMuted,
+                textAlign: 'center',
+                marginBottom: DS.space.base,
+              }}
+            >
+              This event is full ({spotsLabel ?? 'capacity reached'}). No more registrations are available.
+            </Text>
+            <AppleHeroButton variant="ghost" disabled>
+              <Text style={[eventCtaLabelStyle, { color: DS.color.textMuted }]}>Event full</Text>
+            </AppleHeroButton>
+          </>
         ) : (
           <>
             <AppleHeroButton onPress={goConfirm} style={{ marginBottom: DS.space.sm }}>
@@ -1380,8 +1405,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
   const heroUri = route.params?.imageUri ?? DEFAULT_HERO;
   const scheduleLine = route.params?.scheduleLine ?? 'October 15, 2024 • 10:00 AM - 12:00 PM';
   const supabaseEventId = route.params?.supabaseEventId;
-  const requiresPayment = route.params?.requiresPayment ?? false;
-  const stripePriceId = route.params?.stripePriceId?.trim() ?? '';
+  const entryPaymentLine = route.params?.entryPaymentLine?.trim() || null;
   const { datePart, timePart } = splitScheduleLine(scheduleLine);
 
   const [fullName, setFullName] = useState('Alex Johnson');
@@ -1391,69 +1415,48 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
   const [notes, setNotes] = useState('');
   const [consent, setConsent] = useState(false);
   const [bookingBusy, setBookingBusy] = useState(false);
+  const [eventFull, setEventFull] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined' || !supabaseEventId || !user?.id) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('stripe_checkout') !== 'success' || params.get('event_id') !== supabaseEventId) return;
+    if (!supabaseEventId || !isSupabaseConfigured()) {
+      setEventFull(false);
+      return;
+    }
+    let alive = true;
     void (async () => {
-      const existing = await findUserBookingForEvent(user.id, supabaseEventId);
-      if (!existing) return;
-      const url = new URL(window.location.href);
-      url.searchParams.delete('stripe_checkout');
-      url.searchParams.delete('event_id');
-      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-      navigation.navigate('BookingConfirm', {
-        reference: existing.reference,
-        eventId: existing.eventId,
-        title,
-        imageUri: heroUri,
-        recapDate: datePart,
-        recapTime: timePart || '10:00 AM - 12:00 PM',
-        venue: 'Elite Fitness Center',
-        attendeeName: fullName,
-        attendeeEmail: email,
-        fitnessLevel: level,
-      });
+      const ev = await getEventById(supabaseEventId);
+      if (!alive || !ev) return;
+      const cap = parseEventCapacity(ev.description, ev.event_details);
+      setEventFull(isEventAtCapacity(ev.registered_count ?? 0, cap));
     })();
-  }, [supabaseEventId, user?.id, navigation, title, heroUri, datePart, timePart, fullName, email, level]);
+    return () => {
+      alive = false;
+    };
+  }, [supabaseEventId]);
 
   const goBookingConfirm = useCallback(async () => {
+    if (eventFull) {
+      Alert.alert('Event full', 'This event has reached its attendee limit.');
+      return;
+    }
     const demoSession = !user || user.id.startsWith('demo-');
     let reference = `SC-${Date.now().toString(36).toUpperCase().slice(-10)}`;
     let eventId: string | undefined = supabaseEventId;
     let bookingId: string | undefined;
     if (!demoSession && isSupabaseConfigured()) {
-      if (requiresPayment && !stripePriceId) {
-        Alert.alert(
-          'Payment not configured',
-          'This event requires payment but the host has not linked a Stripe price yet. Contact the organizer.',
-        );
-        return;
-      }
-      if (requiresPayment && stripePriceId && supabaseEventId) {
-        setBookingBusy(true);
-        try {
-          const checkout = await startEventStripeCheckout(supabaseEventId);
-          if (!checkout.ok) {
-            Alert.alert('Checkout unavailable', checkout.error);
-            return;
-          }
-          openEventCheckoutUrl(checkout.url);
-        } finally {
-          setBookingBusy(false);
-        }
-        return;
-      }
       setBookingBusy(true);
       try {
         if (supabaseEventId) {
           const booked = await bookExistingEvent(user.id, supabaseEventId);
-          if (!booked) {
-            Alert.alert(
-              'Booking failed',
-              'Could not save your booking. You may already be registered, or the event is full.',
-            );
+          if (!booked.ok) {
+            if (booked.reason === 'full') {
+              setEventFull(true);
+              Alert.alert('Event full', 'This event has reached its attendee limit.');
+            } else if (booked.reason === 'duplicate') {
+              Alert.alert('Already registered', 'You already have a booking for this event.');
+            } else {
+              Alert.alert('Booking failed', 'Could not save your booking. Please try again.');
+            }
             return;
           }
           reference = booked.reference;
@@ -1511,8 +1514,6 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
     level,
     showBanner,
     supabaseEventId,
-    requiresPayment,
-    stripePriceId,
   ]);
 
   return (
@@ -1554,6 +1555,18 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
             </View>
           </View>
         </View>
+
+        {entryPaymentLine ? (
+          <View style={styles.entryPaymentCard}>
+            <FontAwesome name="info-circle" size={16} color={DS.color.gold} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.entryPaymentText}>{entryPaymentLine}</Text>
+              <Text style={[styles.entryPaymentText, { marginTop: 6, color: DS.color.textMuted }]}>
+                No charge in the app — register now and pay the host on arrival if applicable.
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         <Text style={styles.detailSectionKicker}>YOUR DETAILS</Text>
         <Text style={styles.confirmFieldLabel}>Full Name</Text>
@@ -1632,7 +1645,13 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           </View>
         </View>
 
-        <AppleHeroButton disabled={!consent || bookingBusy} onPress={() => void goBookingConfirm()}>
+        {eventFull ? (
+          <Text style={[styles.policyTextStrong, { color: DS.color.textMuted, marginBottom: DS.space.md }]}>
+            This event is full. No more registrations are available.
+          </Text>
+        ) : null}
+
+        <AppleHeroButton disabled={!consent || bookingBusy || eventFull} onPress={() => void goBookingConfirm()}>
           <Text style={eventCtaLabelStyle}>{bookingBusy ? 'Saving…' : 'Confirm booking'}</Text>
         </AppleHeroButton>
         <Pressable style={styles.cancelOutlineBtn} onPress={() => navigation.goBack()}>
@@ -1776,8 +1795,15 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   useEffect(() => {
     let alive = true;
     void (async () => {
-      // Never block ticket rendering on async signing: show a deterministic QR immediately.
       if (alive) setQrToken(refCode);
+      const bookingId = route.params?.bookingId;
+      if (bookingId) {
+        const issued = await issueTicketTokenForBooking(bookingId);
+        if (alive && issued.ok) {
+          setQrToken(issued.token);
+          return;
+        }
+      }
       const payload = {
         v: 1 as const,
         ref: refCode,
@@ -1785,17 +1811,13 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         ...(eventId ? { eventId } : {}),
         exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30,
       };
-      try {
-        const t = await signTicketPayload(payload);
-        if (alive) setQrToken(t);
-      } catch {
-        if (alive) setQrToken(refCode);
-      }
+      const devToken = await signTicketPayloadDevFallback(payload);
+      if (alive && devToken) setQrToken(devToken);
     })();
     return () => {
       alive = false;
     };
-  }, [refCode, user?.id, attendeeEmail, eventId]);
+  }, [refCode, user?.id, attendeeEmail, eventId, route.params?.bookingId]);
 
   const addCal = () => void shareEventCalendar(evTitle, venue, scheduleForIcs, refCode);
 
