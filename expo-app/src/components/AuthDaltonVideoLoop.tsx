@@ -1,46 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  InteractionManager,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { ResizeMode, Video, type AVPlaybackStatus } from 'expo-av';
+import {
+  AUTH_VIDEO_LAYOUT,
+  type AuthVideoVariant,
+} from '../constants/daltonAuthVideo';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { useBundledBootVideoSource } from '../hooks/useBundledBootVideoSource';
 
 type Props = {
   style?: StyleProp<ViewStyle>;
+  variant?: AuthVideoVariant;
   onReady?: () => void;
   onError?: () => void;
   accessibilityLabel?: string;
-  deferMount?: boolean;
 };
 
-/** Auth-only video loop — bundled `expo-app/assets/VideoP.mp4` (native). */
+/** Auth-only video loop — bundled `expo-app/assets/VideoP.mp4`, fit (contain), plays on focus. */
 export function AuthDaltonVideoLoop({
   style,
+  variant = 'form',
   onReady,
   onError,
   accessibilityLabel = 'Loading',
-  deferMount = true,
 }: Props) {
   const readySent = useRef(false);
+  const videoRef = useRef<Video>(null);
   const nativeSource = useBundledBootVideoSource();
-  const [mountVideo, setMountVideo] = useState(!deferMount);
-
-  useEffect(() => {
-    if (!deferMount) {
-      setMountVideo(true);
-      return;
-    }
-    setMountVideo(false);
-    const task = InteractionManager.runAfterInteractions(() => {
-      setMountVideo(true);
-    });
-    return () => task.cancel();
-  }, [deferMount, nativeSource]);
+  const isFocused = useIsFocused();
+  const layout = AUTH_VIDEO_LAYOUT[variant];
 
   const fireReady = useCallback(() => {
     if (readySent.current) return;
@@ -50,7 +39,16 @@ export function AuthDaltonVideoLoop({
 
   useEffect(() => {
     readySent.current = false;
-  }, [nativeSource]);
+  }, [nativeSource, variant]);
+
+  const playVideo = useCallback(() => {
+    void videoRef.current?.playAsync().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!isFocused || !nativeSource) return;
+    playVideo();
+  }, [isFocused, nativeSource, playVideo]);
 
   const onPlaybackStatus = useCallback(
     (status: AVPlaybackStatus) => {
@@ -63,7 +61,7 @@ export function AuthDaltonVideoLoop({
     [fireReady, onError],
   );
 
-  if (!nativeSource || !mountVideo) {
+  if (!nativeSource) {
     return (
       <View
         style={[styles.outer, style]}
@@ -80,14 +78,28 @@ export function AuthDaltonVideoLoop({
       accessibilityLabel={accessibilityLabel}
     >
       <Video
+        ref={videoRef}
         source={nativeSource}
-        style={styles.video}
-        resizeMode={ResizeMode.COVER}
+        style={[
+          styles.video,
+          {
+            width: `${layout.videoWidthPct * 100}%`,
+            maxWidth: layout.maxVideoWidth,
+            maxHeight: layout.maxVideoHeight,
+          },
+        ]}
+        resizeMode={ResizeMode.CONTAIN}
         isLooping
         shouldPlay
         isMuted
-        onLoad={() => fireReady()}
-        onReadyForDisplay={() => fireReady()}
+        onLoad={() => {
+          fireReady();
+          playVideo();
+        }}
+        onReadyForDisplay={() => {
+          fireReady();
+          playVideo();
+        }}
         onPlaybackStatusUpdate={onPlaybackStatus}
         onError={() => onError?.()}
       />
@@ -103,8 +115,6 @@ const styles = StyleSheet.create({
     backgroundColor: DALTON_BOOT_VIDEO_BG,
   },
   video: {
-    width: '100%',
-    height: '100%',
     backgroundColor: DALTON_BOOT_VIDEO_BG,
   },
 });

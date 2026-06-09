@@ -17,8 +17,8 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AuthWebBackBar } from '../components/AuthWebBackBar';
+import { AuthSocialSignIn } from '../components/AuthSocialSignIn';
 import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
-import { BrandLogo } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { authBackHandler } from '../lib/authNavigation';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
@@ -27,15 +27,6 @@ import { BRAND_NAME } from '../constants/brand';
 import type { AuthStackParamList } from '../navigation/types';
 
 type Props<K extends keyof AuthStackParamList> = NativeStackScreenProps<AuthStackParamList, K>;
-
-function socialLabelStyle() {
-  return {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: DS.color.text,
-  };
-}
 
 export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
   const insets = useSafeAreaInsets();
@@ -51,14 +42,21 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
     >
       <AuthWebBackBar />
       <View style={styles.welcomeCenter}>
-        <BrandLogo width={88} height={88} style={styles.welcomeLogo} />
+        <AuthWelcomeRiveHero variant="welcome" />
         <Text style={styles.welcomeAppName}>{BRAND_NAME}</Text>
       </View>
       <View style={styles.welcomeActions}>
-        <AppleHeroButton onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}>
+        <AppleHeroButton
+          style={styles.welcomeBtn}
+          onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}
+        >
           Sign Up
         </AppleHeroButton>
-        <AppleHeroButton variant="ghost" onPress={() => navigation.navigate('LogIn')}>
+        <AppleHeroButton
+          variant="ghost"
+          style={styles.welcomeBtn}
+          onPress={() => navigation.navigate('LogIn')}
+        >
           Log In
         </AppleHeroButton>
       </View>
@@ -68,7 +66,7 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
 
 export function LogInScreen({ navigation }: Props<'LogIn'>) {
   const insets = useSafeAreaInsets();
-  const { login, signInWithGoogle, signInWithApple, oAuthBusy } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -159,35 +157,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
         >
           Log In
         </AppleHeroButton>
-        <View style={styles.orRow}>
-          <View style={styles.orLine} />
-          <Text style={styles.orText}>OR</Text>
-          <View style={styles.orLine} />
-        </View>
-        {Platform.OS === 'ios' ? (
-          <AppleHeroButton
-            variant="social"
-            loading={oAuthBusy}
-            onPress={() => void signInWithApple()}
-            style={styles.socialBtnMargin}
-          >
-            <View style={styles.socialInner}>
-              <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
-              <Text style={socialLabelStyle()}>Continue with Apple</Text>
-            </View>
-          </AppleHeroButton>
-        ) : null}
-        <AppleHeroButton
-          variant="social"
-          loading={oAuthBusy}
-          onPress={() => void signInWithGoogle()}
-          style={styles.socialBtnMargin}
-        >
-          <View style={styles.socialInner}>
-            <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
-            <Text style={socialLabelStyle()}>Continue with Google</Text>
-          </View>
-        </AppleHeroButton>
+        <AuthSocialSignIn />
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Don&apos;t have an account? </Text>
           <Pressable onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}>
@@ -479,10 +449,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: DS.space.lg,
   },
-  welcomeLogo: {
-    marginBottom: DS.space.lg,
-  },
   welcomeAppName: {
+    marginTop: DS.space.md,
     fontFamily: DS.font.heading,
     fontSize: 28,
     letterSpacing: 3,
@@ -513,6 +481,10 @@ const styles = StyleSheet.create({
   welcomeActions: {
     paddingHorizontal: DS.space.lg,
     gap: DS.space.md,
+    paddingBottom: DS.space.sm,
+  },
+  welcomeBtn: {
+    minHeight: 58,
   },
   field: {
     marginBottom: DS.space.lg,

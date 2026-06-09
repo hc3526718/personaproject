@@ -21,6 +21,7 @@ import {
   signupPasswordErrorMessage,
   validateSignupPassword,
 } from '../auth/passwordValidation';
+import { AuthSocialSignIn } from '../components/AuthSocialSignIn';
 import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
 import { PasswordRequirementsHint } from '../components/PasswordRequirementsHint';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
@@ -208,6 +209,7 @@ export default function GrantAccessScreen() {
         <AppleHeroButton style={{ marginTop: DS.space.sm }} onPress={() => void tryCreateAccount()}>
           Sign Up
         </AppleHeroButton>
+        <AuthSocialSignIn />
         <View style={S.footerRow}>
           <Text style={S.muted}>Already have an account? </Text>
           <Pressable onPress={() => navigation.navigate('LogIn')}>

@@ -6,6 +6,27 @@ import { Platform } from 'react-native';
  */
 export const DALTON_AUTH_VIDEO_ASSET = 'assets/VideoP.mp4';
 
+export type AuthVideoVariant = 'welcome' | 'form';
+
+/** Slot + contained video bounds per auth screen (fit, not fill). */
+export const AUTH_VIDEO_LAYOUT: Record<
+  AuthVideoVariant,
+  { slotHeight: number; videoWidthPct: number; maxVideoWidth: number; maxVideoHeight: number }
+> = {
+  welcome: {
+    slotHeight: 120,
+    videoWidthPct: 0.62,
+    maxVideoWidth: 176,
+    maxVideoHeight: 88,
+  },
+  form: {
+    slotHeight: 100,
+    videoWidthPct: 0.58,
+    maxVideoWidth: 160,
+    maxVideoHeight: 76,
+  },
+};
+
 /** Web URL for the auth video (static copy of `assets/VideoP.mp4` under the Expo web base path). */
 export function getDaltonAuthVideoWebUri(): string {
   const base = (process.env.EXPO_PUBLIC_WEB_BASE_PATH ?? '/app').replace(/\/$/, '');

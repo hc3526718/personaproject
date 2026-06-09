@@ -1,23 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import {
+  AUTH_VIDEO_LAYOUT,
+  type AuthVideoVariant,
+} from '../constants/daltonAuthVideo';
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { BrandLogo } from './BrandLogo';
 import { AuthDaltonVideoLoop } from './AuthDaltonVideoLoop';
 
 type Props = {
-  /** Height of the hero slot (welcome / auth). */
+  /** Height override for the hero slot. */
   height?: number;
-  /** `form` = compact login / sign-up; `welcome` = welcome hub. */
-  variant?: 'welcome' | 'form';
+  /** `form` = login / sign-up; `welcome` = landing hub. */
+  variant?: AuthVideoVariant;
 };
 
-const VIDEO_READY_TIMEOUT_MS = 6000;
+const VIDEO_READY_TIMEOUT_MS = 8000;
 
-/** Auth hero — loops `assets/VideoP.mp4`; falls back to logo if video fails or stalls. */
+/** Auth hero — `assets/VideoP.mp4` (fit/contain); logo fallback if video fails. */
 export function AuthWelcomeRiveHero({ height, variant = 'welcome' }: Props) {
-  const isForm = variant === 'form';
-  const slotHeight = height ?? (isForm ? 64 : 140);
-  const logoSize = isForm ? 48 : 64;
+  const layout = AUTH_VIDEO_LAYOUT[variant];
+  const slotHeight = height ?? layout.slotHeight;
+  const logoSize = variant === 'form' ? 48 : 64;
   const [useFallback, setUseFallback] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
 
@@ -48,10 +52,10 @@ export function AuthWelcomeRiveHero({ height, variant = 'welcome' }: Props) {
     <View style={[styles.slot, { height: slotHeight }]}>
       <AuthDaltonVideoLoop
         style={styles.video}
+        variant={variant}
         onReady={() => setVideoReady(true)}
         onError={showLogoFallback}
         accessibilityLabel="The Dalton Grant Academy"
-        deferMount={!isForm}
       />
     </View>
   );
