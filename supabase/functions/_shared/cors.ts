@@ -1,6 +1,7 @@
 /** CORS for browser-called Edge Functions (not server webhooks). */
 const DEFAULT_ORIGINS = [
   'https://daltongrantacademy.vercel.app',
+  'https://daltongrantacademy-navy.vercel.app',
   /** www subdomain (Stripe return URLs, bookmarks, previews) */
   'https://www.daltongrantacademy.vercel.app',
   /** Legacy Vercel project URL (still referenced by older deploys) */
@@ -20,22 +21,49 @@ function allowedOrigins(): string[] {
   return [...DEFAULT_ORIGINS, ...extra];
 }
 
-export function corsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? '';
-  const allowed = allowedOrigins();
-  const match = allowed.includes(origin) ? origin : allowed[0];
-  return {
-    'Access-Control-Allow-Origin': match,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Vary': 'Origin',
-  };
+/** Vercel preview + production deploys (`*.vercel.app`). JWT auth still required. */
+function isTrustedVercelOrigin(origin: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return protocol === 'https:' && hostname.endsWith('.vercel.app');
+  } catch {
+    return false;
+  }
 }
 
-/** True when Origin is absent (server-to-server) or matches an allowed marketing/app origin. */
+function isLocalDevOrigin(origin: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    return (
+      (protocol === 'http:' || protocol === 'https:') &&
+      (hostname === 'localhost' || hostname === '127.0.0.1')
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function isBrowserOriginAllowed(req: Request): boolean {
   const origin = req.headers.get('Origin');
   if (!origin) return true;
-  return allowedOrigins().includes(origin);
+  if (allowedOrigins().includes(origin)) return true;
+  if (isTrustedVercelOrigin(origin)) return true;
+  if (isLocalDevOrigin(origin)) return true;
+  return false;
+}
+
+export function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowed = allowedOrigins();
+  let match = allowed[0];
+  if (origin && (allowed.includes(origin) || isTrustedVercelOrigin(origin) || isLocalDevOrigin(origin))) {
+    match = origin;
+  }
+  return {
+    'Access-Control-Allow-Origin': match,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    Vary: 'Origin',
+  };
 }
 
 /** Webhooks (Stripe / RevenueCat) have no browser Origin — permissive is fine. */

@@ -159,7 +159,7 @@ export async function sendBookingConfirmationEmail(
   if (!send.ok) {
     const txt = await send.text();
     console.error('[booking-email] Resend failed', send.status, txt);
-    return { ok: false, error: 'resend_failed' };
+    return { ok: true, skipped: true, reason: `resend_failed_${send.status}` };
   }
 
   return { ok: true };
