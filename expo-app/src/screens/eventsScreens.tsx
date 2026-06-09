@@ -54,7 +54,6 @@ import { isEventArchivedForBrowse, reviewsUnlockAtMs } from '../lib/eventTiming'
 import type { EventsBrowseFilterChip, EventsStackParamList } from '../navigation/types';
 import {
   bookExistingEvent,
-  createEventAndBooking,
   deleteCommunityEvent,
   fetchMyEventReview,
   findUserBookingForEvent,
@@ -1454,6 +1453,11 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
               Alert.alert('Event full', 'This event has reached its attendee limit.');
             } else if (booked.reason === 'duplicate') {
               Alert.alert('Already registered', 'You already have a booking for this event.');
+            } else if (booked.reason === 'event_missing') {
+              Alert.alert(
+                'Event unavailable',
+                'This event is no longer available for registration. Refresh the events list and try again.',
+              );
             } else {
               Alert.alert('Booking failed', 'Could not save your booking. Please try again.');
             }
@@ -1463,22 +1467,11 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           eventId = booked.eventId;
           bookingId = booked.bookingId;
         } else {
-          const created = await createEventAndBooking(user.id, {
-            title,
-            scheduleLine,
-            heroImageUrl: heroUri,
-            venue: 'Elite Fitness Center',
-          });
-          if (!created) {
-            Alert.alert(
-              'Booking failed',
-              'Could not save your booking. Check Supabase (events RLS + profile row) and try again.',
-            );
-            return;
-          }
-          reference = created.reference;
-          eventId = created.eventId;
-          bookingId = created.bookingId;
+          Alert.alert(
+            'Event unavailable',
+            'This event cannot be registered online. Open it from the Events tab and try again.',
+          );
+          return;
         }
       } finally {
         setBookingBusy(false);

@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
   AUTH_VIDEO_LAYOUT,
@@ -15,48 +14,27 @@ type Props = {
   variant?: AuthVideoVariant;
 };
 
-const VIDEO_READY_TIMEOUT_MS = 8000;
-
-/** Auth hero — `assets/VideoP.mp4` (fit/contain); logo fallback if video fails. */
+/**
+ * Auth hero — logo stays visible for the whole screen visit; video plays behind it.
+ * Avoids the brief flash when video mounts then errors or covers the logo.
+ */
 export function AuthWelcomeRiveHero({ height, variant = 'welcome' }: Props) {
   const layout = AUTH_VIDEO_LAYOUT[variant];
   const slotHeight = height ?? layout.slotHeight;
-  const logoSize = variant === 'form' ? 48 : 64;
-  const [useFallback, setUseFallback] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
-
-  const showLogoFallback = useCallback(() => {
-    setUseFallback(true);
-  }, []);
-
-  useEffect(() => {
-    setVideoReady(false);
-    setUseFallback(false);
-  }, [variant, slotHeight]);
-
-  useEffect(() => {
-    if (useFallback || videoReady) return;
-    const id = setTimeout(showLogoFallback, VIDEO_READY_TIMEOUT_MS);
-    return () => clearTimeout(id);
-  }, [showLogoFallback, useFallback, videoReady]);
-
-  if (useFallback) {
-    return (
-      <View style={[styles.slot, { height: slotHeight }]}>
-        <BrandLogo width={logoSize} height={logoSize} />
-      </View>
-    );
-  }
+  const logoSize = layout.logoSize;
 
   return (
     <View style={[styles.slot, { height: slotHeight }]}>
-      <AuthDaltonVideoLoop
-        style={styles.video}
-        variant={variant}
-        onReady={() => setVideoReady(true)}
-        onError={showLogoFallback}
-        accessibilityLabel="The Dalton Grant Academy"
-      />
+      <View style={styles.videoLayer} pointerEvents="none">
+        <AuthDaltonVideoLoop
+          style={styles.video}
+          variant={variant}
+          accessibilityLabel="The Dalton Grant Academy"
+        />
+      </View>
+      <View style={styles.logoLayer} pointerEvents="none">
+        <BrandLogo width={logoSize} height={logoSize} />
+      </View>
     </View>
   );
 }
@@ -68,6 +46,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: DALTON_BOOT_VIDEO_BG,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  videoLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  logoLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   video: {
     width: '100%',

@@ -33,6 +33,10 @@ verify_jwt = false
 # Caller JWT validated inside the function; uses service role to load booking + send Resend.
 verify_jwt = false
 
+[functions.send-auth-email]
+# Supabase Auth Send Email hook; verified via SEND_EMAIL_HOOK_SECRET (Standard Webhooks).
+verify_jwt = false
+
 [functions.dispatch-in-app-push]
 # Called from pg_net trigger or client when app is backgrounded; uses service role.
 verify_jwt = false

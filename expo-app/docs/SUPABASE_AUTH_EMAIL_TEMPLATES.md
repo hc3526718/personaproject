@@ -9,7 +9,9 @@ Use a **public HTTPS logo URL** (see [Logo hosting](#logo-hosting) below).
 - Secure email change: **ON** (recommended for Settings → Change email)
 - Magic link / OTP: leave **OFF** (not used in the app)
 
-**SMTP (recommended):** Authentication → SMTP → use [Resend SMTP](https://resend.com/docs/send-with-supabase-smtp) so mail comes from your domain.
+**Delivery (production):** Auth mail is sent via the **`send-auth-email`** Edge Function (Supabase **Send Email** hook) using the **Resend HTTP API** (`RESEND_API_KEY` secret). Re-run `node scripts/configure-auth-email-hook.mjs` after deploy if the hook URI changes.
+
+**SMTP (optional fallback):** If you disable the hook, use [Resend SMTP](https://resend.com/docs/send-with-supabase-smtp) with username **`resend`** (literal) and your API key as the password — not your email address.
 
 ---
 

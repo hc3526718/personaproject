@@ -1011,7 +1011,19 @@ export async function createEventAndBooking(
 /** Book an existing published event (does not create a duplicate event row). */
 export type BookExistingEventResult =
   | { ok: true; reference: string; eventId: string; bookingId: string }
-  | { ok: false; reason: 'full' | 'duplicate' | 'failed' };
+  | { ok: false; reason: 'full' | 'duplicate' | 'event_missing' | 'failed' };
+
+export async function eventExistsInDatabase(eventId: string): Promise<boolean> {
+  if (isScreenshotSampleEventId(eventId)) return false;
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const { data, error } = await supabase.from('events').select('id').eq('id', eventId).maybeSingle();
+  if (error) {
+    if (__DEV__) console.warn('[eventExistsInDatabase]', error.message);
+    return false;
+  }
+  return Boolean(data?.id);
+}
 
 export async function bookExistingEvent(
   userId: string,
@@ -1019,6 +1031,9 @@ export async function bookExistingEvent(
 ): Promise<BookExistingEventResult> {
   const supabase = getSupabase();
   if (!supabase) return { ok: false, reason: 'failed' };
+  if (isScreenshotSampleEventId(eventId)) return { ok: false, reason: 'event_missing' };
+  const exists = await eventExistsInDatabase(eventId);
+  if (!exists) return { ok: false, reason: 'event_missing' };
   for (let attempt = 0; attempt < 8; attempt++) {
     const reference = newBookingReference();
     const { data: bk, error: bkErr } = await supabase
@@ -1034,7 +1049,9 @@ export async function bookExistingEvent(
       return { ok: true, reference: bk.reference, eventId, bookingId: bk.id };
     }
     const msg = (bkErr?.message ?? '').toLowerCase();
+    if (__DEV__ && bkErr) console.warn('[bookExistingEvent]', bkErr.message);
     if (msg.includes('event_full')) return { ok: false, reason: 'full' };
+    if (msg.includes('event_not_found')) return { ok: false, reason: 'event_missing' };
     if (msg.includes('unique') || msg.includes('duplicate')) return { ok: false, reason: 'duplicate' };
     if (!msg.includes('unique') && !msg.includes('duplicate')) break;
   }

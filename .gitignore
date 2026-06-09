@@ -2,6 +2,7 @@ web-deploy/
 node_modules/
 .env
 .env*.local
+scripts/_token.tmp
 
 # Local IDE / agent (do not publish)
 .cursor/

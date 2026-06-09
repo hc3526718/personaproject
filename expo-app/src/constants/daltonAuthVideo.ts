@@ -11,19 +11,27 @@ export type AuthVideoVariant = 'welcome' | 'form';
 /** Slot + contained video bounds per auth screen (fit, not fill). */
 export const AUTH_VIDEO_LAYOUT: Record<
   AuthVideoVariant,
-  { slotHeight: number; videoWidthPct: number; maxVideoWidth: number; maxVideoHeight: number }
+  {
+    slotHeight: number;
+    videoWidthPct: number;
+    maxVideoWidth: number;
+    maxVideoHeight: number;
+    logoSize: number;
+  }
 > = {
   welcome: {
-    slotHeight: 120,
-    videoWidthPct: 0.62,
-    maxVideoWidth: 176,
-    maxVideoHeight: 88,
+    slotHeight: 148,
+    videoWidthPct: 0.72,
+    maxVideoWidth: 200,
+    maxVideoHeight: 100,
+    logoSize: 132,
   },
   form: {
-    slotHeight: 100,
-    videoWidthPct: 0.58,
-    maxVideoWidth: 160,
-    maxVideoHeight: 76,
+    slotHeight: 120,
+    videoWidthPct: 0.68,
+    maxVideoWidth: 180,
+    maxVideoHeight: 88,
+    logoSize: 96,
   },
 };
 
