@@ -100,6 +100,16 @@ async function main() {
     console.warn('[vercel-build] No showcase/ folder — landing phone mockups skipped.');
   }
 
+  const logoSrc = join(expoDir, 'assets', 'dalton_logo_final_img.png');
+  const brandDir = join(outDir, 'brand');
+  try {
+    await mkdir(brandDir, { recursive: true });
+    await cp(logoSrc, join(brandDir, 'dalton_logo_final_img.png'));
+    console.log('[vercel-build] Staged brand logo → /brand/dalton_logo_final_img.png');
+  } catch {
+    console.warn('[vercel-build] dalton_logo_final_img.png missing — skip brand/');
+  }
+
   console.log('[vercel-build] Output:', outDir);
 }
 
