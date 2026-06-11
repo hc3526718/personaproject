@@ -177,7 +177,7 @@ export function getScreenshotSampleEvents(): EventRow[] {
       ends_at: null,
       venue: 'Dalton HQ Training Room',
       hero_image_url: IMG.training,
-      requires_payment: true,
+      requires_payment: false,
       stripe_price_id: null,
       created_at: t,
     },

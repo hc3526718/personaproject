@@ -607,7 +607,10 @@ export function CreateEventWizard({ navigation }: Props) {
             editable={false}
           />
         </FormField>
-        <FormField label="Entry payment notice" hint="Optional — shown on the event page (no in-app checkout).">
+        <FormField
+          label="Entry payment notice"
+          hint="Events are never paid through the app — use this to tell attendees what to pay in person at the venue."
+        >
           <View style={s.chipWrap}>
             {(
               [

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
 import { DS } from '../designSystem';
 import type { ParsedEventDescription } from '../lib/eventDescriptionParse';
+import { EventInPersonPaymentBanner } from './EventInPersonPaymentBanner';
 
 type Props = {
   parsed: ParsedEventDescription;
@@ -17,12 +17,7 @@ export function EventDetailSections({ parsed, entryPaymentLine }: Props) {
 
   return (
     <>
-      {entryPaymentLine ? (
-        <View style={styles.entryPaymentCard}>
-          <FontAwesome name="info-circle" size={16} color={DS.color.gold} />
-          <Text style={styles.entryPaymentText}>{entryPaymentLine}</Text>
-        </View>
-      ) : null}
+      <EventInPersonPaymentBanner hostNotice={entryPaymentLine} style={styles.entryPaymentCard} />
 
       <Text style={styles.kicker}>OVERVIEW</Text>
       {parsed.baseDescription ? (
@@ -115,24 +110,7 @@ const styles = StyleSheet.create({
     color: DS.color.text,
   },
   muted: { color: DS.color.textMuted },
-  entryPaymentCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: DS.space.sm,
-    padding: DS.space.md,
-    borderRadius: DS.radius.lg,
-    backgroundColor: DS.color.goldTint10,
-    borderWidth: 1,
-    borderColor: DS.color.goldTint30,
-    marginTop: DS.space.md,
-  },
-  entryPaymentText: {
-    flex: 1,
-    fontFamily: DS.font.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: DS.color.text,
-  },
+  entryPaymentCard: { marginTop: DS.space.md },
   metaGrid: { gap: DS.space.sm },
   metaCell: {
     padding: DS.space.md,

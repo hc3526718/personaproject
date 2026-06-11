@@ -54,6 +54,8 @@ export type BookingConfirmParams = {
   attendeeName?: string;
   attendeeEmail?: string;
   fitnessLevel?: string;
+  /** Host-specific in-person payment notice, if any. */
+  entryPaymentLine?: string | null;
 };
 
 export type EventsBrowseFilterChip = 'all' | 'booked' | 'saved' | 'past' | 'my_events';

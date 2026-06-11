@@ -1,44 +1,18 @@
 import { Linking, Platform } from 'react-native';
-import { getSupabase } from '../lib/supabase';
-import { getStripeCheckoutReturnBaseUrl } from './stripeBilling';
 
 export type StartEventCheckoutResult =
   | { ok: true; url: string }
   | { ok: false; error: string };
 
-/** One-time Stripe Checkout for a paid event ticket (requires `events.stripe_price_id`). */
+/** Event tickets are paid in person — platform Stripe checkout is disabled. */
 export async function startEventStripeCheckout(
-  eventId: string,
+  _eventId: string,
 ): Promise<StartEventCheckoutResult> {
-  const supabase = getSupabase();
-  if (!supabase) {
-    return { ok: false, error: 'Sign in is required before checkout.' };
-  }
-  const returnBase = getStripeCheckoutReturnBaseUrl();
-  const { data, error } = await supabase.functions.invoke('stripe-create-checkout', {
-    body: {
-      mode: 'event',
-      event_id: eventId,
-      success_url: returnBase
-        ? `${returnBase}?stripe_checkout=success&event_id=${encodeURIComponent(eventId)}`
-        : undefined,
-      cancel_url: returnBase
-        ? `${returnBase}?stripe_checkout=cancel&event_id=${encodeURIComponent(eventId)}`
-        : undefined,
-    },
-  });
-  if (error) {
-    return { ok: false, error: error.message || 'Could not start checkout.' };
-  }
-  if (data?.error === 'event_full') {
-    return { ok: false, error: 'This event is full — no more tickets are available.' };
-  }
-  const url = typeof data?.url === 'string' ? data.url : '';
-  if (!url) {
-    const msg = typeof data?.error === 'string' ? data.error : 'Checkout URL missing.';
-    return { ok: false, error: msg };
-  }
-  return { ok: true, url };
+  return {
+    ok: false,
+    error:
+      'Event payments are not taken in the app. Register to reserve your place and pay the host in person at the venue.',
+  };
 }
 
 export function openEventCheckoutUrl(url: string): void {

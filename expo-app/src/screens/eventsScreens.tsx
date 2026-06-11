@@ -68,8 +68,9 @@ import {
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { hasPremiumOrAdminTier } from '../subscriptions/navigateToPremiumPaywall';
 import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
-import { formatEntryPaymentNotice } from '../lib/eventEntryPayment';
+import { EVENT_FOOTER_PAYMENT_HINT, formatEntryPaymentNotice } from '../lib/eventEntryPayment';
 import { EventDetailSections } from '../components/EventDetailSections';
+import { EventInPersonPaymentBanner } from '../components/EventInPersonPaymentBanner';
 import {
   formatEventSpotsLabel,
   isEventAtCapacity,
@@ -1230,6 +1231,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
             <EventDetailSections parsed={eventPresentation} entryPaymentLine={entryPaymentLine} />
           ) : dbEvent ? null : (
             <>
+              <EventInPersonPaymentBanner style={{ marginBottom: DS.space.md }} />
               <Text style={styles.detailSectionKicker}>OVERVIEW</Text>
               <Text style={styles.detailBody}>
                 Elite performance training session designed to build functional strength and power. This
@@ -1374,6 +1376,20 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           </>
         ) : (
           <>
+            <Text
+              style={{
+                fontFamily: DS.font.body,
+                fontSize: 13,
+                lineHeight: 18,
+                color: DS.color.textMuted,
+                textAlign: 'center',
+                marginBottom: DS.space.sm,
+                paddingHorizontal: DS.space.sm,
+              }}
+            >
+              {EVENT_FOOTER_PAYMENT_HINT}
+              {entryPaymentLine ? `\n${entryPaymentLine}` : ''}
+            </Text>
             <AppleHeroButton onPress={goConfirm} style={{ marginBottom: DS.space.sm }}>
               <Text style={eventCtaLabelStyle}>Attend now</Text>
             </AppleHeroButton>
@@ -1498,6 +1514,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
       attendeeName: fullName,
       attendeeEmail: email,
       fitnessLevel: level,
+      entryPaymentLine,
     });
   }, [
     user,
@@ -1512,6 +1529,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
     level,
     showBanner,
     supabaseEventId,
+    entryPaymentLine,
   ]);
 
   return (
@@ -1554,17 +1572,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           </View>
         </View>
 
-        {entryPaymentLine ? (
-          <View style={styles.entryPaymentCard}>
-            <FontAwesome name="info-circle" size={16} color={DS.color.gold} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.entryPaymentText}>{entryPaymentLine}</Text>
-              <Text style={[styles.entryPaymentText, { marginTop: 6, color: DS.color.textMuted }]}>
-                No charge in the app — register now and pay the host on arrival if applicable.
-              </Text>
-            </View>
-          </View>
-        ) : null}
+        <EventInPersonPaymentBanner hostNotice={entryPaymentLine} style={{ marginBottom: DS.space.md }} />
 
         <Text style={styles.detailSectionKicker}>YOUR DETAILS</Text>
         <Text style={styles.confirmFieldLabel}>Full Name</Text>
@@ -1685,6 +1693,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const attendeeName = p?.attendeeName ?? 'Alex Johnson';
   const attendeeEmail = p?.attendeeEmail ?? 'alex.johnson@email.com';
   const fitnessLevel = p?.fitnessLevel ?? 'Intermediate';
+  const entryPaymentLine = p?.entryPaymentLine?.trim() || null;
   const scheduleForIcs = `${recapDate} • ${recapTime}`;
 
   const [qrToken, setQrToken] = useState<string | null>(null);
@@ -1984,6 +1993,8 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
             </View>
           </View>
         )}
+
+        <EventInPersonPaymentBanner hostNotice={entryPaymentLine} style={{ marginBottom: DS.space.md }} />
 
         <Text style={styles.detailSectionKicker}>EVENT DETAILS</Text>
         <View style={styles.confirmEventCard}>
