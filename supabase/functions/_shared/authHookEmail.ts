@@ -156,7 +156,18 @@ export async function sendAuthEmailViaResend(opts: {
   if (!send.ok) {
     const txt = await send.text();
     console.error('[send-auth-email] Resend failed', send.status, txt);
-    return { ok: false, error: 'resend_failed', status: send.status };
+    let detail = 'resend_failed';
+    try {
+      const parsed = JSON.parse(txt) as { message?: string; name?: string };
+      if (parsed.name === 'rate_limit_exceeded' || /rate limit/i.test(parsed.message ?? '')) {
+        detail = 'resend_rate_limit_exceeded';
+      } else if (parsed.message) {
+        detail = parsed.message;
+      }
+    } catch {
+      /* non-json body */
+    }
+    return { ok: false, error: detail, status: send.status };
   }
 
   return { ok: true };

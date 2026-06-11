@@ -43,6 +43,8 @@ async function patchAuthConfig(token, hookSecret) {
       hook_send_email_uri: HOOK_URI,
       hook_send_email_secrets: hookSecret,
       mailer_autoconfirm: false,
+      rate_limit_email_sent: Number(process.env.RATE_LIMIT_EMAIL_SENT ?? 60),
+      rate_limit_verify: Number(process.env.RATE_LIMIT_VERIFY ?? 30),
     }),
   });
   const text = await res.text();

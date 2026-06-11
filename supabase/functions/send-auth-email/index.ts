@@ -90,15 +90,23 @@ Deno.serve(async (req) => {
 
   const result = await sendAuthEmailViaResend({ to, subject, html, text });
   if (!result.ok) {
+    const isRateLimit =
+      result.error === 'resend_rate_limit_exceeded' || result.status === 429;
+    const httpStatus = isRateLimit ? 429 : result.status === 503 ? 503 : 500;
+    const message = isRateLimit
+      ? 'email rate limit exceeded'
+      : result.error === 'resend_not_configured'
+        ? 'Auth email service is not configured (RESEND_API_KEY missing).'
+        : result.error;
     return new Response(
       JSON.stringify({
         error: {
-          http_code: result.status ?? 500,
-          message: result.error,
+          http_code: httpStatus,
+          message,
         },
       }),
       {
-        status: 500,
+        status: httpStatus,
         headers: { 'Content-Type': 'application/json' },
       },
     );

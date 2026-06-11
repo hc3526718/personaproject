@@ -25,13 +25,41 @@ export function signupPasswordErrorMessage(validation: PasswordValidation): stri
   return `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
 }
 
-export function mapSignUpErrorMessage(raw: string): string {
+/** User-facing copy for Supabase/Resend auth email failures (sign-up, password reset). */
+export function mapAuthEmailErrorMessage(raw: string): string {
   const m = raw.toLowerCase();
+  if (
+    m.includes('rate limit') ||
+    m.includes('over_email_send_rate_limit') ||
+    m.includes('too many requests') ||
+    m.includes('429')
+  ) {
+    return (
+      'Too many verification emails were sent recently. ' +
+      'Wait about an hour, then try Log In if you already signed up, or try Sign Up again with the same email.'
+    );
+  }
   if (m.includes('confirmation email') || m.includes('sending email') || m.includes('error sending')) {
     return (
       'We could not send the verification email right now. ' +
       'If you already registered, try Log In. Otherwise wait a few minutes and try again, or contact support.'
     );
+  }
+  return raw;
+}
+
+export function mapSignUpErrorMessage(raw: string): string {
+  const m = raw.toLowerCase();
+  if (
+    m.includes('rate limit') ||
+    m.includes('over_email_send_rate_limit') ||
+    m.includes('too many requests') ||
+    m.includes('429')
+  ) {
+    return mapAuthEmailErrorMessage(raw);
+  }
+  if (m.includes('confirmation email') || m.includes('sending email') || m.includes('error sending')) {
+    return mapAuthEmailErrorMessage(raw);
   }
   if (m.includes('weak') || m.includes('password')) {
     return 'Password must include lowercase, uppercase letters and digits.';

@@ -43,7 +43,7 @@ import {
   recoverStaleAuthSession,
   safeGetSession,
 } from './authSessionRecovery';
-import { mapSignUpErrorMessage } from './passwordValidation';
+import { mapAuthEmailErrorMessage, mapSignUpErrorMessage } from './passwordValidation';
 import { hasVerifiedTotpFactor, needsMfaStepUp } from './mfaService';
 
 export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
@@ -475,7 +475,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
         redirectTo: getOAuthRedirectUri(),
       });
-      if (error) return { ok: false, message: error.message };
+      if (error) return { ok: false, message: mapAuthEmailErrorMessage(error.message) };
       return { ok: true };
     },
     [supabase],
