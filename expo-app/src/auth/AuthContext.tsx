@@ -24,7 +24,11 @@ import { authAlert } from './authAlert';
 import { AUTH_BOOT_UNLOCK_MS, AUTH_GET_SESSION_TIMEOUT_MS } from '../constants/bootTiming';
 import { warmDaltonAuthVideoCache } from '../constants/daltonAuthVideo';
 import { setAllowMessagesFrom } from '../messaging/messagingPrefs';
-import { ensureProfileRow, fetchProfileByUserId } from '../roadmap/profileService';
+import {
+  ensureProfileRow,
+  fetchProfileByUserId,
+  syncProfileDisplayNameFromAuth,
+} from '../roadmap/profileService';
 import { ensureDefaultDaltonVerifiedMetadata } from './userMetadataSupabase';
 import {
   DEMO_EMAIL,
@@ -206,6 +210,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         setUser(appUserFromSupabaseUser(session.user));
         void ensureProfileRow(session.user.id, session.user.email ?? null);
+        void syncProfileDisplayNameFromAuth(
+          session.user.id,
+          session.user.user_metadata as Record<string, unknown> | undefined,
+          session.user.email ?? null,
+        );
         void hydrateDmPolicy(session.user.id);
         void syncProfileFlags(session.user.id);
         void import('../lib/pushRegistration').then((m) =>
@@ -483,7 +492,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOAuthBusy(false);
     if (supabase) {
       try {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'global' });
       } catch {
         await clearStaleAuthSession(supabase);
       }
@@ -507,6 +516,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithGoogleOAuth(supabase);
       if (!result.ok) {
+        setOAuthBusy(false);
         if (result.message !== 'Sign in cancelled') {
           authAlert('Google sign in', result.message);
         }
@@ -542,8 +552,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })();
       }
       return true;
-    } finally {
+    } catch {
       setOAuthBusy(false);
+      return false;
     }
   }, [supabase]);
 

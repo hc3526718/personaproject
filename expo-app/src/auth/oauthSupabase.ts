@@ -222,10 +222,15 @@ export async function signInWithGoogleOAuth(
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const redirectTo = getOAuthRedirectUri();
 
+  const oauthOptions = {
+    redirectTo,
+    queryParams: { prompt: 'select_account' as const },
+  };
+
   if (Platform.OS === 'web') {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: oauthOptions,
     });
     if (error) return { ok: false, message: error.message };
     const url = data?.url;
@@ -244,7 +249,7 @@ export async function signInWithGoogleOAuth(
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo,
+      ...oauthOptions,
       skipBrowserRedirect: true,
     },
   });
@@ -252,6 +257,7 @@ export async function signInWithGoogleOAuth(
   if (!data.url) return { ok: false, message: 'No OAuth URL returned' };
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  void WebBrowser.coolDownAsync();
   if (result.type === 'cancel') return { ok: false, message: 'Sign in cancelled' };
   if (result.type !== 'success' || !result.url) {
     return { ok: false, message: 'Could not complete Google sign in' };

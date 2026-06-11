@@ -1111,12 +1111,14 @@ export type HostBookingRosterRow = {
 };
 
 function attendeeNameFromProfile(
-  p: Pick<ProfileRow, 'display_name' | 'first_name' | 'last_name'>,
+  p: Pick<ProfileRow, 'display_name' | 'first_name' | 'last_name' | 'username'>,
 ): string {
   const d = p.display_name?.trim();
   if (d) return d;
   const parts = [p.first_name?.trim(), p.last_name?.trim()].filter(Boolean);
   if (parts.length > 0) return parts.join(' ');
+  const u = p.username?.trim();
+  if (u) return u;
   return 'Member';
 }
 
@@ -1134,10 +1136,13 @@ export async function listBookingsForEventHost(eventId: string): Promise<HostBoo
   const userIds = [...new Set((bks as { user_id: string }[]).map((b) => b.user_id))];
   const { data: profs } = await supabase
     .from('profiles')
-    .select('id, display_name, first_name, last_name')
+    .select('id, display_name, first_name, last_name, username')
     .in('id', userIds);
   const nameBy = new Map<string, string>();
-  for (const pr of (profs ?? []) as (Pick<ProfileRow, 'id' | 'display_name' | 'first_name' | 'last_name'>)[]) {
+  for (const pr of (profs ?? []) as (Pick<
+    ProfileRow,
+    'id' | 'display_name' | 'first_name' | 'last_name' | 'username'
+  >)[]) {
     nameBy.set(pr.id, attendeeNameFromProfile(pr));
   }
 

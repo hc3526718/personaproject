@@ -81,6 +81,12 @@ import { QR_SCAN_ICON } from './HostAttendeeScanScreen';
 import { CreatorEventDetailView } from './CreatorEventDetailView';
 import type { EventRow } from '../roadmap/types';
 import { canCreateVerifiedContent } from '../creator/creatorAccess';
+import { safeGetSession } from '../auth/authSessionRecovery';
+import {
+  fetchProfileByUserId,
+  profileDisplayName,
+  saveAttendeeNameFromBooking,
+} from '../roadmap/profileService';
 
 const eventCtaLabelStyle = {
   fontFamily: DS.font.bodyBold,
@@ -1313,7 +1319,6 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
                     recapDate: recapDatePart,
                     recapTime: recapTimePart || displaySchedule,
                     venue: displayVenue,
-                    attendeeName: user?.email?.split('@')[0] ?? 'Member',
                     attendeeEmail: user?.email ?? '',
                     fitnessLevel: 'Intermediate',
                   })
@@ -1349,7 +1354,6 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
                 recapDate: recapDatePart,
                 recapTime: recapTimePart || displaySchedule,
                 venue: displayVenue,
-                attendeeName: user?.email?.split('@')[0] ?? 'Member',
                 attendeeEmail: user?.email ?? '',
                 fitnessLevel: 'Intermediate',
               })
@@ -1431,14 +1435,38 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
   const entryPaymentLine = route.params?.entryPaymentLine?.trim() || null;
   const { datePart, timePart } = splitScheduleLine(scheduleLine);
 
-  const [fullName, setFullName] = useState('Alex Johnson');
-  const [email, setEmail] = useState(sessionEmail ?? 'alex.johnson@email.com');
-  const [phone, setPhone] = useState('+1 (555) 123-4567');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState(sessionEmail ?? '');
+  const [phone, setPhone] = useState('');
   const [level, setLevel] = useState<(typeof FITNESS_LEVELS)[number]>('Intermediate');
   const [notes, setNotes] = useState('');
   const [consent, setConsent] = useState(false);
   const [bookingBusy, setBookingBusy] = useState(false);
   const [eventFull, setEventFull] = useState(false);
+
+  useEffect(() => {
+    if (sessionEmail) setEmail(sessionEmail);
+  }, [sessionEmail]);
+
+  useEffect(() => {
+    if (!user?.id || user.id.startsWith('demo-')) return undefined;
+    let alive = true;
+    void (async () => {
+      const prof = await fetchProfileByUserId(user.id);
+      let name = profileDisplayName(prof);
+      if (!name) {
+        const supabase = getSupabase();
+        const session = supabase ? await safeGetSession(supabase) : null;
+        const meta = session?.user?.user_metadata as Record<string, unknown> | undefined;
+        const oauthFull = typeof meta?.full_name === 'string' ? meta.full_name.trim() : '';
+        if (oauthFull) name = oauthFull;
+      }
+      if (alive && name) setFullName(name);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!supabaseEventId || !isSupabaseConfigured()) {
@@ -1490,6 +1518,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
           reference = booked.reference;
           eventId = booked.eventId;
           bookingId = booked.bookingId;
+          void saveAttendeeNameFromBooking(user.id, fullName);
         } else {
           Alert.alert(
             'Event unavailable',
@@ -1530,6 +1559,7 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
     showBanner,
     supabaseEventId,
     entryPaymentLine,
+    fullName,
   ]);
 
   return (
@@ -1690,11 +1720,36 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const recapDate = p?.recapDate ?? 'October 15, 2024';
   const recapTime = p?.recapTime ?? '10:00 AM - 12:00 PM';
   const venue = p?.venue ?? 'Elite Fitness Center';
-  const attendeeName = p?.attendeeName ?? 'Alex Johnson';
-  const attendeeEmail = p?.attendeeEmail ?? 'alex.johnson@email.com';
+  const attendeeEmail = p?.attendeeEmail ?? user?.email ?? '';
   const fitnessLevel = p?.fitnessLevel ?? 'Intermediate';
   const entryPaymentLine = p?.entryPaymentLine?.trim() || null;
   const scheduleForIcs = `${recapDate} • ${recapTime}`;
+  const [attendeeName, setAttendeeName] = useState(p?.attendeeName?.trim() || '');
+
+  useEffect(() => {
+    if (p?.attendeeName?.trim()) {
+      setAttendeeName(p.attendeeName.trim());
+      return;
+    }
+    if (!user?.id || user.id.startsWith('demo-')) return;
+    let alive = true;
+    void (async () => {
+      const prof = await fetchProfileByUserId(user.id);
+      let name = profileDisplayName(prof);
+      if (!name) {
+        const supabase = getSupabase();
+        const session = supabase ? await safeGetSession(supabase) : null;
+        const meta = session?.user?.user_metadata as Record<string, unknown> | undefined;
+        const oauthFull = typeof meta?.full_name === 'string' ? meta.full_name.trim() : '';
+        if (oauthFull) name = oauthFull;
+      }
+      if (!name) name = user.email?.split('@')[0] ?? 'Member';
+      if (alive) setAttendeeName(name);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [p?.attendeeName, user?.email, user?.id]);
 
   const [qrToken, setQrToken] = useState<string | null>(null);
   const [checkedInAt, setCheckedInAt] = useState<string | null>(null);
