@@ -16,7 +16,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import Stripe from 'npm:stripe@17.7.0';
-import { sendBookingConfirmationEmail } from '../_shared/bookingConfirmationEmail.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -153,15 +152,8 @@ Deno.serve(async (req) => {
               .maybeSingle();
             if (bkErr && !/unique|duplicate/i.test(bkErr.message)) {
               console.error('[stripe-webhook] event_booking_failed', bkErr.message);
-            } else if (inserted?.id) {
-              const mail = await sendBookingConfirmationEmail(admin, {
-                bookingId: inserted.id,
-                userId,
-              });
-              if (!mail.ok) {
-                console.error('[stripe-webhook] booking_email_failed', mail.error);
-              }
             }
+            // Booking confirmation emails disabled until Resend is configured.
           }
           break;
         }

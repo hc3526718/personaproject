@@ -722,12 +722,7 @@ function PostCard({
       ...(canDelete
         ? [{ key: 'delete', label: 'Delete post', destructive: true, onPress: () => setDeleteConfirmVisible(true) }]
         : []),
-      { key: 'report', label: 'Report post', onPress: reportPost },
-      {
-        key: 'copy',
-        label: 'Copy reference',
-        onPress: () => Alert.alert('Post reference', _postId, [{ text: 'OK' }]),
-      },
+      { key: 'report', label: 'Report post', destructive: true, onPress: reportPost },
     ];
 
     setPostMenuOptions(items);

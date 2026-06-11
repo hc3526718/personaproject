@@ -74,23 +74,57 @@ export type DerivedEventSchedule = {
   startTime: Date;
 };
 
-/** Derive event start/end from first and last agenda block (+ one spacing interval at the end). */
+/** True when parsed agenda time is strictly before the event start anchor. */
+export function isAgendaTimeBeforeAnchor(
+  eventDate: Date,
+  anchorStart: Date,
+  timeStr: string,
+): boolean {
+  const t = parseAgendaTimeOnDate(eventDate, timeStr);
+  if (!t) return false;
+  return t.getTime() < anchorStart.getTime();
+}
+
+/** Rebuild sequential agenda times from the event start anchor and spacing split. */
+export function syncAgendaTimesFromAnchor(
+  eventDate: Date,
+  anchorStart: Date,
+  rows: { title: string; time: string }[],
+  split: AgendaSplit,
+): { title: string; time: string }[] {
+  const blockMins = agendaSplitMinutes(split) ?? inferAgendaGapMinutes(rows) ?? 30;
+  return rows.map((row, i) => ({
+    title: row.title,
+    time: formatAgendaTime(new Date(anchorStart.getTime() + i * blockMins * 60_000)),
+  }));
+}
+
+/**
+ * Derive event start/end from the master-selected start time + agenda row count.
+ * End = anchor + (agenda items × block length). Optional per-row times must not precede anchor.
+ */
 export function deriveEventScheduleFromAgenda(
   eventDate: Date,
   agenda: { title: string; time: string }[],
   split: AgendaSplit,
+  anchorStart?: Date,
 ): DerivedEventSchedule | null {
   const complete = agenda.filter((r) => r.title.trim() && r.time.trim());
   if (complete.length === 0) return null;
-  const first = parseAgendaTimeOnDate(eventDate, complete[0]!.time);
-  const lastStart = parseAgendaTimeOnDate(eventDate, complete[complete.length - 1]!.time);
-  if (!first || !lastStart) return null;
+
   const blockMins = agendaSplitMinutes(split) ?? inferAgendaGapMinutes(complete) ?? 30;
-  const end = new Date(lastStart.getTime() + blockMins * 60_000);
+  const anchor =
+    anchorStart ??
+    parseAgendaTimeOnDate(eventDate, complete[0]!.time) ??
+    null;
+  if (!anchor) return null;
+
+  const end = new Date(anchor.getTime() + complete.length * blockMins * 60_000);
+
   return {
-    startsIso: first.toISOString(),
+    startsIso: anchor.toISOString(),
     endsIso: end.toISOString(),
-    durationLabel: formatDurationBetween(first, end),
-    startTime: first,
+    durationLabel: formatDurationBetween(anchor, end),
+    startTime: anchor,
   };
 }

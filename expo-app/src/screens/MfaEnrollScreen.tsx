@@ -17,9 +17,11 @@ import { SvgXml } from 'react-native-svg';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
+import { MfaEnrolledNoticeModal } from '../components/MfaEnrolledNoticeModal';
 import { DS } from '../designSystem';
 import type { ProfileStackParamList } from '../navigation/types';
 import {
+  MFA_APP_LABEL,
   completeTotpEnrollment,
   fetchTotpFactors,
   startTotpEnrollment,
@@ -27,18 +29,21 @@ import {
 } from '../auth/mfaService';
 import { isStaffAccount } from '../auth/staffAccess';
 import { useAuth } from '../auth/AuthContext';
+import { useAccessibility } from '../accessibility/AccessibilityContext';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'MfaEnroll'>;
 
 export function MfaEnrollScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { colors } = useAccessibility();
   const required = route.params?.required === true;
   const [loading, setLoading] = useState(true);
   const [enroll, setEnroll] = useState<TotpEnrollStart | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [alreadyEnrolled, setAlreadyEnrolled] = useState(false);
+  const [noticeVisible, setNoticeVisible] = useState(false);
   const startedRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -86,6 +91,11 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
     }, [load, navigation, user]),
   );
 
+  const finishEnrollment = () => {
+    setNoticeVisible(false);
+    navigation.goBack();
+  };
+
   const submit = async () => {
     if (!enroll || busy) return;
     setBusy(true);
@@ -95,11 +105,7 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
       Alert.alert('Verification failed', result.message);
       return;
     }
-    Alert.alert(
-      'Authenticator enrolled',
-      'Your account now requires a code from your authenticator app when signing in.',
-      [{ text: 'OK', onPress: () => navigation.goBack() }],
-    );
+    setNoticeVisible(true);
   };
 
   return (
@@ -130,24 +136,47 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
           <View style={styles.card}>
             <Text style={styles.title}>Already enrolled</Text>
             <Text style={styles.body}>
-              This account has an authenticator app linked. You will be asked for a code when you
-              sign in.
+              This account has an authenticator app linked as{' '}
+              <Text style={styles.strong}>{MFA_APP_LABEL}</Text>. You will be asked for a code when
+              you sign in.
             </Text>
           </View>
         ) : enroll ? (
           <>
             <Text style={styles.body}>
-              Scan the QR code with Google Authenticator, 1Password, Authy, or another TOTP app.
-              Then enter the 6-digit code to finish setup.
+              Scan the QR code with your authenticator app, or add the account manually using the
+              steps below.
             </Text>
-            <View style={styles.qrWrap}>
-              <SvgXml xml={enroll.qrSvg} width={200} height={200} />
+            <View style={styles.qrFrame}>
+              <View style={styles.qrInner}>
+                <SvgXml xml={enroll.qrSvg} width={168} height={168} />
+              </View>
             </View>
-            <Text style={styles.secretLabel}>Manual entry key</Text>
-            <Text selectable style={styles.secret}>
-              {enroll.secret}
-            </Text>
-            <Text style={styles.label}>6-digit code</Text>
+
+            <View style={[styles.manualCard, { borderColor: colors.borderHairline }]}>
+              <Text style={[styles.manualTitle, { color: colors.textOnLight }]}>Manual setup</Text>
+              <Text style={[styles.manualStep, { color: colors.textOnLight }]}>1. Open your authenticator app.</Text>
+              <Text style={[styles.manualStep, { color: colors.textOnLight }]}>
+                2. Choose <Text style={[styles.strong, { color: colors.textOnLight }]}>Other</Text> (or equivalent).
+              </Text>
+              <Text style={[styles.manualStep, { color: colors.textOnLight }]}>
+                3. Account name: <Text style={[styles.strong, { color: colors.textOnLight }]}>{MFA_APP_LABEL}</Text>
+              </Text>
+              <Text style={[styles.manualStep, { color: colors.textOnLight }]}>
+                4. Secret key:{' '}
+                <Text selectable style={[styles.secretInline, { color: colors.textOnLight }]}>
+                  {enroll.secret}
+                </Text>
+              </Text>
+              <Text style={[styles.manualStep, { color: colors.textOnLight }]}>
+                5. Press Finish / Save in your authenticator app.
+              </Text>
+              <Text style={[styles.manualStep, { color: colors.textOnLight }]}>
+                6. When completed, press Continue below and enter your 6-digit code.
+              </Text>
+            </View>
+
+            <Text style={styles.label}>Enter your 6-digit code</Text>
             <TextInput
               style={styles.input}
               value={code}
@@ -159,7 +188,7 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
               autoComplete={Platform.OS === 'web' ? 'one-time-code' : undefined}
             />
             <AppleHeroButton loading={busy} onPress={() => void submit()}>
-              Verify & enable
+              Continue
             </AppleHeroButton>
           </>
         ) : null}
@@ -170,6 +199,8 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
           </Pressable>
         ) : null}
       </ScrollView>
+
+      <MfaEnrolledNoticeModal visible={noticeVisible} onContinue={finishEnrollment} />
     </View>
   );
 }
@@ -213,21 +244,46 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     lineHeight: 22,
   },
-  qrWrap: {
+  strong: {
+    fontFamily: DS.font.bodyBold,
+    color: DS.color.text,
+  },
+  qrFrame: {
     alignSelf: 'center',
     padding: DS.space.md,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
-  secretLabel: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: 13,
-    color: DS.color.textMuted,
-    marginTop: DS.space.sm,
+  qrInner: {
+    width: 168,
+    height: 168,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  secret: {
-    fontFamily: DS.font.bodyMedium,
+  manualCard: {
+    padding: DS.space.md,
+    borderRadius: DS.apple.radiusCard,
+    backgroundColor: '#F2F2F2',
+    borderWidth: 1,
+    gap: DS.space.xs,
+  },
+  manualTitle: {
+    fontFamily: DS.font.bodyBold,
+    fontSize: 15,
+    color: DS.color.text,
+    marginBottom: DS.space.xs,
+  },
+  manualStep: {
+    fontFamily: DS.font.body,
     fontSize: 14,
+    color: DS.color.textMuted,
+    lineHeight: 20,
+  },
+  secretInline: {
+    fontFamily: DS.font.bodyMedium,
     color: DS.color.text,
     letterSpacing: 1,
   },
@@ -235,12 +291,12 @@ const styles = StyleSheet.create({
     fontFamily: DS.font.bodyMedium,
     fontSize: 14,
     color: DS.color.text,
-    marginTop: DS.space.md,
+    marginTop: DS.space.sm,
   },
   input: {
     borderWidth: 1,
     borderColor: DS.color.borderHairline,
-    borderRadius: DS.apple.radiusControl,
+    borderRadius: DS.apple.radiusField,
     paddingHorizontal: DS.space.md,
     paddingVertical: 12,
     fontFamily: DS.font.body,

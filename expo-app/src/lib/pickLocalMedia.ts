@@ -16,7 +16,7 @@ async function pickFromPhotoLibrary(
 ): Promise<PickedLocalFile[]> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
-    Alert.alert('Permission needed', 'Allow photo library access to choose media.');
+    Alert.alert('Permission needed', 'Allow camera roll access to choose photos and videos.');
     return [];
   }
   const res = await ImagePicker.launchImageLibraryAsync({
@@ -60,7 +60,7 @@ function pickMediaSourceNative(title: string): Promise<'library' | 'files' | nul
       ActionSheetIOS.showActionSheetWithOptions(
         {
           title,
-          options: ['Cancel', 'Photo library', 'Browse files'],
+          options: ['Cancel', 'Camera roll', 'Browse files'],
           cancelButtonIndex: 0,
         },
         (index) => {
@@ -105,7 +105,7 @@ export function pickLocalMedia(
 
   const videoHint =
     kind === 'video'
-      ? 'Large clips: use Browse files if Photo library fails for iCloud-only videos.'
+      ? 'Large clips: use Browse files if Camera roll fails for iCloud-only videos.'
       : undefined;
 
   return requestMediaSourceChoice({
@@ -115,10 +115,10 @@ export function pickLocalMedia(
       kind === 'video'
         ? [
             { key: 'files', label: 'Browse files' },
-            { key: 'library', label: 'Photo library' },
+            { key: 'library', label: 'Camera roll' },
           ]
         : [
-            { key: 'library', label: 'Photo library' },
+            { key: 'library', label: 'Camera roll' },
             { key: 'files', label: 'Browse files' },
           ],
   }).then((key) => {
@@ -146,7 +146,7 @@ export function pickLocalVideo(options?: {
 async function pickComposerFromPhotoLibrary(): Promise<PickedLocalFile[]> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
-    Alert.alert('Permission needed', 'Allow photo library access to choose media.');
+    Alert.alert('Permission needed', 'Allow camera roll access to choose photos and videos.');
     return [];
   }
   const res = await ImagePicker.launchImageLibraryAsync({
@@ -214,7 +214,7 @@ export function pickLocalComposerMedia(options?: {
   return requestMediaSourceChoice({
     title,
     options: [
-      { key: 'library', label: 'Photo library' },
+      { key: 'library', label: 'Camera roll' },
       { key: 'files', label: 'Browse files' },
     ],
   }).then((key) => {

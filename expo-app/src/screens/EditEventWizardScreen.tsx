@@ -37,7 +37,9 @@ import {
 } from '../lib/eventEntryPayment';
 import {
   deriveEventScheduleFromAgenda,
+  isAgendaTimeBeforeAnchor,
   nextAgendaTimeLabel,
+  syncAgendaTimesFromAnchor,
   type AgendaSplit,
 } from '../lib/agendaTiming';
 
@@ -389,13 +391,15 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
       setAgendaSplit(split);
       if (split === 'custom') return;
       const mins = split === '15' ? 15 : split === '30' ? 30 : 60;
-      const base = lockedStartsAt ? new Date(lockedStartsAt) : new Date(eventTime);
+      const anchor = lockedStartsAt
+        ? new Date(lockedStartsAt)
+        : combineDateAndTime(eventDate, eventTime);
       setAgenda((prev) => {
         const filled = prev.filter((row) => row.title.trim() || row.time.trim());
         const count = Math.max(filled.length, 4);
         const items: { title: string; time: string }[] = [];
         for (let i = 0; i < count; i++) {
-          const t = new Date(base.getTime() + i * mins * 60_000);
+          const t = new Date(anchor.getTime() + i * mins * 60_000);
           const existing = prev[i];
           const keptTitle = existing?.title?.trim();
           items.push({
@@ -403,17 +407,8 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
             time: formatTime(t),
           });
         }
-        const derived = deriveEventScheduleFromAgenda(
-          lockedStartsAt ? new Date(lockedStartsAt) : eventDate,
-          items,
-          split,
-        );
-        if (derived && !lockedStartsAt) {
-          setEventTime(derived.startTime);
-          setDuration(derived.durationLabel);
-        } else if (derived && lockedStartsAt && !lockedEndsAt) {
-          setDuration(derived.durationLabel);
-        }
+        const derived = deriveEventScheduleFromAgenda(eventDate, items, split, anchor);
+        if (derived && !lockedEndsAt) setDuration(derived.durationLabel);
         return items;
       });
     },
@@ -421,12 +416,22 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
   );
 
   useEffect(() => {
-    if (step < 4 || lockedStartsAt) return;
-    const derived = deriveEventScheduleFromAgenda(eventDate, agenda, agendaSplit);
-    if (!derived) return;
-    setEventTime(derived.startTime);
+    if (step < 4) return;
+    const anchor = lockedStartsAt
+      ? new Date(lockedStartsAt)
+      : combineDateAndTime(eventDate, eventTime);
+    const derived = deriveEventScheduleFromAgenda(eventDate, agenda, agendaSplit, anchor);
+    if (!derived || lockedEndsAt) return;
     setDuration(derived.durationLabel);
-  }, [agenda, agendaSplit, eventDate, lockedStartsAt, step]);
+  }, [agenda, agendaSplit, eventDate, eventTime, lockedEndsAt, lockedStartsAt, step]);
+
+  useEffect(() => {
+    if (step < 4) return;
+    const anchor = lockedStartsAt
+      ? new Date(lockedStartsAt)
+      : combineDateAndTime(eventDate, eventTime);
+    setAgenda((prev) => syncAgendaTimesFromAnchor(eventDate, anchor, prev, agendaSplit));
+  }, [agendaSplit, eventDate, eventTime, lockedStartsAt, step]);
 
   const addAgendaRow = useCallback(() => {
     setAgenda((prev) => [
@@ -434,6 +439,13 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
       { title: '', time: nextAgendaTimeLabel(eventDate, prev, agendaSplit, eventTime) },
     ]);
   }, [agendaSplit, eventDate, eventTime]);
+
+  const removeAgendaRow = useCallback((index: number) => {
+    setAgenda((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
 
   const validateStep = useCallback(
     (s: number): string | null => {
@@ -455,10 +467,19 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
         );
         if (completeAgenda.length === 0) return 'Add at least one agenda item with title and time.';
         if (partialAgenda) return 'Finish incomplete agenda rows or clear them.';
+        const anchor = lockedStartsAt
+          ? new Date(lockedStartsAt)
+          : combineDateAndTime(eventDate, eventTime);
+        const beforeStart = completeAgenda.find((row) =>
+          isAgendaTimeBeforeAnchor(eventDate, anchor, row.time),
+        );
+        if (beforeStart) {
+          return 'Agenda times cannot start before the event start time.';
+        }
       }
       return null;
     },
-    [agenda, description, eventDate, eventTime, eventTitle, maxAttendance, venue],
+    [agenda, description, eventDate, eventTime, eventTitle, lockedStartsAt, maxAttendance, venue],
   );
 
   const nextStep = () => {
@@ -478,9 +499,11 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
     setError(null);
 
     const completeAgenda = agenda.filter((row) => row.title.trim() && row.time.trim());
-    const scheduleDate = lockedStartsAt ? new Date(lockedStartsAt) : eventDate;
-    const derived = deriveEventScheduleFromAgenda(scheduleDate, completeAgenda, agendaSplit);
-    const starts = lockedStartsAt ?? derived?.startsIso ?? combineDateAndTime(eventDate, eventTime).toISOString();
+    const anchor = lockedStartsAt
+      ? new Date(lockedStartsAt)
+      : combineDateAndTime(eventDate, eventTime);
+    const derived = deriveEventScheduleFromAgenda(eventDate, completeAgenda, agendaSplit, anchor);
+    const starts = lockedStartsAt ?? derived?.startsIso ?? anchor.toISOString();
     const ends =
       lockedEndsAt ?? derived?.endsIso ?? endsAtAfterDuration(starts, duration);
     const effectiveDuration = derived?.durationLabel ?? duration.trim();
@@ -674,13 +697,18 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
             <Text style={s.readOnlyText}>{scheduleLabel}</Text>
           </View>
         </FormField>
-        <FormField label="Venue / location" required>
+        <FormField
+          label="Venue / location"
+          required
+          hint="Include organisation name, building number, road, postcode and city so attendees can navigate easily."
+        >
           <TextInput
             value={venue}
             onChangeText={setVenue}
-            placeholder="City, facility, or online link"
+            placeholder="e.g. Dalton HQ, 12 High Street, London SW1A 1AA"
             placeholderTextColor={DS.color.textMuted}
             style={s.input}
+            multiline
           />
         </FormField>
         <FormField label="Expected attendance" required>
@@ -693,13 +721,14 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
             style={s.input}
           />
         </FormField>
-        <FormField label="Duration" hint="Optional — e.g. 2 hours">
+        <FormField label="Duration" hint="Auto-calculated from agenda on the next step.">
           <TextInput
             value={duration}
             onChangeText={setDuration}
-            placeholder="2 hours"
+            placeholder="Calculated from agenda"
             placeholderTextColor={DS.color.textMuted}
             style={s.input}
+            editable={false}
           />
         </FormField>
         <FormField label="Entry payment notice" hint="Optional — shown on the event page (no in-app checkout).">
@@ -757,7 +786,13 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
           <View key={i} style={s.agendaRow}>
             <TextInput
               value={row.time}
-              onChangeText={(t) => setAgenda((rows) => rows.map((r, j) => (j === i ? { ...r, time: t } : r)))}
+              onChangeText={(t) => {
+                const anchor = lockedStartsAt
+                  ? new Date(lockedStartsAt)
+                  : combineDateAndTime(eventDate, eventTime);
+                if (t.trim() && isAgendaTimeBeforeAnchor(eventDate, anchor, t)) return;
+                setAgenda((rows) => rows.map((r, j) => (j === i ? { ...r, time: t } : r)));
+              }}
               placeholder="10:00 AM"
               placeholderTextColor={DS.color.textMuted}
               style={[s.input, s.agendaTime]}
@@ -769,6 +804,16 @@ export function EditEventWizardScreen({ navigation, route }: Props) {
               placeholderTextColor={DS.color.textMuted}
               style={[s.input, s.agendaTitle]}
             />
+            {agenda.length > 1 ? (
+              <Pressable
+                onPress={() => removeAgendaRow(i)}
+                hitSlop={8}
+                style={s.agendaRemoveBtn}
+                accessibilityLabel="Remove agenda row"
+              >
+                <FontAwesome name="times" size={14} color={DS.color.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
         ))}
         <Pressable onPress={addAgendaRow} style={s.ghostBtn}>
@@ -933,7 +978,13 @@ const s = StyleSheet.create({
     color: DS.color.textMuted,
     marginBottom: DS.space.sm,
   },
-  agendaRow: { flexDirection: 'row', gap: DS.space.sm, marginBottom: DS.space.sm },
+  agendaRow: { flexDirection: 'row', alignItems: 'center', gap: DS.space.sm, marginBottom: DS.space.sm },
+  agendaRemoveBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   agendaTime: { width: 110 },
   agendaTitle: { flex: 1 },
   ghostBtn: { paddingVertical: DS.space.sm, marginBottom: DS.space.md },

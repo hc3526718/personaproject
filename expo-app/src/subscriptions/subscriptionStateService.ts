@@ -6,6 +6,7 @@ export type SubscriptionStateRow = {
   is_payment_verified: boolean;
   entitlement_ids: string[] | null;
   updated_at: string | null;
+  raw: Record<string, unknown> | null;
 };
 
 /** `null` = no row yet (webhook not run); `true` / `false` = server mirror. */
@@ -40,7 +41,7 @@ export async function fetchSubscriptionStateRow(
 
   const { data, error } = await client
     .from('subscription_state')
-    .select('is_pro, is_payment_verified, entitlement_ids, updated_at')
+    .select('is_pro, is_payment_verified, entitlement_ids, updated_at, raw')
     .eq('user_id', user.id)
     .maybeSingle();
 
@@ -50,5 +51,9 @@ export async function fetchSubscriptionStateRow(
     is_payment_verified: data.is_payment_verified === true,
     entitlement_ids: Array.isArray(data.entitlement_ids) ? data.entitlement_ids : null,
     updated_at: typeof data.updated_at === 'string' ? data.updated_at : null,
+    raw:
+      data.raw && typeof data.raw === 'object' && !Array.isArray(data.raw)
+        ? (data.raw as Record<string, unknown>)
+        : null,
   };
 }

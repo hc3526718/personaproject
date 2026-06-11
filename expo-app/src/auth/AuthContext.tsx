@@ -261,7 +261,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
       } finally {
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          setOAuthBusy(false);
+          setReady(true);
+        }
       }
     });
 
@@ -477,12 +480,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    setOAuthBusy(false);
     if (supabase) {
       try {
         await supabase.auth.signOut();
       } catch {
         await clearStaleAuthSession(supabase);
       }
+    }
+    if (Platform.OS === 'web') {
+      cleanupWebAuthUrlAfterSignIn();
     }
     setUser(null);
     setMfaStepUpPending(false);
@@ -497,45 +504,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     setOAuthBusy(true);
-    const result = await signInWithGoogleOAuth(supabase);
-    if (!result.ok) {
-      setOAuthBusy(false);
-      if (result.message !== 'Sign in cancelled') {
-        authAlert('Google sign in', result.message);
-      }
-      return false;
-    }
-    if (Platform.OS === 'web') {
-      return true;
-    }
-    setOAuthBusy(false);
-    const session = await safeGetSession(supabase);
-    if (session?.user) {
-      setUser(appUserFromSupabaseUser(session.user));
-      void (async () => {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('dalton_verified, master_control')
-            .eq('id', session.user.id)
-            .maybeSingle();
-          if (profile?.dalton_verified || profile?.master_control === 'yes') {
-            setUser((prev) =>
-              prev?.id === session.user.id
-                ? {
-                    ...prev,
-                    daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
-                    masterControl: profile?.master_control === 'yes',
-                  }
-                : prev,
-            );
-          }
-        } catch {
-          /* non-fatal */
+    try {
+      const result = await signInWithGoogleOAuth(supabase);
+      if (!result.ok) {
+        if (result.message !== 'Sign in cancelled') {
+          authAlert('Google sign in', result.message);
         }
-      })();
+        return false;
+      }
+      if (Platform.OS === 'web') {
+        return true;
+      }
+      const session = await safeGetSession(supabase);
+      if (session?.user) {
+        setUser(appUserFromSupabaseUser(session.user));
+        void (async () => {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('dalton_verified, master_control')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            if (profile?.dalton_verified || profile?.master_control === 'yes') {
+              setUser((prev) =>
+                prev?.id === session.user.id
+                  ? {
+                      ...prev,
+                      daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
+                      masterControl: profile?.master_control === 'yes',
+                    }
+                  : prev,
+              );
+            }
+          } catch {
+            /* non-fatal */
+          }
+        })();
+      }
+      return true;
+    } finally {
+      setOAuthBusy(false);
     }
-    return true;
   }, [supabase]);
 
   const signInWithApple = useCallback(async () => {

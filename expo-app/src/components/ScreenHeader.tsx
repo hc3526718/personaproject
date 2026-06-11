@@ -54,7 +54,8 @@ export function ScreenHeader({
   );
 }
 
-function createScreenHeaderStyles(c: AccessibleColors) {
+function createScreenHeaderStyles(c: AccessibleColors, textScale: number) {
+  const scale = (n: number) => Math.round(n * textScale);
   return {
     wrap: {
       paddingHorizontal: DS.space.lg,
@@ -82,7 +83,7 @@ function createScreenHeaderStyles(c: AccessibleColors) {
       textTransform: 'uppercase' as const,
     },
     titleLarge: {
-      fontSize: 40,
+      fontSize: scale(40),
       letterSpacing: 2.5,
     },
     rightSlot: {

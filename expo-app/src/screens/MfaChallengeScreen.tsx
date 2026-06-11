@@ -14,7 +14,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { DS } from '../designSystem';
 import { useAuth } from '../auth/AuthContext';
-import { verifyMfaLoginCode } from '../auth/mfaService';
+import { MFA_APP_LABEL, verifyMfaLoginCode } from '../auth/mfaService';
 
 export function MfaChallengeScreen() {
   const insets = useSafeAreaInsets();
@@ -55,11 +55,11 @@ export function MfaChallengeScreen() {
         <View style={styles.iconCircle}>
           <FontAwesome name="shield" size={28} color={DS.color.gold} />
         </View>
-        <Text style={styles.title}>Enter authenticator code</Text>
+        <Text style={styles.title}>Enter your 6-digit code</Text>
         <Text style={styles.body}>
-          {sessionEmail
-            ? `Open your authenticator app and enter the 6-digit code for ${sessionEmail}.`
-            : 'Open your authenticator app and enter the current 6-digit code.'}
+          Open your authenticator app, choose the entry named{' '}
+          <Text style={styles.strong}>{MFA_APP_LABEL}</Text>
+          {sessionEmail ? ` for ${sessionEmail}` : ''}, and enter the current 6-digit code below.
         </Text>
         <TextInput
           style={styles.input}
@@ -108,10 +108,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: DS.space.lg,
   },
+  strong: {
+    fontFamily: DS.font.bodyBold,
+    color: DS.color.gold,
+  },
   input: {
     borderWidth: 1,
     borderColor: DS.color.borderHairline,
-    borderRadius: DS.apple.radiusControl,
+    borderRadius: DS.apple.radiusField,
     paddingHorizontal: DS.space.md,
     paddingVertical: 14,
     fontFamily: DS.font.body,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { webPageShellStyle } from '../layout/webLayout';
 import { WebAppFrame } from '../components/WebAppFrame';
+import { AccessibilityBanner } from '../components/AccessibilityBanner';
 import {
   NavigationContainer,
   DefaultTheme,
@@ -556,6 +557,8 @@ export function AppNavigator() {
   );
   return (
       <WebAppFrame>
+        <View style={{ flex: 1 }}>
+        <AccessibilityBanner />
         <NavigationContainer ref={rootNavigationRef} theme={navTheme}>
         <RootStack.Navigator
           key={
@@ -582,6 +585,7 @@ export function AppNavigator() {
           )}
         </RootStack.Navigator>
       </NavigationContainer>
+        </View>
     </WebAppFrame>
   );
 }

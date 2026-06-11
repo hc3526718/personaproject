@@ -38,7 +38,9 @@ import {
 } from '../lib/eventEntryPayment';
 import {
   deriveEventScheduleFromAgenda,
+  isAgendaTimeBeforeAnchor,
   nextAgendaTimeLabel,
+  syncAgendaTimesFromAnchor,
   type AgendaSplit,
 } from '../lib/agendaTiming';
 
@@ -216,32 +218,42 @@ export function CreateEventWizard({ navigation }: Props) {
       setAgendaSplit(split);
       if (split === 'custom') return;
       const mins = split === '15' ? 15 : split === '30' ? 30 : 60;
-      const base = new Date(eventTime);
+      const anchor = combineDateAndTime(eventDate, eventTime);
       const items: { title: string; time: string }[] = [];
-      for (let i = 0; i < 4; i++) {
-        const t = new Date(base.getTime() + i * mins * 60_000);
+      const rowCount = Math.max(agenda.filter((r) => r.title.trim() || r.time.trim()).length, 4);
+      for (let i = 0; i < rowCount; i++) {
+        const t = new Date(anchor.getTime() + i * mins * 60_000);
         items.push({
           title: i === 0 ? 'Welcome' : `Block ${i + 1}`,
           time: formatTime(t),
         });
       }
       setAgenda(items);
-      const derived = deriveEventScheduleFromAgenda(eventDate, items, split);
-      if (derived) {
-        setEventTime(derived.startTime);
-        setDuration(derived.durationLabel);
-      }
+      const derived = deriveEventScheduleFromAgenda(eventDate, items, split, anchor);
+      if (derived) setDuration(derived.durationLabel);
     },
-    [eventDate, eventTime],
+    [agenda, eventDate, eventTime],
   );
 
   useEffect(() => {
     if (step < 4) return;
-    const derived = deriveEventScheduleFromAgenda(eventDate, agenda, agendaSplit);
+    const anchor = combineDateAndTime(eventDate, eventTime);
+    const derived = deriveEventScheduleFromAgenda(eventDate, agenda, agendaSplit, anchor);
     if (!derived) return;
-    setEventTime(derived.startTime);
     setDuration(derived.durationLabel);
-  }, [agenda, agendaSplit, eventDate, step]);
+  }, [agenda, agendaSplit, eventDate, eventTime, step]);
+
+  useEffect(() => {
+    if (step < 4) return;
+    const anchor = combineDateAndTime(eventDate, eventTime);
+    setAgenda((prev) => {
+      const hasContent = prev.some((r) => r.title.trim() || r.time.trim());
+      if (!hasContent) {
+        return [{ title: '', time: formatTime(anchor) }, { title: '', time: '' }];
+      }
+      return syncAgendaTimesFromAnchor(eventDate, anchor, prev, agendaSplit);
+    });
+  }, [eventDate, eventTime, step]);
 
   const addAgendaRow = useCallback(() => {
     setAgenda((prev) => [
@@ -249,6 +261,13 @@ export function CreateEventWizard({ navigation }: Props) {
       { title: '', time: nextAgendaTimeLabel(eventDate, prev, agendaSplit, eventTime) },
     ]);
   }, [agendaSplit, eventDate, eventTime]);
+
+  const removeAgendaRow = useCallback((index: number) => {
+    setAgenda((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
 
   const validateStep = useCallback(
     (s: number): string | null => {
@@ -279,6 +298,13 @@ export function CreateEventWizard({ navigation }: Props) {
         );
         if (completeAgenda.length === 0) return 'Add at least one agenda item with title and time.';
         if (partialAgenda) return 'Finish incomplete agenda rows or clear them.';
+        const anchor = combineDateAndTime(eventDate, eventTime);
+        const beforeStart = completeAgenda.find((row) =>
+          isAgendaTimeBeforeAnchor(eventDate, anchor, row.time),
+        );
+        if (beforeStart) {
+          return 'Agenda times cannot start before the event start time you set on the previous step.';
+        }
       }
       return null;
     },
@@ -299,8 +325,9 @@ export function CreateEventWizard({ navigation }: Props) {
   const publish = useCallback(() => {
     if (publishing || !user?.id || user.id.startsWith('demo-')) return;
     const completeAgenda = agenda.filter((row) => row.title.trim() && row.time.trim());
-    const derived = deriveEventScheduleFromAgenda(eventDate, completeAgenda, agendaSplit);
-    const starts = derived?.startsIso ?? combineDateAndTime(eventDate, eventTime).toISOString();
+    const anchor = combineDateAndTime(eventDate, eventTime);
+    const derived = deriveEventScheduleFromAgenda(eventDate, completeAgenda, agendaSplit, anchor);
+    const starts = derived?.startsIso ?? anchor.toISOString();
     const ends = derived?.endsIso ?? endsAtAfterDuration(starts, duration);
     const effectiveDuration = derived?.durationLabel ?? duration.trim();
     const cap = parseInt(maxAttendance.replace(/\D/g, ''), 10);
@@ -546,13 +573,18 @@ export function CreateEventWizard({ navigation }: Props) {
             </FormField>
           </>
         )}
-        <FormField label="Venue / location" required>
+        <FormField
+          label="Venue / location"
+          required
+          hint="Include organisation name, building number, road, postcode and city so attendees can navigate easily."
+        >
           <TextInput
             value={venue}
             onChangeText={setVenue}
-            placeholder="City, facility, or online link"
+            placeholder="e.g. Dalton HQ, 12 High Street, London SW1A 1AA"
             placeholderTextColor={DS.color.textMuted}
             style={s.input}
+            multiline
           />
         </FormField>
         <FormField label="Expected attendance" required>
@@ -565,13 +597,14 @@ export function CreateEventWizard({ navigation }: Props) {
             style={s.input}
           />
         </FormField>
-        <FormField label="Duration" hint="Optional — e.g. 2 hours">
+        <FormField label="Duration" hint="Auto-calculated from agenda on the next step; you can override here if needed.">
           <TextInput
             value={duration}
             onChangeText={setDuration}
-            placeholder="2 hours"
+            placeholder="Calculated from agenda"
             placeholderTextColor={DS.color.textMuted}
             style={s.input}
+            editable={false}
           />
         </FormField>
         <FormField label="Entry payment notice" hint="Optional — shown on the event page (no in-app checkout).">
@@ -637,9 +670,11 @@ export function CreateEventWizard({ navigation }: Props) {
           <View key={i} style={s.agendaRow}>
             <TextInput
               value={row.time}
-              onChangeText={(t) =>
-                setAgenda((rows) => rows.map((r, j) => (j === i ? { ...r, time: t } : r)))
-              }
+              onChangeText={(t) => {
+                const anchor = combineDateAndTime(eventDate, eventTime);
+                if (t.trim() && isAgendaTimeBeforeAnchor(eventDate, anchor, t)) return;
+                setAgenda((rows) => rows.map((r, j) => (j === i ? { ...r, time: t } : r)));
+              }}
               placeholder="10:00 AM"
               placeholderTextColor={DS.color.textMuted}
               style={[s.input, s.agendaTime]}
@@ -653,6 +688,16 @@ export function CreateEventWizard({ navigation }: Props) {
               placeholderTextColor={DS.color.textMuted}
               style={[s.input, s.agendaTitle]}
             />
+            {agenda.length > 1 ? (
+              <Pressable
+                onPress={() => removeAgendaRow(i)}
+                hitSlop={8}
+                style={s.agendaRemoveBtn}
+                accessibilityLabel="Remove agenda row"
+              >
+                <FontAwesome name="times" size={14} color={DS.color.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
         ))}
         <Pressable onPress={addAgendaRow} style={s.ghostBtn}>
@@ -848,8 +893,14 @@ const s = StyleSheet.create({
     color: DS.color.textMuted,
     marginBottom: DS.space.sm,
   },
-  agendaRow: { flexDirection: 'row', gap: DS.space.sm, marginBottom: DS.space.sm },
+  agendaRow: { flexDirection: 'row', alignItems: 'center', gap: DS.space.sm, marginBottom: DS.space.sm },
   agendaTime: { width: 110 },
+  agendaRemoveBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   agendaTitle: { flex: 1 },
   ghostBtn: { paddingVertical: DS.space.sm, marginBottom: DS.space.md },
   ghostTxt: { fontFamily: DS.font.bodyMedium, fontSize: 14, color: DS.color.gold },

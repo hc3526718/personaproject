@@ -531,8 +531,6 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const showBanner = useActionBanner();
-  const [showResults, setShowResults] = useState(true);
-  const [dataShare, setDataShare] = useState(false);
   const [dmPolicy, setDmPolicy] = useState<AllowMessagesFrom>(() => getAllowMessagesFrom());
 
   useFocusEffect(
@@ -546,11 +544,9 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
           setDmPolicy(raw);
         }
         const pr = doc.privacy;
-        if (pr?.show_recent_results != null) setShowResults(pr.show_recent_results);
         if (pr?.profile_public === false) {
           void patchUserPrefsDoc(user.id, { privacy: { profile_public: true } });
         }
-        if (pr?.partner_analytics != null) setDataShare(pr.partner_analytics);
       })();
     }, [user?.id]),
   );
@@ -574,34 +570,6 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
       }
     })();
   };
-
-  const applyPrivacy = useCallback(
-    (
-      patch: Partial<{ show_recent_results: boolean; partner_analytics: boolean }>,
-      rollback: { showResults: boolean; dataShare: boolean },
-    ) => {
-      if (patch.show_recent_results != null) setShowResults(patch.show_recent_results);
-      if (patch.partner_analytics != null) setDataShare(patch.partner_analytics);
-
-      if (!user?.id || user.id.startsWith('demo-')) {
-        showBanner('Saved here only', 'Sign in to sync privacy preferences to your account.');
-        return;
-      }
-      void (async () => {
-        const ok = await patchUserPrefsDoc(user.id, {
-          privacy: { ...patch, profile_public: true },
-        });
-        if (!ok) {
-          setShowResults(rollback.showResults);
-          setDataShare(rollback.dataShare);
-          showBanner('Could not save', 'Check your connection. Restored your previous choices.');
-        } else {
-          showBanner('Saved', 'Privacy preferences updated.');
-        }
-      })();
-    },
-    [user?.id, showBanner],
-  );
 
   return (
     <View style={styles.root}>
@@ -639,37 +607,6 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
             </Pressable>
           ))}
         </View>
-        <View style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.toggleTitle}>Show recent results</Text>
-              <Text style={styles.toggleSub}>Display meet marks on your profile.</Text>
-            </View>
-            <Switch
-              value={showResults}
-              onValueChange={(v) => applyPrivacy({ show_recent_results: v }, { showResults, dataShare })}
-              trackColor={{ true: DS.color.goldTint30 }}
-            />
-          </View>
-          {isMasterControlUser(user) ? (
-            <>
-              <View style={styles.hairline} />
-              <View style={styles.toggleRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.toggleTitle}>Partner analytics</Text>
-                  <Text style={styles.toggleSub}>Share anonymized usage with sponsors.</Text>
-                </View>
-                <Switch
-                  value={dataShare}
-                  onValueChange={(v) =>
-                    applyPrivacy({ partner_analytics: v }, { showResults, dataShare })
-                  }
-                  trackColor={{ true: DS.color.goldTint30 }}
-                />
-              </View>
-            </>
-          ) : null}
-        </View>
       </ScrollView>
     </View>
   );
@@ -690,7 +627,6 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
   const [email, setEmail] = useState(true);
   const [events, setEvents] = useState(true);
   const [community, setCommunity] = useState(false);
-  const [masterProposals, setMasterProposals] = useState(true);
   const [bannerPrefs, setBannerPrefs] = useState<InAppNotifyPrefs>(DEFAULT_NOTIFY_PREFS);
   const [pushPermission, setPushPermission] = useState<PushPermissionSnapshot>({
     status: 'undetermined',
@@ -721,7 +657,6 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
           if (ch?.email != null) setEmail(ch.email);
           if (ch?.event_reminders != null) setEvents(ch.event_reminders);
           if (ch?.community_mentions != null) setCommunity(ch.community_mentions);
-          if (ch?.master_proposals != null) setMasterProposals(ch.master_proposals);
           if (doc.in_app_notify) {
             prefs = sanitizeInAppPrefsForAccount(
               { ...prefs, ...doc.in_app_notify },
@@ -754,14 +689,12 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
         email: boolean;
         event_reminders: boolean;
         community_mentions: boolean;
-        master_proposals: boolean;
       }>,
       rollback: {
         push: boolean;
         email: boolean;
         events: boolean;
         community: boolean;
-        masterProposals: boolean;
       },
     ) => {
       if (patch.push != null) {
@@ -771,7 +704,6 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
       if (patch.email != null) setEmail(patch.email);
       if (patch.event_reminders != null) setEvents(patch.event_reminders);
       if (patch.community_mentions != null) setCommunity(patch.community_mentions);
-      if (patch.master_proposals != null) setMasterProposals(patch.master_proposals);
 
       if (!user?.id || user.id.startsWith('demo-')) {
         showBanner('Saved here only', 'Sign in to sync notification preferences to your account.');
@@ -784,7 +716,6 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
           setEmail(rollback.email);
           setEvents(rollback.events);
           setCommunity(rollback.community);
-          setMasterProposals(rollback.masterProposals);
           setPushDeliveryEnabled(rollback.push);
           showBanner('Could not save', 'Check your connection. Restored your previous choices.');
           return;
@@ -861,7 +792,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Switch
               value={push}
               onValueChange={(v) =>
-                patchNotifyChannel({ push: v }, { push, email, events, community, masterProposals })
+                patchNotifyChannel({ push: v }, { push, email, events, community })
               }
               trackColor={{ true: DS.color.goldTint30 }}
             />
@@ -872,7 +803,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Switch
               value={email}
               onValueChange={(v) =>
-                patchNotifyChannel({ email: v }, { push, email, events, community, masterProposals })
+                patchNotifyChannel({ email: v }, { push, email, events, community })
               }
               trackColor={{ true: DS.color.goldTint30 }}
             />
@@ -883,7 +814,7 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Switch
               value={events}
               onValueChange={(v) =>
-                patchNotifyChannel({ event_reminders: v }, { push, email, events, community, masterProposals })
+                patchNotifyChannel({ event_reminders: v }, { push, email, events, community })
               }
               trackColor={{ true: DS.color.goldTint30 }}
             />
@@ -894,34 +825,11 @@ export function NotificationPrefsScreen({ navigation }: PProps<'NotificationPref
             <Switch
               value={community}
               onValueChange={(v) =>
-                patchNotifyChannel({ community_mentions: v }, { push, email, events, community, masterProposals })
+                patchNotifyChannel({ community_mentions: v }, { push, email, events, community })
               }
               trackColor={{ true: DS.color.goldTint30 }}
             />
           </View>
-          {isMaster ? (
-            <>
-              <View style={styles.hairline} />
-              <View style={styles.toggleRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.toggleTitle}>Master proposals</Text>
-                  <Text style={styles.toggleSub}>
-                    Push & email when creators submit sponsorship, media, or event proposals.
-                  </Text>
-                </View>
-                <Switch
-                  value={masterProposals}
-                  onValueChange={(v) =>
-                    patchNotifyChannel(
-                      { master_proposals: v },
-                      { push, email, events, community, masterProposals },
-                    )
-                  }
-                  trackColor={{ true: DS.color.goldTint30 }}
-                />
-              </View>
-            </>
-          ) : null}
         </View>
 
         <Text style={styles.cardKickerSpaced}>In-app banners</Text>

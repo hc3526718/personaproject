@@ -1284,6 +1284,10 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
         </View>
       </View>
 
+      <Text style={styles.savedCount}>
+        {filtered.length} saved video{filtered.length === 1 ? '' : 's'}
+      </Text>
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -1299,10 +1303,6 @@ export function SavedMediaScreen({ navigation }: MProps<'SavedMedia'>) {
           </Pressable>
         ))}
       </ScrollView>
-
-      <Text style={styles.savedCount}>
-        {filtered.length} saved video{filtered.length === 1 ? '' : 's'}
-      </Text>
 
       {filtered.length === 0 ? (
         <View style={styles.savedEmpty}>
@@ -1552,12 +1552,12 @@ const styles = StyleSheet.create({
     color: DS.color.gold,
     letterSpacing: 3,
     marginLeft: DS.space.lg,
-    marginBottom: DS.space.md,
+    marginBottom: DS.space.xs,
   },
   browseRow: {
     paddingHorizontal: DS.space.lg,
-    gap: DS.space.md,
-    marginBottom: DS.space.lg,
+    gap: DS.space.sm,
+    marginBottom: DS.space.sm,
   },
   browseChip: {
     paddingHorizontal: DS.space.lg,
@@ -2504,7 +2504,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: DS.space.base,
-    paddingBottom: DS.space.md,
+    paddingBottom: DS.space.xs,
   },
   savedTitle: {
     ...tabRootTitleText,
@@ -2525,7 +2525,7 @@ const styles = StyleSheet.create({
   },
   savedChipScroll: {
     paddingHorizontal: DS.space.base,
-    paddingBottom: DS.space.md,
+    paddingBottom: DS.space.xs,
     gap: DS.space.sm,
   },
   savedChip: {
@@ -2554,7 +2554,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: DS.color.textMuted,
     paddingHorizontal: DS.space.base,
-    marginBottom: DS.space.md,
+    marginTop: 0,
+    marginBottom: DS.space.xs,
   },
   savedEmpty: {
     alignItems: 'center',

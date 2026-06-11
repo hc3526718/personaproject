@@ -24,8 +24,7 @@ export function ThemedText({ variant = 'default', color, style, ...rest }: Props
     color: color ?? variantColor[variant],
   };
   const flat = StyleSheet.flatten(style);
-  if (flat?.fontSize && typeof flat.fontSize === 'number') {
-    base.fontSize = scaledFontSize(flat.fontSize, prefs);
-  }
-  return <Text style={[base, style]} {...rest} />;
+  const rawSize = typeof flat?.fontSize === 'number' ? flat.fontSize : 15;
+  base.fontSize = scaledFontSize(rawSize, prefs);
+  return <Text style={[base, style]} allowFontScaling={false} {...rest} />;
 }

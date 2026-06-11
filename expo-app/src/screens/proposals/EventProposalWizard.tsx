@@ -326,6 +326,9 @@ export function EventProposalWizard({ navigation }: Props) {
         ) : null}
 
         <Text style={[styles.label, styles.labelSpaced]}>Venue / location</Text>
+        <Text style={styles.fieldHint}>
+          Include organisation name, building number, road, postcode and city.
+        </Text>
         <TextInput
           style={styles.input}
           value={venue}
@@ -333,8 +336,9 @@ export function EventProposalWizard({ navigation }: Props) {
             clearError();
             setVenue(t);
           }}
-          placeholder="City, facility, or online"
+          placeholder="e.g. Dalton HQ, 12 High Street, London SW1A 1AA"
           placeholderTextColor={DS.color.textMuted}
+          multiline
         />
         <Text style={[styles.label, styles.labelSpaced]}>Expected attendance *</Text>
         <TextInput
@@ -523,6 +527,13 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.xs,
   },
   labelSpaced: { marginTop: DS.space.md },
+  fieldHint: {
+    fontFamily: DS.font.body,
+    fontSize: 12,
+    color: DS.color.textMuted,
+    marginBottom: DS.space.xs,
+    lineHeight: 17,
+  },
   input: {
     backgroundColor: DS.color.input,
     borderRadius: DS.radius.lg,

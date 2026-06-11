@@ -23,6 +23,7 @@ import {
   textScaleForPrefs,
   type AccessibleColors,
 } from '../lib/accessibilityTheme';
+import { installA11yStyleSheetPatch } from '../lib/a11yStyleSheetPatch';
 import { fetchUserPrefsDoc, patchUserPrefsDoc } from '../roadmap/userSettingsService';
 import { isSupabaseConfigured } from '../lib/env';
 
@@ -41,10 +42,11 @@ const AccessibilityContext = createContext<AccessibilityContextValue | null>(nul
 
 function applyTextDefaults(prefs: AccessibilityPrefs) {
   const scale = textScaleForPrefs(prefs);
+  installA11yStyleSheetPatch(scale);
   const existing = (Text as { defaultProps?: Record<string, unknown> }).defaultProps ?? {};
   (Text as { defaultProps?: Record<string, unknown> }).defaultProps = {
     ...existing,
-    allowFontScaling: true,
+    allowFontScaling: false,
     maxFontSizeMultiplier: scale,
   };
 }

@@ -41,6 +41,7 @@ import { useSubscription } from '../subscriptions/SubscriptionContext';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 import { capitalizeProfileTag } from '../lib/capitalizeProfileTags';
 import { STRIPE_CUSTOMER_PORTAL_LOGIN_URL } from '../constants/stripePortal';
+import { resolveBillingPlatform } from '../lib/billingPlatform';
 import type { ProfileRow } from '../roadmap/types';
 import {
   fetchProfileByUserId,
@@ -439,13 +440,34 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     ...(isPro && Platform.OS === 'web'
       ? [
           {
-            title: 'Stripe billing',
-            sub: 'Manage subscription on web (Stripe customer portal)',
+            title: 'Manage subscription',
+            sub: 'Billing portal or Apple subscription guidance',
             icon: 'credit-card' as const,
-            onPress: () =>
-              void Linking.openURL(STRIPE_CUSTOMER_PORTAL_LOGIN_URL).catch(() =>
-                Alert.alert('Billing', 'Could not open Stripe. Try Support if this keeps happening.'),
-              ),
+            onPress: () => {
+              void (async () => {
+                const platform = await resolveBillingPlatform();
+                if (platform === 'apple') {
+                  Alert.alert(
+                    'Subscribed via Apple',
+                    'This account is billed through Apple on your iPhone or iPad. To change or cancel, open Settings → Apple ID → Subscriptions on that device. Stripe billing on web does not apply to App Store subscriptions.',
+                  );
+                  return;
+                }
+                if (platform === 'google') {
+                  Alert.alert(
+                    'Subscribed via Google Play',
+                    'This account is billed through Google Play on your Android device. Open Google Play → Payments & subscriptions to manage it. Stripe billing on web does not apply to Play Store subscriptions.',
+                  );
+                  return;
+                }
+                void Linking.openURL(STRIPE_CUSTOMER_PORTAL_LOGIN_URL).catch(() =>
+                  Alert.alert(
+                    'Billing',
+                    'Could not open Stripe. If you subscribed on a phone via Apple or Google, manage billing on that device instead.',
+                  ),
+                );
+              })();
+            },
           },
         ]
       : []),
@@ -496,12 +518,6 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
       sub: 'Guides & troubleshooting (works offline)',
       icon: 'book' as const,
       onPress: () => navigation.navigate('HelpCentre'),
-    },
-    {
-      title: 'My proposals',
-      sub: 'Media & sponsor submission status',
-      icon: 'file-text-o' as const,
-      onPress: () => navigation.navigate('MyProposals'),
     },
     {
       title: 'Support',

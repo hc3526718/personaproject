@@ -1,6 +1,8 @@
 import type { Factor, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabase';
 
+export const MFA_APP_LABEL = 'DGA';
+
 export type TotpEnrollStart = {
   factorId: string;
   qrSvg: string;
@@ -16,12 +18,29 @@ export function listVerifiedTotpFactors(factors: Factor[] | undefined): Factor[]
   return (factors ?? []).filter((f) => f.factor_type === 'totp' && f.status === 'verified');
 }
 
-export async function fetchTotpFactors(): Promise<Factor[]> {
+export function listAllTotpFactors(factors: Factor[] | undefined): Factor[] {
+  return (factors ?? []).filter((f) => f.factor_type === 'totp');
+}
+
+export async function listTotpFactorsRaw(): Promise<{
+  verified: Factor[];
+  unverified: Factor[];
+  error?: string;
+}> {
   const supabase = client();
-  if (!supabase) return [];
+  if (!supabase) return { verified: [], unverified: [] };
   const { data, error } = await supabase.auth.mfa.listFactors();
-  if (error) return [];
-  return listVerifiedTotpFactors(data?.totp);
+  if (error) return { verified: [], unverified: [], error: error.message };
+  const all = listAllTotpFactors(data?.totp);
+  return {
+    verified: listVerifiedTotpFactors(data?.totp),
+    unverified: all.filter((f) => f.status !== 'verified'),
+  };
+}
+
+export async function fetchTotpFactors(): Promise<Factor[]> {
+  const { verified } = await listTotpFactorsRaw();
+  return verified;
 }
 
 export async function hasVerifiedTotpFactor(): Promise<boolean> {
@@ -37,23 +56,59 @@ export async function needsMfaStepUp(): Promise<boolean> {
   return data.nextLevel === 'aal2' && data.currentLevel !== 'aal2';
 }
 
+/** Remove stale unverified TOTP factors left from abandoned enrollment attempts. */
+export async function clearUnverifiedTotpFactors(): Promise<void> {
+  const supabase = client();
+  if (!supabase) return;
+  const { unverified } = await listTotpFactorsRaw();
+  for (const factor of unverified) {
+    if (factor.id) {
+      await supabase.auth.mfa.unenroll({ factorId: factor.id });
+    }
+  }
+}
+
 export async function startTotpEnrollment(): Promise<
   { ok: true; enroll: TotpEnrollStart } | { ok: false; message: string }
 > {
   const supabase = client();
   if (!supabase) return { ok: false, message: 'Supabase is not configured.' };
 
-  const existing = await fetchTotpFactors();
-  if (existing.length > 0) {
+  const { verified, unverified, error: listErr } = await listTotpFactorsRaw();
+  if (listErr) return { ok: false, message: listErr };
+
+  if (verified.length > 0) {
     return { ok: false, message: 'Authenticator is already enrolled on this account.' };
   }
 
-  const { data, error } = await supabase.auth.mfa.enroll({
-    factorType: 'totp',
-    friendlyName: 'Dalton Authenticator',
-  });
+  await clearUnverifiedTotpFactors();
+
+  const attemptEnroll = async () => {
+    return supabase.auth.mfa.enroll({
+      factorType: 'totp',
+      friendlyName: MFA_APP_LABEL,
+    });
+  };
+
+  let { data, error } = await attemptEnroll();
+
+  if (error && (error.status === 422 || /already|exists|duplicate/i.test(error.message ?? ''))) {
+    await clearUnverifiedTotpFactors();
+    const retry = await attemptEnroll();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error || !data?.id || !data.totp) {
-    return { ok: false, message: error?.message ?? 'Could not start MFA enrollment.' };
+    const msg = error?.message ?? 'Could not start MFA enrollment.';
+    if (/already|exists|duplicate/i.test(msg)) {
+      return {
+        ok: false,
+        message:
+          'An authenticator entry already exists for this account. Remove the existing DGA entry from your authenticator app, then try again.',
+      };
+    }
+    return { ok: false, message: msg };
   }
 
   return {

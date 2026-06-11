@@ -34,7 +34,6 @@ import {
   removeSavedEventKey,
   unifiedEventSlug,
 } from '../lib/eventsStorage';
-import { notifyBookingConfirmationEmail } from '../lib/bookingConfirmationEmail';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
@@ -525,7 +524,7 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
         {firstAnchor ? (
           <View style={styles.evAnchorBlock}>
             <View style={styles.evAnchorHeadRow}>
-              <Text style={styles.evAnchorKicker}>UPCOMING</Text>
+              <Text style={styles.evAnchorKicker}>BOOKED</Text>
               {upcomingBookingsAnchored.length > 1 ? (
                 <Pressable
                   onPress={() => navigation.navigate('UpcomingEvents', { initialFilter: 'booked' })}
@@ -600,7 +599,9 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
           <>
             {showUpcomingHeading ? (
               <View style={styles.evSectionBlock}>
-                <Text style={styles.evSectionGold}>UPCOMING</Text>
+                <Text style={styles.evSectionGold}>
+                  {filter === 'booked' ? 'BOOKED' : 'UPCOMING'}
+                </Text>
                 <BrowseEventRowsList rows={upcomingRows} navigation={navigation} browseFilter={filter} />
               </View>
             ) : null}
@@ -1171,11 +1172,11 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
             <Text style={[styles.detailHeroTitle, styles.detailHeroTitleGold]}>
               {displayTitle.toUpperCase()}
             </Text>
+            <View style={styles.detailHeroVenueRow}>
+              <FontAwesome name="map-marker" size={16} color={DS.color.gold} />
+              <Text style={styles.detailHeroVenue}>{displayVenue}</Text>
+            </View>
             <View style={styles.detailHeroMetaRowSpread}>
-              <View style={styles.detailHeroMetaGroup}>
-                <FontAwesome name="map-marker" size={12} color={DS.color.gold} />
-                <Text style={styles.detailHeroMeta}>{displayVenue}</Text>
-              </View>
               <View style={styles.detailHeroMetaGroup}>
                 <FontAwesome name="users" size={12} color={DS.color.gold} />
                 <Text style={styles.detailHeroMeta}>{spotsLabel ?? '—'}</Text>
@@ -1184,6 +1185,13 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           </View>
         </View>
         <View style={styles.detailPad}>
+          <View style={styles.detailVenueCard}>
+            <FontAwesome name="map-marker" size={20} color={DS.color.gold} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.detailVenueLabel}>LOCATION</Text>
+              <Text style={styles.detailVenueText}>{displayVenue}</Text>
+            </View>
+          </View>
           {!dbEvent ? (
             <>
               <View style={styles.coachCard}>
@@ -1476,9 +1484,6 @@ export function ConfirmAttendScreen({ navigation, route }: EProps<'ConfirmAttend
       } finally {
         setBookingBusy(false);
       }
-    }
-    if (bookingId) {
-      void notifyBookingConfirmationEmail({ bookingId, reference });
     }
     showBanner(`Signed up · ${title}`, `Reference ${reference}`);
     navigation.navigate('BookingConfirm', {
@@ -2018,12 +2023,12 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         </View>
 
         <View style={styles.emailSentCard}>
-          <FontAwesome name="envelope" size={18} color={DS.color.gold} style={{ marginTop: 2 }} />
+          <FontAwesome name="ticket" size={18} color={DS.color.gold} style={{ marginTop: 2 }} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.emailSentTitle}>Confirmation Email Sent</Text>
+            <Text style={styles.emailSentTitle}>Booking confirmed</Text>
             <Text style={styles.emailSentBody}>
-              We&apos;ve sent a confirmation email with all event details and your QR code to{' '}
-              <Text style={styles.consentLink}>{attendeeEmail}</Text>
+              Your ticket and QR code are saved in the app. Show the QR code on this screen at check-in.
+              Reference <Text style={styles.consentLink}>{refCode}</Text>.
             </Text>
           </View>
         </View>
@@ -2236,7 +2241,7 @@ const styles = StyleSheet.create({
     color: DS.color.gold,
   },
   evAnchorBlock: {
-    marginBottom: DS.space.lg,
+    marginBottom: DS.space.sm,
   },
   evAnchorHeadRow: {
     flexDirection: 'row',
@@ -2323,7 +2328,7 @@ const styles = StyleSheet.create({
   },
   evFilterRow: {
     gap: DS.space.sm,
-    paddingBottom: DS.space.md,
+    paddingBottom: DS.space.xs,
     flexDirection: 'row',
   },
   evFilterChip: {
@@ -2354,8 +2359,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: DS.color.gold,
     letterSpacing: 2,
-    marginBottom: DS.space.sm,
-    marginTop: DS.space.sm,
+    marginBottom: DS.space.xs,
+    marginTop: 0,
   },
   evSectionGold: {
     fontFamily: DS.font.bodyMedium,
@@ -2363,7 +2368,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: DS.color.gold,
     letterSpacing: 2,
-    marginBottom: DS.space.sm,
+    marginBottom: DS.space.xs,
   },
   evSectionBlock: {
     width: '100%',
@@ -2378,7 +2383,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   evListGap: {
-    gap: DS.space.md,
+    gap: DS.space.sm,
   },
   evListCell: {
     flexDirection: 'row',
@@ -2591,6 +2596,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flexShrink: 1,
+  },
+  detailHeroVenueRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DS.space.sm,
+    marginTop: DS.space.sm,
+  },
+  detailHeroVenue: {
+    flex: 1,
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    fontWeight: '600',
+    color: DS.color.text,
+    lineHeight: 22,
+  },
+  detailVenueCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DS.space.md,
+    marginBottom: DS.space.lg,
+    padding: DS.space.base,
+    borderRadius: DS.radius.lg,
+    backgroundColor: DS.color.surfaceAlt,
+    borderWidth: 1,
+    borderColor: DS.color.borderWhite5,
+  },
+  detailVenueLabel: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 11,
+    fontWeight: '600',
+    color: DS.color.gold,
+    letterSpacing: 2,
+    marginBottom: DS.space.xs,
+  },
+  detailVenueText: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 17,
+    fontWeight: '600',
+    color: DS.color.text,
+    lineHeight: 24,
   },
   detailHeroMeta: {
     fontFamily: DS.font.body,
