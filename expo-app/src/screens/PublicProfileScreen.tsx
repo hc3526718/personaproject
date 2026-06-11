@@ -25,9 +25,12 @@ import type { ProfileRow } from '../roadmap/types';
 import {
   followUserDirect,
   getFollowCounts,
+  hasPendingOutgoingFollowRequest,
   isUserFollowing,
+  sendFollowRequest,
   unfollowUserDirect,
 } from '../roadmap/followService';
+import type { AllowMessagesFrom } from '../messaging/messagingPrefs';
 import { resolveCanMessagePeer } from '../roadmap/messagingGateService';
 
 type Props =
@@ -42,6 +45,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(false);
+  const [followPending, setFollowPending] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [bannerZoomOpen, setBannerZoomOpen] = useState(false);
   const profileRef = useRef(profile);
@@ -58,9 +62,15 @@ export function PublicProfileScreen({ navigation, route }: Props) {
     const counts = await getFollowCounts(userId);
     setFollowCounts(counts);
     if (user?.id && user.id !== userId && !user.id.startsWith('demo-')) {
-      setFollowing(await isUserFollowing(user.id, userId));
+      const [isFollowing, pending] = await Promise.all([
+        isUserFollowing(user.id, userId),
+        hasPendingOutgoingFollowRequest(user.id, userId),
+      ]);
+      setFollowing(isFollowing);
+      setFollowPending(pending && !isFollowing);
     } else {
       setFollowing(false);
+      setFollowPending(false);
     }
     setLoading(false);
   }, [userId, user?.id]);
@@ -117,14 +127,26 @@ export function PublicProfileScreen({ navigation, route }: Props) {
     });
   };
 
+  const targetDmPolicy = (profile?.allow_messages_from ?? 'everyone') as AllowMessagesFrom;
+  const targetRequiresFollowApproval = targetDmPolicy !== 'everyone';
+
   const toggleFollow = async () => {
-    if (!canFollow || !user?.id || followBusy) return;
+    if (!canFollow || !user?.id || followBusy || followPending) return;
     setFollowBusy(true);
     if (following) {
       const ok = await unfollowUserDirect(user.id, userId);
       if (ok) {
         setFollowing(false);
         setFollowCounts((c) => ({ ...c, followers: Math.max(0, c.followers - 1) }));
+      }
+    } else if (targetRequiresFollowApproval) {
+      const ok = await sendFollowRequest(user.id, userId);
+      if (ok) {
+        setFollowPending(true);
+        Alert.alert(
+          'Follow request sent',
+          'They restrict who can message them. Once they accept your follow request on their Follow requests page, you can start a conversation.',
+        );
       }
     } else {
       const ok = await followUserDirect(user.id, userId);
@@ -177,6 +199,7 @@ export function PublicProfileScreen({ navigation, route }: Props) {
             }
             canFollow={canFollow}
             following={following}
+            followPending={followPending}
             followBusy={followBusy}
             onToggleFollow={() => void toggleFollow()}
             onMessage={() => void openMessage()}

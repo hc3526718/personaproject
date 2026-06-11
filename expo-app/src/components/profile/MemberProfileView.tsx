@@ -38,6 +38,7 @@ export type MemberProfileViewProps = {
   onInterestsPress?: () => void;
   canFollow?: boolean;
   following?: boolean;
+  followPending?: boolean;
   followBusy?: boolean;
   onToggleFollow?: () => void;
   onMessage?: () => void;
@@ -57,6 +58,7 @@ export function MemberProfileView({
   onInterestsPress,
   canFollow = false,
   following = false,
+  followPending = false,
   followBusy = false,
   onToggleFollow,
   onMessage,
@@ -178,10 +180,11 @@ export function MemberProfileView({
           <AppleHeroButton
             variant={following ? 'unfollow' : 'primary'}
             loading={followBusy}
+            disabled={followPending}
             onPress={() => onToggleFollow?.()}
             style={following ? styles.followUnfollowBtn : styles.followGoldBtn}
           >
-            {following ? 'Unfollow' : 'Follow'}
+            {following ? 'Unfollow' : followPending ? 'Requested' : 'Follow'}
           </AppleHeroButton>
           <Pressable style={styles.messageBtn} onPress={() => onMessage?.()}>
             <FontAwesome name="envelope-o" size={16} color={DS.color.gold} />

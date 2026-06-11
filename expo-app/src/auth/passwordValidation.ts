@@ -39,6 +39,16 @@ export function mapAuthEmailErrorMessage(raw: string): string {
       'Wait about an hour, then try Log In if you already signed up, or try Sign Up again with the same email.'
     );
   }
+  if (
+    m.includes('unexpected status code returned from hook') ||
+    m.includes('hook: 500') ||
+    m.includes('hook returned')
+  ) {
+    return (
+      'We could not send the verification email right now (mail service error). ' +
+      'If you already registered, try Log In. Otherwise wait a few minutes and try again, or contact support.'
+    );
+  }
   if (m.includes('confirmation email') || m.includes('sending email') || m.includes('error sending')) {
     return (
       'We could not send the verification email right now. ' +
@@ -55,6 +65,13 @@ export function mapSignUpErrorMessage(raw: string): string {
     m.includes('over_email_send_rate_limit') ||
     m.includes('too many requests') ||
     m.includes('429')
+  ) {
+    return mapAuthEmailErrorMessage(raw);
+  }
+  if (
+    m.includes('unexpected status code returned from hook') ||
+    m.includes('hook: 500') ||
+    m.includes('hook returned')
   ) {
     return mapAuthEmailErrorMessage(raw);
   }

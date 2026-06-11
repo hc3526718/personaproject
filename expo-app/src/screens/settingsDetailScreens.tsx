@@ -42,9 +42,14 @@ const BANNER_TOGGLE_SUB: Partial<Record<InAppNotifyCategory, string>> = {
   masterProposals: 'Sponsorship, media, and event proposals sent to you.',
   system: 'Anything that does not match the categories above.',
 };
-import type { AllowMessagesFrom } from '../messaging/messagingPrefs';
-import { getAllowMessagesFrom, setAllowMessagesFrom } from '../messaging/messagingPrefs';
+import {
+  getAllowMessagesFrom,
+  requiresFollowRequestInbox,
+  setAllowMessagesFrom,
+  type AllowMessagesFrom,
+} from '../messaging/messagingPrefs';
 import { syncAllowMessagesFromRemote } from '../messaging/dmPolicySync';
+import { listIncomingFollowRequests } from '../roadmap/followService';
 import type { ProfileStackParamList } from '../navigation/types';
 import { useAccessibility } from '../accessibility/AccessibilityContext';
 import { ScreenShell } from '../theme/ScreenShell';
@@ -552,23 +557,65 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
   );
 
   const applyDm = (value: AllowMessagesFrom) => {
-    const rollback = dmPolicy;
-    setAllowMessagesFrom(value);
-    setDmPolicy(value);
-    if (!user?.id || user.id.startsWith('demo-')) {
-      showBanner('Saved here only', 'Sign in to sync this to your account.');
+    if (value === dmPolicy) return;
+
+    const leavingEveryone = dmPolicy === 'everyone' && requiresFollowRequestInbox(value);
+    const label =
+      value === 'followers_only'
+        ? 'Followers only'
+        : value === 'friends_only'
+          ? 'Friends only'
+          : 'Everyone';
+
+    const commit = () => {
+      const rollback = dmPolicy;
+      setAllowMessagesFrom(value);
+      setDmPolicy(value);
+      if (!user?.id || user.id.startsWith('demo-')) {
+        showBanner('Saved here only', 'Sign in to sync this to your account.');
+        return;
+      }
+      void (async () => {
+        const ok = await syncAllowMessagesFromRemote(user.id, value);
+        if (!ok) {
+          setAllowMessagesFrom(rollback);
+          setDmPolicy(rollback);
+          showBanner('Could not save', 'Check your connection. Restored your previous choice.');
+          return;
+        }
+        if (leavingEveryone) {
+          const pending = await listIncomingFollowRequests(user.id);
+          showBanner(
+            'Messaging updated',
+            pending.length > 0
+              ? `${label} is saved. Open Settings → Follow requests to accept or decline ${pending.length} pending follower${pending.length === 1 ? '' : 's'}.`
+              : `${label} is saved. New followers will appear under Settings → Follow requests before they can message you.`,
+          );
+        } else {
+          showBanner('Saved', 'Who can message you is updated on your account.');
+        }
+      })();
+    };
+
+    if (leavingEveryone) {
+      Alert.alert(
+        'Turn on follow requests for messaging?',
+        [
+          'This does not change who can see your community posts — only who can start direct messages with you.',
+          '',
+          `With "${label}", people who follow you must be approved on the Follow requests page before they can message you. Existing followers are unchanged.`,
+          '',
+          'You will need to accept or decline each new follow request manually.',
+        ].join('\n'),
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Continue', onPress: commit },
+        ],
+      );
       return;
     }
-    void (async () => {
-      const ok = await syncAllowMessagesFromRemote(user.id, value);
-      if (!ok) {
-        setAllowMessagesFrom(rollback);
-        setDmPolicy(rollback);
-        showBanner('Could not save', 'Check your connection. Restored your previous choice.');
-      } else {
-        showBanner('Saved', 'Who can message you is updated on your account.');
-      }
-    })();
+
+    commit();
   };
 
   return (
@@ -583,7 +630,15 @@ export function PrivacyVisibilityScreen({ navigation }: PProps<'PrivacyVisibilit
           how your information is used below.
         </Text>
         <Text style={styles.cardKicker}>Direct messages</Text>
-        <Text style={styles.bodyMutedSm}>Who can start a new conversation with you.</Text>
+        <Text style={styles.bodyMutedSm}>
+          Who can start a new conversation with you. This does not change community post visibility.
+        </Text>
+        {requiresFollowRequestInbox(dmPolicy) ? (
+          <Text style={[styles.bodyMutedSm, { marginTop: DS.space.sm }]}>
+            Follow requests is shown in Settings while this is not Everyone. Approve new followers
+            there so they can message you — until you accept, messaging from new followers is delayed.
+          </Text>
+        ) : null}
         <View style={styles.card}>
           {(
             [

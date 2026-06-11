@@ -50,6 +50,12 @@ import {
   type AthleteDetails,
 } from '../roadmap/profileService';
 import { getFollowCounts } from '../roadmap/followService';
+import {
+  getAllowMessagesFrom,
+  requiresFollowRequestInbox,
+  setAllowMessagesFrom,
+  type AllowMessagesFrom,
+} from '../messaging/messagingPrefs';
 import { uploadAndSaveProfileImage } from '../lib/profileImageUpload';
 import {
   highlightTitleFromFileName,
@@ -362,17 +368,31 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
   const { logout, user } = useAuth();
   const { isPro } = useSubscription();
   const [signInMethodLabel, setSignInMethodLabel] = useState<string | null>(null);
+  const [dmPolicy, setDmPolicy] = useState<AllowMessagesFrom>(() => getAllowMessagesFrom());
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       void (async () => {
         if (!user?.id || user.id.startsWith('demo-')) {
-          if (alive) setSignInMethodLabel(null);
+          if (alive) {
+            setSignInMethodLabel(null);
+            setDmPolicy('everyone');
+          }
           return;
         }
-        const methods = await getSignInMethods();
+        const [methods, profile] = await Promise.all([
+          getSignInMethods(),
+          fetchProfileByUserId(user.id),
+        ]);
         if (!alive) return;
+        const raw = profile?.allow_messages_from?.trim();
+        if (raw === 'everyone' || raw === 'followers_only' || raw === 'friends_only') {
+          setAllowMessagesFrom(raw);
+          setDmPolicy(raw);
+        } else {
+          setDmPolicy(getAllowMessagesFrom());
+        }
         if (!methods) {
           setSignInMethodLabel(null);
           return;
@@ -503,11 +523,14 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
       icon: 'bell' as const,
       onPress: () => navigation.navigate('NotificationPrefs'),
     },
-    ...(isSupabaseConfigured() && user && !user.id.startsWith('demo-')
+    ...(isSupabaseConfigured() &&
+    user &&
+    !user.id.startsWith('demo-') &&
+    requiresFollowRequestInbox(dmPolicy)
       ? [
           {
             title: 'Follow requests',
-            sub: 'Accept or decline incoming follows',
+            sub: 'Approve followers before they can message you',
             icon: 'user-plus' as const,
             onPress: () => navigation.navigate('FollowRequests'),
           },

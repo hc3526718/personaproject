@@ -2,9 +2,9 @@
  * Supabase Auth Send Email hook → Resend HTTP API.
  */
 import { escapeHtml } from './bookingConfirmationEmail.ts';
+import { resendFromFallbacks } from './resendFrom.ts';
 
-const LOGO_URL =
-  'https://daltongrantacademy-navy.vercel.app/brand/dalton_logo_final_img.png';
+const LOGO_URL = 'https://daltongrantacademy.vercel.app/brand/dalton_logo_final_img.png';
 
 export type AuthEmailAction =
   | 'signup'
@@ -130,45 +130,58 @@ export async function sendAuthEmailViaResend(opts: {
   text: string;
 }): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
   const resendKey = Deno.env.get('RESEND_API_KEY')?.trim();
-  const from =
-    Deno.env.get('RESEND_FROM_EMAIL')?.trim() ??
-    'The Dalton Grant Academy <onboarding@resend.dev>';
 
   if (!resendKey) {
     return { ok: false, error: 'resend_not_configured' };
   }
 
-  const send = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${resendKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [opts.to],
-      subject: opts.subject,
-      html: opts.html,
-      text: opts.text,
-    }),
-  });
+  let lastError = 'resend_failed';
+  let lastStatus: number | undefined;
 
-  if (!send.ok) {
+  for (const from of resendFromFallbacks()) {
+    const send = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [opts.to],
+        subject: opts.subject,
+        html: opts.html,
+        text: opts.text,
+      }),
+    });
+
+    if (send.ok) {
+      return { ok: true };
+    }
+
     const txt = await send.text();
-    console.error('[send-auth-email] Resend failed', send.status, txt);
-    let detail = 'resend_failed';
+    console.error('[send-auth-email] Resend failed', from, send.status, txt);
+    lastStatus = send.status;
     try {
       const parsed = JSON.parse(txt) as { message?: string; name?: string };
       if (parsed.name === 'rate_limit_exceeded' || /rate limit/i.test(parsed.message ?? '')) {
-        detail = 'resend_rate_limit_exceeded';
-      } else if (parsed.message) {
-        detail = parsed.message;
+        lastError = 'resend_rate_limit_exceeded';
+        return { ok: false, error: lastError, status: send.status };
+      }
+      if (parsed.message) {
+        lastError = parsed.message;
       }
     } catch {
-      /* non-json body */
+      lastError = 'resend_failed';
     }
-    return { ok: false, error: detail, status: send.status };
+
+    const retryableFrom =
+      send.status === 403 ||
+      send.status === 422 ||
+      /domain|not verified|invalid.*from/i.test(lastError);
+    if (!retryableFrom) {
+      break;
+    }
   }
 
-  return { ok: true };
+  return { ok: false, error: lastError, status: lastStatus };
 }

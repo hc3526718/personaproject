@@ -91,6 +91,13 @@ async function main() {
     } else {
       issues.push('SEND_EMAIL_HOOK_SECRET missing — hook signature verification will fail.');
     }
+    if (/RESEND_FROM_EMAIL/.test(secrets)) {
+      ok.push('RESEND_FROM_EMAIL secret is set (must be a Resend-verified domain, not *.vercel.app).');
+    } else {
+      issues.push(
+        'RESEND_FROM_EMAIL not set — function falls back to onboarding@resend.dev (sandbox limits).',
+      );
+    }
   } catch (e) {
     issues.push(`Could not list Supabase secrets: ${e.message}`);
   }

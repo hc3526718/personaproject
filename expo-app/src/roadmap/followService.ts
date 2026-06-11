@@ -64,6 +64,23 @@ export async function listOutgoingFollowRequests(userId: string): Promise<Follow
   return data as FollowRequestRow[];
 }
 
+export async function hasPendingOutgoingFollowRequest(
+  requesterUserId: string,
+  targetUserId: string,
+): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase || requesterUserId === targetUserId) return false;
+  const { data, error } = await supabase
+    .from('follow_requests')
+    .select('id')
+    .eq('requester_id', requesterUserId)
+    .eq('target_id', targetUserId)
+    .eq('status', 'pending')
+    .maybeSingle();
+  if (error) return false;
+  return !!data;
+}
+
 export async function sendFollowRequest(requesterUserId: string, targetUserId: string): Promise<boolean> {
   const supabase = getSupabase();
   if (!supabase || requesterUserId === targetUserId) return false;

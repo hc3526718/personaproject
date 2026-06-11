@@ -12,3 +12,8 @@ export function getAllowMessagesFrom(): AllowMessagesFrom {
 export function setAllowMessagesFrom(value: AllowMessagesFrom): void {
   allowMessagesFrom = value;
 }
+
+/** Follow requests inbox is only used when DMs are restricted (not community post visibility). */
+export function requiresFollowRequestInbox(policy: AllowMessagesFrom): boolean {
+  return policy !== 'everyone';
+}

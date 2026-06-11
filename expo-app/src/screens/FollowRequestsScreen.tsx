@@ -23,6 +23,13 @@ import { isSupabaseConfigured } from '../lib/env';
 import { resolveProfileAvatarSource } from '../lib/profileAvatar';
 import type { ProfileStackParamList } from '../navigation/types';
 import {
+  getAllowMessagesFrom,
+  requiresFollowRequestInbox,
+  setAllowMessagesFrom,
+  type AllowMessagesFrom,
+} from '../messaging/messagingPrefs';
+import { fetchProfileByUserId } from '../roadmap/profileService';
+import {
   acceptFollowRequest,
   cancelFollowRequest,
   listIncomingFollowRequests,
@@ -41,8 +48,10 @@ export function FollowRequestsScreen({ navigation }: Props) {
   const [incoming, setIncoming] = useState<FollowRequestWithProfile[]>([]);
   const [outgoing, setOutgoing] = useState<FollowRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dmPolicy, setDmPolicy] = useState<AllowMessagesFrom>(() => getAllowMessagesFrom());
 
   const live = Boolean(isSupabaseConfigured() && user && !user.id.startsWith('demo-'));
+  const inboxEnabled = requiresFollowRequestInbox(dmPolicy);
 
   const fetchListsOnly = useCallback(async () => {
     if (!live || !user) return;
@@ -58,10 +67,19 @@ export function FollowRequestsScreen({ navigation }: Props) {
     if (!live || !user) {
       setIncoming([]);
       setOutgoing([]);
+      setDmPolicy('everyone');
       setLoading(false);
       return;
     }
     setLoading(true);
+    const profile = await fetchProfileByUserId(user.id);
+    const raw = profile?.allow_messages_from?.trim();
+    if (raw === 'everyone' || raw === 'followers_only' || raw === 'friends_only') {
+      setAllowMessagesFrom(raw);
+      setDmPolicy(raw);
+    } else {
+      setDmPolicy(getAllowMessagesFrom());
+    }
     await fetchListsOnly();
     setLoading(false);
   }, [live, user, fetchListsOnly]);
@@ -128,8 +146,22 @@ export function FollowRequestsScreen({ navigation }: Props) {
           <AppLoadingIndicator style={{ marginTop: 24 }} />
         ) : null}
 
-        {live && !loading ? (
+        {live && !loading && !inboxEnabled ? (
+          <Text style={styles.hint}>
+            Follow requests are only used when direct messages are set to Followers only or Friends
+            only under Privacy & Visibility. Your messaging is set to Everyone, so new followers
+            are added instantly and this inbox is hidden in Settings. Community post visibility is
+            unchanged either way.
+          </Text>
+        ) : null}
+
+        {live && !loading && inboxEnabled ? (
           <>
+            <Text style={styles.hint}>
+              Because your direct messages are restricted, approve followers here before they can
+              message you. This does not hide your community posts — it only controls messaging from
+              new followers.
+            </Text>
             <Text style={styles.section}>Incoming</Text>
             {incoming.length === 0 ? (
               <Text style={styles.empty}>No pending requests.</Text>
