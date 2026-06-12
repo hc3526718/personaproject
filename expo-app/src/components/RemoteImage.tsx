@@ -1,28 +1,35 @@
 import { useEffect, useState } from 'react';
-import {
-  Image,
-  type ImageProps,
-  type ImageSourcePropType,
-  type StyleProp,
-  type ImageStyle,
-} from 'react-native';
+import { Image } from 'expo-image';
+import type { ImageProps as ExpoImageProps } from 'expo-image';
+import type { StyleProp, ImageStyle } from 'react-native';
 
-type Props = Omit<ImageProps, 'source'> & {
+const BLUR_PLACEHOLDER =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F9DwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+type Props = Omit<ExpoImageProps, 'source'> & {
   uri: string;
   fallbackUri?: string;
   style?: StyleProp<ImageStyle>;
+  /** Lower numbers load sooner in lists (expo-image priority). */
+  priority?: 'low' | 'normal' | 'high';
 };
 
-/** Image that falls back when the remote URL is missing or broken (e.g. zero-byte upload). */
-export function RemoteImage({ uri, fallbackUri, style, onError, ...rest }: Props) {
+/** Cached remote image with blur placeholder and fallback when URL is missing or broken. */
+export function RemoteImage({
+  uri,
+  fallbackUri,
+  style,
+  priority = 'normal',
+  onError,
+  contentFit = 'cover',
+  ...rest
+}: Props) {
   const primary = uri.trim();
   const fallback = fallbackUri?.trim() ?? '';
-  const [source, setSource] = useState<ImageSourcePropType>(
-    primary ? { uri: primary } : fallback ? { uri: fallback } : { uri: '' },
-  );
+  const [activeUri, setActiveUri] = useState(primary || fallback);
 
   useEffect(() => {
-    setSource(primary ? { uri: primary } : fallback ? { uri: fallback } : { uri: '' });
+    setActiveUri(primary || fallback);
   }, [fallback, primary]);
 
   if (!primary && !fallback) return null;
@@ -31,11 +38,18 @@ export function RemoteImage({ uri, fallbackUri, style, onError, ...rest }: Props
     <Image
       {...rest}
       style={style}
-      source={source}
+      source={activeUri ? { uri: activeUri } : undefined}
+      placeholder={BLUR_PLACEHOLDER}
+      placeholderContentFit="cover"
+      contentFit={contentFit}
+      cachePolicy="memory-disk"
+      recyclingKey={activeUri}
+      priority={priority}
+      transition={150}
       onError={(e) => {
         onError?.(e);
-        if (fallback && source && typeof source === 'object' && 'uri' in source && source.uri !== fallback) {
-          setSource({ uri: fallback });
+        if (fallback && activeUri !== fallback) {
+          setActiveUri(fallback);
         }
       }}
     />

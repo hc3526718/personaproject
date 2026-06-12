@@ -36,6 +36,7 @@ import { CaptionComposer } from '../components/CaptionComposer';
 import { MentionRichText } from '../components/MentionRichText';
 import { BrandLogo } from '../components/BrandLogo';
 import { RemoteImage } from '../components/RemoteImage';
+import { prefetchImageUris } from '../lib/prefetchImages';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import { resolveCanMessagePeer } from '../roadmap/messagingGateService';
@@ -277,6 +278,12 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     setFeedLoading((was) => (feedPosts.length === 0 ? true : was));
     const rows = await listRecentCommunityPosts(30);
     setFeedPosts(rows);
+    void prefetchImageUris(
+      rows.flatMap((p) => [
+        p.author_avatar_url?.trim() ?? '',
+        ...(p.attachments ?? []).map((a) => (a.kind === 'image' ? a.uri : '')),
+      ]),
+    );
     setFeedLoading(false);
   }, [feedPosts.length, liveMode, user?.id]);
 
@@ -284,6 +291,12 @@ export function CommunityFeedScreen({ navigation }: CProps<'CommunityFeed'>) {
     if (!liveMode) return;
     const rows = await listRecentCommunityPosts(30);
     setFeedPosts(rows);
+    void prefetchImageUris(
+      rows.flatMap((p) => [
+        p.author_avatar_url?.trim() ?? '',
+        ...(p.attachments ?? []).map((a) => (a.kind === 'image' ? a.uri : '')),
+      ]),
+    );
   }, [liveMode]);
 
   const { refreshing, onRefresh } = useRefreshWithMinimum(reloadFeedQuiet, 4000);
@@ -644,11 +657,10 @@ function PostCard({
       } else {
         const cLikes = await getPostLikeCount(_postId);
         setLikeCount(cLikes);
-        if (next) showActionBanner('Liked', `${name}'s post`);
       }
       setSyncing(false);
     })();
-  }, [liveMode, user, syncing, liked, _postId, name, showActionBanner]);
+  }, [liveMode, user, syncing, liked, _postId]);
 
   const sharePostToUser = useCallback(
     (target: SharePostTarget, message: string) => {

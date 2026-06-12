@@ -22,6 +22,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
+import { RemoteImage } from '../components/RemoteImage';
+import { prefetchImageUris } from '../lib/prefetchImages';
 import { OptionMenuModal } from '../components/OptionMenuModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { HighlightVideoModal } from '../components/HighlightVideoModal';
@@ -193,7 +195,7 @@ function MediaThumbnail({ asset, fill }: { asset: MediaAssetRow; fill?: boolean 
   const boxStyle = fill ? (styles.thumbMediaFill as any) : undefined;
   const uri = mediaThumbnailUri(asset);
   if (uri) {
-    return <Image source={{ uri }} style={[boxStyle, styles.thumbImg] as any} resizeMode="cover" />;
+    return <RemoteImage uri={uri} style={[boxStyle, styles.thumbImg] as any} contentFit="cover" priority="low" />;
   }
   if (isVideoMediaAsset(asset)) {
     return (
@@ -233,6 +235,7 @@ export function MediaLibraryScreen({ navigation, route }: MProps<'MediaLibrary'>
     await pruneContinueWatching(validIds);
     const contFresh = await listContinueWatching();
     setBrowseAssets(rows);
+    void prefetchImageUris(rows.map((r) => mediaThumbnailUri(r) ?? THUMB));
     setFeaturedHero(featured);
     const watchedSet = watched;
     const seen = new Set<string>();

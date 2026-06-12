@@ -16,6 +16,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MediaDotPager } from './MediaDotPager';
+import { RemoteImage } from './RemoteImage';
 import { DS } from '../designSystem';
 
 export type PostMediaItem = { kind: 'image' | 'video'; uri: string };
@@ -140,7 +141,7 @@ export function PostFeedMedia({ items, fallbackImageUri }: Props) {
         ]}
       >
         {m.kind === 'image' ? (
-          <Image source={{ uri: m.uri }} style={styles.media} resizeMode="contain" />
+          <RemoteImage uri={m.uri} style={styles.media} contentFit="contain" priority="normal" />
         ) : (
           <Video
             source={{ uri: m.uri }}

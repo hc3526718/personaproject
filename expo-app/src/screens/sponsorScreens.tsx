@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
 import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { RemoteImage } from '../components/RemoteImage';
+import { prefetchImageUris } from '../lib/prefetchImages';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import { useRefreshWithMinimum } from '../hooks/useRefreshWithMinimum';
 import { pullRefreshControl } from '../lib/pullRefreshUi';
@@ -54,6 +55,7 @@ export function SponsorListingsScreen({ navigation }: SProps<'SponsorListings'>)
     setLoading(true);
     const rows = await listSubscriptionOfferPages(100);
     setItems(rows);
+    void prefetchImageUris(rows.map((r) => r.hero_image_url?.trim() ?? FALLBACK_SP_IMG));
     setLoading(false);
   }, []);
 

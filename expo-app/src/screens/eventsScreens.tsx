@@ -42,6 +42,8 @@ import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BookingQrCode } from '../components/BookingQrCode';
 import { OptionMenuModal } from '../components/OptionMenuModal';
 import { PullRefreshRiveOverlay } from '../components/PullRefreshRiveOverlay';
+import { RemoteImage } from '../components/RemoteImage';
+import { prefetchImageUris } from '../lib/prefetchImages';
 import { DS, tabRootHeaderPadding, tabRootTitleText } from '../designSystem';
 import type { IcsEventInput } from '../integrations/eventCalendar';
 import { buildGoogleCalendarLink, shareEventAsIcs } from '../integrations/eventCalendar';
@@ -319,7 +321,7 @@ function BrowseEventRowCell({
   const sub = row.kind === 'db' ? row.row.venue?.trim() || '' : row.card.sub;
   return (
     <Pressable style={styles.evListCell} onPress={onPress}>
-      <Image source={{ uri: img }} style={styles.evListThumb} />
+      <RemoteImage uri={img} style={styles.evListThumb} priority="normal" />
       <View style={styles.evListTextCol}>
         <Text style={styles.evListTitle} numberOfLines={2}>
           {title.toUpperCase()}
@@ -405,6 +407,7 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
       ]);
       setDbEvents(evs);
       setBookings(bks);
+      void prefetchImageUris(evs.map((e) => e.hero_image_url?.trim() ?? DEFAULT_HERO));
       const { cacheBookedEvents } = await import('../lib/offline/eventsOffline');
       await cacheBookedEvents(user.id, bks);
     } catch {
@@ -469,7 +472,6 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
   }, [mergedRows, filter, savedKeys, bookedEventIds, user]);
 
   const listsEmpty = upcomingRows.length === 0 && pastRows.length === 0;
-  const showUpcomingHeading = upcomingRows.length > 0 && filter !== 'past';
   const showPastHeading = pastRows.length > 0 && filter !== 'past';
 
   const firstAnchor = upcomingBookingsAnchored[0];
@@ -549,9 +551,10 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
                 navigation.navigate('BookingConfirm', bookingToConfirmParams(firstAnchor))
               }
             >
-              <Image
-                source={{ uri: firstAnchor.event?.hero_image_url?.trim() || DEFAULT_HERO }}
+              <RemoteImage
+                uri={firstAnchor.event?.hero_image_url?.trim() || DEFAULT_HERO}
                 style={styles.evListThumb}
+                priority="high"
               />
               <View style={styles.evListTextCol}>
                 <Text style={styles.evListTitle} numberOfLines={2}>
@@ -604,16 +607,11 @@ export function UpcomingEventsScreen({ navigation }: EProps<'UpcomingEvents'>) {
           </>
         ) : (
           <>
-            {showUpcomingHeading ? (
-              <View style={styles.evSectionBlock}>
-                <Text style={styles.evSectionGold}>
-                  {filter === 'booked' ? 'BOOKED' : 'UPCOMING'}
-                </Text>
-                <BrowseEventRowsList rows={upcomingRows} navigation={navigation} browseFilter={filter} />
-              </View>
+            {upcomingRows.length > 0 ? (
+              <BrowseEventRowsList rows={upcomingRows} navigation={navigation} browseFilter={filter} />
             ) : null}
             {showPastHeading ? (
-              <View style={[styles.evSectionBlock, showUpcomingHeading && styles.evSectionBlockSpaced]}>
+              <View style={[styles.evSectionBlock, upcomingRows.length > 0 && styles.evSectionBlockSpaced]}>
                 <Text style={styles.evSectionGold}>PAST</Text>
                 <BrowseEventRowsList rows={pastRows} navigation={navigation} browseFilter={filter} />
               </View>
@@ -2394,7 +2392,8 @@ const styles = StyleSheet.create({
   },
   evFilterRow: {
     gap: DS.space.sm,
-    paddingBottom: DS.space.xs,
+    paddingBottom: 0,
+    marginBottom: 0,
     flexDirection: 'row',
   },
   evFilterChip: {
@@ -2425,7 +2424,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: DS.color.gold,
     letterSpacing: 2,
-    marginBottom: DS.space.xs,
+    marginBottom: DS.space.sm,
     marginTop: 0,
   },
   evSectionGold: {
