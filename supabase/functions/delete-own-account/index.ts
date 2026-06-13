@@ -9,6 +9,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { purgeUserStorage } from '../_shared/purgeUserStorage.ts';
 
 type Body = { confirm_phrase?: string };
 
@@ -85,6 +86,12 @@ Deno.serve(async (req) => {
     });
     if (auditErr) {
       console.error('[delete-own-account] audit_log_failed', auditErr.message);
+    }
+
+    try {
+      await purgeUserStorage(admin, userId);
+    } catch (e) {
+      console.error('[delete-own-account] storage_purge_failed', e);
     }
 
     const { error: delErr } = await admin.auth.admin.deleteUser(userId);

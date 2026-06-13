@@ -436,7 +436,7 @@ export const StaggeredMenu = ({
           <a href="/">
             <img
               src={logoUrl}
-              alt="Grant Access"
+              alt="The Dalton Grant Academy"
               className="sm-logo-img sm-logo-img--hero"
               draggable={false}
               width={275}

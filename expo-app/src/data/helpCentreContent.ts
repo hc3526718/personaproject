@@ -49,7 +49,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Premium & one subscription',
     keywords: ['subscribe', 'paywall', 'stripe', 'revenuecat', 'billing', 'restore', 'web', 'ios', 'app store'],
     body:
-      'Grant Access Pro unlocks creator tools after Dalton verification. Pay on web (Stripe Checkout) or on iPhone (App Store / RevenueCat)—one subscription per account, not per device. Android is not available yet. Sign in with the same email everywhere; status syncs via your account. Web: Profile → Premium. iOS: Restore purchases after signing in.',
+      'Academy Premium unlocks creator tools after Dalton verification. Pay on web (Stripe Checkout) or on iPhone (App Store / RevenueCat)—one subscription per account, not per device. Android is not available yet. Sign in with the same email everywhere; status syncs via your account. Web: Profile → Premium. iOS: Restore purchases after signing in.',
   },
   {
     id: 'verification',
@@ -70,7 +70,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     title: 'Events & bookings',
     keywords: ['book', 'ticket', 'qr', 'check-in', 'saved', 'host'],
     body:
-      'Discover events under Events → filters (All, Booked, Saved, Past, My events). Booking requires an internet connection. Host tools and QR check-in need Grant Access Pro and Dalton verification.',
+      'Discover events under Events → filters (All, Booked, Saved, Past, My events). Booking requires an internet connection. Host tools and QR check-in need Academy Premium and Dalton verification.',
   },
   {
     id: 'messages',

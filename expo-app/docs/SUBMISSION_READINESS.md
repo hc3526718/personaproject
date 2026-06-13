@@ -31,7 +31,7 @@ Last updated from codebase review. Use as a launch checklist.
 
 | Item | Severity | Detail |
 |------|----------|--------|
-| In-app account deletion | **High** (Apple) | Verify `deleteOwnAccount` flow on Profile → Account security |
+| In-app account deletion | **High** (Apple) | Implemented — see `docs/ACCOUNT_DELETION_AUDIT.md`; redeploy `delete-own-account` after storage purge changes |
 | Push token registration | Medium | Wired via `tryRegisterPushToken` on session; requires `expo-notifications` + device permission |
 | Host event dashboard | Low | Live booking totals from Supabase (`listHostEventDashboard`) |
 | Paid event checkout | Medium | Requires `events.stripe_price_id` + deploy updated `stripe-create-checkout` / `stripe-webhook` |

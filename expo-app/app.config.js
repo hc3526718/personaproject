@@ -133,9 +133,9 @@ const baseExpo = {
       CFBundleDisplayName: 'The Dalton Grant Academy',
       ITSAppUsesNonExemptEncryption: false,
       NSPhotoLibraryAddUsageDescription:
-        'The Dalton Grant Academy saves your event ticket QR code to your photo library when you choose Save ticket as PNG.',
+        'The Dalton Grant Academy saves event ticket QR codes to your photo library when you choose Save ticket as PNG.',
       NSPhotoLibraryUsageDescription:
-        'The Dalton Grant Academy saves your event ticket QR code to your photo library when you choose Save ticket as PNG.',
+        'The Dalton Grant Academy accesses your photo library to upload profile photos, community posts, and event media, and to save event ticket QR codes when you choose Save ticket as PNG.',
       NSAppTransportSecurity: {
         NSAllowsArbitraryLoads: false,
         NSExceptionDomains: {

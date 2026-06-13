@@ -1,6 +1,6 @@
 {
   "appId": "com.daltonproject.demo",
-  "appName": "Dalton Demo",
+  "appName": "The Dalton Grant Academy",
   "webDir": ".",
   "server": {
     "androidScheme": "https"

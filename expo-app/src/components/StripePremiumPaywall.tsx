@@ -11,6 +11,7 @@ import {
   type StripePlanKey,
 } from '../subscriptions/stripeBilling';
 import { authAlert } from '../auth/authAlert';
+import { SubscriptionLegalFooter } from './SubscriptionLegalFooter';
 
 type Props = {
   onSubscribed?: () => void;
@@ -123,9 +124,7 @@ export function StripePremiumPaywall({ onSubscribed, showClose, onClose }: Props
         )}
       </Pressable>
 
-      <Text style={styles.footnote}>
-        You will complete payment on Stripe. Taxes and final price are shown before you pay.
-      </Text>
+      <SubscriptionLegalFooter stripeWeb showAutoRenewal={false} />
     </View>
   );
 }

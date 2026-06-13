@@ -12,6 +12,7 @@ import {
 } from '../subscriptions/stripeBilling';
 import { presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { authAlert } from '../auth/authAlert';
+import { SubscriptionLegalFooter } from './SubscriptionLegalFooter';
 
 const FEATURES = [
   'High-quality podcasts, interviews, and training media',
@@ -134,6 +135,7 @@ export function AcademyAccessPaywall({ onAccessGranted }: Props) {
           Payment is verified on our servers before the app unlocks. Sharing accounts or tampering with client checks
           does not bypass billing.
         </Text>
+        <SubscriptionLegalFooter stripeWeb={isWeb} revenueCatSheetNote={!isWeb} />
       </ScrollView>
     </View>
   );

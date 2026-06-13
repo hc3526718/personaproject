@@ -8,6 +8,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { DS } from '../designSystem';
 import { presentRevenueCatCustomerCenter, presentRevenueCatPaywall } from '../subscriptions/presentRevenueCatPaywall';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
+import { SubscriptionLegalFooter } from '../components/SubscriptionLegalFooter';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ProfileStackParamList } from '../navigation/types';
 
@@ -93,7 +94,10 @@ export function PaywallScreen({ navigation }: Props) {
               </Pressable>
             </View>
           ) : (
-            <StripePremiumPaywall />
+            <>
+              <StripePremiumPaywall />
+              <SubscriptionLegalFooter stripeWeb />
+            </>
           )}
         </ScrollView>
       </View>
@@ -141,6 +145,7 @@ export function PaywallScreen({ navigation }: Props) {
             >
               <Text style={styles.linkTxt}>Restore purchases</Text>
             </Pressable>
+            <SubscriptionLegalFooter revenueCatSheetNote />
           </>
         )}
       </View>

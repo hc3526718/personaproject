@@ -25,7 +25,7 @@ export default function LandingAuth() {
   }
 
   return (
-    <a href="/app" className="landing-auth landing-auth--cta" aria-label="Log in or sign up for Grant Access">
+    <a href="/app" className="landing-auth landing-auth--cta" aria-label="Log in or sign up for The Dalton Grant Academy">
       Log in / Sign up
     </a>
   );
