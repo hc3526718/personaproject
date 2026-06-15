@@ -97,7 +97,9 @@ Deno.serve(async (req) => {
       ? 'email rate limit exceeded'
       : result.error === 'resend_not_configured'
         ? 'Auth email service is not configured (RESEND_API_KEY missing).'
-        : result.error;
+        : result.error === 'resend_domain_required_for_recipient'
+          ? 'Auth email From address must use verified domain (set RESEND_FROM_EMAIL on Supabase).'
+          : result.error;
     return new Response(
       JSON.stringify({
         error: {

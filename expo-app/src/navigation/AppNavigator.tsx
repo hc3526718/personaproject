@@ -115,6 +115,7 @@ import {
 } from '../screens/masterControlScreens';
 import { ProposalOutcomeHost } from '../components/ProposalOutcomeHost';
 import { AcademyAccessPaywall } from '../components/AcademyAccessPaywall';
+import { AppLoadingIndicator } from '../components/AppLoadingIndicator';
 import { hasAppAccess, isAccessExemptUser } from '../subscriptions/appAccess';
 import { useSubscription } from '../subscriptions/SubscriptionContext';
 import {
@@ -138,6 +139,14 @@ const MediaStack = createNativeStackNavigator<MediaStackParamList>();
 const EventsStack = createNativeStackNavigator<EventsStackParamList>();
 const SponsorsStack = createNativeStackNavigator<SponsorsStackParamList>();
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
+
+function AuthShellLoading({ backgroundColor }: { backgroundColor: string }) {
+  return (
+    <View style={{ flex: 1, backgroundColor, justifyContent: 'center', alignItems: 'center' }}>
+      <AppLoadingIndicator />
+    </View>
+  );
+}
 
 function CommunityStackNavigator() {
   const screenOptions = useThemedStackScreenOptions();
@@ -369,20 +378,30 @@ function AuthenticatedShell() {
   const accessGranted = hasAppAccess(user, isPaymentVerified, sessionEmail);
 
   if (gate === 'loading') {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <AuthShellLoading backgroundColor={colors.background} />;
   }
   if (gate === 'onboarding') {
     return (
       <OnboardingNavigator
         onFinished={() => {
-          setGate('loading');
+          void refreshGate();
+        }}
+      />
+    );
+  }
+  if (oauthProfileSetupOpen) {
+    return (
+      <OAuthProfileSetupModal
+        visible
+        onCompleted={() => {
+          setOauthProfileSetupOpen(false);
           void refreshGate();
         }}
       />
     );
   }
   if (needsPaidAccess && subscriptionBusy) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <AuthShellLoading backgroundColor={colors.background} />;
   }
   if (needsPaidAccess && !accessGranted) {
     return (
@@ -394,19 +413,9 @@ function AuthenticatedShell() {
     );
   }
   return (
-    <>
-      <ProposalOutcomeHost>
-        <MainTabNavigator />
-      </ProposalOutcomeHost>
-      <OAuthProfileSetupModal
-        visible={oauthProfileSetupOpen}
-        onCompleted={() => {
-          setOauthProfileSetupOpen(false);
-          setGate('loading');
-          void refreshGate();
-        }}
-      />
-    </>
+    <ProposalOutcomeHost>
+      <MainTabNavigator />
+    </ProposalOutcomeHost>
   );
 }
 

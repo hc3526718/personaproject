@@ -17,6 +17,7 @@ const key = process.env.RESEND_API_KEY?.trim();
 const from =
   process.env.RESEND_FROM_EMAIL?.trim() ||
   'The Dalton Grant Academy <noreply@daltongrantacademy.uk>';
+const webUrl = process.env.DALTON_WEB_URL?.trim() || 'https://daltongrantacademy.uk';
 
 if (!key) {
   console.error('RESEND_API_KEY missing in expo-app/.env');
@@ -31,5 +32,9 @@ execSync(`npx supabase secrets set RESEND_FROM_EMAIL="${from}" --project-ref ${P
   cwd: root,
   stdio: 'inherit',
 });
+execSync(`npx supabase secrets set DALTON_WEB_URL="${webUrl}" --project-ref ${PROJECT_REF}`, {
+  cwd: root,
+  stdio: 'inherit',
+});
 
-console.log('[sync-resend-secrets] RESEND_API_KEY + RESEND_FROM_EMAIL synced (values hidden).');
+console.log('[sync-resend-secrets] RESEND_API_KEY, RESEND_FROM_EMAIL, DALTON_WEB_URL synced (values hidden).');

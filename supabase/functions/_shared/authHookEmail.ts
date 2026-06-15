@@ -174,7 +174,12 @@ export async function sendAuthEmailViaResend(opts: {
         lastError = 'resend_rate_limit_exceeded';
         return { ok: false, error: lastError, status: send.status };
       }
-      if (parsed.message) {
+      if (
+        /only send testing emails to your own email/i.test(parsed.message ?? '') ||
+        /verify a domain/i.test(parsed.message ?? '')
+      ) {
+        lastError = 'resend_domain_required_for_recipient';
+      } else if (parsed.message) {
         lastError = parsed.message;
       }
     } catch {
