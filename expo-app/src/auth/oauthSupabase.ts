@@ -32,6 +32,17 @@ export function getOAuthRedirectUri(): string {
   return Linking.createURL('auth/callback');
 }
 
+/**
+ * Email confirm / recovery links always land on the marketing site first so users see
+ * a clear success screen and we can deep-link back into TestFlight via dalton-demo://.
+ */
+export function getEmailConfirmRedirectUri(): string {
+  const explicit = (process.env.EXPO_PUBLIC_EMAIL_CONFIRM_REDIRECT_URL ?? '').trim();
+  if (explicit) return explicit;
+  const web = getDaltonWebUrl() || BRAND_WEB_ORIGIN;
+  return `${web.replace(/\/$/, '')}/email-confirmed`;
+}
+
 /** Reject forged OAuth returns (wrong scheme on native, wrong origin on web). */
 export function isOAuthReturnUrlTrusted(returnUrl: string, redirectTo: string): boolean {
   if (Platform.OS === 'web') {

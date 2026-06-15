@@ -15,6 +15,7 @@ import { getSupabase } from '../lib/supabase';
 import {
   cleanupWebAuthUrlAfterSignIn,
   completeWebOAuthSessionIfNeeded,
+  getEmailConfirmRedirectUri,
   getOAuthRedirectUri,
   ingestSessionFromAuthCallbackUrl,
   signInWithAppleNative,
@@ -449,7 +450,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           data: { dalton_verified: false },
-          emailRedirectTo: getOAuthRedirectUri(),
+          emailRedirectTo: getEmailConfirmRedirectUri(),
         },
       });
       if (error) {
@@ -473,7 +474,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, message: 'Enter your email address.' };
       }
       const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: getOAuthRedirectUri(),
+        redirectTo: getEmailConfirmRedirectUri(),
       });
       if (error) return { ok: false, message: mapAuthEmailErrorMessage(error.message) };
       return { ok: true };

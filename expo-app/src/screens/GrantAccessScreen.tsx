@@ -81,7 +81,7 @@ export default function GrantAccessScreen() {
         setSignupConfirmEmail(trimmed);
         Alert.alert(
           'Confirm your email',
-          `We sent a confirmation link to ${trimmed}. Open it on this device, then tap "I've confirmed — continue" below.`,
+            `We sent a confirmation link to ${trimmed}. Open it on this device — you'll land on our website to confirm, then return to the app and tap "I've confirmed — continue" below.`,
         );
         return;
       }
@@ -164,8 +164,8 @@ export default function GrantAccessScreen() {
             <Text style={local.confirmBannerBody}>
               We sent a confirmation link to{' '}
               <Text style={local.confirmBannerEm}>{signupConfirmEmail}</Text>. Open it on this phone
-              (TestFlight is fine — no App Store release needed), then continue setup here without
-              re-entering your details.
+              — you&apos;ll see an &quot;Email confirmed&quot; page on daltongrantacademy.uk, then
+              return here and tap the button below.
             </Text>
             <AppleHeroButton onPress={() => void tryContinueAfterEmailConfirm()}>
               I&apos;ve confirmed — continue

@@ -21,6 +21,7 @@ const htmlPages = [
   'live-chat.html',
   'athlete-agreement.html',
   'labels-and-markings.html',
+  'email-confirmed.html',
 ];
 
 await cp(path.join(repoRoot, 'shared'), path.join(dest, 'shared'), { recursive: true });

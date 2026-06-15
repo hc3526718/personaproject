@@ -23,7 +23,7 @@ const res = await fetch('https://txehbzyntvqpkkegjrwp.supabase.co/auth/v1/signup
     email,
     password: 'TestPass123!',
     options: {
-      emailRedirectTo: 'https://daltongrantacademy.uk/app/auth/callback',
+      emailRedirectTo: 'https://daltongrantacademy.uk/email-confirmed',
     },
   }),
 });
