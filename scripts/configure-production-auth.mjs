@@ -36,7 +36,8 @@ const REDIRECT_URLS = [
   'http://localhost:8081/app/auth/callback',
   'http://localhost:19006/app/auth/callback',
   'http://localhost:3000/app/auth/callback',
-  'com.hc111.daltondemo://auth/callback',
+  'dalton-demo://auth/callback',
+  'dalton-demo://**',
 ];
 
 function readAccessToken() {

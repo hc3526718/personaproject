@@ -81,7 +81,7 @@ export default function GrantAccessScreen() {
         setSignupConfirmEmail(trimmed);
         Alert.alert(
           'Confirm your email',
-          `We sent a confirmation link to ${trimmed}. Open that email to verify, then use Log In.`,
+          `We sent a confirmation link to ${trimmed}. Open it on this device, then tap "I've confirmed — continue" below.`,
         );
         return;
       }
@@ -106,6 +106,30 @@ export default function GrantAccessScreen() {
   const dismissConfirmBanner = useCallback(() => {
     setSignupConfirmEmail(null);
   }, []);
+
+  const tryContinueAfterEmailConfirm = useCallback(async () => {
+    const trimmed = (signupConfirmEmail ?? email).trim();
+    if (!trimmed || !password) {
+      Alert.alert('Missing details', 'Enter the same email and password you used to sign up.');
+      return;
+    }
+    const loginResult = await login(trimmed, password);
+    if (loginResult.ok) {
+      setSignupConfirmEmail(null);
+      return;
+    }
+    if (loginResult.reason === 'email_not_confirmed') {
+      Alert.alert(
+        'Not confirmed yet',
+        `Open the link in the email we sent to ${trimmed} on this device, then try again.`,
+      );
+      return;
+    }
+    Alert.alert(
+      'Could not continue',
+      'Check your email and password. If you already confirmed, wait a moment and try again.',
+    );
+  }, [email, login, password, signupConfirmEmail]);
 
   const goWelcome = useCallback(() => {
     navigation.navigate('WelcomeHub');
@@ -138,10 +162,15 @@ export default function GrantAccessScreen() {
           <View style={local.confirmBanner}>
             <Text style={local.confirmBannerTitle}>Check your email</Text>
             <Text style={local.confirmBannerBody}>
-              Please confirm your signup using the link sent to{' '}
-              <Text style={local.confirmBannerEm}>{signupConfirmEmail}</Text>. Then return here and tap Log In.
+              We sent a confirmation link to{' '}
+              <Text style={local.confirmBannerEm}>{signupConfirmEmail}</Text>. Open it on this phone
+              (TestFlight is fine — no App Store release needed), then continue setup here without
+              re-entering your details.
             </Text>
-            <Pressable onPress={dismissConfirmBanner} hitSlop={10}>
+            <AppleHeroButton onPress={() => void tryContinueAfterEmailConfirm()}>
+              I&apos;ve confirmed — continue
+            </AppleHeroButton>
+            <Pressable onPress={dismissConfirmBanner} hitSlop={10} style={{ marginTop: DS.space.sm }}>
               <Text style={local.confirmBannerDismiss}>Dismiss</Text>
             </Pressable>
           </View>
