@@ -42,7 +42,7 @@ For **manual testing** without going through the profile flow, you can set **`da
 
 ## Email confirmation & password reset (Supabase dashboard)
 
-1. **Site URL** — set to your production marketing origin, e.g. `https://daltongrantacademy.vercel.app` (not `http://localhost:3000`). This is the fallback for auth emails if a flow does not override the redirect.
+1. **Site URL** — set to your production marketing origin, e.g. `https://daltongrantacademy.uk` (not `http://localhost:3000`). This is the fallback for auth emails if a flow does not override the redirect.
 2. **Redirect URLs** — allow every URL the app opens after auth. Required entries include:
    - Web: `https://<your-domain>/app/auth/callback` (must match `EXPO_PUBLIC_OAUTH_REDIRECT_URL` or the default `window.location.origin + /app/auth/callback`).
    - Native dev build: your app scheme, e.g. `dalton-demo://auth/callback` (from Expo linking).

@@ -172,7 +172,7 @@ Never put `STRIPE_SECRET_KEY` or webhook secrets in Vercel or EAS — **Supabase
 
 1. **Supabase secrets:** `sk_test_…`, `whsec_…`, price IDs (see §2). Run `node scripts/verify-stripe-supabase-secrets.mjs` with your test keys.
 2. **Vercel / local env:** `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_…` (not only `pk_live_` in a non-public var).
-3. Open `https://daltongrantacademy.vercel.app/app` (or `npx expo start --web`), **sign in** with the account you want to upgrade.
+3. Open `https://daltongrantacademy.uk/app` (or `npx expo start --web`), **sign in** with the account you want to upgrade.
 4. **Settings → Premium** (or Paywall) → choose Monthly/Annual → complete Stripe Checkout with card `4242 4242 4242 4242`.
 5. After redirect (`?stripe_checkout=success`), confirm premium gates unlock and run in Supabase SQL:
    `SELECT user_id, is_pro, entitlement_ids, updated_at FROM subscription_state WHERE user_id = '<your-uuid>';`

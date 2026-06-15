@@ -13,7 +13,7 @@ WebBrowser.maybeCompleteAuthSession();
 /**
  * OAuth redirect must match Supabase Dashboard → Authentication → URL Configuration → Redirect URLs.
  * - Native: `dalton-demo://auth/callback` (scheme from app.config.js)
- * - Web (Vercel): `https://daltongrantacademy.vercel.app/app/auth/callback`
+ * - Web: `https://daltongrantacademy.uk/app/auth/callback`
  */
 export function getOAuthRedirectUri(): string {
   const explicit = (process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URL ?? '').trim();

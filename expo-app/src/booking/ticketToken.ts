@@ -24,7 +24,7 @@ export async function signTicketPayload(
 ): Promise<string> {
   if (!secret.trim()) {
     throw new Error(
-      'Ticket signing is not configured. Set EXPO_PUBLIC_TICKET_SIGNING_SECRET (release builds require a strong secret).',
+      'Ticket signing is not configured. Use issue-ticket-token in production or EXPO_PUBLIC_TICKET_SIGNING_SECRET in __DEV__ only.',
     );
   }
   const json = JSON.stringify(payload);

@@ -28,6 +28,31 @@
 
     <div style="padding: 0 1.25rem 2rem; max-width: 960px; margin: 0 auto">
       <div
+        id="ai-consent-gate"
+        hidden
+        style="
+          border: 1px solid rgba(200, 168, 75, 0.4);
+          border-radius: 16px;
+          padding: 1.5rem;
+          background: rgba(255, 255, 255, 0.04);
+          margin-bottom: 1rem;
+        "
+      >
+        <p style="margin: 0 0 0.75rem; font-weight: 600">Before you use the AI assistant</p>
+        <p style="margin: 0 0 1rem; color: rgba(212, 208, 200, 0.85); line-height: 1.55; font-size: 0.9rem">
+          This assistant is powered by <strong>Chatbase</strong>. Messages you send may be transmitted to Chatbase to
+          generate replies. Do not share passwords or payment details. AI responses may be inaccurate.
+        </p>
+        <button id="ai-consent-accept" type="button" style="margin-right: 0.5rem; padding: 0.6rem 1rem; border-radius: 10px; border: none; background: #c8a84b; color: #0a0a0a; font-weight: 600; cursor: pointer">
+          I understand — open assistant
+        </button>
+        <button id="ai-consent-decline" type="button" style="padding: 0.6rem 1rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: #d4d0c8; cursor: pointer">
+          Not now
+        </button>
+      </div>
+      <div
+        id="ai-chat-wrap"
+        hidden
         style="
           border: 1px solid rgba(200, 168, 75, 0.25);
           border-radius: 16px;
@@ -35,16 +60,21 @@
           background: rgba(255, 255, 255, 0.03);
         "
       >
+        <p style="margin: 0; padding: 0.5rem 1rem; font-size: 0.75rem; color: rgba(212, 208, 200, 0.7); border-bottom: 1px solid rgba(255,255,255,0.08)">
+          AI-generated replies · Provider: Chatbase · <a style="color: #c8a84b" href="/privacy">Privacy policy</a>
+        </p>
         <iframe
           src="https://www.chatbase.co/chatbot-iframe/zEmQhZUYm1rliCblIg1mI"
           width="100%"
           style="height: 100%; min-height: 700px"
           frameborder="0"
           allow="microphone"
+          title="Dalton Grant Academy AI assistant"
         ></iframe>
       </div>
     </div>
 
+    <script src="shared/ai-assistant-consent.js"></script>
     <script src="shared/marketing-chrome.js"></script>
   </body>
 </html>

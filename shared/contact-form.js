@@ -71,6 +71,9 @@
         return {};
       });
       if (!res.ok) {
+        if (data.error === 'rate_limit_exceeded') {
+          throw new Error('rate_limit_exceeded');
+        }
         throw new Error(data.error || 'send_failed');
       }
       status.className =
@@ -84,7 +87,9 @@
         'rounded-xl border border-red-500/35 bg-red-500/10 text-mist px-4 py-3 text-sm mt-4';
       status.hidden = false;
       status.textContent =
-        'We could not send your message right now. Check your connection and try again, or reach us via Support in the app.';
+        err && err.message === 'rate_limit_exceeded'
+          ? 'Too many messages from this connection. Please wait a while and try again.'
+          : 'We could not send your message right now. Check your connection and try again, or reach us via Support in the app.';
     } finally {
       setBusy(false);
     }

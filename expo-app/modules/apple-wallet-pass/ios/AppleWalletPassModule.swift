@@ -25,6 +25,13 @@ public class AppleWalletPassModule: Module {
   public func definition() -> ModuleDefinition {
     Name("AppleWalletPass")
 
+    View(AppleWalletPassButtonView.self) {
+      Events("onPress")
+      Prop("buttonStyle") { (view: AppleWalletPassButtonView, style: String) in
+        view.setButtonStyle(style)
+      }
+    }
+
     Function("canAddPasses") {
       PKAddPassesViewController.canAddPasses()
     }

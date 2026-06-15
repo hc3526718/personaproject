@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.description    = 'Native Apple Wallet add-pass sheet for Dalton event tickets'
   s.license        = 'MIT'
   s.author         = 'Dalton Grant Academy'
-  s.homepage       = 'https://daltongrantacademy.vercel.app'
+  s.homepage       = 'https://daltongrantacademy.uk'
   s.platform       = :ios, '15.1'
   s.swift_version  = '5.4'
   s.source         = { :git => '' }

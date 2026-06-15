@@ -9,6 +9,11 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import {
+  checkIpRateLimit,
+  rateLimitResponse,
+  readRateLimitEnv,
+} from '../_shared/ipRateLimit.ts';
 
 async function sha256Hex(input: string): Promise<string> {
   const data = new TextEncoder().encode(input);
@@ -62,6 +67,16 @@ Deno.serve(async (req) => {
     }
 
     const callerId = userData.user.id;
+
+    const { limit, windowSec } = readRateLimitEnv('IP_RATE_LIMIT_MASTER_PIN', {
+      limit: 10,
+      windowSec: 900,
+    });
+    const rate = await checkIpRateLimit(admin, req, 'verify-master-pin', limit, windowSec);
+    if (!rate.ok) {
+      return rateLimitResponse(cors, rate.retryAfterSec);
+    }
+
     let body: Body = {};
     try {
       body = (await req.json()) as Body;

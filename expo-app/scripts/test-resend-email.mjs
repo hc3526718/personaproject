@@ -30,11 +30,16 @@ if (!key || key === 're_xxxxxxxxx' || key.includes('xxxx')) {
 
 const resend = new Resend(key);
 
+const FROM =
+  process.env.RESEND_FROM_EMAIL?.trim() ||
+  'The Dalton Grant Academy <noreply@daltongrantacademy.uk>';
+const TO = process.env.RESEND_TEST_TO?.trim() || 'haydncampbell22@gmail.com';
+
 const { data, error } = await resend.emails.send({
-  from: 'onboarding@resend.dev',
-  to: 'haydncampbell22@gmail.com',
-  subject: 'Hello World',
-  html: '<p>Congrats on sending your <strong>first email</strong>!</p>',
+  from: FROM,
+  to: TO,
+  subject: 'DGA production domain check',
+  html: '<p>Resend verified domain test from <strong>daltongrantacademy.uk</strong>.</p>',
 });
 
 if (error) {

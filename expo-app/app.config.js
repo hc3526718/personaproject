@@ -129,6 +129,19 @@ const baseExpo = {
     config: {
       usesNonExemptEncryption: false,
     },
+    privacyManifests: {
+      NSPrivacyTracking: false,
+      NSPrivacyAccessedAPITypes: [
+        {
+          NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults',
+          NSPrivacyAccessedAPITypeReasons: ['CA92.1'],
+        },
+        {
+          NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryFileTimestamp',
+          NSPrivacyAccessedAPITypeReasons: ['C617.1'],
+        },
+      ],
+    },
     infoPlist: {
       CFBundleDisplayName: 'The Dalton Grant Academy',
       ITSAppUsesNonExemptEncryption: false,
@@ -232,7 +245,7 @@ module.exports = () => {
 
   expo.extra = {
     eas: { projectId: EAS_PROJECT_ID },
-    daltonWebUrl: (process.env.EXPO_PUBLIC_DALTON_WEB_URL || 'https://daltongrantacademy.vercel.app').trim(),
+    daltonWebUrl: (process.env.EXPO_PUBLIC_DALTON_WEB_URL || 'https://daltongrantacademy.uk').trim(),
     supabaseUrl: (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim(),
     supabaseAnonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim(),
     /** RevenueCat public SDK keys — duplicated here so native init can read `expo.extra` if env inlining differs. */

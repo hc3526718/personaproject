@@ -56,20 +56,10 @@ export function warmDaltonAuthVideoCache(): void {
 
   const uri = getDaltonAuthVideoWebUri();
 
-  if (!document.querySelector('link[data-dga-auth-video-preload]')) {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'video';
-    link.href = uri;
-    link.type = 'video/mp4';
-    link.setAttribute('data-dga-auth-video-preload', '1');
-    document.head.appendChild(link);
-  }
-
   if (!document.querySelector('video[data-dga-auth-video-warmup]')) {
     const video = document.createElement('video');
     video.setAttribute('data-dga-auth-video-warmup', '1');
-    video.preload = 'auto';
+    video.preload = 'metadata';
     video.muted = true;
     video.playsInline = true;
     video.loop = true;
@@ -77,10 +67,9 @@ export function warmDaltonAuthVideoCache(): void {
     video.style.cssText =
       'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px';
     document.body.appendChild(video);
-    const play = () => {
-      void video.play().catch(() => {});
-    };
-    video.addEventListener('canplay', play, { once: true });
+    video.addEventListener('error', () => {
+      /* best-effort warmup only */
+    }, { once: true });
     video.load();
   }
 }

@@ -1,5 +1,5 @@
 /**
- * DaltonProject demo — canonical relative paths (spaces preserved for static servers).
+ * DaltonProject — canonical relative paths (spaces preserved for static servers).
  * Use from static HTML via shared/demo-shell.js or inline hrefs.
  */
 window.DEMO_ROUTES = {

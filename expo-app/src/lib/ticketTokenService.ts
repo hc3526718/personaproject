@@ -24,13 +24,15 @@ export async function issueTicketTokenForBooking(
   return { ok: true, token };
 }
 
-/** Verify ticket — server when no client secret; local fallback in __DEV__. */
+/** Verify ticket — always via server in release; local secret only in __DEV__. */
 export async function verifyTicketTokenForCheckIn(
   token: string,
 ): Promise<{ ok: true; payload: TicketPayloadV1 } | { ok: false; reason: string }> {
-  const localSecret = getTicketSigningSecret();
-  if (localSecret.trim()) {
-    return verifyTicketToken(token, localSecret);
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    const localSecret = getTicketSigningSecret();
+    if (localSecret.trim()) {
+      return verifyTicketToken(token, localSecret);
+    }
   }
 
   const supabase = getSupabase();
@@ -50,10 +52,11 @@ export async function verifyTicketTokenForCheckIn(
   return { ok: true, payload: data.payload as TicketPayloadV1 };
 }
 
-/** Dev-only local signing when Edge Function unavailable. */
+/** Dev-only local signing when Edge Function unavailable. Never used in release builds. */
 export async function signTicketPayloadDevFallback(
   payload: TicketPayloadV1,
 ): Promise<string | null> {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return null;
   const secret = getTicketSigningSecret();
   if (!secret.trim()) return null;
   try {

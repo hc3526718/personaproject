@@ -16,9 +16,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { PKPass } from 'npm:passkit-generator@3.5.7';
 
 const DEFAULT_ORIGINS = [
-  'https://daltongrantacademy.vercel.app',
-  'https://www.daltongrantacademy.vercel.app',
-  'https://dalton-access.vercel.app',
+  'https://daltongrantacademy.uk',
+  'https://www.daltongrantacademy.uk',
   'http://localhost:8081',
   'http://localhost:19006',
   'http://localhost:3000',

@@ -4,7 +4,14 @@
 import { escapeHtml } from './bookingConfirmationEmail.ts';
 import { resendFromFallbacks } from './resendFrom.ts';
 
-const LOGO_URL = 'https://daltongrantacademy.vercel.app/brand/dalton_logo_final_img.png';
+/** Public logo at /brand/dalton_logo_final_img.png on the marketing site. */
+function authEmailLogoUrl(): string {
+  const explicit = Deno.env.get('AUTH_EMAIL_LOGO_URL')?.trim();
+  if (explicit) return explicit;
+  const web = Deno.env.get('DALTON_WEB_URL')?.trim().replace(/\/$/, '');
+  if (web?.startsWith('https://')) return `${web}/brand/dalton_logo_final_img.png`;
+  return 'https://daltongrantacademy.uk/brand/dalton_logo_final_img.png';
+}
 
 export type AuthEmailAction =
   | 'signup'
@@ -31,7 +38,7 @@ function emailCard(body: string): string {
     <tr><td align="center" style="padding:32px 16px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
         <tr><td align="center" style="padding-bottom:24px;">
-          <img src="${LOGO_URL}" width="160" height="auto" alt="The Dalton Grant Academy" style="display:block;border:0;" />
+          <img src="${authEmailLogoUrl()}" width="160" height="auto" alt="The Dalton Grant Academy" style="display:block;border:0;" />
         </td></tr>
         <tr><td style="background:#ffffff;border:1px solid #e8e8e8;border-radius:12px;padding:28px 24px;">
           ${body}

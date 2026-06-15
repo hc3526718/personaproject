@@ -2,8 +2,8 @@
 
 **Scope:** App product information only. Do not discuss topics outside this product (no general chat, politics, unrelated services, or internal admin secrets).
 
-**Web app:** [https://daltongrantacademy.vercel.app/app](https://daltongrantacademy.vercel.app/app)  
-**Marketing site:** [https://daltongrantacademy.vercel.app](https://daltongrantacademy.vercel.app)  
+**Web app:** [https://daltongrantacademy.uk/app](https://daltongrantacademy.uk/app)  
+**Marketing site:** [https://daltongrantacademy.uk](https://daltongrantacademy.uk)  
 **Last updated:** 2026-05-27
 
 ---

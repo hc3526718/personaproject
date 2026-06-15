@@ -62,6 +62,7 @@ import { hasVerifiedTotpFactor } from '../auth/mfaService';
 import { isStaffAccount } from '../auth/staffAccess';
 import { fetchProfileByUserId } from '../roadmap/profileService';
 import { fetchUserPrefsDoc, patchUserPrefsDoc } from '../roadmap/userSettingsService';
+import { ensureAiAssistantConsent } from '../lib/aiAssistantConsent';
 
 type PProps<K extends keyof ProfileStackParamList> = NativeStackScreenProps<ProfileStackParamList, K>;
 
@@ -1115,7 +1116,7 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>Help on web</Text>
             <Text style={styles.supportSub}>
-              Full help centre in your browser — the AI assistant loads in the corner on the site.
+              Full help centre in your browser — FAQs, guides, and links to contact options.
             </Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
@@ -1130,12 +1131,21 @@ export function SupportScreen({ navigation }: PProps<'Support'>) {
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
         </Pressable>
-        <Pressable style={styles.supportCard} onPress={() => void open('/contact-assistant')}>
+        <Pressable
+          style={styles.supportCard}
+          onPress={() => {
+            void (async () => {
+              if (!(await ensureAiAssistantConsent())) return;
+              await open('/contact-assistant');
+            })();
+          }}
+        >
           <FontAwesome name="comments-o" size={18} color={DS.color.gold} />
           <View style={{ flex: 1, marginLeft: DS.space.md }}>
             <Text style={styles.supportTitle}>AI assistant</Text>
             <Text style={styles.supportSub}>
-              Simple how-to questions and learning about the academy — typical reply under a minute.
+              How-to questions via Chatbase (third-party AI). Consent required before first use. Typical reply under a
+              minute.
             </Text>
           </View>
           <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />

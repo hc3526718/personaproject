@@ -14,6 +14,7 @@ The app already has **Add to Apple Wallet** on the booking confirmation screen (
 | **`wallet-passes`** (Edge Function) | PassKit web service (register device, fetch updated pass after check-in void) |
 | **`wallet_passes` table** | Device registration + push tokens for pass updates |
 | **`src/lib/walletPass.ts`** | Downloads pass, opens iOS share sheet (`com.apple.pkpass`) |
+| **`src/components/AddToAppleWalletButton.tsx`** | **`PKAddPassButton`** (Apple-required in-app control) on booking confirmation |
 | **QR on pass** | Same HMAC token as in-app ticket (`TicketPayloadV1`, 30-day expiry) |
 
 ---
@@ -107,7 +108,7 @@ curl -s -o /dev/null -w "%{http_code}" \
 ### B. End-to-end on iPhone
 
 1. Sign in, book or use an existing **confirmed booking**.
-2. Open **Booking confirmed** → **Add to Apple Wallet**.
+2. Open **Booking confirmed** → tap the system **Add to Apple Wallet** button (`PKAddPassButton`).
 3. Share sheet should offer **Add to Wallet**; pass shows event title, date, member name.
 4. **Host scan:** Scan pass QR with `HostAttendeeScanScreen` — should verify like in-app ticket.
 5. After check-in, pass should show **ATTENDED** on next Wallet refresh (PassKit polls `wallet-passes`).

@@ -36,7 +36,7 @@ export function buildIcsEvent(input: IcsEventInput): string {
     'PRODID:-//The Dalton Grant Academy//EN',
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
-    `UID:${escapeIcsText(input.uid)}@grant-access.app`,
+    `UID:${escapeIcsText(input.uid)}@daltongrantacademy.uk`,
     `DTSTAMP:${formatIcsDate(new Date())}`,
     `DTSTART:${formatIcsDate(input.start)}`,
     `DTEND:${formatIcsDate(input.end)}`,

@@ -74,7 +74,7 @@ Reviewers should **cancel Apple subscription separately** before deleting if the
 
 - **Sign in with Apple** is on the login and sign-up screens (iOS).
 - Users who choose **Hide My Email** receive a `@privaterelay.appleid.com` address in Supabase — sign-in works normally.
-- After first Apple/Google sign-in, a **profile setup modal** collects first name, last name, username, role, and sport (Apple may not provide name on repeat sign-ins).
+- After first Apple/Google sign-in, a **profile setup modal** collects username, role, and sport (names come from Apple/Google account metadata — no manual first/last name entry).
 
 **Production check (verified):** Supabase Apple provider enabled; client id `com.hc111.daltondemo`; secret configured.
 
@@ -93,14 +93,27 @@ Reviewers should **cancel Apple subscription separately** before deleting if the
 
 ---
 
+## AI assistant (Chatbase — third-party)
+
+The app does **not** embed generative AI in native UI. Optional support AI lives on the marketing site:
+
+| Path | Behaviour |
+|------|-----------|
+| Profile → Settings → Support → **AI assistant** | Native consent alert names **Chatbase** and data shared; opens `https://daltongrantacademy.uk/contact-assistant` in Safari |
+| Website `/contact-assistant` and `/live-chat` | Consent screen before Chatbase iframe; banner labels replies as AI-generated |
+
+Reviewers can use **Help centre** (in-app, no AI) or **Email support** without accepting AI consent.
+
+---
+
 ## Legal & support URLs
 
 | Purpose | URL |
 |---------|-----|
-| Support | https://daltongrantacademy.vercel.app/contact-team |
-| Privacy | https://daltongrantacademy.vercel.app/privacy |
-| Terms | https://daltongrantacademy.vercel.app/terms |
-| Marketing | https://daltongrantacademy.vercel.app |
+| Support | https://daltongrantacademy.uk/contact-team |
+| Privacy | https://daltongrantacademy.uk/privacy |
+| Terms | https://daltongrantacademy.uk/terms |
+| Marketing | https://daltongrantacademy.uk |
 
 ---
 
@@ -110,6 +123,13 @@ Settings → Accessibility: **Larger Text**, **Dark Interface** (default), **Dif
 
 ---
 
+## Apple Wallet (PassKit)
+
+- In-app control uses **`PKAddPassButton`** (native module) per [Add to Apple Wallet guidelines](https://developer.apple.com/wallet/add-to-apple-wallet-guidelines/) — not a custom logo/button.
+- Pass presentation uses **`PKAddPassesViewController`** via `apple-wallet-pass` module.
+- If Pass Type ID signing is not configured, the button still appears on iOS but server returns `not_configured` — mention in Review Notes; QR check-in remains available.
+- Marketing site: only use Apple-provided **Add to Apple Wallet** SVG/EPS if promoting passes on web/email (not required for App Review).
+
 ## Known limitations (optional — only if asked)
 
 - **Apple Wallet** ticket pass requires Pass Type ID certificates; if unavailable, booking QR still works in-app.
@@ -117,11 +137,22 @@ Settings → Accessibility: **Larger Text**, **Dark Interface** (default), **Dif
 
 ---
 
+## Commonly missed (internal checklist)
+
+- [ ] Demo account completed onboarding → lands on **Academy access** paywall, not OAuth wizard
+- [ ] Sandbox Apple ID signed in on the **review device** (Settings → App Store → Sandbox Account)
+- [ ] Supabase + Edge Functions + RevenueCat reachable during review window
+- [ ] Do **not** use a `master_control` / staff demo login — hides consumer experience
+- [ ] Remove `EXPO_PUBLIC_TICKET_SIGNING_SECRET` from EAS production iOS env
+- [ ] New binary required after OAuth modal, AI consent, or paywall copy changes
+
+---
+
 ## RevenueCat paywall (live template)
 
 The native purchase sheet uses the **published RevenueCat Paywall v2** template on offering **`Official Offering`** (lookup key). The template includes **Privacy Policy** and **Terms of Service** links configured in the RevenueCat dashboard.
 
-To re-verify without MCP: RevenueCat Dashboard → Paywalls → published template → confirm legal URLs point to `daltongrantacademy.vercel.app/privacy` and `/terms`.
+To re-verify without MCP: RevenueCat Dashboard → Paywalls → published template → confirm legal URLs point to `daltongrantacademy.uk/privacy` and `/terms`.
 
 Set `REVENUECAT_API_V2_SECRET_KEY` locally to run:
 

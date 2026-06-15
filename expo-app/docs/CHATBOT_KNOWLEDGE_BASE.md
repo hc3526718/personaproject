@@ -1,8 +1,8 @@
 # The Dalton Grant Academy (The Dalton Grant Academy) — Chatbot knowledge base
 
 **Purpose:** Paste or upload this document into your help bot (ElevenLabs, Intercom, custom RAG, etc.).  
-**Product URL:** https://daltongrantacademy.vercel.app  
-**Web app:** https://daltongrantacademy.vercel.app/app  
+**Product URL:** https://daltongrantacademy.uk  
+**Web app:** https://daltongrantacademy.uk/app  
 **Last updated:** 2026-05-22
 
 ---
@@ -28,7 +28,7 @@
 
 ## 2. Sign in & onboarding
 
-1. Open app or **Login** on https://daltongrantacademy.vercel.app/app  
+1. Open app or **Login** on https://daltongrantacademy.uk/app  
 2. Sign up or log in (email, Google; Apple on iOS)  
 3. Complete onboarding: role, sports, discovery source, username  
 4. Explore tabs: Community, Media, Sponsors, Events, Profile  

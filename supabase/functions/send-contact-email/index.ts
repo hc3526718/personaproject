@@ -10,7 +10,13 @@
  * Deploy: supabase functions deploy send-contact-email --project-ref <REF>
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, isBrowserOriginAllowed } from '../_shared/cors.ts';
+import {
+  checkIpRateLimit,
+  rateLimitResponse,
+  readRateLimitEnv,
+} from '../_shared/ipRateLimit.ts';
 
 const SUBJECT_KEYS = new Set([
   'general',
@@ -66,6 +72,22 @@ Deno.serve(async (req) => {
       status: 403,
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (supabaseUrl && serviceKey) {
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { limit, windowSec } = readRateLimitEnv('IP_RATE_LIMIT_CONTACT', {
+      limit: 5,
+      windowSec: 3600,
+    });
+    const rate = await checkIpRateLimit(admin, req, 'send-contact-email', limit, windowSec);
+    if (!rate.ok) {
+      return rateLimitResponse(cors, rate.retryAfterSec);
+    }
   }
 
   const anon = (Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('ANON_KEY') ?? '').trim();

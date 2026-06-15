@@ -40,20 +40,11 @@ export function warmDaltonBootVideoCache(): void {
 
   const uris = getDaltonBootVideoWebCandidates();
 
-  if (!document.querySelector('link[data-dga-boot-video-preload]')) {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'video';
-    link.href = uris[0] ?? getDaltonBootVideoWebPath();
-    link.type = 'video/mp4';
-    link.setAttribute('data-dga-boot-video-preload', '1');
-    document.head.appendChild(link);
-  }
-
   if (!document.querySelector('video[data-dga-boot-video-warmup]')) {
     const video = document.createElement('video');
     video.setAttribute('data-dga-boot-video-warmup', '1');
-    video.preload = 'auto';
+    /** metadata avoids ERR_CACHE_OPERATION_NOT_SUPPORTED on large mp4 in some browsers */
+    video.preload = 'metadata';
     video.muted = true;
     video.playsInline = true;
     video.loop = true;
@@ -61,10 +52,9 @@ export function warmDaltonBootVideoCache(): void {
     video.style.cssText =
       'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px';
     document.body.appendChild(video);
-    const play = () => {
-      void video.play().catch(() => {});
-    };
-    video.addEventListener('canplay', play, { once: true });
+    video.addEventListener('error', () => {
+      /* best-effort warmup only */
+    }, { once: true });
     video.load();
   }
 }

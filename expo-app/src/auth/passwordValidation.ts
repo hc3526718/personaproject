@@ -42,11 +42,12 @@ export function mapAuthEmailErrorMessage(raw: string): string {
   if (
     m.includes('unexpected status code returned from hook') ||
     m.includes('hook: 500') ||
-    m.includes('hook returned')
+    m.includes('hook returned') ||
+    m.includes('unexpected_failure')
   ) {
     return (
-      'We could not send the verification email right now (mail service error). ' +
-      'If you already registered, try Log In. Otherwise wait a few minutes and try again, or contact support.'
+      'We could not send the verification email (mail service is not fully configured for new addresses). ' +
+      'If you already registered, try Log In. Otherwise wait a few minutes and try again, or contact support via the website contact form.'
     );
   }
   if (m.includes('confirmation email') || m.includes('sending email') || m.includes('error sending')) {
@@ -76,6 +77,9 @@ export function mapSignUpErrorMessage(raw: string): string {
     return mapAuthEmailErrorMessage(raw);
   }
   if (m.includes('confirmation email') || m.includes('sending email') || m.includes('error sending')) {
+    return mapAuthEmailErrorMessage(raw);
+  }
+  if (m.includes('unexpected_failure')) {
     return mapAuthEmailErrorMessage(raw);
   }
   if (m.includes('weak') || m.includes('password')) {

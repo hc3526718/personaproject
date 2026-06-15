@@ -34,7 +34,7 @@ Replace `{{LOGO_URL}}` and `{{SITE_URL}}` in each template (or use Supabase `{{ 
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
           <tr>
             <td align="center" style="padding-bottom:24px;">
-              <img src="https://daltongrantacademy.vercel.app/brand/dalton_logo_final_img.png" width="160" height="auto" alt="The Dalton Grant Academy" style="display:block;border:0;" />
+              <img src="https://daltongrantacademy.uk/brand/dalton_logo_final_img.png" width="160" height="auto" alt="The Dalton Grant Academy" style="display:block;border:0;" />
             </td>
           </tr>
           <tr>
@@ -46,13 +46,13 @@ Replace `{{LOGO_URL}}` and `{{SITE_URL}}` in each template (or use Supabase `{{ 
             <td style="padding:24px 8px 0;font-size:12px;color:#666666;text-align:center;">
               <p style="margin:0 0 12px;">© The Dalton Grant Academy. All rights reserved.</p>
               <p style="margin:0 0 12px;">
-                <a href="https://daltongrantacademy.vercel.app/privacy" style="color:#111111;">Privacy</a>
+                <a href="https://daltongrantacademy.uk/privacy" style="color:#111111;">Privacy</a>
                 &nbsp;·&nbsp;
-                <a href="https://daltongrantacademy.vercel.app/terms" style="color:#111111;">Terms</a>
+                <a href="https://daltongrantacademy.uk/terms" style="color:#111111;">Terms</a>
                 &nbsp;·&nbsp;
-                <a href="https://daltongrantacademy.vercel.app/" style="color:#111111;">Home</a>
+                <a href="https://daltongrantacademy.uk/" style="color:#111111;">Home</a>
                 &nbsp;·&nbsp;
-                <a href="https://daltongrantacademy.vercel.app/contact-us" style="color:#111111;">Contact</a>
+                <a href="https://daltongrantacademy.uk/contact-us" style="color:#111111;">Contact</a>
               </p>
               <p style="margin:0;font-size:11px;color:#999999;">
                 You received this message because of activity on your Dalton Grant Academy account.
@@ -141,7 +141,7 @@ Emails need an **absolute HTTPS** image URL (many clients block embedded attachm
 
 1. Copy `expo-app/assets/dalton_logo_final_img.png` to `web-deploy/brand/dalton_logo_final_img.png` (add to `scripts/vercel-build.mjs` copy step if needed).
 2. After deploy, use:  
-   `https://daltongrantacademy.vercel.app/brand/dalton_logo_final_img.png`
+   `https://daltongrantacademy.uk/brand/dalton_logo_final_img.png`
 
 **Alternative:** Supabase Storage public bucket `brand/dalton_logo_final_img.png` with a public URL.
 
@@ -153,9 +153,9 @@ Test the URL in a browser before pasting into templates.
 
 Authentication → URL configuration:
 
-- **Site URL:** `https://daltongrantacademy.vercel.app`
+- **Site URL:** `https://daltongrantacademy.uk`
 - **Redirect URLs:**  
-  - `https://daltongrantacademy.vercel.app/app/auth/callback`  
+  - `https://daltongrantacademy.uk/app/auth/callback`  
   - `dalton-demo://auth/callback` (native)
 
 See `docs/BACKEND_AUTH.md`.

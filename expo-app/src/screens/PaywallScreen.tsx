@@ -126,8 +126,7 @@ export function PaywallScreen({ navigation }: Props) {
         ) : (
           <>
             <Text style={styles.lead}>
-              Subscription options use your RevenueCat Paywall templates. Tap below if the sheet did not open
-              (e.g. Expo Go or store billing not configured).
+              Subscription options use the App Store. Tap below if the subscription sheet did not open automatically.
             </Text>
             <Pressable style={styles.primaryBtn} onPress={() => void showRevenueCatPaywall()}>
               <Text style={styles.primaryBtnText}>View plans</Text>

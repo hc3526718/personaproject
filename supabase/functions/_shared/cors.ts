@@ -1,11 +1,7 @@
 /** CORS for browser-called Edge Functions (not server webhooks). */
 const DEFAULT_ORIGINS = [
-  'https://daltongrantacademy.vercel.app',
-  'https://daltongrantacademy-navy.vercel.app',
-  /** www subdomain (Stripe return URLs, bookmarks, previews) */
-  'https://www.daltongrantacademy.vercel.app',
-  /** Legacy Vercel project URL (still referenced by older deploys) */
-  'https://dalton-access.vercel.app',
+  'https://daltongrantacademy.uk',
+  'https://www.daltongrantacademy.uk',
   'http://localhost:8081',
   'http://localhost:19006',
   'http://localhost:3000',
@@ -19,16 +15,6 @@ function allowedOrigins(): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
   return [...DEFAULT_ORIGINS, ...extra];
-}
-
-/** Vercel preview + production deploys (`*.vercel.app`). JWT auth still required. */
-function isTrustedVercelOrigin(origin: string): boolean {
-  try {
-    const { protocol, hostname } = new URL(origin);
-    return protocol === 'https:' && hostname.endsWith('.vercel.app');
-  } catch {
-    return false;
-  }
 }
 
 function isLocalDevOrigin(origin: string): boolean {
@@ -47,7 +33,6 @@ export function isBrowserOriginAllowed(req: Request): boolean {
   const origin = req.headers.get('Origin');
   if (!origin) return true;
   if (allowedOrigins().includes(origin)) return true;
-  if (isTrustedVercelOrigin(origin)) return true;
   if (isLocalDevOrigin(origin)) return true;
   return false;
 }
@@ -56,7 +41,7 @@ export function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') ?? '';
   const allowed = allowedOrigins();
   let match = allowed[0];
-  if (origin && (allowed.includes(origin) || isTrustedVercelOrigin(origin) || isLocalDevOrigin(origin))) {
+  if (origin && (allowed.includes(origin) || isLocalDevOrigin(origin))) {
     match = origin;
   }
   return {

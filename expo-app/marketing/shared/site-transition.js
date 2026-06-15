@@ -33,27 +33,7 @@
     if (preloadPromise) return preloadPromise;
 
     preloadPromise = (function () {
-      if (typeof caches !== "undefined") {
-        return caches
-          .open(CACHE_NAME)
-          .then(function (cache) {
-            return cache.match(VIDEO_SRC).then(function (hit) {
-              if (hit) return hit.blob();
-              return fetch(VIDEO_SRC).then(function (res) {
-                if (!res.ok) throw new Error("video fetch failed");
-                var clone = res.clone();
-                return cache.put(VIDEO_SRC, clone).then(function () {
-                  return res.blob();
-                });
-              });
-            });
-          })
-          .then(blobToObjectUrl)
-          .catch(function () {
-            return VIDEO_SRC;
-          });
-      }
-
+      /** Skip Cache API for ~100MB VideoP — triggers ERR_CACHE_OPERATION_NOT_SUPPORTED in some browsers. */
       return fetch(VIDEO_SRC)
         .then(function (res) {
           if (!res.ok) throw new Error("video fetch failed");
@@ -261,14 +241,7 @@
   }
 
   function injectPreloadLink() {
-    if (document.querySelector('link[data-ga-video-preload="1"]')) return;
-    var link = document.createElement("link");
-    link.rel = "preload";
-    link.as = "video";
-    link.type = "video/mp4";
-    link.href = VIDEO_SRC;
-    link.setAttribute("data-ga-video-preload", "1");
-    document.head.appendChild(link);
+    /* Intentionally skip <link rel=preload as=video> — large VideoP.mp4 can fail cache in Chrome. */
   }
 
   document.addEventListener("click", function (e) {

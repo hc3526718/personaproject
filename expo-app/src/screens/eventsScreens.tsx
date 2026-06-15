@@ -73,6 +73,7 @@ import { gatePremiumFeatureAccess } from '../subscriptions/premiumFeatureGate';
 import { EVENT_FOOTER_PAYMENT_HINT, formatEntryPaymentNotice } from '../lib/eventEntryPayment';
 import { EventDetailSections } from '../components/EventDetailSections';
 import { EventInPersonPaymentBanner } from '../components/EventInPersonPaymentBanner';
+import { AddToAppleWalletButton } from '../components/AddToAppleWalletButton';
 import {
   formatEventSpotsLabel,
   isEventAtCapacity,
@@ -1909,33 +1910,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         ]
       : [];
 
-  const walletStep =
-    Platform.OS === 'ios'
-      ? [
-          {
-            key: 'wallet',
-            title: 'Add to Apple Wallet',
-            subtitle: 'Add your event pass',
-            icon: <FontAwesome name="apple" size={14} color={DS.color.gold} />,
-            onPress: () => {
-              if (!bookingId) {
-                Alert.alert('Apple Wallet', 'This booking is missing an id. Re-open the confirmation screen.');
-                return;
-              }
-              void import('../lib/walletPass')
-                .then(({ addEventPassToAppleWallet }) =>
-                  addEventPassToAppleWallet({ bookingId, reference: refCode }),
-                )
-                .catch(() =>
-                  Alert.alert('Apple Wallet', 'Could not load the Wallet module. Please try again.'),
-                );
-            },
-          },
-        ]
-      : [];
-
   const steps = [
-    ...walletStep,
     ...qrExportSteps,
     {
       key: 'cal',
@@ -2100,6 +2075,9 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
         {hideInteractionRail ? null : (
           <>
             <Text style={styles.detailSectionKicker}>NEXT STEPS</Text>
+            {Platform.OS === 'ios' && bookingId ? (
+              <AddToAppleWalletButton bookingId={bookingId} reference={refCode} />
+            ) : null}
             {steps.map((s) => (
               <Pressable key={s.key} style={styles.nextStepRich} onPress={s.onPress}>
                 <View style={styles.nextStepIconCircle}>{s.icon}</View>

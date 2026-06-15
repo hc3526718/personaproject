@@ -1,4 +1,4 @@
-# Dalton Demo (Expo)
+# The Dalton Grant Academy (Expo)
 
 By default the app runs a **native** app shell that mirrors the static HTML flows:
 

@@ -74,18 +74,7 @@ async function ensureAuthVideoInAppOutput(authVideoSrc) {
 }
 
 async function injectAuthVideoPreload() {
-  const indexPath = join(appDir, 'index.html');
-  if (!existsSync(indexPath)) {
-    console.warn('[vercel-build] app/index.html missing — skip auth video preload');
-    return;
-  }
-  const href = '/app/VideoP.mp4';
-  let html = await readFile(indexPath, 'utf8');
-  if (html.includes('data-dga-auth-video-preload')) return;
-  const tag = `<link rel="preload" href="${href}" as="video" type="video/mp4" data-dga-auth-video-preload="1">`;
-  html = html.replace('</head>', `  ${tag}\n</head>`);
-  await writeFile(indexPath, html, 'utf8');
-  console.log('[vercel-build] Injected auth VideoP preload into app/index.html');
+  /** Skip video preload link — large VideoP.mp4 triggers ERR_CACHE_OPERATION_NOT_SUPPORTED in Chrome. */
 }
 
 function runMarketingUiBuild() {

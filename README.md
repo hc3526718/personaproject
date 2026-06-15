@@ -71,7 +71,7 @@ To wrap the same static files in a WebView app (after installing Node dependenci
 ```bash
 npm init -y
 npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios
-npx cap init "Dalton Demo" com.daltonproject.demo --web-dir .
+npx cap init "The Dalton Grant Academy" com.daltonproject.demo --web-dir .
 npx cap add android
 npx cap open android
 ```

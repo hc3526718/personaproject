@@ -99,7 +99,7 @@ export async function sendBookingConfirmationEmail(
     (profile?.display_name as string | null)?.trim()?.split(/\s+/)[0] ||
     'there';
 
-  const webUrl = (Deno.env.get('DALTON_WEB_URL') ?? 'https://daltongrantacademy.vercel.app').replace(
+  const webUrl = (Deno.env.get('DALTON_WEB_URL') ?? 'https://daltongrantacademy.uk').replace(
     /\/$/,
     '',
   );

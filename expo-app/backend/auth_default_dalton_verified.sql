@@ -37,11 +37,13 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF OLD.dalton_verified IS DISTINCT FROM NEW.dalton_verified
-     AND auth.uid() IS NOT NULL
-     AND auth.uid() = OLD.id
-  THEN
-    NEW.dalton_verified := OLD.dalton_verified;
+  IF auth.uid() IS NOT NULL AND auth.uid() = OLD.id THEN
+    IF OLD.dalton_verified IS DISTINCT FROM NEW.dalton_verified THEN
+      NEW.dalton_verified := OLD.dalton_verified;
+    END IF;
+    IF OLD.master_control IS DISTINCT FROM NEW.master_control THEN
+      NEW.master_control := OLD.master_control;
+    END IF;
   END IF;
   RETURN NEW;
 END;

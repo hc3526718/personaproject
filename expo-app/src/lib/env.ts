@@ -109,13 +109,16 @@ export function getDaltonWebUrl(): string {
 }
 
 /**
- * HMAC secret for QR ticket tokens. In production, **must** be set to a long random value
- * matching server `TICKET_HMAC_SECRET` (see docs/QR_CHECKIN.md). Dev-only fallback when unset.
+ * HMAC secret for QR ticket tokens — **dev / QR test lab only**.
+ * Production builds must use Edge Functions `issue-ticket-token` / `verify-ticket-token`
+ * (server `TICKET_HMAC_SECRET`). Never ship a signing secret in `EXPO_PUBLIC_*`.
  */
 export function getTicketSigningSecret(): string {
-  const fromEnv = (process.env.EXPO_PUBLIC_TICKET_SIGNING_SECRET ?? '').trim();
-  if (fromEnv) return fromEnv;
-  if (__DEV__) return 'dalton-demo-ticket-secret';
+  if (typeof __DEV__ !== 'undefined' && __DEV__) {
+    const fromEnv = (process.env.EXPO_PUBLIC_TICKET_SIGNING_SECRET ?? '').trim();
+    if (fromEnv) return fromEnv;
+    return 'dalton-demo-ticket-secret';
+  }
   return '';
 }
 

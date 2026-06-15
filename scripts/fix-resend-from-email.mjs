@@ -13,8 +13,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const PROJECT_REF = 'txehbzyntvqpkkegjrwp';
 const SANDBOX_FROM = 'The Dalton Grant Academy <onboarding@resend.dev>';
+const PRODUCTION_FROM = 'The Dalton Grant Academy <noreply@daltongrantacademy.uk>';
 
-const from = process.env.RESEND_FROM_EMAIL?.trim() || SANDBOX_FROM;
+const from = process.env.RESEND_FROM_EMAIL?.trim() || PRODUCTION_FROM;
 
 console.log(`[fix-resend-from-email] Setting RESEND_FROM_EMAIL to: ${from}`);
 execSync(

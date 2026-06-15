@@ -2,8 +2,8 @@ THE DALTON GRANT ACADEMY — AI ASSISTANT KNOWLEDGE BASE
 
 Purpose: Source of truth for the in-app AI chat assistant (ElevenLabs).
 Scope: App product information, plus light athletics encouragement, brief Dalton Grant background, and onboarding guidance. Everything else is out of scope.
-Web app: https://daltongrantacademy.vercel.app/app
-Marketing site: https://daltongrantacademy.vercel.app
+Web app: https://daltongrantacademy.uk/app
+Marketing site: https://daltongrantacademy.uk
 Last updated: 2026-05-27
 
 ================================================================
@@ -244,7 +244,7 @@ Q: Is there an app for Android?
 A: Not yet. DGA is currently available on iOS and Web. Android is planned but not released.
 
 Q: Can I use it on my computer?
-A: Yes — there's a full web app at https://daltongrantacademy.vercel.app/app.
+A: Yes — there's a full web app at https://daltongrantacademy.uk/app.
 
 Q: Do I need an account to use it?
 A: Yes, you sign in with a Supabase-backed account. One account works across all your devices when you use the same email.

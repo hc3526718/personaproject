@@ -141,7 +141,7 @@ These cannot be fully automated from the repo; complete in dashboards / ops:
 
 [Shannon](https://github.com/KeygraphHQ/shannon) (Keygraph) is an autonomous white-box pentester that reads application source, runs real exploits, and reports only findings with proof-of-concept. Use it **after** manual checklist items below, on a **staging** deployment that mirrors production auth (Supabase redirect URLs, Vercel `/app` routes).
 
-**Recommended scope for Dalton web (`daltongrantacademy.vercel.app/app`):**
+**Recommended scope for Dalton web (`daltongrantacademy.uk/app`):**
 
 1. **Auth & session** — email/password, Google OAuth callback (`/app/auth/callback`), PKCE code exchange, `localStorage` session persistence, logout, stale refresh tokens.
 2. **RLS / PostgREST** — attempt cross-user reads/writes on `profiles`, `posts`, `messages`, `subscription_state`, storage buckets.
@@ -157,5 +157,5 @@ These cannot be fully automated from the repo; complete in dashboards / ops:
 **Manual pentest priorities before Shannon:**
 
 - Confirm Supabase **Site URL** and **Redirect URLs** match Vercel exactly (no trailing-slash drift).
-- Verify Google Cloud **Authorized redirect URIs** include `https://daltongrantacademy.vercel.app/app/auth/callback`.
+- Verify Google Cloud **Authorized redirect URIs** include `https://daltongrantacademy.uk/app/auth/callback`.
 - Run Supabase **Security Advisor** (`get_advisors`) after each migration.
