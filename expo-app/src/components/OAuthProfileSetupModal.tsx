@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -45,14 +44,31 @@ function oauthNameHints(meta: Record<string, unknown> | undefined): { first: str
   return { first: full, last: '' };
 }
 
-const WIZARD_LAST_INDEX = 4;
+function resolveOAuthProfileNames(
+  hints: { first: string; last: string },
+  email: string | null,
+): { firstName: string; lastName: string; displayName: string } {
+  let fn = hints.first.trim();
+  let ln = hints.last.trim();
+  if (!fn && !ln) {
+    const local = (email ?? '').split('@')[0]?.replace(/[._+]/g, ' ').trim() ?? '';
+    const parts = local.split(/\s+/).filter(Boolean);
+    fn = parts[0] ?? 'Member';
+    ln = parts.slice(1).join(' ');
+  } else if (!fn && ln) {
+    fn = ln.split(/\s+/)[0] ?? 'Member';
+  }
+  const displayName = [fn, ln].filter(Boolean).join(' ') || fn;
+  return { firstName: fn, lastName: ln, displayName };
+}
+
+const WIZARD_LAST_INDEX = 3;
 
 export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [wizardStep, setWizardStep] = useState(0);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [oauthFirstNamePreview, setOauthFirstNamePreview] = useState('');
   const [personaRole, setPersonaRole] = useState('');
   const [sports, setSports] = useState<string[]>([]);
   const [primarySport, setPrimarySport] = useState('');
@@ -78,8 +94,7 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
     setDiscoverySource('');
     setUsername('');
     setUsernameSkipped(false);
-    setFirstName('');
-    setLastName('');
+    setOauthFirstNamePreview('');
     let cancelled = false;
     void (async () => {
       const s = getSupabase();
@@ -87,8 +102,8 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
       const { data } = await s.auth.getUser();
       if (cancelled || !data.user) return;
       const hints = oauthNameHints(data.user.user_metadata as Record<string, unknown> | undefined);
-      setFirstName(hints.first);
-      setLastName(hints.last);
+      const resolved = resolveOAuthProfileNames(hints, data.user.email ?? null);
+      setOauthFirstNamePreview(resolved.firstName);
     })();
     return () => {
       cancelled = true;
@@ -105,12 +120,12 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
       Alert.alert('Unable to save', 'Sign in again to finish setup.');
       return;
     }
-    const fn = firstName.trim();
-    const ln = lastName.trim();
-    if (!fn || !ln) {
-      Alert.alert('Name required', 'Please enter your first and last name.');
-      return;
-    }
+    const { data: authData } = await supabase.auth.getUser();
+    const hints = oauthNameHints(authData.user?.user_metadata as Record<string, unknown> | undefined);
+    const { firstName: fn, lastName: ln, displayName } = resolveOAuthProfileNames(
+      hints,
+      authData.user?.email ?? user.email ?? null,
+    );
     if (!personaRole) {
       Alert.alert('Role required', 'Tell us how you use Dalton.');
       return;
@@ -148,7 +163,6 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
       return;
     }
 
-    const displayName = `${fn} ${ln}`.trim();
     const { error } = await supabase.from('profiles').upsert(
       {
         id: user.id,
@@ -176,8 +190,6 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
     onCompleted();
   }, [
     discoverySource,
-    firstName,
-    lastName,
     onCompleted,
     personaRole,
     sports,
@@ -188,18 +200,14 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
   ]);
 
   const canAdvanceFromStep = useCallback((): boolean => {
-    if (wizardStep === 0) return firstName.trim().length > 0 && lastName.trim().length > 0;
-    if (wizardStep === 1)
-      return canProceedWithUsername(usernameSkipped, username, availability);
-    if (wizardStep === 2) return Boolean(personaRole);
-    if (wizardStep === 3) return Boolean(primarySport.trim());
-    if (wizardStep === 4) return Boolean(discoverySource);
+    if (wizardStep === 0) return canProceedWithUsername(usernameSkipped, username, availability);
+    if (wizardStep === 1) return Boolean(personaRole);
+    if (wizardStep === 2) return Boolean(primarySport.trim());
+    if (wizardStep === 3) return Boolean(discoverySource);
     return false;
   }, [
     availability,
     discoverySource,
-    firstName,
-    lastName,
     personaRole,
     primarySport,
     username,
@@ -242,45 +250,19 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
             <Text style={styles.stepBadge}>
               Step {wizardStep + 1} of {WIZARD_LAST_INDEX + 1}
             </Text>
+
             {wizardStep === 0 ? (
               <>
-                <Text style={styles.title}>Welcome</Text>
-                <Text style={styles.lead}>
-                  You signed in with Apple or Google. Tell us your name so the community knows who you are.
+                <Text style={styles.title}>
+                  {oauthFirstNamePreview ? `Welcome, ${oauthFirstNamePreview}` : 'Welcome'}
                 </Text>
-                <Field label="First name">
-                  <TextInput
-                    value={firstName}
-                    onChangeText={setFirstName}
-                    style={styles.input}
-                    placeholder="First name"
-                    placeholderTextColor={DS.color.textMuted}
-                    autoCapitalize="words"
-                  />
-                </Field>
-                <Field label="Last name">
-                  <TextInput
-                    value={lastName}
-                    onChangeText={setLastName}
-                    style={styles.input}
-                    placeholder="Last name"
-                    placeholderTextColor={DS.color.textMuted}
-                    autoCapitalize="words"
-                  />
-                </Field>
-              </>
-            ) : null}
-
-            {wizardStep === 1 ? (
-              <>
-                <Text style={styles.title}>Choose a username</Text>
                 <Text style={styles.lead}>
-                  This is how you&apos;ll appear across Dalton — or skip and we&apos;ll assign one from your first
-                  name.
+                  You signed in with Apple or Google — we use your name from that account. Pick a username to finish
+                  setting up your profile, or skip and we&apos;ll assign one for you.
                 </Text>
                 <Text style={styles.fieldHint}>Choose your handle or skip for an auto-assigned name.</Text>
                 <UsernameSetupFields
-                  firstNameForPreview={firstName}
+                  firstNameForPreview={oauthFirstNamePreview}
                   usernameInput={username}
                   onUsernameInputChange={setUsername}
                   skipped={usernameSkipped}
@@ -293,7 +275,7 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
               </>
             ) : null}
 
-            {wizardStep === 2 ? (
+            {wizardStep === 1 ? (
               <>
                 <Text style={styles.title}>Your role</Text>
                 <Text style={styles.lead}>How do you mainly use Dalton?</Text>
@@ -314,7 +296,7 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
               </>
             ) : null}
 
-            {wizardStep === 3 ? (
+            {wizardStep === 2 ? (
               <>
                 <Text style={styles.title}>Sport you currently compete in</Text>
                 <Text style={styles.lead}>
@@ -337,7 +319,7 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
               </>
             ) : null}
 
-            {wizardStep === 4 ? (
+            {wizardStep === 3 ? (
               <>
                 <Text style={styles.title}>How did you find us?</Text>
                 <Text style={styles.lead}>Helps us improve how we reach athletes and coaches.</Text>
@@ -395,15 +377,6 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   scrim: {
     flex: 1,
@@ -458,30 +431,11 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     marginBottom: DS.space.lg,
   },
-  field: { marginBottom: DS.space.md },
   fieldHint: {
     fontFamily: DS.font.body,
     fontSize: 13,
     color: DS.color.textMuted,
     marginBottom: DS.space.sm,
-  },
-  label: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: DS.type.labelUppercaseSize,
-    fontWeight: '700',
-    color: DS.color.gold,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: DS.space.sm,
-  },
-  input: {
-    backgroundColor: DS.color.input,
-    borderRadius: DS.apple.radiusField,
-    paddingVertical: 14,
-    paddingHorizontal: DS.space.md,
-    fontSize: 16,
-    color: DS.color.text,
-    fontFamily: DS.font.body,
   },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: DS.space.sm },
   chip: {

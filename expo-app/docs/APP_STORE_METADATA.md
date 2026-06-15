@@ -18,6 +18,19 @@ Upload in App Store Connect only if the portal asks for **routing / geographic c
 
 ## Listing copy (English — United Kingdom)
 
+Paste the blocks below into **App Store Connect → App Information / App Store** (English UK). All public URLs use production domain **`https://daltongrantacademy.uk`**.
+
+### Required URLs (App Information)
+
+| Field | Value |
+| ----- | ----- |
+| **Privacy Policy URL** | `https://daltongrantacademy.uk/privacy` |
+| **Support URL** | `https://daltongrantacademy.uk/contact-team` |
+| **Marketing URL** (optional) | `https://daltongrantacademy.uk` |
+| **Labels and Markings** (DSA, if asked) | `https://daltongrantacademy.uk/labels-and-markings` |
+| **Terms of Use (EULA)** | `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/` *(Apple Standard EULA — also select in App Store Connect → App Information → License Agreement)* |
+| **Terms of Service** (your site) | `https://daltongrantacademy.uk/terms` |
+
 ### App name (title)
 
 **The Dalton Grant Academy**
@@ -34,15 +47,22 @@ Upload in App Store Connect only if the portal asks for **routing / geographic c
 
 *(170 characters max; editable anytime without a new app version.)*
 
-> New: community feed, coach messaging, and event bookings in one place. Explore training media, partner offers, and Dalton-verified hosts. Download The Dalton Grant Academy and join your crew today.
+> Academy access requires a £2/month subscription. Community feed, messaging, media, events & sponsors in one app. Sign in, subscribe, and join your crew.
 
-*(Character count ~168 — trim if Connect counts differently.)*
+*(~155 characters — adjust if Connect counts differently.)*
 
 ### Description
 
-*(4,000 characters max.)*
+*(4,000 characters max. **Must** disclose that a subscription is required to use the app — Apple Guideline 3.1 and common reviewer expectation.)*
 
 The Dalton Grant Academy is the home for athletes, coaches, and fight-community crews who want training, conversation, and events in one app.
+
+**Subscription required**  
+Access to the app and its content requires an active **Academy Access** auto-renewable subscription (**£2 per month**, price may vary by region and is shown in-app before purchase). There is no free tier for full app use. Payment is charged to your Apple ID account at confirmation of purchase. Your subscription **automatically renews** unless you turn off auto-renew at least **24 hours** before the end of the current billing period. Your account is charged for renewal within 24 hours prior to the end of the current period. You can **manage or cancel** subscriptions in **Settings → Apple ID → Subscriptions** after purchase. **Restore purchases** is available in-app if you already subscribed on this Apple ID.
+
+Privacy Policy: https://daltongrantacademy.uk/privacy  
+Terms of Service: https://daltongrantacademy.uk/terms  
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 
 **Community**  
 Share updates, photos, and clips with people who understand the work. Follow the feed, react to posts, and stay close to your gym, club, or team.
@@ -60,11 +80,11 @@ Discover camps, showcases, open mats, and coached sessions. Book your place, get
 See partner brands and offers curated for the community, with clear paths to learn more.
 
 **Your profile**  
-Build your athlete profile, manage settings, and control how others can reach you. Premium features unlock deeper access when you subscribe.
+Build your athlete profile, manage settings, and control how others can reach you. Sign in with email, Apple, or Google. You can delete your account in-app (Settings).
 
-The Dalton Grant Academy is built for a dark, high-contrast experience that feels at home in the gym or on the road. We are actively improving accessibility options; see the Accessibility section in Settings.
+The Dalton Grant Academy is built for a dark, high-contrast experience that feels at home in the gym or on the road. Accessibility options include Larger Text, Differentiate Without Color, and Sufficient Contrast in Settings.
 
-Questions or partnership enquiries: use the support URL listed on this App Store page.
+Questions or partnership enquiries: use the support URL on this App Store page or https://daltongrantacademy.uk/contact-team
 
 Terms, privacy, and athlete agreement are available in-app and on our website.
 
@@ -72,9 +92,38 @@ Terms, privacy, and athlete agreement are available in-app and on our website.
 
 *(100 characters total, comma-separated, no spaces after commas, no repeat of app name.)*
 
-`boxing,training,community,events,coach,athletes,fitness,gym,sparring,media,sponsors,booking,tickets`
+`boxing,training,community,events,coach,athletes,fitness,gym,sparring,media,sponsors,booking`
 
-*(99 characters — adjust one token if needed.)*
+*(96 characters — room to add one token e.g. `subscription` if you drop another.)*
+
+### What's New (version 1.0.0)
+
+> Initial release of The Dalton Grant Academy — community feed, messaging, training media, event booking, athlete profiles, and mandatory Academy Access subscription for full app use.
+
+### In-app purchase / subscription metadata (App Store Connect → Subscriptions)
+
+Use wording consistent with the in-app paywall (`AcademyAccessPaywall`):
+
+| Field | Suggested copy |
+| ----- | -------------- |
+| **Subscription group display name** | Academy Access |
+| **Subscription name** | Academy Access Monthly |
+| **Duration** | 1 month |
+| **Price** | £2.99 or £2.00 (match App Store Connect product tier you created) |
+| **Subscription description** | Full access to The Dalton Grant Academy — community, messages, media, events, sponsors, and your athlete profile. Required to use the app after sign-in. Cancel anytime in Apple ID Subscriptions. |
+
+Link the subscription to RevenueCat entitlement **`premium`** (see [REVENUECAT.md](./REVENUECAT.md)).
+
+### Copyright
+
+**© 2026 The Dalton Grant Academy** *(adjust year / legal entity to match your trader declaration)*
+
+### App Review Information (paste into Review Notes)
+
+See **[APP_REVIEW_NOTES.md](./APP_REVIEW_NOTES.md)** for demo account, sandbox IAP steps, Sign in with Apple / Google, account deletion path, and Wallet pass notes.
+
+**One-line subscription note for reviewers:**  
+After sign-in, the app presents a mandatory **Academy Access** paywall (£2/month via sandbox IAP). Use the demo account and sandbox tester Apple ID documented in review notes; **Restore purchases** is on the paywall.
 
 ---
 
@@ -131,7 +180,7 @@ These are **questionnaires**, not files you upload (unless Apple requests a docu
 | **UK / EU**                  | Trader status, DSA, GDPR            | Privacy policy + support contact on website; GDPR lawful basis in privacy policy                                                |
 
 
-**No separate “permit file”** is uploaded to Apple for a standard fitness/community app. Keep **Terms**, **Privacy**, and **Support URL** live at `EXPO_PUBLIC_DALTON_WEB_URL` (e.g. [https://daltongrantacademy.vercel.app](https://daltongrantacademy.vercel.app)).
+**No separate “permit file”** is uploaded to Apple for a standard fitness/community app. Keep **Terms**, **Privacy**, and **Support URL** live at `EXPO_PUBLIC_DALTON_WEB_URL` (e.g. [https://daltongrantacademy.uk](https://daltongrantacademy.uk)).
 
 ---
 

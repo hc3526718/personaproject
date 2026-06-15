@@ -85,7 +85,7 @@ If App Store Connect shows **“This developer has identified itself as a trader
 - **Edit** in App Store Connect → app → **General** / **App Information** (wording varies by year) → trader / business information.
 - Ensure **legal name, address, email, and support contact** match your Privacy Policy and website footer.
 - **Add Labels and Markings?** — Usually **No** for physical-product labels. If Connect requires a public URL, use:
-  **`https://daltongrantacademy.vercel.app/labels-and-markings.html`**
+  **`https://daltongrantacademy.uk/labels-and-markings`**
   (also in-repo at `expo-app/marketing/labels-and-markings.html`).
 
 **You must still provide:** working **Privacy Policy** and **Terms** URLs (see Help centre + Settings → Legal).

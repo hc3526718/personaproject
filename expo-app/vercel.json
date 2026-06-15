@@ -21,6 +21,7 @@
     { "source": "/how", "destination": "/how.html" },
     { "source": "/features", "destination": "/features.html" },
     { "source": "/impact", "destination": "/impact.html" },
+    { "source": "/labels-and-markings", "destination": "/labels-and-markings.html" },
     { "source": "/demo", "destination": "/app/index.html" },
     { "source": "/demo/:path*", "destination": "/app/index.html" },
     { "source": "/app", "destination": "/app/index.html" },

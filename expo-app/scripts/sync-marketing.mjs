@@ -20,6 +20,7 @@ const htmlPages = [
   'impact.html',
   'live-chat.html',
   'athlete-agreement.html',
+  'labels-and-markings.html',
 ];
 
 await cp(path.join(repoRoot, 'shared'), path.join(dest, 'shared'), { recursive: true });
