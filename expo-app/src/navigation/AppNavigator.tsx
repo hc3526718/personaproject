@@ -326,14 +326,18 @@ function AuthenticatedShell() {
     }
 
     const { data: authUserRes, error: authUserErr } = await supabase.auth.getUser();
-    if (authUserErr || !authUserRes.user?.id) {
-      if (isAccountGoneError(authUserErr) || !authUserRes.user?.id) {
-        await signOutDeletedAccountSession(supabase, logout);
-      }
+    if (authUserErr && isAccountGoneError(authUserErr)) {
+      await signOutDeletedAccountSession(supabase, logout);
       return;
     }
 
-    const identities = authUserRes.user.identities ?? [];
+    const authUser = authUserRes.user;
+    const userId = authUser?.id ?? user.id;
+    if (!userId) {
+      return;
+    }
+
+    const identities = authUser?.identities ?? [];
     const providers = new Set(identities.map((i) => i.provider));
     const oauthAppleGoogleOnly =
       !providers.has('email') && (providers.has('google') || providers.has('apple'));

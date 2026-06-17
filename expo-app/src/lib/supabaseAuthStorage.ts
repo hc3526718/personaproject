@@ -1,7 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 
-/** Supabase session persistence — SecureStore on native, localStorage on web. */
+/**
+ * Supabase session persistence.
+ * Native uses AsyncStorage — PKCE sessions often exceed SecureStore's 2048-byte limit
+ * (which breaks Google/Apple sign-in silently and can crash Hermes).
+ */
 export const supabaseAuthStorage = {
   getItem: (key: string): Promise<string | null> => {
     if (Platform.OS === 'web') {
@@ -12,7 +16,7 @@ export const supabaseAuthStorage = {
         return Promise.resolve(null);
       }
     }
-    return SecureStore.getItemAsync(key);
+    return AsyncStorage.getItem(key);
   },
   setItem: (key: string, value: string): Promise<void> => {
     if (Platform.OS === 'web') {
@@ -23,7 +27,7 @@ export const supabaseAuthStorage = {
       }
       return Promise.resolve();
     }
-    return SecureStore.setItemAsync(key, value);
+    return AsyncStorage.setItem(key, value);
   },
   removeItem: (key: string): Promise<void> => {
     if (Platform.OS === 'web') {
@@ -34,6 +38,6 @@ export const supabaseAuthStorage = {
       }
       return Promise.resolve();
     }
-    return SecureStore.deleteItemAsync(key);
+    return AsyncStorage.removeItem(key);
   },
 };

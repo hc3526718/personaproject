@@ -68,13 +68,13 @@ export function buildAuthEmail(opts: BuildOpts): { subject: string; html: string
     case 'signup':
       subject = 'Confirm your Dalton Grant Academy account';
       heading = 'Confirm your email';
-      lead = `Thanks for joining The Dalton Grant Academy. Tap the button below to verify <strong>${safeEmail}</strong> and finish creating your account.`;
+      lead = `Thanks for joining The Dalton Grant Academy. Tap the button below to verify <strong>${safeEmail}</strong> on daltongrantacademy.uk.`;
       buttonLabel = 'Confirm email';
       break;
     case 'recovery':
       subject = 'Reset your Dalton password';
       heading = 'Reset your password';
-      lead = `We received a request to reset the password for <strong>${safeEmail}</strong>. This link opens the app so you can choose a new password.`;
+      lead = `We received a request to reset the password for <strong>${safeEmail}</strong>. Open the link on this device to choose a new password on daltongrantacademy.uk.`;
       buttonLabel = 'Reset password';
       break;
     case 'email_change':
@@ -128,6 +128,32 @@ export function buildVerifyUrl(
     redirect_to: redirectTo,
   });
   return `${base}/auth/v1/verify?${params.toString()}`;
+}
+
+/**
+ * Marketing landing links keep OTP single-use (email scanners won't hit Supabase verify).
+ * User confirms on daltongrantacademy.uk; JS calls verify on button tap / form submit.
+ */
+export function buildMarketingAuthLink(
+  marketingOrigin: string,
+  tokenHash: string,
+  action: AuthEmailAction,
+): string {
+  const base = marketingOrigin.replace(/\/$/, '');
+  const isRecovery = action === 'recovery';
+  const path = isRecovery ? '/password-reset' : '/email-confirmed';
+  const type =
+    action === 'recovery'
+      ? 'recovery'
+      : action === 'email_change' || action === 'email_change_new' || action === 'email_change_current'
+        ? 'email_change'
+        : action === 'magiclink'
+          ? 'magiclink'
+          : action === 'invite'
+            ? 'invite'
+            : 'signup';
+  const params = new URLSearchParams({ token_hash: tokenHash, type });
+  return `${base}${path}?${params.toString()}`;
 }
 
 export async function sendAuthEmailViaResend(opts: {

@@ -3,6 +3,7 @@ import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-
 import {
   Alert,
   AppState,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -136,6 +137,7 @@ export default function GrantAccessScreen() {
       return;
     }
     scrollToTop();
+    Keyboard.dismiss();
     if (isSupabaseConfigured()) {
       const result = await signUp(trimmed, password);
       if (!result.ok) {
@@ -148,7 +150,7 @@ export default function GrantAccessScreen() {
           'Confirm your email',
           Platform.OS === 'web'
             ? `We sent a confirmation link to ${trimmed}. Open it on this device — you'll land on our website to confirm, then return to the app and tap "I've confirmed — continue" below.`
-            : `We sent a confirmation link to ${trimmed}. Tap it in your email — it should open this app automatically. If not, return here and tap "I've confirmed — continue" below.`,
+            : `We sent a confirmation link to ${trimmed}. Open it on this device — you'll see an Email confirmed page on daltongrantacademy.uk, then return here and tap "I've confirmed — continue" below.`,
         );
         return;
       }
@@ -259,8 +261,8 @@ export default function GrantAccessScreen() {
               We sent a confirmation link to{' '}
               <Text style={local.confirmBannerEm}>{signupConfirmEmail}</Text>.
               {Platform.OS === 'web'
-                ? ' Open it on this device, confirm on daltongrantacademy.uk, then tap the button below.'
-                : ' Tap it in your email to open this app, or confirm and tap the button below.'}
+                ? ' Open it on this device, confirm on daltongrantacademy.uk, then return here and tap the button below.'
+                : ' Open the link on this device, confirm on daltongrantacademy.uk, then return here and tap the button below.'}
             </Text>
             <AppleHeroButton
               loading={continueBusy}

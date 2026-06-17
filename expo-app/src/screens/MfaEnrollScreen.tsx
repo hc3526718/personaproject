@@ -30,15 +30,18 @@ import {
 import { isStaffAccount } from '../auth/staffAccess';
 import { useAuth } from '../auth/AuthContext';
 import { useAccessibility } from '../accessibility/AccessibilityContext';
+import { copyTextToClipboard } from '../lib/clipboard';
+
+const QR_DISPLAY_SIZE = 140;
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'MfaEnroll'>;
 
-export function MfaEnrollScreen({ navigation, route }: Props) {
+export function MfaEnrollScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { colors } = useAccessibility();
-  const required = route.params?.required === true;
   const [loading, setLoading] = useState(true);
+  const [secretCopied, setSecretCopied] = useState(false);
   const [enroll, setEnroll] = useState<TotpEnrollStart | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -63,12 +66,12 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
     setLoading(false);
     if (!started.ok) {
       Alert.alert('MFA setup', started.message);
-      if (!required) navigation.goBack();
+      navigation.goBack();
       return;
     }
     startedRef.current = true;
     setEnroll(started.enroll);
-  }, [enroll, navigation, required]);
+  }, [enroll, navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -96,6 +99,17 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
+  const copySecret = async () => {
+    if (!enroll?.secret) return;
+    const ok = await copyTextToClipboard(enroll.secret);
+    if (ok) {
+      setSecretCopied(true);
+      setTimeout(() => setSecretCopied(false), 2000);
+      return;
+    }
+    Alert.alert('Copy', 'Could not copy automatically. Long-press the secret key to select it.');
+  };
+
   const submit = async () => {
     if (!enroll || busy) return;
     setBusy(true);
@@ -110,22 +124,18 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader
-        title="Authenticator app"
-        onBack={required ? undefined : () => navigation.goBack()}
-        largeTitle
-      />
+      <ScreenHeader title="Authenticator app" onBack={() => navigation.goBack()} largeTitle />
       <ScrollView
         contentContainerStyle={[styles.pad, { paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {required ? (
+        {isStaffAccount(user) && !alreadyEnrolled && !loading ? (
           <View style={styles.banner}>
             <FontAwesome name="shield" size={18} color={DS.color.gold} />
             <Text style={styles.bannerText}>
-              Master and staff accounts must enroll two-factor authentication before using Master
-              Control.
+              Master and staff accounts should use two-factor authentication. We recommend setting it
+              up to protect Master Control — you can also do this later in Settings → Security.
             </Text>
           </View>
         ) : null}
@@ -149,7 +159,7 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
             </Text>
             <View style={styles.qrFrame}>
               <View style={styles.qrInner}>
-                <SvgXml xml={enroll.qrSvg} width={168} height={168} />
+                <SvgXml xml={enroll.qrSvg} width={QR_DISPLAY_SIZE} height={QR_DISPLAY_SIZE} />
               </View>
             </View>
 
@@ -164,9 +174,18 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
               </Text>
               <Text style={[styles.manualStep, { color: colors.textOnLight }]}>
                 4. Secret key:{' '}
-                <Text selectable style={[styles.secretInline, { color: colors.textOnLight }]}>
-                  {enroll.secret}
-                </Text>
+                <Pressable
+                  onPress={() => void copySecret()}
+                  accessibilityRole="button"
+                  accessibilityLabel="Copy secret key"
+                >
+                  <Text selectable style={[styles.secretInline, { color: colors.textOnLight }]}>
+                    {enroll.secret}
+                  </Text>
+                </Pressable>
+              </Text>
+              <Text style={[styles.copyHint, { color: colors.textOnLight }]}>
+                {secretCopied ? 'Copied to clipboard' : 'Tap the secret key to copy'}
               </Text>
               <Text style={[styles.manualStep, { color: colors.textOnLight }]}>
                 5. Press Finish / Save in your authenticator app.
@@ -193,11 +212,9 @@ export function MfaEnrollScreen({ navigation, route }: Props) {
           </>
         ) : null}
 
-        {!required ? (
-          <Pressable style={styles.cancel} onPress={() => navigation.goBack()}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </Pressable>
-        ) : null}
+        <Pressable style={styles.cancel} onPress={() => navigation.goBack()}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
       </ScrollView>
 
       <MfaEnrolledNoticeModal visible={noticeVisible} onContinue={finishEnrollment} />
@@ -257,11 +274,16 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   qrInner: {
-    width: 168,
-    height: 168,
-    overflow: 'hidden',
+    width: QR_DISPLAY_SIZE,
+    height: QR_DISPLAY_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  copyHint: {
+    fontFamily: DS.font.body,
+    fontSize: 12,
+    color: DS.color.textMuted,
+    marginTop: 2,
   },
   manualCard: {
     padding: DS.space.md,

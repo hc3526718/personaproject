@@ -348,17 +348,22 @@ export async function signInWithGoogleOAuth(
   if (result.type !== 'success' || !result.url) {
     return { ok: false, message: 'Could not complete Google sign in' };
   }
-  if (!isOAuthReturnUrlTrusted(result.url, redirectTo)) {
+
+  const ingest = await ingestSessionFromAuthCallbackUrl(supabase, result.url);
+  if (ingest.ok) return { ok: true };
+
+  const trusted = isOAuthReturnUrlTrusted(result.url, redirectTo);
+  const code = parseOAuthCodeFromReturnUrl(result.url);
+  if (!trusted && !code) {
     return { ok: false, message: 'Unexpected sign-in redirect' };
   }
 
-  const code = parseOAuthCodeFromReturnUrl(result.url);
   if (code) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-    if (exchangeError) {
-      return { ok: false, message: coerceApiError('sign you in with Google', exchangeError.message) };
-    }
-    return { ok: true };
+    if (!exchangeError) return { ok: true };
+    const retry = await ingestSessionFromAuthCallbackUrl(supabase, result.url);
+    if (retry.ok) return { ok: true };
+    return { ok: false, message: coerceApiError('sign you in with Google', exchangeError.message) };
   }
 
   const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, result.url);
@@ -377,9 +382,13 @@ export async function signInWithGoogleOAuth(
     };
   }
 
+  if (ingest.error) {
+    return { ok: false, message: coerceApiError('sign you in with Google', ingest.error) };
+  }
+
   if (__DEV__) {
     console.warn(
-      '[OAuth] Google redirect had no PKCE code. redirectTo=',
+      '[OAuth] Google redirect had no session. redirectTo=',
       redirectTo,
       'returnUrl(start)=',
       result.url.slice(0, 240),

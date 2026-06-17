@@ -49,6 +49,7 @@ import { isAccountGoneError } from './invalidAccountSession';
 import { mapAuthEmailErrorMessage, mapSignUpErrorMessage } from './passwordValidation';
 import { hasVerifiedTotpFactor, needsMfaStepUp } from './mfaService';
 import { withTimeout } from '../lib/withTimeout';
+import { clearSignupPendingEmail } from './signupPendingStorage';
 
 export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
 
@@ -496,8 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           data: { dalton_verified: false },
-          emailRedirectTo:
-            Platform.OS === 'web' ? getEmailConfirmRedirectUri() : getOAuthRedirectUri(),
+          emailRedirectTo: getEmailConfirmRedirectUri(),
         },
       });
       if (error) {
@@ -521,7 +521,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, message: 'Enter your email address.' };
       }
       const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: Platform.OS === 'web' ? getPasswordResetRedirectUri() : getOAuthRedirectUri(),
+        redirectTo: getPasswordResetRedirectUri(),
       });
       if (error) return { ok: false, message: mapAuthEmailErrorMessage(error.message) };
       return { ok: true };
@@ -561,6 +561,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     setOAuthBusy(true);
+    void clearSignupPendingEmail();
     try {
       const result = await withTimeout(signInWithGoogleOAuth(supabase), {
         ms: 45000,
@@ -583,34 +584,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Platform.OS === 'web') {
         return true;
       }
-      const session = await withTimeout(safeGetSession(supabase), {
-        ms: 15000,
-        timeoutMessage: 'Could not finish signing you in. Please try again.',
-      });
-      if (session?.user) {
-        setUser(appUserFromSupabaseUser(session.user));
-        void (async () => {
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('dalton_verified, master_control')
-              .eq('id', session.user.id)
-              .maybeSingle();
-            if (profile?.dalton_verified || profile?.master_control === 'yes') {
-              setUser((prev) =>
-                prev?.id === session.user.id
-                  ? {
-                      ...prev,
-                      daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
-                      masterControl: profile?.master_control === 'yes',
-                    }
-                  : prev,
-              );
-            }
-          } catch {
-            /* non-fatal */
-          }
-        })();
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const session = await safeGetSession(supabase);
+        if (session?.user) {
+          setUser(appUserFromSupabaseUser(session.user));
+          return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
       return true;
     } catch (err) {
@@ -631,6 +611,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     setOAuthBusy(true);
+    void clearSignupPendingEmail();
     try {
       const result = await withTimeout(signInWithAppleNative(supabase), {
         ms: 45000,
@@ -650,34 +631,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return false;
       }
-      const session = await withTimeout(safeGetSession(supabase), {
-        ms: 15000,
-        timeoutMessage: 'Could not finish signing you in. Please try again.',
-      });
-      if (session?.user) {
-        setUser(appUserFromSupabaseUser(session.user));
-        void (async () => {
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('dalton_verified, master_control')
-              .eq('id', session.user.id)
-              .maybeSingle();
-            if (profile?.dalton_verified || profile?.master_control === 'yes') {
-              setUser((prev) =>
-                prev?.id === session.user.id
-                  ? {
-                      ...prev,
-                      daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
-                      masterControl: profile?.master_control === 'yes',
-                    }
-                  : prev,
-              );
-            }
-          } catch {
-            /* non-fatal */
-          }
-        })();
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const session = await safeGetSession(supabase);
+        if (session?.user) {
+          setUser(appUserFromSupabaseUser(session.user));
+          return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
       return true;
     } catch (err) {

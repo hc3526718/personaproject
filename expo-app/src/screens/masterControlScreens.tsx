@@ -47,6 +47,7 @@ export function MasterGateScreen({ navigation, route }: PProps<'MasterGate'>) {
   const { user } = useAuth();
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
+  const [mfaEnrolled, setMfaEnrolled] = useState<boolean | null>(null);
   const returnTo = route.params?.returnTo ?? 'MasterControlHub';
 
   useFocusEffect(
@@ -55,13 +56,12 @@ export function MasterGateScreen({ navigation, route }: PProps<'MasterGate'>) {
       void (async () => {
         if (!user?.masterControl || !user.id) return;
         const enrolled = await hasVerifiedTotpFactor();
-        if (!alive || enrolled) return;
-        navigation.replace('MfaEnroll', { required: true });
+        if (alive) setMfaEnrolled(enrolled);
       })();
       return () => {
         alive = false;
       };
-    }, [navigation, user?.id, user?.masterControl]),
+    }, [user?.id, user?.masterControl]),
   );
 
   const verifyPinStep = useCallback(async () => {
@@ -106,6 +106,19 @@ export function MasterGateScreen({ navigation, route }: PProps<'MasterGate'>) {
           Enter the 6-digit PIN assigned to your master account. Master access is enabled and PINs are
           managed in Supabase only — not in the app.
         </Text>
+        {mfaEnrolled === false ? (
+          <Pressable
+            style={styles.mfaSuggest}
+            onPress={() => navigation.navigate('MfaEnroll')}
+          >
+            <FontAwesome name="shield" size={16} color={DS.color.gold} />
+            <Text style={styles.mfaSuggestText}>
+              Two-factor authentication is recommended for master accounts. Tap to set up an
+              authenticator app (optional).
+            </Text>
+            <FontAwesome name="chevron-right" size={12} color={DS.color.textMuted} />
+          </Pressable>
+        ) : null}
         <View style={styles.card}>
           <Text style={styles.label}>Master PIN</Text>
           <TextInput
@@ -665,6 +678,24 @@ const styles = StyleSheet.create({
   pad: { padding: DS.space.lg },
   padH: { paddingHorizontal: DS.space.lg },
   lead: { fontFamily: DS.font.body, fontSize: 14, color: DS.color.textMuted, lineHeight: 21 },
+  mfaSuggest: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: DS.space.sm,
+    marginTop: DS.space.md,
+    padding: DS.space.md,
+    borderRadius: DS.apple.radiusCard,
+    borderWidth: 1,
+    borderColor: 'rgba(200, 168, 75, 0.35)',
+    backgroundColor: 'rgba(200, 168, 75, 0.08)',
+  },
+  mfaSuggestText: {
+    flex: 1,
+    fontFamily: DS.font.body,
+    fontSize: 13,
+    color: DS.color.textMuted,
+    lineHeight: 19,
+  },
   card: { gap: DS.space.md, marginTop: DS.space.md },
   label: { fontFamily: DS.font.bodyMedium, fontSize: 13, color: DS.color.textMuted },
   input: {

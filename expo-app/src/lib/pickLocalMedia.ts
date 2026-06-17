@@ -95,7 +95,7 @@ export function pickLocalMedia(
   }
   const title = options?.title ?? (kind === 'video' ? 'Add video' : 'Add image');
 
-  if (options?.nativeSourcePicker) {
+  if (Platform.OS === 'ios' || options?.nativeSourcePicker) {
     return pickMediaSourceNative(title).then((key) => {
       if (key === 'library') return pickFromPhotoLibrary(kind, multiple);
       if (key === 'files') return pickFromFiles(kind, multiple);
@@ -203,7 +203,7 @@ export function pickLocalComposerMedia(options?: {
 
   const title = options?.title ?? 'Add media';
 
-  if (options?.nativeSourcePicker) {
+  if (Platform.OS === 'ios' || options?.nativeSourcePicker) {
     return pickMediaSourceNative(title).then((key) => {
       if (key === 'library') return pickComposerFromPhotoLibrary();
       if (key === 'files') return pickComposerFromFiles();

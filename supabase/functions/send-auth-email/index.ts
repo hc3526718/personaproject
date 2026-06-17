@@ -14,7 +14,7 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { Webhook } from 'https://esm.sh/standardwebhooks@1.0.0';
 import {
   buildAuthEmail,
-  buildVerifyUrl,
+  buildMarketingAuthLink,
   sendAuthEmailViaResend,
   type AuthEmailAction,
 } from '../_shared/authHookEmail.ts';
@@ -74,12 +74,15 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = (Deno.env.get('SUPABASE_URL') ?? emailData.site_url ?? '').trim();
-  const redirectTo = emailData.redirect_to?.trim() || emailData.site_url?.trim() || supabaseUrl;
-  const confirmUrl = buildVerifyUrl(
-    supabaseUrl,
+  const marketingOrigin = (Deno.env.get('DALTON_WEB_URL') ?? 'https://daltongrantacademy.uk').replace(
+    /\/$/,
+    '',
+  );
+
+  const confirmUrl = buildMarketingAuthLink(
+    marketingOrigin,
     emailData.token_hash,
     emailData.email_action_type,
-    redirectTo,
   );
 
   const { subject, html, text } = buildAuthEmail({

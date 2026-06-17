@@ -25,16 +25,36 @@
       <p class="font-bebas text-gold tracking-[0.22em] text-sm">ACCOUNT</p>
       <h1 class="font-bebas text-mist text-4xl mt-2">Verification</h1>
 
-      <div id="confirm-state" hidden class="confirm-card mt-8">
-        <p id="confirm-title" class="text-mist text-xl font-bold"></p>
-        <p id="confirm-lead" class="text-dim mt-3 leading-relaxed"></p>
-        <a id="open-app-btn" href="#" class="btn-primary">Open The Dalton Grant Academy app</a>
-        <a id="continue-web-btn" href="#" class="btn-ghost">Continue in browser instead</a>
-        <p id="confirm-fallback" class="confirm-fallback" hidden>
-          If the app did not open automatically: switch back to
-          <strong>The Dalton Grant Academy</strong> (TestFlight is fine). On Create Account, tap
-          <strong>I've confirmed — continue</strong> — you do not need to enter your details again.
+      <div id="pending-state" hidden class="confirm-card mt-8">
+        <p class="text-mist text-xl font-bold">Confirm your email</p>
+        <p class="text-dim mt-3 leading-relaxed">
+          Tap the button below to verify your email address on this device.
         </p>
+        <button id="confirm-email-btn" type="button" class="btn-primary">Confirm email address</button>
+      </div>
+
+      <div id="success-state" hidden class="confirm-card confirm-card--ok mt-8 auth-success-hero">
+        <div class="auth-success-circle" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20 6L9 17L4 12"
+              stroke="#0a0a0a"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <p class="auth-success-title">Account confirmed</p>
+        <p class="text-dim mt-3 leading-relaxed text-center">
+          Your account creation has been confirmed. Return to The Dalton Grant Academy app, open
+          <strong>Create Account</strong>, and tap <strong>I've confirmed — continue</strong>.
+        </p>
+      </div>
+
+      <div id="error-state" hidden class="confirm-card confirm-card--error mt-8">
+        <p id="error-title" class="text-mist text-xl font-bold"></p>
+        <p id="error-lead" class="text-dim mt-3 leading-relaxed"></p>
       </div>
 
       <p class="text-dim text-sm mt-10">
@@ -42,8 +62,9 @@
         <a href="/contact-team" class="text-gold hover:underline">Contact the team</a>
       </p>
     </main>
+    <script src="shared/dalton-contact-config.js"></script>
     <script src="shared/email-confirmed-config.js"></script>
-    <script src="shared/auth-redirect-bridge.js"></script>
+    <script src="shared/email-confirmed-page.js"></script>
     <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-footer.js"></script>
   </body>
