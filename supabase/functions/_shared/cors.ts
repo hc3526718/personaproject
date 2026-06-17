@@ -2,6 +2,9 @@
 const DEFAULT_ORIGINS = [
   'https://daltongrantacademy.uk',
   'https://www.daltongrantacademy.uk',
+  'https://daltongrantacademy.vercel.app',
+  'https://www.daltongrantacademy.vercel.app',
+  'https://dalton-access.vercel.app',
   'http://localhost:8081',
   'http://localhost:19006',
   'http://localhost:3000',

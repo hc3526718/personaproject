@@ -67,6 +67,42 @@ export function getAcademyAccessPlanLine(): string {
   return (process.env.EXPO_PUBLIC_ACADEMY_ACCESS_PRICE_LABEL ?? '£2 / month').trim() || '£2 / month';
 }
 
+function mapStripeCheckoutError(body: {
+  error?: string;
+  message?: string;
+  hint?: string;
+  code?: string;
+}): string | null {
+  const code = (body.code ?? body.error ?? '').trim();
+  const message = (body.message ?? body.error ?? '').trim();
+  if (code === 'price_not_configured' || body.error === 'price_not_configured') {
+    return 'Checkout is not fully configured yet. Please try again later or contact Support from Profile → Help.';
+  }
+  if (body.error === 'stripe_not_configured') {
+    return 'Payments are not configured on the server yet. Please contact Support from Profile → Help.';
+  }
+  if (body.hint === 'stripe_mode_mismatch' || /test mode|live mode/i.test(message)) {
+    return 'Checkout is temporarily unavailable (billing configuration). Please try again later or contact Support.';
+  }
+  if (body.error === 'unauthorized' || body.error === 'invalid_token') {
+    return 'Your session expired. Sign out, sign back in, and try checkout again.';
+  }
+  if (message && !/edge function returned|non-2xx|functionshttp/i.test(message)) {
+    return message;
+  }
+  return null;
+}
+
+async function readInvokeErrorBody(error: unknown): Promise<Record<string, unknown> | null> {
+  const ctx = (error as { context?: Response })?.context;
+  if (!ctx || typeof ctx.json !== 'function') return null;
+  try {
+    return (await ctx.json()) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 /** Creates a Stripe Checkout session via Supabase Edge Function (secret key stays server-side). */
 export async function startStripeCheckout(plan: StripePlanKey): Promise<StartStripeCheckoutResult> {
   const supabase = getSupabase();
@@ -84,24 +120,26 @@ export async function startStripeCheckout(plan: StripePlanKey): Promise<StartStr
   });
 
   if (error) {
+    const body = await readInvokeErrorBody(error);
+    const mapped = body
+      ? mapStripeCheckoutError({
+          error: typeof body.error === 'string' ? body.error : undefined,
+          message: typeof body.message === 'string' ? body.message : undefined,
+          hint: typeof body.hint === 'string' ? body.hint : undefined,
+          code: typeof body.code === 'string' ? body.code : undefined,
+        })
+      : null;
+    if (mapped) return { ok: false, error: mapped };
     let detail = error.message || 'Could not start checkout.';
-    const ctx = (error as { context?: Response }).context;
-    if (ctx && typeof ctx.json === 'function') {
-      try {
-        const body = (await ctx.json()) as { error?: string; hint?: string; code?: string };
-        if (body?.error) {
-          detail = body.error;
-        }
-      } catch {
-        /* keep generic message */
-      }
-    }
     return { ok: false, error: coerceApiError('start checkout', detail) };
   }
 
-  const url = typeof data?.url === 'string' ? data.url : '';
+  const payload = (data ?? {}) as { url?: string; error?: string; message?: string; hint?: string; code?: string };
+  const url = typeof payload.url === 'string' ? payload.url : '';
   if (!url) {
-    const msg = typeof data?.error === 'string' ? data.error : 'Checkout URL missing.';
+    const mapped = mapStripeCheckoutError(payload);
+    if (mapped) return { ok: false, error: mapped };
+    const msg = typeof payload.error === 'string' ? payload.error : 'Checkout URL missing.';
     return { ok: false, error: coerceApiError('start checkout', msg) };
   }
 

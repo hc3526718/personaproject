@@ -238,3 +238,29 @@ Bundle ID / package: `com.hc111.daltondemo` (must match App Store Connect and Pl
 5. **Auth email:** request a **new** signup confirmation after Vercel deploy — old links may lack `token_hash`.
 
 App Review tester setup: section **App Store reviewer / tester account** above.
+
+## Web checkout (Stripe) — fix “couldn’t start checkout”
+
+Web paywall calls Edge Function `stripe-create-checkout` with `plan: access` (£2/mo). Secrets must use **matching Stripe mode** (all test or all live).
+
+**Supabase Edge secrets** (`txehbzyntvqpkkegjrwp`):
+
+```powershell
+# Test checkout on daltongrantacademy.uk (card 4242 4242 4242 4242):
+npx supabase secrets set STRIPE_SECRET_KEY="sk_test_..." --project-ref txehbzyntvqpkkegjrwp
+npx supabase secrets set STRIPE_PRICE_ACCESS_MONTHLY_ID=price_1TcLzSRiVFlZ45SIGrBvr0tm --project-ref txehbzyntvqpkkegjrwp
+npx supabase secrets set STRIPE_CHECKOUT_BASE_URL=https://daltongrantacademy.uk/app --project-ref txehbzyntvqpkkegjrwp
+
+npx supabase functions deploy stripe-create-checkout --project-ref txehbzyntvqpkkegjrwp
+```
+
+**Verify digests** (no secret values printed):
+
+```powershell
+$env:STRIPE_SECRET_KEY = "sk_test_..."
+node scripts/verify-stripe-supabase-secrets.mjs
+```
+
+**Production live checkout:** replace `sk_test_` with `sk_live_`, set `STRIPE_PRICE_ACCESS_MONTHLY_ID` to your **live** £2/mo `price_…`, and set Vercel `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_…`.
+
+**After paying:** Stripe webhook → `subscription_state.is_payment_verified`; tap **I already paid — refresh access** or reload the app.
