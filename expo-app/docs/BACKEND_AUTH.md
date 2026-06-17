@@ -44,11 +44,13 @@ For **manual testing** without going through the profile flow, you can set **`da
 
 1. **Site URL** — set to your production marketing origin, e.g. `https://daltongrantacademy.uk` (not `http://localhost:3000`). This is the fallback for auth emails if a flow does not override the redirect.
 2. **Redirect URLs** — allow every URL the app opens after auth. Required entries include:
-   - Web: `https://<your-domain>/app/auth/callback` (must match `EXPO_PUBLIC_OAUTH_REDIRECT_URL` or the default `window.location.origin + /app/auth/callback`).
-   - Native dev build: your app scheme, e.g. `dalton-demo://auth/callback` (from Expo linking).
-3. **Sign-up confirmation** — `AuthContext.signUp` passes `emailRedirectTo: getOAuthRedirectUri()` so the link in the confirmation email opens the real app (typically `/app/auth/callback`), not localhost.
-4. **Forgot password** — `resetPasswordForEmail` uses the same `redirectTo`. After the user opens the link, the app establishes a recovery session and shows **Set new password** (`PasswordRecoveryScreen`).
-5. **Optional** — set `EXPO_PUBLIC_OAUTH_REDIRECT_URL` to a fixed production callback if you need OAuth and email links to always target production during local dev.
+   - Sign-up: `https://<your-domain>/email-confirmed`
+   - Password reset: `https://<your-domain>/password-reset` — enter email to request a link; email links return here then deep-link to the app (password is not set on the web page).
+   - Web OAuth: `https://<your-domain>/app/auth/callback` (must match `EXPO_PUBLIC_OAUTH_REDIRECT_URL` or the default `window.location.origin + /app/auth/callback`).
+   - Native: `dalton-demo://auth/callback` (from Expo linking).
+3. **Sign-up confirmation** — `AuthContext.signUp` passes `emailRedirectTo: getEmailConfirmRedirectUri()` so the link lands on `/email-confirmed`, then deep-links into the app.
+4. **Forgot password** — `resetPasswordForEmail` uses `redirectTo: getPasswordResetRedirectUri()` (`/password-reset`). After the user opens the link, the app establishes a recovery session and shows **Set new password** (`PasswordRecoveryScreen`).
+5. **Optional** — set `EXPO_PUBLIC_EMAIL_CONFIRM_REDIRECT_URL`, `EXPO_PUBLIC_PASSWORD_RESET_REDIRECT_URL`, or `EXPO_PUBLIC_OAUTH_REDIRECT_URL` to override defaults.
 
 ## API layer
 

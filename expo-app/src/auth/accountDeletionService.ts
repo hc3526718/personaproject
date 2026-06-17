@@ -1,4 +1,5 @@
 import { getDeleteOwnAccountEdgeUrl, getSupabaseAnonKey } from '../lib/env';
+import { coerceApiError } from '../lib/appAlert';
 
 export type DeleteOwnAccountResult =
   | { ok: true }
@@ -30,11 +31,16 @@ export async function deleteOwnAccount(
     });
     const json = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
     if (!res.ok) {
-      return { ok: false, message: json.error ?? `Request failed (${res.status})` };
+      return {
+        ok: false,
+        message: coerceApiError('delete your account', json.error ?? `Request failed (${res.status})`),
+      };
     }
     return { ok: true };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Network error';
-    return { ok: false, message: msg };
+    return {
+      ok: false,
+      message: coerceApiError('delete your account', e instanceof Error ? e.message : undefined),
+    };
   }
 }

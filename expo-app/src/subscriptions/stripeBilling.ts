@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { getDaltonWebUrl, isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
+import { coerceApiError } from '../lib/appAlert';
 
 export type StripePlanKey = 'monthly' | 'annual' | 'access';
 
@@ -90,22 +91,18 @@ export async function startStripeCheckout(plan: StripePlanKey): Promise<StartStr
         const body = (await ctx.json()) as { error?: string; hint?: string; code?: string };
         if (body?.error) {
           detail = body.error;
-          if (body.hint === 'stripe_mode_mismatch') {
-            detail +=
-              ' Use Stripe test mode end-to-end: sk_test_ secret and test price IDs in Supabase secrets.';
-          }
         }
       } catch {
         /* keep generic message */
       }
     }
-    return { ok: false, error: detail };
+    return { ok: false, error: coerceApiError('start checkout', detail) };
   }
 
   const url = typeof data?.url === 'string' ? data.url : '';
   if (!url) {
     const msg = typeof data?.error === 'string' ? data.error : 'Checkout URL missing.';
-    return { ok: false, error: msg };
+    return { ok: false, error: coerceApiError('start checkout', msg) };
   }
 
   return { ok: true, url };

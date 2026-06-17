@@ -6,6 +6,7 @@ import {
   fetchOfferingForPaywall,
   initRevenueCat,
 } from './revenueCat';
+import { userFacingErrorBody } from '../lib/appAlert';
 
 /** `react-native-purchases-ui` exports `RevenueCatUI` as default — CommonJS `require` is `{ default }`, not `{ RevenueCatUI }`. */
 function getRevenueCatUI(): typeof RevenueCatUIDefault | null {
@@ -61,9 +62,9 @@ export async function presentRevenueCatPaywall(): Promise<PresentPaywallResult> 
     await rc.presentPaywall(offering ? { offering } : undefined);
   } catch (e) {
     const msg =
-      e instanceof Error
+      __DEV__ && e instanceof Error
         ? e.message
-        : 'RevenueCat paywall UI is unavailable. Build a dev client / EAS build to test purchases.';
+        : userFacingErrorBody('open subscriptions');
     Alert.alert('Premium', msg);
     return { presentedOk: false, premiumActivated: false };
   }
@@ -90,9 +91,9 @@ export async function presentRevenueCatCustomerCenter(): Promise<boolean> {
     return true;
   } catch (e) {
     const msg =
-      e instanceof Error
+      __DEV__ && e instanceof Error
         ? e.message
-        : 'RevenueCat customer center UI is unavailable. Build a dev client / EAS build to manage subscriptions.';
+        : userFacingErrorBody('manage your subscription');
     Alert.alert('Subscriptions', msg);
     return false;
   }

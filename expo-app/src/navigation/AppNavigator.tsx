@@ -21,6 +21,11 @@ import { useThemedStackScreenOptions } from '../theme/useThemeStyles';
 import { CommunityThemeProvider } from '../screens/community/CommunityStylesContext';
 import { getSupabase } from '../lib/supabase';
 import { ensureProfileRow } from '../roadmap/profileService';
+import {
+  isAccountGoneError,
+  isAccountGonePostgrestError,
+  signOutDeletedAccountSession,
+} from '../auth/invalidAccountSession';
 import { OAuthProfileSetupModal } from '../components/OAuthProfileSetupModal';
 import { OnboardingNavigator } from '../onboarding/OnboardingNavigator';
 import type {
@@ -298,7 +303,7 @@ const TAB_BAR_TOP_PAD = 12;
 const TAB_BAR_EXTRA_BOTTOM = 8;
 
 function AuthenticatedShell() {
-  const { user, sessionEmail } = useAuth();
+  const { user, sessionEmail, logout } = useAuth();
   const {
     isPaymentVerified,
     busy: subscriptionBusy,
@@ -320,8 +325,15 @@ function AuthenticatedShell() {
       return;
     }
 
-    const { data: authUserRes } = await supabase.auth.getUser();
-    const identities = authUserRes.user?.identities ?? [];
+    const { data: authUserRes, error: authUserErr } = await supabase.auth.getUser();
+    if (authUserErr || !authUserRes.user?.id) {
+      if (isAccountGoneError(authUserErr) || !authUserRes.user?.id) {
+        await signOutDeletedAccountSession(supabase, logout);
+      }
+      return;
+    }
+
+    const identities = authUserRes.user.identities ?? [];
     const providers = new Set(identities.map((i) => i.provider));
     const oauthAppleGoogleOnly =
       !providers.has('email') && (providers.has('google') || providers.has('apple'));
@@ -334,7 +346,15 @@ function AuthenticatedShell() {
 
     if (error) {
       if (__DEV__) console.warn('[AuthenticatedShell] profile fetch', error.message);
-      await ensureProfileRow(user.id, user.email ?? null);
+      if (isAccountGonePostgrestError(error)) {
+        await signOutDeletedAccountSession(supabase, logout);
+        return;
+      }
+      const ensured = await ensureProfileRow(user.id, user.email ?? null);
+      if (!ensured.ok && ensured.accountGone) {
+        await signOutDeletedAccountSession(supabase, logout);
+        return;
+      }
       setOauthProfileSetupOpen(false);
       setGate('onboarding');
       return;
@@ -342,7 +362,11 @@ function AuthenticatedShell() {
 
     let onboardingAt = profile?.onboarding_completed_at ?? null;
     if (!profile) {
-      await ensureProfileRow(user.id, user.email ?? null);
+      const ensured = await ensureProfileRow(user.id, user.email ?? null);
+      if (!ensured.ok && ensured.accountGone) {
+        await signOutDeletedAccountSession(supabase, logout);
+        return;
+      }
       const { data: again } = await supabase
         .from('profiles')
         .select('onboarding_completed_at')
@@ -365,7 +389,7 @@ function AuthenticatedShell() {
 
     setOauthProfileSetupOpen(false);
     setGate('onboarding');
-  }, [user, supabase]);
+  }, [user, supabase, logout]);
 
   useEffect(() => {
     void refreshGate();

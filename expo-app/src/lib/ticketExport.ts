@@ -5,6 +5,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
+import { userFacingErrorBody } from './appAlert';
 
 function safeFilename(reference: string): string {
   const base = reference.trim() || 'ticket';
@@ -124,7 +125,7 @@ export async function saveTicketAsPng(
 
     await shareTicketFile(fileUri, 'image/png', 'public.png', 'Save ticket PNG');
   } catch (e) {
-    Alert.alert('Save ticket', e instanceof Error ? e.message : 'Could not save the ticket image.');
+    Alert.alert('Save ticket', userFacingErrorBody('save the ticket image'));
   }
 }
 
@@ -173,6 +174,6 @@ export async function saveTicketAsPdf(
       ],
     );
   } catch (e) {
-    Alert.alert('PDF', e instanceof Error ? e.message : 'Could not build a PDF.');
+    Alert.alert('PDF', userFacingErrorBody('save the ticket PDF'));
   }
 }

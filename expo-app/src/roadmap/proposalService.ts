@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase';
+import { coerceApiError } from '../lib/appAlert';
 
 export type ProposalKind = 'media' | 'sponsor' | 'event';
 export type ProposalStatus = 'pending' | 'approved' | 'rejected' | 'needs_info';
@@ -137,7 +138,7 @@ export async function submitContentProposal(input: {
     if (msg.includes('sponsor_monthly_limit') || msg.includes('proposal_monthly_limit')) {
       return { ok: false, error: 'Maximum 3 proposals per calendar month.' };
     }
-    return { ok: false, error: msg };
+    return { ok: false, error: coerceApiError('submit your proposal', msg) };
   }
 
   const proposalId = data.id as string;
@@ -202,7 +203,7 @@ export async function masterMarkProposalDiscussed(
   const { error } = await supabase.rpc('master_mark_proposal_discussed', {
     p_proposal_id: proposalId,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: coerceApiError('update this proposal', error.message) };
   return { ok: true };
 }
 
@@ -212,7 +213,7 @@ export async function masterOpenProposal(proposalId: string): Promise<{ ok: bool
   const { error } = await supabase.rpc('master_open_content_proposal', {
     p_proposal_id: proposalId,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: coerceApiError('update this proposal', error.message) };
   return { ok: true };
 }
 
@@ -240,7 +241,7 @@ export async function masterReviewProposal(
     if (msg.includes('already_reviewed')) {
       return { ok: false, error: 'This proposal has already been reviewed.' };
     }
-    return { ok: false, error: msg };
+    return { ok: false, error: coerceApiError('update this proposal', msg) };
   }
   return { ok: true };
 }
@@ -286,7 +287,7 @@ export async function submitProposalFollowup(
     p_notes: notes,
     p_asset_urls: assetUrls,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: coerceApiError('update this proposal', error.message) };
   void supabase.functions
     .invoke('submit-proposal-followup', { body: { proposal_id: proposalId } })
     .catch(() => undefined);
@@ -297,7 +298,7 @@ export async function deleteContentProposal(proposalId: string): Promise<{ ok: b
   const supabase = getSupabase();
   if (!supabase) return { ok: false, error: 'Not connected.' };
   const { error } = await supabase.from('content_proposals').delete().eq('id', proposalId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: coerceApiError('update this proposal', error.message) };
   return { ok: true };
 }
 
@@ -312,6 +313,6 @@ export async function updatePendingProposalPayload(
     .update({ payload, updated_at: new Date().toISOString() })
     .eq('id', proposalId)
     .eq('status', 'pending');
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: coerceApiError('update this proposal', error.message) };
   return { ok: true };
 }

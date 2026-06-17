@@ -15,6 +15,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { isAccountGoneError, isAccountGonePostgrestError } from '../auth/invalidAccountSession';
+import { showSupportError } from '../lib/appAlert';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { BrandLogo } from '../components/BrandLogo';
 import { DS } from '../designSystem';
@@ -458,7 +460,7 @@ function MembershipStep({ navigation }: StepProps<'OnboardingMembership'>) {
 function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
   const insets = useSafeAreaInsets();
   const { draft, onFinished, resetDraft } = useOnboardingCtx();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [saving, setSaving] = useState(false);
 
   const saveAndEnter = useCallback(async () => {
@@ -488,7 +490,11 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
       }
     } catch (e) {
       setSaving(false);
-      Alert.alert('Username', e instanceof Error ? e.message : 'Could not set username.');
+      if (isAccountGoneError(e)) {
+        await logout();
+        return;
+      }
+      showSupportError('Username', 'set your username');
       return;
     }
 
@@ -517,13 +523,15 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
     if (error) {
       if (error.code === '23505') {
         Alert.alert('Username taken', 'That username was just claimed. Go back and choose another.');
+      } else if (isAccountGonePostgrestError(error)) {
+        await logout();
       } else {
-        Alert.alert('Could not save profile', error.message);
+        showSupportError('Could not save profile', 'save your profile');
       }
       return;
     }
     onFinished();
-  }, [draft, onFinished, user]);
+  }, [draft, logout, onFinished, user]);
 
   return (
     <View style={styles.completeRoot}>

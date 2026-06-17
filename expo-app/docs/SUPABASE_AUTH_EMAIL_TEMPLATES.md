@@ -155,7 +155,8 @@ Authentication → URL configuration:
 
 - **Site URL:** `https://daltongrantacademy.uk`
 - **Redirect URLs:**  
-  - `https://daltongrantacademy.uk/email-confirmed` (signup / reset success page → deep link to app)  
+  - `https://daltongrantacademy.uk/email-confirmed` (signup confirmation → deep link to app)  
+  - `https://daltongrantacademy.uk/password-reset` (password reset → deep link to app)  
   - `https://daltongrantacademy.uk/app/auth/callback`  
   - `dalton-demo://auth/callback` (native)
 

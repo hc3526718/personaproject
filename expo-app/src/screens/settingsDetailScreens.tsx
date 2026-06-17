@@ -57,6 +57,7 @@ import { ThemedText } from '../theme/ThemedText';
 import type { AccessibleColors } from '../lib/accessibilityTheme';
 import { useThemeStyles } from '../theme/useThemeStyles';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
+import { userFacingErrorBody } from '../lib/appAlert';
 import { useAuth } from '../auth/AuthContext';
 import { hasVerifiedTotpFactor } from '../auth/mfaService';
 import { isStaffAccount } from '../auth/staffAccess';
@@ -137,7 +138,7 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
               const { error } = await supabase.auth.signOut({ scope: 'others' });
               setSigningOutOthers(false);
               if (error) {
-                showBanner('Could not sign out', error.message);
+                showBanner('Could not sign out', userFacingErrorBody('sign out other sessions'));
                 return;
               }
               showBanner('Signed out others', 'All other sessions for your account have been ended.');

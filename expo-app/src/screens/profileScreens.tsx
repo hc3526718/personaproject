@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { safeGetSession } from '../auth/authSessionRecovery';
 import { deleteOwnAccount } from '../auth/accountDeletionService';
+import { showSupportError, userFacingErrorBody } from '../lib/appAlert';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { HighlightVideoModal } from '../components/HighlightVideoModal';
 import { InterestsEditor } from '../components/InterestsEditor';
@@ -606,10 +607,9 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
               const result = await deleteOwnAccount(token, phrase);
               if (result.ok) {
                 await logout();
-                Alert.alert('Account deleted', 'Your account has been removed.');
-              } else {
-                Alert.alert('Could not delete account', result.message);
+                return;
               }
+              showSupportError('Could not delete account', 'delete your account');
             };
             Alert.alert(
               'Delete account',
@@ -622,22 +622,7 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
                   text: 'Continue',
                   style: 'destructive',
                   onPress: () => {
-                    if (Platform.OS === 'ios') {
-                      Alert.prompt(
-                        'Type DELETE to confirm',
-                        'This cannot be undone.',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: (text?: string) => void confirmDelete(text ?? ''),
-                          },
-                        ],
-                        'plain-text',
-                        '',
-                      );
-                    } else {
+                    if (Platform.OS === 'web') {
                       Alert.alert(
                         'Final confirmation',
                         'Delete your account permanently?',
@@ -650,7 +635,22 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
                           },
                         ],
                       );
+                      return;
                     }
+                    Alert.prompt(
+                      'Type DELETE to confirm',
+                      'This cannot be undone.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: (text?: string) => void confirmDelete(text ?? ''),
+                        },
+                      ],
+                      'plain-text',
+                      '',
+                    );
                   },
                 },
               ],
@@ -759,7 +759,7 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
       sports: sport?.trim() ? [sport.trim()] : [],
     });
     if (!saved.ok) {
-      if (saved.error.includes('duplicate') || saved.error.includes('unique')) {
+      if (saved.error.includes('claimed')) {
         setErrors({ username: 'That username was just claimed' });
       } else {
         Alert.alert('Save failed', saved.error);
@@ -775,7 +775,10 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
       },
     });
     if (authErr) {
-      Alert.alert('Profile saved', `Your profile was updated, but auth metadata sync failed: ${authErr.message}`);
+      Alert.alert(
+        'Profile saved',
+        userFacingErrorBody('sync your account details'),
+      );
     }
     setToast(true);
     navigation.goBack();
@@ -989,7 +992,7 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
     if (!supabase || !user?.id || !live) return;
     const { error } = await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
     if (error) {
-      Alert.alert('Remove failed', error.message);
+      Alert.alert('Remove failed', userFacingErrorBody('remove your profile photo'));
       return;
     }
     setAvatarUri(null);
@@ -1507,7 +1510,7 @@ export function EditProfileSectionDetailScreen({
       }
       setToast(true);
     } catch (e) {
-      Alert.alert('Save failed', e instanceof Error ? e.message : 'Could not save.');
+      Alert.alert('Save failed', userFacingErrorBody('save your profile'));
     }
   }, [
     bannerUrl,

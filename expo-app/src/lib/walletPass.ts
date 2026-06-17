@@ -12,6 +12,7 @@ import {
 import { safeGetSession } from '../auth/authSessionRecovery';
 import { getSupabase } from './supabase';
 import { getSupabaseUrl } from './env';
+import { userFacingErrorBody } from './appAlert';
 
 export type WalletPassInput = {
   bookingId: string;
@@ -55,13 +56,7 @@ function walletPassUserMessage(
   raw: string,
 ): string {
   const code = parsed?.error ?? parsed?.code;
-  const serverMessage = parsed?.message?.trim();
 
-  if (serverMessage) return serverMessage;
-
-  if (code === 'not_configured') {
-    return 'Apple Wallet signing is not configured on the server yet.';
-  }
   if (code === 'unauthorized' || status === 401) {
     return 'Your session expired. Sign out and sign in again, then retry.';
   }
@@ -71,29 +66,11 @@ function walletPassUserMessage(
   if (code === 'bookingId or reference required' || status === 400) {
     return 'Missing booking details. Reopen your ticket from My Bookings.';
   }
-  if (status === 503) {
-    return 'Apple Wallet signing is not configured on the server yet.';
-  }
-  if (status === 500) {
-    if (code === 'ticket_secret_missing') {
-      return 'Ticket signing is not configured on the server (TICKET_HMAC_SECRET).';
-    }
-    if (code === 'pass_signing_failed') {
-      return 'Pass signing failed on the server. Check Apple certificate secrets in Supabase.';
-    }
-    if (parsed?.stage) {
-      return `Pass generation failed (${parsed.stage}). Check the console for details.`;
-    }
-    return 'Server error while generating the pass. Check the console for details.';
+  if (code === 'not_configured' || status === 503) {
+    return 'Apple Wallet is not available for this ticket yet. Contact Support from Profile → Help.';
   }
 
-  if (raw.includes('WORKER_ERROR') || raw === 'Internal Server Error') {
-    return 'Wallet service error on the server (no JSON body). Redeploy wallet-generate-pass and check TICKET_HMAC_SECRET + Apple PEM secrets.';
-  }
-
-  if (code) return `Could not generate pass (${code}).`;
-  if (raw.trim()) return `Could not generate pass: ${raw.trim().slice(0, 200)}`;
-  return 'Could not generate your pass.';
+  return userFacingErrorBody('add this pass to Apple Wallet');
 }
 
 function reportWalletPassFailure(
@@ -230,7 +207,7 @@ export async function addEventPassToAppleWallet(input: WalletPassInput): Promise
         error: message,
         stack: e instanceof Error ? e.stack : undefined,
       },
-      message || 'Something went wrong.',
+      userFacingErrorBody('add this pass to Apple Wallet'),
     );
   }
 }

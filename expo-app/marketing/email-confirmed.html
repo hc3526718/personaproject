@@ -10,55 +10,12 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="shared/theme.css" />
+    <link rel="stylesheet" href="shared/auth-redirect.css" />
     <style>
       body {
         font-family: "DM Sans", sans-serif;
         background: radial-gradient(900px 600px at 20% 0%, rgba(200, 168, 75, 0.15), transparent 55%), var(--demo-bg);
         color: var(--demo-text);
-      }
-      .confirm-card {
-        border-radius: 16px;
-        border: 1px solid rgba(200, 168, 75, 0.35);
-        background: rgba(255, 255, 255, 0.04);
-        padding: 1.75rem 1.5rem;
-      }
-      .confirm-card--ok {
-        border-color: rgba(200, 168, 75, 0.55);
-      }
-      .confirm-card--error {
-        border-color: rgba(220, 80, 80, 0.45);
-      }
-      .confirm-fallback {
-        margin-top: 1.25rem;
-        padding: 1rem 1.1rem;
-        border-radius: 12px;
-        background: rgba(200, 168, 75, 0.18);
-        border: 2px solid rgba(200, 168, 75, 0.65);
-        font-size: 1.05rem;
-        line-height: 1.55;
-        font-weight: 700;
-        color: #f5f2ea;
-      }
-      .btn-primary {
-        display: inline-block;
-        margin-top: 1rem;
-        padding: 0.75rem 1.25rem;
-        border-radius: 10px;
-        background: #c8a84b;
-        color: #0a0a0a;
-        font-weight: 700;
-        text-decoration: none;
-      }
-      .btn-ghost {
-        display: inline-block;
-        margin-top: 0.75rem;
-        margin-left: 0.5rem;
-        padding: 0.75rem 1.25rem;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #d4d0c8;
-        font-weight: 600;
-        text-decoration: none;
       }
     </style>
   </head>
@@ -85,7 +42,8 @@
         <a href="/contact-team" class="text-gold hover:underline">Contact the team</a>
       </p>
     </main>
-    <script src="shared/email-confirmed.js"></script>
+    <script src="shared/email-confirmed-config.js"></script>
+    <script src="shared/auth-redirect-bridge.js"></script>
     <script src="shared/marketing-chrome.js"></script>
     <script src="shared/site-footer.js"></script>
   </body>

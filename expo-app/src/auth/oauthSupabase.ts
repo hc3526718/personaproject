@@ -7,6 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { safeGetSession } from './authSessionRecovery';
 import { BRAND_WEB_ORIGIN } from '../constants/brand';
 import { getDaltonWebUrl } from '../lib/env';
+import { coerceApiError } from '../lib/appAlert';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -33,7 +34,7 @@ export function getOAuthRedirectUri(): string {
 }
 
 /**
- * Email confirm / recovery links always land on the marketing site first so users see
+ * Signup email confirmation links land on the marketing site first so users see
  * a clear success screen and we can deep-link back into TestFlight via dalton-demo://.
  */
 export function getEmailConfirmRedirectUri(): string {
@@ -41,6 +42,14 @@ export function getEmailConfirmRedirectUri(): string {
   if (explicit) return explicit;
   const web = getDaltonWebUrl() || BRAND_WEB_ORIGIN;
   return `${web.replace(/\/$/, '')}/email-confirmed`;
+}
+
+/** Password reset recovery links use a dedicated page with reset-specific copy. */
+export function getPasswordResetRedirectUri(): string {
+  const explicit = (process.env.EXPO_PUBLIC_PASSWORD_RESET_REDIRECT_URL ?? '').trim();
+  if (explicit) return explicit;
+  const web = getDaltonWebUrl() || BRAND_WEB_ORIGIN;
+  return `${web.replace(/\/$/, '')}/password-reset`;
 }
 
 /** Reject forged OAuth returns (wrong scheme on native, wrong origin on web). */
@@ -177,7 +186,10 @@ export async function completeWebOAuthSessionIfNeeded(
             cleanupWebAuthUrlAfterSignIn();
             return { exchanged: true };
           }
+          cleanupWebAuthUrlAfterSignIn();
+          return { exchanged: true, error: 'pkce_verifier_missing' };
         }
+        cleanupWebAuthUrlAfterSignIn();
         return { exchanged: true, error: error.message };
       }
       cleanupWebAuthUrlAfterSignIn();
@@ -198,6 +210,22 @@ export async function completeWebOAuthSessionIfNeeded(
       cleanupWebAuthUrlAfterSignIn();
       return { exchanged: true };
     }
+
+    const tokenHash = parseTokenHashFromReturnUrl(returnUrl);
+    if (tokenHash) {
+      const type = parseAuthCallbackType(returnUrl);
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: type === 'recovery' ? 'recovery' : type === 'email_change' ? 'email_change' : 'signup',
+      });
+      if (!error) {
+        cleanupWebAuthUrlAfterSignIn();
+        return { exchanged: true };
+      }
+      cleanupWebAuthUrlAfterSignIn();
+      return { exchanged: true, error: error.message };
+    }
+
     return { exchanged: false };
   })();
 
@@ -219,13 +247,62 @@ export async function ingestSessionFromAuthCallbackUrl(
   const code = parseOAuthCodeFromReturnUrl(url);
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error && !isPkceVerifierMissingError(error.message)) {
+    if (error) {
+      if (isPkceVerifierMissingError(error.message)) {
+        const existing = await safeGetSession(supabase);
+        if (existing?.user) return { ok: true };
+        return { ok: false, error: 'pkce_verifier_missing' };
+      }
       return { ok: false, error: error.message };
     }
     return { ok: true };
   }
   const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, url);
-  return implicitOk ? { ok: true } : { ok: false, error: 'missing_tokens' };
+  if (implicitOk) return { ok: true };
+
+  const tokenHash = parseTokenHashFromReturnUrl(url);
+  if (tokenHash) {
+    const type = parseAuthCallbackType(url);
+    const { error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type === 'recovery' ? 'recovery' : type === 'email_change' ? 'email_change' : 'signup',
+    });
+    if (!error) return { ok: true };
+    if (error.message) return { ok: false, error: error.message };
+  }
+
+  return { ok: false, error: 'missing_tokens' };
+}
+
+function parseTokenHashFromReturnUrl(returnUrl: string): string | null {
+  const chunks: string[] = [returnUrl];
+  const hash = returnUrl.indexOf('#');
+  if (hash >= 0) chunks.push(returnUrl.slice(hash + 1));
+  for (const chunk of chunks) {
+    const m = chunk.match(/(?:^|[?#&])token_hash=([^&#]+)/);
+    if (m?.[1]) {
+      try {
+        return decodeURIComponent(m[1]);
+      } catch {
+        return m[1];
+      }
+    }
+  }
+  const parsed = Linking.parse(returnUrl);
+  const raw = parsed.queryParams?.token_hash;
+  const fromQuery = Array.isArray(raw) ? raw[0] : raw;
+  return typeof fromQuery === 'string' && fromQuery.length > 0 ? fromQuery : null;
+}
+
+function parseAuthCallbackType(returnUrl: string): string {
+  const chunks: string[] = [returnUrl];
+  const hash = returnUrl.indexOf('#');
+  if (hash >= 0) chunks.push(returnUrl.slice(hash + 1));
+  for (const chunk of chunks) {
+    const m = chunk.match(/(?:^|[?#&])type=([^&#]+)/);
+    if (m?.[1]) return decodeURIComponent(m[1]);
+  }
+  return 'signup';
 }
 
 export async function signInWithGoogleOAuth(
@@ -243,7 +320,7 @@ export async function signInWithGoogleOAuth(
       provider: 'google',
       options: oauthOptions,
     });
-    if (error) return { ok: false, message: error.message };
+    if (error) return { ok: false, message: coerceApiError('sign you in with Google', error.message) };
     const url = data?.url;
     if (url && typeof window !== 'undefined') {
       window.location.assign(url);
@@ -251,9 +328,7 @@ export async function signInWithGoogleOAuth(
     }
     return {
       ok: false,
-      message:
-        'Google sign-in could not start. Check Supabase Google provider and redirect URL: ' +
-        redirectTo,
+      message: coerceApiError('sign you in with Google'),
     };
   }
 
@@ -264,7 +339,7 @@ export async function signInWithGoogleOAuth(
       skipBrowserRedirect: true,
     },
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: coerceApiError('sign you in with Google', error.message) };
   if (!data.url) return { ok: false, message: 'No OAuth URL returned' };
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
@@ -280,7 +355,9 @@ export async function signInWithGoogleOAuth(
   const code = parseOAuthCodeFromReturnUrl(result.url);
   if (code) {
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-    if (exchangeError) return { ok: false, message: exchangeError.message };
+    if (exchangeError) {
+      return { ok: false, message: coerceApiError('sign you in with Google', exchangeError.message) };
+    }
     return { ok: true };
   }
 
@@ -294,7 +371,10 @@ export async function signInWithGoogleOAuth(
   const err = parsed.queryParams?.error;
   if (err || errDesc) {
     const msg = Array.isArray(errDesc) ? errDesc[0] : errDesc;
-    return { ok: false, message: msg || String(err) };
+    return {
+      ok: false,
+      message: coerceApiError('sign you in with Google', msg || String(err)),
+    };
   }
 
   if (__DEV__) {
@@ -307,9 +387,7 @@ export async function signInWithGoogleOAuth(
   }
   return {
     ok: false,
-    message:
-      'No authorization code in redirect. Add this exact URL to Supabase → Auth → Redirect URLs: ' +
-      redirectTo,
+    message: coerceApiError('sign you in with Google'),
   };
 }
 
@@ -368,13 +446,13 @@ export async function signInWithAppleNative(
       token: credential.identityToken,
       nonce: rawNonce,
     });
-    if (error) return { ok: false, message: error.message };
+    if (error) return { ok: false, message: coerceApiError('sign you in with Apple', error.message) };
     return { ok: true };
   } catch (e: unknown) {
     if (e && typeof e === 'object' && 'code' in e && (e as { code: string }).code === 'ERR_REQUEST_CANCELED') {
       return { ok: false, message: 'Sign in cancelled' };
     }
     const msg = e instanceof Error ? e.message : 'Apple sign in failed';
-    return { ok: false, message: msg };
+    return { ok: false, message: coerceApiError('sign you in with Apple', msg) };
   }
 }

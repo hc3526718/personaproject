@@ -1,5 +1,6 @@
 import { getSupabase } from './supabase';
 import { readLocalFileAsArrayBuffer } from './readLocalFileBytes';
+import { coerceApiError } from './appAlert';
 
 function inferImageExt(uri: string): string {
   const m = uri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
@@ -42,7 +43,7 @@ export async function uploadProfileImage(
       .upload(storage_path, body, { contentType, upsert: false });
     if (error) {
       if (__DEV__) console.warn('[uploadProfileImage]', error.message);
-      return { ok: false, error: error.message || 'Storage upload failed.' };
+      return { ok: false, error: coerceApiError('upload your image', error.message) };
     }
     const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
     const publicUrl = pub.data.publicUrl ?? null;
@@ -50,7 +51,7 @@ export async function uploadProfileImage(
     return { ok: true, publicUrl };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Upload failed.';
-    return { ok: false, error: msg };
+    return { ok: false, error: coerceApiError('upload your image', msg) };
   }
 }
 
@@ -66,6 +67,6 @@ export async function uploadAndSaveProfileImage(
   if (!supabase) return { ok: false, error: 'Not connected.' };
   const patch = kind === 'avatar' ? { avatar_url: uploaded.publicUrl } : { banner_url: uploaded.publicUrl };
   const { error } = await supabase.from('profiles').update(patch).eq('id', userId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: coerceApiError('save your profile photo', error.message) };
   return uploaded;
 }

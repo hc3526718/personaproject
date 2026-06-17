@@ -1,6 +1,7 @@
 import { inferContentType, inferExt } from './mediaComposer';
 import { getSupabase } from './supabase';
 import type { MediaAssetRow } from '../roadmap/types';
+import { coerceApiError } from './appAlert';
 
 export type CatalogMediaUploadResult =
   | { ok: true; asset: MediaAssetRow }
@@ -23,7 +24,7 @@ export async function uploadCatalogMediaVideo(
     const { error: upErr } = await supabase.storage
       .from('media_assets')
       .upload(storage_path, blob, { contentType, upsert: false });
-    if (upErr) return { ok: false, error: upErr.message };
+    if (upErr) return { ok: false, error: coerceApiError('upload media', upErr.message) };
     const pub = supabase.storage.from('media_assets').getPublicUrl(storage_path);
     const public_url = pub.data.publicUrl ?? null;
     if (!public_url) return { ok: false, error: 'Could not resolve public URL.' };
@@ -40,11 +41,11 @@ export async function uploadCatalogMediaVideo(
       .select('*')
       .single();
     if (error || !data) {
-      return { ok: false, error: error?.message ?? 'Could not save media record.' };
+      return { ok: false, error: coerceApiError('save media', error?.message ?? 'Could not save media record.') };
     }
     void meta;
     return { ok: true, asset: data as MediaAssetRow };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Upload failed.' };
+    return { ok: false, error: coerceApiError('upload media', e instanceof Error ? e.message : undefined) };
   }
 }

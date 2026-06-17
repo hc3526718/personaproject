@@ -1,5 +1,12 @@
 import { getSupabase } from '../lib/supabase';
 import type { ProfileRow } from './types';
+import {
+  isAccountGoneError,
+  isAccountGonePostgrestError,
+} from '../auth/invalidAccountSession';
+import { coerceApiError } from '../lib/appAlert';
+
+export type EnsureProfileResult = { ok: true } | { ok: false; accountGone: boolean };
 
 /**
  * Load the signed-in user’s profile row (call after `getSession` / `onAuthStateChange`).
@@ -17,14 +24,33 @@ export async function fetchProfileByUserId(userId: string): Promise<ProfileRow |
  * Ensure profile exists after OAuth / email sign-up (server trigger preferred; this is a client fallback).
  * Never overwrites an existing display name — login must not wipe Google/OAuth full names.
  */
-export async function ensureProfileRow(userId: string, emailHint: string | null): Promise<void> {
+export async function ensureProfileRow(
+  userId: string,
+  emailHint: string | null,
+): Promise<EnsureProfileResult> {
   const supabase = getSupabase();
-  if (!supabase) return;
+  if (!supabase) return { ok: true };
+
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !authData.user?.id) {
+    return { ok: false, accountGone: isAccountGoneError(authErr) || !authData.user?.id };
+  }
+  if (authData.user.id !== userId) {
+    return { ok: false, accountGone: true };
+  }
+
   const display = emailHint?.split('@')[0]?.trim() || 'Member';
-  await supabase.from('profiles').upsert(
+  const { error } = await supabase.from('profiles').upsert(
     { id: userId, display_name: display },
     { onConflict: 'id', ignoreDuplicates: true },
   );
+  if (error) {
+    if (isAccountGonePostgrestError(error)) {
+      return { ok: false, accountGone: true };
+    }
+    return { ok: true };
+  }
+  return { ok: true };
 }
 
 /** Fill display / first / last from OAuth metadata when the profile row is still blank. */
@@ -131,7 +157,13 @@ export async function updateProfileBasics(
     .select('*')
     .single();
   if (error || !data) {
-    return { ok: false, error: error?.message ?? 'Could not save profile.' };
+    if (error?.code === '23505') {
+      return { ok: false, error: 'That username was just claimed.' };
+    }
+    return {
+      ok: false,
+      error: coerceApiError('save your profile', error?.message ?? 'Could not save profile.'),
+    };
   }
   return { ok: true, profile: data as ProfileRow };
 }
@@ -157,7 +189,9 @@ export async function updateProfileAthleteDetails(
       primary_sport: details.discipline.trim() || null,
     })
     .eq('id', userId);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    return { ok: false, error: coerceApiError('save athlete details', error.message) };
+  }
   return { ok: true };
 }
 

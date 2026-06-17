@@ -9,6 +9,7 @@ import { uploadMessageMedia } from '../lib/messageMediaUpload';
 import type { ComposerMedia } from '../lib/mediaComposer';
 import { isAppStoreScreenshotMode } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
+import { coerceApiError } from '../lib/appAlert';
 import { fetchUserPrefsDoc, patchUserPrefsDoc } from './userSettingsService';
 import type { ConversationRow, MessageRow } from './types';
 
@@ -224,7 +225,7 @@ export async function sendTextMessage(
     if (__DEV__ && error) {
       console.warn('[sendTextMessage]', error.code, error.message, error.details);
     }
-    return { ok: false, error: msg };
+    return { ok: false, error: coerceApiError('send this message', msg) };
   }
   return { ok: true, message: data as MessageRow };
 }

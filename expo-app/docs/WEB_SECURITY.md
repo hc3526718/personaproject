@@ -6,7 +6,7 @@ Operational checklist for the The Dalton Grant Academy web deployment at `https:
 
 | Layer | Control |
 |-------|---------|
-| **Vercel** | Security headers in root `vercel.json` (CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`). Restrict production env vars to Production only; never commit service role or webhook secrets. |
+| **Vercel** | Security headers in root `vercel.json` (CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`). SPA rewrites use `/app/:path((?!.*\\..*).*)` so dotfile probes like `/app/.env` return **404** instead of `index.html` (DeploySafe “env leak” false positive). Restrict production env vars to Production only; never commit service role or webhook secrets. |
 | **Supabase** | RLS on all public tables; anon key only in client; service role only in Edge Functions. Enable leaked-password protection and Auth rate limits. Run advisors after migrations (`021_messages_delete_participant.sql`, etc.). |
 | **Stripe** | Webhook signature verification with `STRIPE_WEBHOOK_SECRET`; publishable key only in client; price IDs from env. |
 | **RevenueCat** | Webhook → `subscription_state`; client `Purchases.logIn(supabaseUserId)`; never trust SDK alone for server gates. |

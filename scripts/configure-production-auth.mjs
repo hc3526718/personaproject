@@ -30,6 +30,7 @@ const HOOK_URI = `https://${PROJECT_REF}.supabase.co/functions/v1/send-auth-emai
 
 const REDIRECT_URLS = [
   `${SITE_ORIGIN}/email-confirmed`,
+  `${SITE_ORIGIN}/password-reset`,
   `${SITE_ORIGIN}/app/auth/callback`,
   `${SITE_ORIGIN}/**`,
   `https://www.daltongrantacademy.uk/app/auth/callback`,

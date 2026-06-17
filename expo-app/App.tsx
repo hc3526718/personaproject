@@ -20,12 +20,16 @@ import { DS } from './src/designSystem';
 import { BootCircleLoader } from './src/components/BootCircleLoader';
 import { DALTON_BOOT_VIDEO_BG, warmDaltonBootVideoCache } from './src/constants/daltonBootVideo';
 import { appFontSources } from './src/loadAppFonts';
+import { AppAlertProvider } from './src/components/AppAlertProvider';
+import { installNativeAlertBridge } from './src/lib/appAlert';
 import { MediaSourcePickerHost } from './src/components/MediaSourcePickerHost';
 import { KeyboardDismissShell } from './src/components/KeyboardDismissShell';
 import WebDemoApp from './src/WebDemoApp';
 
 /** Set EXPO_PUBLIC_USE_WEBVIEW_DEMO=1 to load static HTML in WebView instead of native screens. */
 const USE_WEBVIEW_DEMO = process.env.EXPO_PUBLIC_USE_WEBVIEW_DEMO === '1';
+
+installNativeAlertBridge();
 
 function NativeShellInner({ fontsReady }: { fontsReady: boolean }) {
   const { ready: authReady } = useAuth();
@@ -84,9 +88,11 @@ function NativeShell() {
   const fontsReady = fontsLoaded || !!fontError;
 
   return (
-    <AuthProvider>
-      <NativeShellInner fontsReady={fontsReady} />
-    </AuthProvider>
+    <AppAlertProvider>
+      <AuthProvider>
+        <NativeShellInner fontsReady={fontsReady} />
+      </AuthProvider>
+    </AppAlertProvider>
   );
 }
 

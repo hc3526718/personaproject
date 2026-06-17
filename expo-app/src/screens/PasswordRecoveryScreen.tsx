@@ -67,9 +67,10 @@ export function PasswordRecoveryScreen() {
             <FontAwesome name="lock" size={22} color={DS.color.gold} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoCardTitle}>Choose a new password</Text>
+            <Text style={styles.infoCardTitle}>Set a new password</Text>
             <Text style={styles.infoCardBody}>
-              You opened a reset link from your email. Save a new password below, then continue in the app as usual.
+              You opened the reset link from your email. Choose a new password below — this step is only available
+              after that link.
             </Text>
           </View>
         </View>

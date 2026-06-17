@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { hideNativeSplash } from './nativeSplashGate';
+import { userFacingErrorBody } from '../lib/appAlert';
 
 type Props = {
   children: ReactNode;
@@ -43,7 +44,11 @@ export class BootErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.wrap}>
           <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.body}>{this.state.error.message}</Text>
+          <Text style={styles.body}>
+            {__DEV__
+              ? this.state.error.message
+              : userFacingErrorBody('load the app')}
+          </Text>
           <Pressable onPress={this.retry} style={styles.btn}>
             <Text style={styles.btnText}>Try again</Text>
           </Pressable>

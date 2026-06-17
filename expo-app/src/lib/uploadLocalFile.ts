@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { readLocalFileAsArrayBuffer } from './readLocalFileBytes';
+import { coerceApiError } from './appAlert';
 
 /** Upload a local file URI to Supabase Storage (RN-safe: uses ArrayBuffer, not Blob). */
 export async function uploadLocalUriToStorage(
@@ -19,7 +20,7 @@ export async function uploadLocalUriToStorage(
       upsert: false,
     });
     if (error) {
-      return { ok: false, error: error.message };
+      return { ok: false, error: coerceApiError('upload this file', error.message) };
     }
     const pub = supabase.storage.from(bucket).getPublicUrl(storagePath);
     const publicUrl = pub.data.publicUrl?.trim() || '';
@@ -28,6 +29,6 @@ export async function uploadLocalUriToStorage(
     }
     return { ok: true, publicUrl };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Upload failed' };
+    return { ok: false, error: coerceApiError('upload this file', e instanceof Error ? e.message : undefined) };
   }
 }

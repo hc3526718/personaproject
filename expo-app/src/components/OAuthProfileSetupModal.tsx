@@ -13,6 +13,8 @@ import {
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { isAccountGoneError, isAccountGonePostgrestError } from '../auth/invalidAccountSession';
+import { showSupportError } from '../lib/appAlert';
 import { AppleHeroButton } from './AppleHeroButton';
 import { DS } from '../designSystem';
 import { capitalizeProfileTag, capitalizeProfileTags } from '../lib/capitalizeProfileTags';
@@ -66,7 +68,7 @@ const WIZARD_LAST_INDEX = 3;
 
 export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [wizardStep, setWizardStep] = useState(0);
   const [oauthFirstNamePreview, setOauthFirstNamePreview] = useState('');
   const [personaRole, setPersonaRole] = useState('');
@@ -159,7 +161,11 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
       }
     } catch (e) {
       setSaving(false);
-      Alert.alert('Username', e instanceof Error ? e.message : 'Could not set username.');
+      if (isAccountGoneError(e)) {
+        await logout();
+        return;
+      }
+      showSupportError('Username', 'set your username');
       return;
     }
 
@@ -182,8 +188,10 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
     if (error) {
       if (error.code === '23505') {
         Alert.alert('Username taken', 'That username was just claimed. Try another.');
+      } else if (isAccountGonePostgrestError(error)) {
+        await logout();
       } else {
-        Alert.alert('Could not save profile', error.message);
+        showSupportError('Could not save profile', 'save your profile');
       }
       return;
     }
@@ -197,6 +205,7 @@ export function OAuthProfileSetupModal({ visible, onCompleted }: Props) {
     user,
     username,
     usernameSkipped,
+    logout,
   ]);
 
   const canAdvanceFromStep = useCallback((): boolean => {

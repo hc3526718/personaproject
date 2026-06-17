@@ -1,5 +1,6 @@
 import type { Factor, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from '../lib/supabase';
+import { coerceApiError } from '../lib/appAlert';
 
 export const MFA_APP_LABEL = 'DGA';
 
@@ -30,7 +31,7 @@ export async function listTotpFactorsRaw(): Promise<{
   const supabase = client();
   if (!supabase) return { verified: [], unverified: [] };
   const { data, error } = await supabase.auth.mfa.listFactors();
-  if (error) return { verified: [], unverified: [], error: error.message };
+  if (error) return { verified: [], unverified: [], error: coerceApiError('load security settings', error.message) };
   const all = listAllTotpFactors(data?.totp);
   return {
     verified: listVerifiedTotpFactors(data?.totp),
@@ -108,7 +109,7 @@ export async function startTotpEnrollment(): Promise<
           'An authenticator entry already exists for this account. Remove the existing DGA entry from your authenticator app, then try again.',
       };
     }
-    return { ok: false, message: msg };
+    return { ok: false, message: coerceApiError('set up two-factor authentication', msg) };
   }
 
   return {
@@ -135,7 +136,7 @@ export async function completeTotpEnrollment(
 
   const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
   if (chErr || !challenge?.id) {
-    return { ok: false, message: chErr?.message ?? 'Could not start verification.' };
+    return { ok: false, message: coerceApiError('verify your authenticator', chErr?.message) };
   }
 
   const { error: verErr } = await supabase.auth.mfa.verify({
@@ -144,7 +145,7 @@ export async function completeTotpEnrollment(
     code: trimmed,
   });
   if (verErr) {
-    return { ok: false, message: verErr.message };
+    return { ok: false, message: coerceApiError('verify your authenticator', verErr.message) };
   }
   return { ok: true };
 }
@@ -167,7 +168,7 @@ export async function verifyMfaLoginCode(
 
   const { data: challenge, error: chErr } = await supabase.auth.mfa.challenge({ factorId: factor.id });
   if (chErr || !challenge?.id) {
-    return { ok: false, message: chErr?.message ?? 'Could not start MFA challenge.' };
+    return { ok: false, message: coerceApiError('verify your security code', chErr?.message) };
   }
 
   const { error: verErr } = await supabase.auth.mfa.verify({
@@ -176,7 +177,7 @@ export async function verifyMfaLoginCode(
     code: trimmed,
   });
   if (verErr) {
-    return { ok: false, message: verErr.message };
+    return { ok: false, message: coerceApiError('verify your security code', verErr.message) };
   }
   return { ok: true };
 }
@@ -187,6 +188,6 @@ export async function unenrollTotpFactor(
   const supabase = client();
   if (!supabase) return { ok: false, message: 'Supabase is not configured.' };
   const { error } = await supabase.auth.mfa.unenroll({ factorId });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: coerceApiError('remove two-factor authentication', error.message) };
   return { ok: true };
 }

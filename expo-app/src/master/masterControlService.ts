@@ -1,6 +1,7 @@
 import { safeGetSession } from '../auth/authSessionRecovery';
 import { getMasterDeleteUserEdgeUrl, getSupabaseAnonKey, getVerifyMasterPinEdgeUrl } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
+import { coerceApiError } from '../lib/appAlert';
 
 /** Verify master PIN via Edge Function (avoids PostgREST RPC 404). Falls back to RPC if needed. */
 export async function verifyMasterPin(
@@ -45,7 +46,7 @@ export async function verifyMasterPin(
             'Master PIN service is not deployed. Run: supabase functions deploy verify-master-pin',
         };
       }
-      return { ok: false, message: msg };
+      return { ok: false, message: coerceApiError('verify your PIN', msg) };
     }
     const parsed = JSON.parse(txt) as { valid?: boolean };
     if (parsed.valid === true) return { ok: true };
@@ -53,7 +54,7 @@ export async function verifyMasterPin(
   } catch (e) {
     return {
       ok: false,
-      message: e instanceof Error ? e.message : 'Could not verify PIN.',
+      message: coerceApiError('verify your PIN', e instanceof Error ? e.message : undefined),
     };
   }
 }
@@ -72,7 +73,7 @@ async function verifyMasterPinRpc(
           'Master PIN verification is unavailable. Deploy the verify-master-pin Edge Function in Supabase.',
       };
     }
-    return { ok: false, message: msg };
+    return { ok: false, message: coerceApiError('verify your PIN', msg) };
   }
   if (data === true) return { ok: true };
   return { ok: false, message: 'Incorrect PIN.' };
@@ -115,7 +116,7 @@ export async function masterGrantDaltonVerified(
     if (msg.includes('invalid_pin') || msg.includes('verify_master_pin')) {
       return { ok: false, message: 'Incorrect PIN.' };
     }
-    return { ok: false, message: msg };
+    return { ok: false, message: coerceApiError('verify this user', msg) };
   }
   if (data === true) return { ok: true };
   return { ok: false, message: 'Incorrect PIN or not authorized.' };
@@ -177,7 +178,7 @@ export async function masterSuspendUser(
     if (msg.includes('invalid_pin') || msg.includes('verify_master_pin')) {
       return { ok: false, message: 'Incorrect PIN.' };
     }
-    return { ok: false, message: msg };
+    return { ok: false, message: coerceApiError('update this suspension', msg) };
   }
   if (data === true) return { ok: true };
   return { ok: false, message: 'Incorrect PIN or not authorized.' };
@@ -203,9 +204,14 @@ export async function masterDeleteUserAccount(
       body: JSON.stringify({ target_user_id: targetUserId, pin }),
     });
     const txt = await res.text();
-    if (!res.ok) return { ok: false, message: txt || res.statusText };
+    if (!res.ok) {
+      return { ok: false, message: coerceApiError('delete this account', txt || res.statusText) };
+    }
     return { ok: true };
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : 'network_error' };
+    return {
+      ok: false,
+      message: coerceApiError('delete this account', e instanceof Error ? e.message : undefined),
+    };
   }
 }

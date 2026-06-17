@@ -17,6 +17,7 @@ import {
 import { formatAuthorDisplayName } from '../lib/communityPostBody';
 import { isAppStoreScreenshotMode } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
+import { coerceApiError } from '../lib/appAlert';
 import type {
   EventReviewRow,
   EventRow,
@@ -241,7 +242,9 @@ export async function insertCommunityPost(
     .insert({ author_id: authorId, body: trimmed })
     .select('*')
     .single();
-  if (error || !data) return { error: error?.message ?? 'Could not create post.' };
+  if (error || !data) {
+    return { error: coerceApiError('create your post', error?.message ?? 'Could not create post.') };
+  }
   return { row: data as PostRow };
 }
 
@@ -921,7 +924,7 @@ export async function hostCheckInByReference(reference: string): Promise<{
   const { data, error } = await supabase.rpc('host_check_in_booking', {
     p_reference: reference.trim(),
   });
-  if (error) return { ok: false, reason: error.message };
+  if (error) return { ok: false, reason: coerceApiError('check in this attendee', error.message) };
   const j = data as Record<string, unknown> | null;
   if (!j || j.ok !== true) {
     return { ok: false, reason: String(j?.reason ?? 'rpc_failed') };
@@ -1213,7 +1216,16 @@ export async function upsertEventReview(
     },
     { onConflict: 'event_id,user_id' },
   );
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    const msg = error.message;
+    if (msg.includes('violates') || msg.includes('policy')) {
+      return {
+        ok: false,
+        error: 'Make sure you checked in and waited one hour after the event end.',
+      };
+    }
+    return { ok: false, error: coerceApiError('save your review', msg) };
+  }
   return { ok: true };
 }
 

@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DS } from '../designSystem';
 import { hideNativeSplash } from '../boot/nativeSplashGate';
+import { userFacingErrorBody } from '../lib/appAlert';
 
 type Props = {
   children: ReactNode;
@@ -50,9 +51,10 @@ export class AppErrorBoundary extends Component<Props, State> {
       return this.props.children;
     }
 
-    const message =
-      this.state.error.message?.trim() ||
-      'Something went wrong while loading the app.';
+    const message = __DEV__
+      ? this.state.error.message?.trim() ||
+        'Something went wrong while loading the app.'
+      : userFacingErrorBody('open Dalton');
 
     return (
       <View style={styles.root}>

@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { saveTicketAsPdf, saveTicketAsPng } from '../lib/ticketExport';
+import { userFacingErrorBody } from '../lib/appAlert';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
 import {
@@ -857,7 +858,7 @@ async function shareEventCalendar(
   try {
     await shareEventAsIcs(icsInputFromSchedule(title, venue, scheduleLine, refHint));
   } catch (e) {
-    Alert.alert('Calendar', e instanceof Error ? e.message : 'Could not create calendar file');
+    Alert.alert('Calendar', userFacingErrorBody('add this event to your calendar'));
   }
 }
 
@@ -2133,12 +2134,7 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
                   if (res.ok) {
                     Alert.alert('Thanks', 'Your review was saved.');
                   } else {
-                    Alert.alert(
-                      'Could not save',
-                      res.error?.includes('violates') || res.error?.includes('policy')
-                        ? 'Make sure you checked in and waited one hour after the event end (server rules).'
-                        : (res.error ?? 'Try again later.'),
-                    );
+                    Alert.alert('Could not save', res.error ?? 'Try again later.');
                   }
                 })();
               }}

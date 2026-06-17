@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
 import {
@@ -17,6 +17,7 @@ import {
   completeWebOAuthSessionIfNeeded,
   getEmailConfirmRedirectUri,
   getOAuthRedirectUri,
+  getPasswordResetRedirectUri,
   ingestSessionFromAuthCallbackUrl,
   signInWithAppleNative,
   signInWithGoogleOAuth,
@@ -44,8 +45,10 @@ import {
   recoverStaleAuthSession,
   safeGetSession,
 } from './authSessionRecovery';
+import { isAccountGoneError } from './invalidAccountSession';
 import { mapAuthEmailErrorMessage, mapSignUpErrorMessage } from './passwordValidation';
 import { hasVerifiedTotpFactor, needsMfaStepUp } from './mfaService';
+import { withTimeout } from '../lib/withTimeout';
 
 export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
 
@@ -209,17 +212,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const applySessionUser = async (session: Session | null) => {
       if (session?.user) {
-        setUser(appUserFromSupabaseUser(session.user));
-        void ensureProfileRow(session.user.id, session.user.email ?? null);
+        const { data: authData, error: authErr } = await supabase.auth.getUser();
+        if (authErr && isAccountGoneError(authErr)) {
+          await clearStaleAuthSession(supabase);
+          setAllowMessagesFrom('everyone');
+          setUser(null);
+          setMfaStepUpPending(false);
+          return;
+        }
+
+        const liveUser = authData.user ?? session.user;
+        if (!liveUser?.id) {
+          await clearStaleAuthSession(supabase);
+          setAllowMessagesFrom('everyone');
+          setUser(null);
+          setMfaStepUpPending(false);
+          return;
+        }
+
+        setUser(appUserFromSupabaseUser(liveUser));
+        void (async () => {
+          const ensured = await ensureProfileRow(liveUser.id, liveUser.email ?? null);
+          if (!ensured.ok && ensured.accountGone) {
+            await clearStaleAuthSession(supabase);
+            setUser(null);
+          }
+        })();
         void syncProfileDisplayNameFromAuth(
-          session.user.id,
-          session.user.user_metadata as Record<string, unknown> | undefined,
-          session.user.email ?? null,
+          liveUser.id,
+          liveUser.user_metadata as Record<string, unknown> | undefined,
+          liveUser.email ?? null,
         );
-        void hydrateDmPolicy(session.user.id);
-        void syncProfileFlags(session.user.id);
+        void hydrateDmPolicy(liveUser.id);
+        void syncProfileFlags(liveUser.id);
         void import('../lib/pushRegistration').then((m) =>
-          m.schedulePushRegistration(session.user.id),
+          m.schedulePushRegistration(liveUser.id),
         );
         void (async () => {
           try {
@@ -285,7 +312,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (oauth.error) {
             const afterOAuth = await safeGetSession(supabase);
             if (!afterOAuth) {
-              authAlert('Google sign in', oauth.error);
+              authAlert(
+                'Sign in',
+                oauth.error === 'pkce_verifier_missing'
+                  ? 'Open the confirmation link in the same browser where you signed up, or return to the app and tap I\'ve confirmed — continue.'
+                  : oauth.error,
+              );
             }
           }
         }
@@ -334,13 +366,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase || Platform.OS === 'web') return;
     let alive = true;
     const ingest = async (url: string) => {
-      if (!url.includes('auth/callback') && !url.includes('access_token')) return;
+      if (!url.includes('auth/callback') && !url.includes('access_token') && !url.includes('token_hash'))
+        return;
       const { ok, error } = await ingestSessionFromAuthCallbackUrl(supabase, url);
-      if (!alive || !ok) {
+      if (!alive) return;
+      if (!ok) {
         if (error === 'missing_tokens') return;
-        if (error && __DEV__) console.warn('[auth] deep link session failed:', error);
+        authAlert(
+          'Sign in',
+          error === 'pkce_verifier_missing'
+            ? 'Open the confirmation link on the same device where you signed up, then tap I\'ve confirmed — continue on Create Account.'
+            : 'We could not finish signing you in from that link. Try again from the app or use Log In.',
+        );
         return;
       }
+      setOAuthBusy(false);
       // `onAuthStateChange` persists session → `applySessionUser` runs via subscription.
     };
     const sub = Linking.addEventListener('url', ({ url }) => {
@@ -349,9 +389,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void Linking.getInitialURL().then((url) => {
       if (url) void ingest(url);
     });
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      void Linking.getInitialURL().then((url) => {
+        if (url) void ingest(url);
+      });
+    });
     return () => {
       alive = false;
       sub.remove();
+      appStateSub.remove();
     };
   }, [supabase]);
 
@@ -450,7 +497,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           data: { dalton_verified: false },
-          emailRedirectTo: getEmailConfirmRedirectUri(),
+          emailRedirectTo:
+            Platform.OS === 'web' ? getEmailConfirmRedirectUri() : getOAuthRedirectUri(),
         },
       });
       if (error) {
@@ -474,7 +522,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { ok: false, message: 'Enter your email address.' };
       }
       const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: getEmailConfirmRedirectUri(),
+        redirectTo: Platform.OS === 'web' ? getPasswordResetRedirectUri() : getOAuthRedirectUri(),
       });
       if (error) return { ok: false, message: mapAuthEmailErrorMessage(error.message) };
       return { ok: true };
@@ -515,18 +563,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setOAuthBusy(true);
     try {
-      const result = await signInWithGoogleOAuth(supabase);
+      const result = await withTimeout(signInWithGoogleOAuth(supabase), {
+        ms: 45000,
+        timeoutMessage: 'Google sign in took too long. Please try again.',
+      });
       if (!result.ok) {
-        setOAuthBusy(false);
         if (result.message !== 'Sign in cancelled') {
-          authAlert('Google sign in', result.message);
+          const m = result.message.toLowerCase();
+          if (m.includes('already') && (m.includes('registered') || m.includes('account'))) {
+            authAlert(
+              'Google sign in',
+              'This email already has an account. If you created it with email and password, use Log In. Otherwise try Apple/Google with the same email.',
+            );
+          } else {
+            authAlert('Google sign in', result.message);
+          }
         }
         return false;
       }
       if (Platform.OS === 'web') {
         return true;
       }
-      const session = await safeGetSession(supabase);
+      const session = await withTimeout(safeGetSession(supabase), {
+        ms: 15000,
+        timeoutMessage: 'Could not finish signing you in. Please try again.',
+      });
       if (session?.user) {
         setUser(appUserFromSupabaseUser(session.user));
         void (async () => {
@@ -554,8 +615,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return true;
     } catch {
-      setOAuthBusy(false);
       return false;
+    } finally {
+      setOAuthBusy(false);
     }
   }, [supabase]);
 
@@ -568,41 +630,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     }
     setOAuthBusy(true);
-    const result = await signInWithAppleNative(supabase);
-    setOAuthBusy(false);
-    if (!result.ok) {
-      if (result.message !== 'Sign in cancelled') {
-        authAlert('Apple sign in', result.message);
-      }
-      return false;
-    }
-    const session = await safeGetSession(supabase);
-    if (session?.user) {
-      setUser(appUserFromSupabaseUser(session.user));
-      void (async () => {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('dalton_verified, master_control')
-            .eq('id', session.user.id)
-            .maybeSingle();
-          if (profile?.dalton_verified || profile?.master_control === 'yes') {
-            setUser((prev) =>
-              prev?.id === session.user.id
-                ? {
-                    ...prev,
-                    daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
-                    masterControl: profile?.master_control === 'yes',
-                  }
-                : prev,
+    try {
+      const result = await withTimeout(signInWithAppleNative(supabase), {
+        ms: 45000,
+        timeoutMessage: 'Apple sign in took too long. Please try again.',
+      });
+      if (!result.ok) {
+        if (result.message !== 'Sign in cancelled') {
+          const m = result.message.toLowerCase();
+          if (m.includes('already') && (m.includes('registered') || m.includes('account'))) {
+            authAlert(
+              'Apple sign in',
+              'This email already has an account. If you created it with email and password, use Log In. Otherwise try Apple/Google with the same email.',
             );
+          } else {
+            authAlert('Apple sign in', result.message);
           }
-        } catch {
-          /* non-fatal */
         }
-      })();
+        return false;
+      }
+      const session = await withTimeout(safeGetSession(supabase), {
+        ms: 15000,
+        timeoutMessage: 'Could not finish signing you in. Please try again.',
+      });
+      if (session?.user) {
+        setUser(appUserFromSupabaseUser(session.user));
+        void (async () => {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('dalton_verified, master_control')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            if (profile?.dalton_verified || profile?.master_control === 'yes') {
+              setUser((prev) =>
+                prev?.id === session.user.id
+                  ? {
+                      ...prev,
+                      daltonVerified: prev.daltonVerified || !!profile?.dalton_verified,
+                      masterControl: profile?.master_control === 'yes',
+                    }
+                  : prev,
+              );
+            }
+          } catch {
+            /* non-fatal */
+          }
+        })();
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setOAuthBusy(false);
     }
-    return true;
   }, [supabase]);
 
   const value = useMemo(

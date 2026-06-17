@@ -22,6 +22,7 @@ const htmlPages = [
   'athlete-agreement.html',
   'labels-and-markings.html',
   'email-confirmed.html',
+  'password-reset.html',
 ];
 
 await cp(path.join(repoRoot, 'shared'), path.join(dest, 'shared'), { recursive: true });

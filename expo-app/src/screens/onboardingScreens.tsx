@@ -59,6 +59,12 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
         >
           Log In
         </AppleHeroButton>
+        <Pressable
+          style={styles.welcomeResetLink}
+          onPress={() => navigation.navigate('ForgotPassword')}
+        >
+          <Text style={styles.gold}>Reset password</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -187,13 +193,13 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
     setSent(true);
     Alert.alert(
       'Check your email',
-      'We sent you a reset link. Open it on this device so you can choose a new password. If your email isn’t arriving, check spam folders.',
+      'If an account exists for that address, we sent a reset link. Open it on this device, then set a new password in the app. Check spam if you do not see it within a few minutes.',
     );
   };
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Forgot Password" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Reset password" onBack={() => navigation.goBack()} />
       <ScrollView
         contentContainerStyle={[styles.scrollPad, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
@@ -203,10 +209,10 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
             <FontAwesome name="lock" size={22} color={DS.color.gold} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.infoCardTitle}>Reset your password</Text>
+            <Text style={styles.infoCardTitle}>Request a reset link</Text>
             <Text style={styles.infoCardBody}>
-              Enter the email you used to sign up. We&apos;ll send a secure link — only email/password accounts can use this
-              (not Apple or Google sign-in).
+              Enter the email you use to sign in. We&apos;ll email you a secure link — you can only choose a
+              new password after opening that link. Apple and Google sign-in accounts cannot reset here.
             </Text>
           </View>
         </View>
@@ -485,6 +491,10 @@ const styles = StyleSheet.create({
   },
   welcomeBtn: {
     minHeight: 58,
+  },
+  welcomeResetLink: {
+    alignSelf: 'center',
+    paddingVertical: DS.space.sm,
   },
   field: {
     marginBottom: DS.space.lg,

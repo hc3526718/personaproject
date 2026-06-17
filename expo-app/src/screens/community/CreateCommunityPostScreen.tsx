@@ -34,6 +34,7 @@ import { uploadLocalUriToStorage } from '../../lib/uploadLocalFile';
 import { canSubmitCommunityPost } from '../../roadmap/communityPolicy';
 import { normalizePostBodyForStorage, validateMentionsInText } from '../../lib/postMentions';
 import { insertCommunityPost, listAllEvents } from '../../roadmap/liveDataService';
+import { coerceApiError } from '../../lib/appAlert';
 import type { CommunityStackParamList } from '../../navigation/types';
 import { useCommunityTheme } from './CommunityStylesContext';
 import { useKeyboardInset } from '../../hooks/useKeyboardInset';
@@ -160,9 +161,9 @@ export function CreateCommunityPostScreen({ navigation }: Props) {
               visibility: 'public',
               post_id: row.id,
             });
-            if (insErr) uploadErrors.push(insErr.message);
+            if (insErr) uploadErrors.push(coerceApiError('attach media to your post', insErr.message));
           } catch (e) {
-            uploadErrors.push(e instanceof Error ? e.message : 'Upload failed');
+            uploadErrors.push(coerceApiError('attach media to your post', e instanceof Error ? e.message : undefined));
           }
         }
         if (uploadErrors.length === picks.length) {

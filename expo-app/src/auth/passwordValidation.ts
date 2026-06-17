@@ -85,8 +85,15 @@ export function mapSignUpErrorMessage(raw: string): string {
   if (m.includes('weak') || m.includes('password')) {
     return 'Password must include lowercase, uppercase letters and digits.';
   }
-  if (m.includes('already registered') || m.includes('already been registered')) {
-    return 'This email is already registered. Try Log In instead.';
+  if (
+    m.includes('already registered') ||
+    m.includes('already been registered') ||
+    m.includes('user already registered')
+  ) {
+    return (
+      'This email is already registered. ' +
+      'If you created the account with Google or Apple, use that button. Otherwise, use Log In.'
+    );
   }
   return raw;
 }

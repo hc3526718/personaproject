@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import {
   Alert,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,6 +11,7 @@ import {
   Text,
   TextInput,
   View,
+  type ScrollView as ScrollViewType,
 } from 'react-native';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -27,6 +29,14 @@ import { PasswordRequirementsHint } from '../components/PasswordRequirementsHint
 import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { DS } from '../designSystem';
 import { isSupabaseConfigured } from '../lib/env';
+import { getSupabase } from '../lib/supabase';
+import { safeGetSession } from '../auth/authSessionRecovery';
+import { withTimeout } from '../lib/withTimeout';
+import {
+  clearSignupPendingEmail,
+  readSignupPendingEmail,
+  saveSignupPendingEmail,
+} from '../auth/signupPendingStorage';
 import type { AuthStackParamList } from '../navigation/types';
 import { AuthWebBackBar } from '../components/AuthWebBackBar';
 import { authBackHandler } from '../lib/authNavigation';
@@ -41,12 +51,66 @@ export default function GrantAccessScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<GrantRoute>();
   const { login, signUp } = useAuth();
+  const scrollRef = useRef<ScrollViewType>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signupConfirmEmail, setSignupConfirmEmail] = useState<string | null>(null);
+  const [continueBusy, setContinueBusy] = useState(false);
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, []);
+
+  const showPendingBanner = useCallback(
+    (pendingEmail: string) => {
+      setSignupConfirmEmail(pendingEmail);
+      void saveSignupPendingEmail(pendingEmail);
+      requestAnimationFrame(() => {
+        scrollToTop();
+      });
+    },
+    [scrollToTop],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        const pending = await readSignupPendingEmail();
+        if (pending) {
+          setSignupConfirmEmail((prev) => prev ?? pending);
+          if (!email.trim()) setEmail(pending);
+        }
+        const supabase = getSupabase();
+        if (!supabase) return;
+        const session = await safeGetSession(supabase);
+        if (session?.user?.email_confirmed_at || session?.user?.confirmed_at) {
+          await clearSignupPendingEmail();
+          setSignupConfirmEmail(null);
+        }
+      })();
+    }, [email]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = AppState.addEventListener('change', (state) => {
+        if (state !== 'active') return;
+        void (async () => {
+          const supabase = getSupabase();
+          if (!supabase) return;
+          const session = await safeGetSession(supabase);
+          if (session?.user) {
+            await clearSignupPendingEmail();
+            setSignupConfirmEmail(null);
+          }
+        })();
+      });
+      return () => sub.remove();
+    }, []),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -71,6 +135,7 @@ export default function GrantAccessScreen() {
       Alert.alert('Password', 'Passwords do not match.');
       return;
     }
+    scrollToTop();
     if (isSupabaseConfigured()) {
       const result = await signUp(trimmed, password);
       if (!result.ok) {
@@ -78,19 +143,22 @@ export default function GrantAccessScreen() {
         return;
       }
       if (result.needsEmailConfirmation) {
-        setSignupConfirmEmail(trimmed);
+        showPendingBanner(trimmed);
         Alert.alert(
           'Confirm your email',
-            `We sent a confirmation link to ${trimmed}. Open it on this device — you'll land on our website to confirm, then return to the app and tap "I've confirmed — continue" below.`,
+          Platform.OS === 'web'
+            ? `We sent a confirmation link to ${trimmed}. Open it on this device — you'll land on our website to confirm, then return to the app and tap "I've confirmed — continue" below.`
+            : `We sent a confirmation link to ${trimmed}. Tap it in your email — it should open this app automatically. If not, return here and tap "I've confirmed — continue" below.`,
         );
         return;
       }
       setSignupConfirmEmail(null);
+      void clearSignupPendingEmail();
     }
     const loginResult = await login(trimmed, password);
     if (loginResult.ok) return;
     if (loginResult.reason === 'email_not_confirmed') {
-      setSignupConfirmEmail(trimmed);
+      showPendingBanner(trimmed);
       Alert.alert(
         'Confirm your email',
         `Please confirm your account using the link we sent to ${trimmed} before logging in.`,
@@ -101,10 +169,11 @@ export default function GrantAccessScreen() {
       'Could not finish sign-up',
       'Please check your details and internet connection. If you already have an account, use Log In.',
     );
-  }, [email, password, confirmPassword, login, signUp]);
+  }, [email, password, confirmPassword, login, scrollToTop, showPendingBanner, signUp]);
 
   const dismissConfirmBanner = useCallback(() => {
     setSignupConfirmEmail(null);
+    void clearSignupPendingEmail();
   }, []);
 
   const tryContinueAfterEmailConfirm = useCallback(async () => {
@@ -113,22 +182,46 @@ export default function GrantAccessScreen() {
       Alert.alert('Missing details', 'Enter the same email and password you used to sign up.');
       return;
     }
-    const loginResult = await login(trimmed, password);
-    if (loginResult.ok) {
-      setSignupConfirmEmail(null);
-      return;
-    }
-    if (loginResult.reason === 'email_not_confirmed') {
+    setContinueBusy(true);
+    try {
+      const supabase = getSupabase();
+      if (supabase) {
+        const session = await withTimeout(safeGetSession(supabase), {
+          ms: 12000,
+          timeoutMessage: 'Could not check your session. Please try again.',
+        });
+        if (session?.user) {
+          await clearSignupPendingEmail();
+          setSignupConfirmEmail(null);
+          return;
+        }
+      }
+      const loginResult = await withTimeout(login(trimmed, password), {
+        ms: 15000,
+        timeoutMessage: 'Could not continue right now. Check your connection and try again.',
+      });
+      if (loginResult.ok) {
+        await clearSignupPendingEmail();
+        setSignupConfirmEmail(null);
+        return;
+      }
+      if (loginResult.reason === 'email_not_confirmed') {
+        Alert.alert(
+          'Not confirmed yet',
+          `Open the link in the email we sent to ${trimmed} on this device, then try again.`,
+        );
+        return;
+      }
       Alert.alert(
-        'Not confirmed yet',
-        `Open the link in the email we sent to ${trimmed} on this device, then try again.`,
+        'Could not continue',
+        'Check your email and password. If you already confirmed, wait a moment and try again.',
       );
-      return;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      Alert.alert('Could not continue', msg);
+    } finally {
+      setContinueBusy(false);
     }
-    Alert.alert(
-      'Could not continue',
-      'Check your email and password. If you already confirmed, wait a moment and try again.',
-    );
   }, [email, login, password, signupConfirmEmail]);
 
   const goWelcome = useCallback(() => {
@@ -151,6 +244,7 @@ export default function GrantAccessScreen() {
         onBack={Platform.OS === 'web' ? undefined : authBackHandler(navigation, goWelcome)}
       />
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[S.scrollPad, S.scrollPadCompact, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -163,11 +257,15 @@ export default function GrantAccessScreen() {
             <Text style={local.confirmBannerTitle}>Check your email</Text>
             <Text style={local.confirmBannerBody}>
               We sent a confirmation link to{' '}
-              <Text style={local.confirmBannerEm}>{signupConfirmEmail}</Text>. Open it on this phone
-              — you&apos;ll see an &quot;Email confirmed&quot; page on daltongrantacademy.uk, then
-              return here and tap the button below.
+              <Text style={local.confirmBannerEm}>{signupConfirmEmail}</Text>.
+              {Platform.OS === 'web'
+                ? ' Open it on this device, confirm on daltongrantacademy.uk, then tap the button below.'
+                : ' Tap it in your email to open this app, or confirm and tap the button below.'}
             </Text>
-            <AppleHeroButton onPress={() => void tryContinueAfterEmailConfirm()}>
+            <AppleHeroButton
+              loading={continueBusy}
+              onPress={() => void tryContinueAfterEmailConfirm()}
+            >
               I&apos;ve confirmed — continue
             </AppleHeroButton>
             <Pressable onPress={dismissConfirmBanner} hitSlop={10} style={{ marginTop: DS.space.sm }}>
@@ -245,6 +343,9 @@ export default function GrantAccessScreen() {
             <Text style={S.gold}>Log In</Text>
           </Pressable>
         </View>
+        <Pressable style={local.resetLink} onPress={() => navigation.navigate('ForgotPassword')}>
+          <Text style={S.gold}>Reset password</Text>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -298,5 +399,10 @@ const local = StyleSheet.create({
     fontSize: 13,
     color: DS.color.textMuted,
     textDecorationLine: 'underline',
+  },
+  resetLink: {
+    alignSelf: 'center',
+    marginTop: DS.space.md,
+    paddingVertical: DS.space.xs,
   },
 });

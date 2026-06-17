@@ -2,6 +2,7 @@ import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { getSupabase } from './supabase';
 import { readLocalFileAsArrayBuffer } from './readLocalFileBytes';
+import { coerceApiError } from './appAlert';
 
 /** Supabase `media_assets` bucket — client-side size gate removed; server may still enforce limits. */
 export const HIGHLIGHT_VIDEO_MAX_BYTES = Number.MAX_SAFE_INTEGER;
@@ -29,7 +30,7 @@ function formatPhotoLibraryError(err: unknown): string {
   if (/empty|ENOENT|not found/i.test(msg)) {
     return 'The selected file is empty or unavailable. Pick another video or use Browse files.';
   }
-  return msg || 'Could not read this video from your device.';
+  return coerceApiError('upload your highlight video', msg || undefined);
 }
 
 async function measureLocalFileBytes(uri: string): Promise<number> {
@@ -74,7 +75,7 @@ export async function uploadHighlightVideo(
       .from('media_assets')
       .upload(storage_path, body, { contentType, upsert: false });
     if (error) {
-      return { ok: false, error: error.message || 'Storage upload failed.' };
+      return { ok: false, error: coerceApiError('upload your highlight video', error.message) };
     }
     const url = supabase.storage.from('media_assets').getPublicUrl(storage_path).data.publicUrl;
     if (!url) {
