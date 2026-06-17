@@ -28,8 +28,12 @@ import {
 } from '../auth/invalidAccountSession';
 import { safeGetSession } from '../auth/authSessionRecovery';
 import { withTimeout } from '../lib/withTimeout';
-import { OAuthProfileSetupModal } from '../components/OAuthProfileSetupModal';
+import { AppWelcomeTourModal } from '../components/AppWelcomeTourModal';
 import { OnboardingNavigator } from '../onboarding/OnboardingNavigator';
+import {
+  hasCompletedAppWelcomeTour,
+  markAppWelcomeTourCompleted,
+} from '../onboarding/appWelcomeTourStorage';
 import type {
   AuthStackParamList,
   CommunityStackParamList,
@@ -313,17 +317,19 @@ function AuthenticatedShell() {
   } = useSubscription();
   const supabase = getSupabase();
   const [gate, setGate] = useState<'loading' | 'onboarding' | 'app'>('loading');
-  const [oauthProfileSetupOpen, setOauthProfileSetupOpen] = useState(false);
+  const [onboardingSkipName, setOnboardingSkipName] = useState(false);
+  const [welcomeTourOpen, setWelcomeTourOpen] = useState(false);
 
   const refreshGate = useCallback(async () => {
     if (!user) {
       setGate('loading');
-      setOauthProfileSetupOpen(false);
+      setOnboardingSkipName(false);
+      setWelcomeTourOpen(false);
       return;
     }
     if (!supabase || user.id.startsWith('demo')) {
       setGate('app');
-      setOauthProfileSetupOpen(false);
+      setOnboardingSkipName(false);
       return;
     }
 
@@ -334,15 +340,14 @@ function AuthenticatedShell() {
       });
       const sessionUser = session?.user;
       if (!sessionUser?.id) {
-        setOauthProfileSetupOpen(false);
+        setOnboardingSkipName(false);
         setGate('onboarding');
         return;
       }
 
       const identities = sessionUser.identities ?? [];
       const providers = new Set(identities.map((i) => i.provider));
-      const oauthAppleGoogleOnly =
-        !providers.has('email') && (providers.has('google') || providers.has('apple'));
+      const oauthSkipName = providers.has('google') || providers.has('apple');
 
       const { data: profile, error } = await withTimeout(
         supabase
@@ -364,7 +369,7 @@ function AuthenticatedShell() {
           await signOutDeletedAccountSession(supabase, logout);
           return;
         }
-        setOauthProfileSetupOpen(false);
+        setOnboardingSkipName(false);
         setGate('onboarding');
         return;
       }
@@ -385,18 +390,12 @@ function AuthenticatedShell() {
       }
 
       if (onboardingAt) {
-        setOauthProfileSetupOpen(false);
+        setOnboardingSkipName(false);
         setGate('app');
         return;
       }
 
-      if (oauthAppleGoogleOnly) {
-        setOauthProfileSetupOpen(true);
-        setGate('app');
-        return;
-      }
-
-      setOauthProfileSetupOpen(false);
+      setOnboardingSkipName(oauthSkipName);
       setGate('onboarding');
     } catch (err) {
       if (__DEV__) console.warn('[AuthenticatedShell] refreshGate', err);
@@ -404,7 +403,7 @@ function AuthenticatedShell() {
         await signOutDeletedAccountSession(supabase, logout);
         return;
       }
-      setOauthProfileSetupOpen(false);
+      setOnboardingSkipName(false);
       setGate('app');
     }
   }, [user, supabase, logout]);
@@ -419,24 +418,31 @@ function AuthenticatedShell() {
   const needsPaidAccess = gate === 'app' && user && !accessExempt;
   const accessGranted = hasAppAccess(user, isPaymentVerified, sessionEmail);
 
+  useEffect(() => {
+    if (gate !== 'app' || !user?.id || (needsPaidAccess && !accessGranted)) return;
+    let alive = true;
+    void (async () => {
+      const done = await hasCompletedAppWelcomeTour(user.id);
+      if (alive && !done) setWelcomeTourOpen(true);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [accessGranted, gate, needsPaidAccess, user?.id]);
+
+  const completeWelcomeTour = useCallback(() => {
+    setWelcomeTourOpen(false);
+    if (user?.id) void markAppWelcomeTourCompleted(user.id);
+  }, [user?.id]);
+
   if (gate === 'loading') {
     return <AuthShellLoading backgroundColor={colors.background} />;
   }
   if (gate === 'onboarding') {
     return (
       <OnboardingNavigator
+        skipNameStep={onboardingSkipName}
         onFinished={() => {
-          void refreshGate();
-        }}
-      />
-    );
-  }
-  if (oauthProfileSetupOpen) {
-    return (
-      <OAuthProfileSetupModal
-        visible
-        onCompleted={() => {
-          setOauthProfileSetupOpen(false);
           void refreshGate();
         }}
       />
@@ -454,9 +460,11 @@ function AuthenticatedShell() {
       />
     );
   }
+
   return (
     <ProposalOutcomeHost>
       <MainTabNavigator />
+      <AppWelcomeTourModal visible={welcomeTourOpen} onComplete={completeWelcomeTour} />
     </ProposalOutcomeHost>
   );
 }

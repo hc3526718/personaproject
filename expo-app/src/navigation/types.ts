@@ -149,16 +149,11 @@ export type AuthStackParamList = {
   CreatePassword: undefined;
 };
 
-/** Post–sign-in profile questions (first session). */
+/** Post–sign-in profile setup (max 3 steps). */
 export type OnboardingStackParamList = {
   OnboardingName: undefined;
   OnboardingUsername: undefined;
   OnboardingRole: undefined;
-  OnboardingSports: undefined;
-  OnboardingInterests: undefined;
-  OnboardingDiscovery: undefined;
-  OnboardingMembership: undefined;
-  OnboardingComplete: undefined;
 };
 
 export type MainTabParamList = {

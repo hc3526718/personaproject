@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -12,19 +12,20 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { safeGetSession } from '../auth/authSessionRecovery';
 import { isAccountGoneError, isAccountGonePostgrestError } from '../auth/invalidAccountSession';
 import { showSupportError } from '../lib/appAlert';
 import { AppleHeroButton } from '../components/AppleHeroButton';
-import { BrandLogo } from '../components/BrandLogo';
+import { AuthWebBackBar } from '../components/AuthWebBackBar';
+import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
+import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
 import { DS } from '../designSystem';
+import { WEB_MAX_CONTENT_WIDTH } from '../layout/webLayout';
 import { capitalizeProfileTag, capitalizeProfileTags } from '../lib/capitalizeProfileTags';
 import { getSupabase } from '../lib/supabase';
 import type { OnboardingStackParamList } from '../navigation/types';
-import { DALTON_BOOT_VIDEO_BG } from '../constants/daltonBootVideo';
-import { BootCircleLoader } from '../components/BootCircleLoader';
 import { UsernameSetupFields, canProceedWithUsername } from '../components/UsernameSetupFields';
 import {
   allocateAutoUsername,
@@ -33,14 +34,17 @@ import {
   normalizeUsernameTyping,
 } from '../profile/usernameProfile';
 import { useUsernameAvailability } from '../profile/useUsernameAvailability';
-import { InterestsEditor } from '../components/InterestsEditor';
-import { DISCOVERY_OPTIONS, PERSONA_OPTIONS, SPORT_OPTIONS } from './onboardingCopy';
+import {
+  PERSONA_OPTIONS,
+  SPORT_OPTIONS,
+  roleNeedsSport,
+  sportStepSubtitle,
+  sportStepTitle,
+} from './onboardingCopy';
+import { oauthNameHints, resolveOAuthProfileNames } from './oauthProfileNames';
+import { authScreenSharedStyles as authS } from '../screens/onboardingScreens';
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
-
-function showCompeteOrCoachSportStep(personaRole: string): boolean {
-  return personaRole === 'athlete' || personaRole === 'coach';
-}
 
 export type OnboardingDraft = {
   firstName: string;
@@ -50,9 +54,6 @@ export type OnboardingDraft = {
   primarySport: string;
   personaRole: string;
   sports: string[];
-  /** Athlete-only follow-up: broader topics (stored in `profiles.interests`). */
-  interests: string[];
-  discoverySource: string;
 };
 
 const defaultDraft = (): OnboardingDraft => ({
@@ -63,15 +64,14 @@ const defaultDraft = (): OnboardingDraft => ({
   primarySport: '',
   personaRole: '',
   sports: [],
-  interests: [],
-  discoverySource: '',
 });
 
 type OnboardingCtx = {
   draft: OnboardingDraft;
   setDraft: (p: Partial<OnboardingDraft>) => void;
-  resetDraft: () => void;
   onFinished: () => void;
+  skipNameStep: boolean;
+  stepTotal: number;
 };
 
 const Ctx = createContext<OnboardingCtx | null>(null);
@@ -82,49 +82,66 @@ function useOnboardingCtx() {
   return v;
 }
 
-function OnboardingCompleteLoader() {
-  return <BootCircleLoader size={64} compact />;
-}
+type Props = {
+  onFinished: () => void;
+  /** Apple / Google sign-in — skip name entry; names come from the provider. */
+  skipNameStep?: boolean;
+};
 
-type Props = { onFinished: () => void };
-
-export function OnboardingNavigator({ onFinished }: Props) {
+export function OnboardingNavigator({ onFinished, skipNameStep = false }: Props) {
   const [draft, setDraftState] = useState<OnboardingDraft>(defaultDraft);
+  const { user } = useAuth();
+  const stepTotal = skipNameStep ? 2 : 3;
+
   const setDraft = useCallback((p: Partial<OnboardingDraft>) => {
     setDraftState((d) => ({ ...d, ...p }));
   }, []);
-  const resetDraft = useCallback(() => {
-    setDraftState(defaultDraft());
-  }, []);
+
+  useEffect(() => {
+    if (!skipNameStep || !user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const supabase = getSupabase();
+      if (!supabase) return;
+      const session = await safeGetSession(supabase);
+      const sessionUser = session?.user;
+      if (cancelled || !sessionUser) return;
+      const hints = oauthNameHints(sessionUser.user_metadata as Record<string, unknown> | undefined);
+      const resolved = resolveOAuthProfileNames(hints, sessionUser.email ?? user.email ?? null);
+      setDraft({
+        firstName: resolved.firstName,
+        lastName: resolved.lastName,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [skipNameStep, setDraft, user?.email, user?.id]);
 
   const value = useMemo(
     () => ({
       draft,
       setDraft,
-      resetDraft,
       onFinished,
+      skipNameStep,
+      stepTotal,
     }),
-    [draft, setDraft, resetDraft, onFinished],
+    [draft, setDraft, onFinished, skipNameStep, stepTotal],
   );
 
   return (
     <Ctx.Provider value={value}>
       <Stack.Navigator
-        initialRouteName="OnboardingName"
+        initialRouteName={skipNameStep ? 'OnboardingUsername' : 'OnboardingName'}
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: DS.color.background },
-          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: DALTON_BOOT_VIDEO_BG },
+          animation: Platform.OS === 'web' ? 'fade' : 'slide_from_right',
         }}
       >
         <Stack.Screen name="OnboardingName" component={NameStep} />
         <Stack.Screen name="OnboardingUsername" component={UsernameStep} />
         <Stack.Screen name="OnboardingRole" component={RoleStep} />
-        <Stack.Screen name="OnboardingSports" component={SportsStep} />
-        <Stack.Screen name="OnboardingInterests" component={InterestsStep} />
-        <Stack.Screen name="OnboardingDiscovery" component={DiscoveryStep} />
-        <Stack.Screen name="OnboardingMembership" component={MembershipStep} />
-        <Stack.Screen name="OnboardingComplete" component={CompleteStep} />
       </Stack.Navigator>
     </Ctx.Provider>
   );
@@ -138,31 +155,42 @@ type StepProps<K extends keyof OnboardingStackParamList> = NativeStackScreenProp
 function StepChrome({
   title,
   subtitle,
+  stepIndex,
+  stepTotal,
   children,
   footer,
 }: {
   title: string;
   subtitle?: string;
+  stepIndex: number;
+  stepTotal: number;
   children: ReactNode;
   footer: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const topPad =
+    Platform.OS === 'web' ? DS.space.xl : insets.top + DS.space.md;
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AuthWebBackBar />
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: insets.top + DS.space.md, paddingBottom: insets.bottom + DS.space.lg },
+          styles.scrollWeb,
+          { paddingTop: topPad, paddingBottom: insets.bottom + DS.space.lg },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.logoRow}>
-          <BrandLogo width={72} height={72} />
+        <View style={authS.loginLogoRow}>
+          <AuthWelcomeRiveHero variant="form" />
         </View>
+        <Text style={styles.stepBadge}>
+          Step {stepIndex} of {stepTotal}
+        </Text>
         <Text style={styles.stepTitle}>{title}</Text>
         {subtitle ? <Text style={styles.stepSub}>{subtitle}</Text> : null}
         {children}
@@ -173,12 +201,14 @@ function StepChrome({
 }
 
 function NameStep({ navigation }: StepProps<'OnboardingName'>) {
-  const { draft, setDraft } = useOnboardingCtx();
+  const { draft, setDraft, stepTotal } = useOnboardingCtx();
   const canNext = draft.firstName.trim().length > 0 && draft.lastName.trim().length > 0;
   return (
     <StepChrome
       title="Welcome"
       subtitle="Tell us your name so the community knows who you are."
+      stepIndex={1}
+      stepTotal={stepTotal}
       footer={
         <AppleHeroButton
           disabled={!canNext}
@@ -190,7 +220,7 @@ function NameStep({ navigation }: StepProps<'OnboardingName'>) {
     >
       <Field label="First name">
         <TextInput
-          style={styles.input}
+          style={authS.inputCompact}
           placeholder="First name"
           placeholderTextColor={DS.color.textMuted}
           value={draft.firstName}
@@ -200,7 +230,7 @@ function NameStep({ navigation }: StepProps<'OnboardingName'>) {
       </Field>
       <Field label="Surname">
         <TextInput
-          style={styles.input}
+          style={authS.inputCompact}
           placeholder="Surname"
           placeholderTextColor={DS.color.textMuted}
           value={draft.lastName}
@@ -213,7 +243,7 @@ function NameStep({ navigation }: StepProps<'OnboardingName'>) {
 }
 
 function UsernameStep({ navigation }: StepProps<'OnboardingUsername'>) {
-  const { draft, setDraft } = useOnboardingCtx();
+  const { draft, setDraft, skipNameStep, stepTotal } = useOnboardingCtx();
   const { user } = useAuth();
   const supabase = getSupabase();
   const availability = useUsernameAvailability(
@@ -223,19 +253,29 @@ function UsernameStep({ navigation }: StepProps<'OnboardingUsername'>) {
     draft.usernameSkipped,
   );
   const canNext = canProceedWithUsername(draft.usernameSkipped, draft.username, availability);
+  const stepIndex = skipNameStep ? 1 : 2;
+  const welcomeName = draft.firstName.trim();
 
   return (
     <StepChrome
-      title="Choose a username"
-      subtitle="This is how you&apos;ll appear across Dalton. We check what you type against existing members — or skip and we&apos;ll use your first name plus four random digits."
+      title={skipNameStep && welcomeName ? `Welcome, ${welcomeName}` : 'Choose a username'}
+      subtitle={
+        skipNameStep
+          ? 'Pick a username for your profile, or skip and we will assign one for you.'
+          : "This is how you'll appear across Dalton. We check availability as you type — or skip for an auto-assigned name."
+      }
+      stepIndex={stepIndex}
+      stepTotal={stepTotal}
       footer={
         <View style={styles.footerRow}>
-          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
-            Back
-          </AppleHeroButton>
+          {!skipNameStep ? (
+            <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
+              Back
+            </AppleHeroButton>
+          ) : null}
           <AppleHeroButton
             disabled={!canNext}
-            style={styles.footerHalf}
+            style={skipNameStep ? styles.footerFull : styles.footerHalf}
             onPress={() => navigation.navigate('OnboardingRole')}
           >
             Continue
@@ -244,7 +284,7 @@ function UsernameStep({ navigation }: StepProps<'OnboardingUsername'>) {
       }
     >
       <UsernameSetupFields
-        firstNameForPreview={draft.firstName}
+        firstNameForPreview={draft.firstName || welcomeName}
         usernameInput={draft.username}
         onUsernameInputChange={(v) => setDraft({ username: v })}
         skipped={draft.usernameSkipped}
@@ -261,207 +301,13 @@ function UsernameStep({ navigation }: StepProps<'OnboardingUsername'>) {
 }
 
 function RoleStep({ navigation }: StepProps<'OnboardingRole'>) {
-  const { draft, setDraft } = useOnboardingCtx();
-  return (
-    <StepChrome
-      title="Your role"
-      subtitle="How do you mainly use Dalton?"
-      footer={
-        <View style={styles.footerRow}>
-          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
-            Back
-          </AppleHeroButton>
-          <AppleHeroButton
-            disabled={!draft.personaRole}
-            style={styles.footerHalf}
-            onPress={() =>
-              navigation.navigate(
-                draft.personaRole === 'coach' ? 'OnboardingSports' : 'OnboardingInterests',
-              )
-            }
-          >
-            Continue
-          </AppleHeroButton>
-        </View>
-      }
-    >
-      <View style={styles.chipGrid}>
-        {PERSONA_OPTIONS.map((o) => {
-          const on = draft.personaRole === o.id;
-          return (
-            <Pressable
-              key={o.id}
-              onPress={() => setDraft({ personaRole: o.id })}
-              style={[styles.chip, on && styles.chipOn]}
-            >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>{o.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </StepChrome>
-  );
-}
-
-function SportsStep({ navigation }: StepProps<'OnboardingSports'>) {
-  const { draft, setDraft } = useOnboardingCtx();
-  const isCoach = draft.personaRole === 'coach';
-  const title = isCoach ? 'Sport you mainly coach' : 'Sport you currently compete in';
-  const subtitle = isCoach
-    ? 'Pick the main sport you work in. You can refine this later in your profile.'
-    : 'This is used to structure recent results. You can add more sports later.';
-  const toggle = (s: string) => {
-    const has = draft.sports.includes(s);
-    setDraft({
-      sports: has ? draft.sports.filter((x) => x !== s) : [...draft.sports, s],
-    });
-  };
-  return (
-    <StepChrome
-      title={title}
-      subtitle={subtitle}
-      footer={
-        <View style={styles.footerRow}>
-          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
-            Back
-          </AppleHeroButton>
-          <AppleHeroButton
-            disabled={!draft.primarySport}
-            style={styles.footerHalf}
-            onPress={() => navigation.navigate('OnboardingDiscovery')}
-          >
-            Continue
-          </AppleHeroButton>
-        </View>
-      }
-    >
-      <View style={styles.chipGrid}>
-        {SPORT_OPTIONS.map((s) => {
-          const on = draft.primarySport === s;
-          return (
-            <Pressable
-              key={s}
-              onPress={() => {
-                setDraft({ primarySport: s });
-                // Keep `sports[]` aligned: ensure primary sport exists in the multi-sport list.
-                if (!draft.sports.includes(s)) toggle(s);
-              }}
-              style={[styles.chip, on && styles.chipPrimary]}
-            >
-              <Text style={[styles.chipText, on && styles.chipPrimaryText]}>{s}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </StepChrome>
-  );
-}
-
-function InterestsStep({ navigation }: StepProps<'OnboardingInterests'>) {
-  const { draft, setDraft } = useOnboardingCtx();
-  const canNext = draft.interests.length > 0;
-  const nextRoute =
-    draft.personaRole === 'athlete' ? 'OnboardingSports' : 'OnboardingDiscovery';
-  return (
-    <StepChrome
-      title="What are you interested in?"
-      subtitle="Pick topics from the list or type your own and press Enter."
-      footer={
-        <View style={styles.footerRow}>
-          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
-            Back
-          </AppleHeroButton>
-          <AppleHeroButton
-            disabled={!canNext}
-            style={styles.footerHalf}
-            onPress={() => navigation.navigate(nextRoute)}
-          >
-            Continue
-          </AppleHeroButton>
-        </View>
-      }
-    >
-      <InterestsEditor
-        value={draft.interests}
-        onChange={(interests) => setDraft({ interests })}
-        hint="Choose at least one — you can update these later in your profile."
-      />
-    </StepChrome>
-  );
-}
-
-function DiscoveryStep({ navigation }: StepProps<'OnboardingDiscovery'>) {
-  const { draft, setDraft } = useOnboardingCtx();
-  return (
-    <StepChrome
-      title="How did you find us?"
-      subtitle="Helps us improve how we reach athletes and coaches."
-      footer={
-        <View style={styles.footerRow}>
-          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
-            Back
-          </AppleHeroButton>
-          <AppleHeroButton
-            disabled={!draft.discoverySource}
-            style={styles.footerHalf}
-            onPress={() => navigation.navigate('OnboardingMembership')}
-          >
-            Continue
-          </AppleHeroButton>
-        </View>
-      }
-    >
-      <View style={styles.chipCol}>
-        {DISCOVERY_OPTIONS.map((o) => {
-          const on = draft.discoverySource === o.id;
-          return (
-            <Pressable
-              key={o.id}
-              onPress={() => setDraft({ discoverySource: o.id })}
-              style={[styles.choiceRow, on && styles.choiceRowOn]}
-            >
-              <Text style={[styles.choiceText, on && styles.choiceTextOn]}>{o.label}</Text>
-              {on ? <FontAwesome5 name="check" size={16} color={DS.color.gold} solid /> : null}
-            </Pressable>
-          );
-        })}
-      </View>
-    </StepChrome>
-  );
-}
-
-function MembershipStep({ navigation }: StepProps<'OnboardingMembership'>) {
-  return (
-    <StepChrome
-      title="Academy access"
-      subtitle="After you save your profile, a small monthly fee keeps the app running and funds high-quality content from Dalton — plus a community of aspiring athletes who support, encourage, and guide each other."
-      footer={
-        <View style={styles.footerRow}>
-          <AppleHeroButton variant="ghost" style={styles.footerHalf} onPress={() => navigation.goBack()}>
-            Back
-          </AppleHeroButton>
-          <AppleHeroButton
-            style={styles.footerHalf}
-            onPress={() => navigation.navigate('OnboardingComplete')}
-          >
-            Continue
-          </AppleHeroButton>
-        </View>
-      }
-    >
-      <Text style={styles.membershipBody}>
-        Your £2/month subscription unlocks media, events, sponsors, and the full community feed. You can cancel
-        anytime in your device or account settings.
-      </Text>
-    </StepChrome>
-  );
-}
-
-function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
-  const insets = useSafeAreaInsets();
-  const { draft, onFinished, resetDraft } = useOnboardingCtx();
+  const { draft, setDraft, onFinished, skipNameStep, stepTotal } = useOnboardingCtx();
   const { user, logout } = useAuth();
   const [saving, setSaving] = useState(false);
+  const needsSport = roleNeedsSport(draft.personaRole);
+  const canNext =
+    Boolean(draft.personaRole) && (!needsSport || Boolean(draft.primarySport.trim()));
+  const stepIndex = skipNameStep ? 2 : 3;
 
   const saveAndEnter = useCallback(async () => {
     const supabase = getSupabase();
@@ -473,18 +319,21 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
     let usernameFinal: string;
     try {
       if (draft.usernameSkipped) {
-        usernameFinal = await allocateAutoUsername(supabase, draft.firstName.trim(), user.id);
+        const nameSeed = draft.firstName.trim() || 'member';
+        usernameFinal = await allocateAutoUsername(supabase, nameSeed, user.id);
       } else {
         usernameFinal = normalizeUsernameTyping(draft.username);
         if (!isValidUsernameFormat(usernameFinal)) {
           setSaving(false);
           Alert.alert('Username', 'Choose a valid username from the previous step.');
+          navigation.navigate('OnboardingUsername');
           return;
         }
         const avail = await checkUsernameAvailable(supabase, usernameFinal, user.id);
         if (!avail) {
           setSaving(false);
           Alert.alert('Username taken', 'Go back and pick a different username.');
+          navigation.navigate('OnboardingUsername');
           return;
         }
       }
@@ -498,23 +347,39 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
       return;
     }
 
-    const displayName = `${draft.firstName.trim()} ${draft.lastName.trim()}`.trim();
-    const interestsForDb =
-      draft.personaRole === 'athlete' || !showCompeteOrCoachSportStep(draft.personaRole)
-        ? draft.interests
+    let firstName = draft.firstName.trim();
+    let lastName = draft.lastName.trim();
+    if (skipNameStep && !firstName) {
+      const session = await safeGetSession(supabase);
+      const sessionUser = session?.user;
+      const hints = oauthNameHints(sessionUser?.user_metadata as Record<string, unknown> | undefined);
+      const resolved = resolveOAuthProfileNames(hints, sessionUser?.email ?? user.email ?? null);
+      firstName = resolved.firstName;
+      lastName = resolved.lastName;
+    }
+
+    const displayName = `${firstName} ${lastName}`.trim() || firstName || 'Member';
+    const sports =
+      needsSport && draft.primarySport
+        ? capitalizeProfileTags(
+            draft.sports.includes(draft.primarySport)
+              ? draft.sports
+              : [...draft.sports, draft.primarySport],
+          )
         : [];
+
     const { error } = await supabase.from('profiles').upsert(
       {
         id: user.id,
         username: usernameFinal,
-        first_name: draft.firstName.trim(),
-        last_name: draft.lastName.trim(),
+        first_name: firstName,
+        last_name: lastName,
         display_name: displayName,
         persona_role: capitalizeProfileTag(draft.personaRole),
-        sports: capitalizeProfileTags(draft.sports),
-        primary_sport: capitalizeProfileTag(draft.primarySport || (draft.sports[0] ?? '')),
-        interests: capitalizeProfileTags(interestsForDb),
-        discovery_source: draft.discoverySource,
+        sports,
+        primary_sport: needsSport ? capitalizeProfileTag(draft.primarySport) : null,
+        interests: [],
+        discovery_source: null,
         onboarding_completed_at: new Date().toISOString(),
       },
       { onConflict: 'id' },
@@ -531,56 +396,106 @@ function CompleteStep({ navigation }: StepProps<'OnboardingComplete'>) {
       return;
     }
     onFinished();
-  }, [draft, logout, onFinished, user]);
+  }, [draft, logout, navigation, needsSport, onFinished, skipNameStep, user]);
 
   return (
-    <View style={styles.completeRoot}>
-      <ScrollView
-        style={{ flex: 1, width: '100%' }}
-        contentContainerStyle={{
-          alignItems: 'center',
-          paddingBottom: insets.bottom + DS.space.xl,
-        }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.riveBlock}>
-          <OnboardingCompleteLoader />
+    <StepChrome
+      title="Your role"
+      subtitle="How do you mainly use Dalton? Athletes and coaches can add their sport on this step."
+      stepIndex={stepIndex}
+      stepTotal={stepTotal}
+      footer={
+        <View style={styles.footerRow}>
+          <AppleHeroButton
+            variant="ghost"
+            style={styles.footerHalf}
+            onPress={() => navigation.goBack()}
+            disabled={saving}
+          >
+            Back
+          </AppleHeroButton>
+          <AppleHeroButton
+            disabled={!canNext}
+            loading={saving}
+            style={styles.footerHalf}
+            onPress={() => void saveAndEnter()}
+          >
+            Continue
+          </AppleHeroButton>
         </View>
-        <Text style={styles.completeTitle}>You&apos;re in</Text>
-        <Text style={styles.completeBody}>
-          Save your profile, then complete the quick academy access step to enter the community.
-        </Text>
-        <AppleHeroButton loading={saving} onPress={() => void saveAndEnter()} style={styles.enterBtn}>
-          Save profile & continue
-        </AppleHeroButton>
-        <Pressable
-          onPress={() => {
-            resetDraft();
-            navigation.navigate('OnboardingName');
-          }}
-          hitSlop={12}
-        >
-          <Text style={styles.restart}>Start over</Text>
-        </Pressable>
-      </ScrollView>
-    </View>
+      }
+    >
+      <View style={styles.chipGrid}>
+        {PERSONA_OPTIONS.map((o) => {
+          const on = draft.personaRole === o.id;
+          return (
+            <Pressable
+              key={o.id}
+              onPress={() =>
+                setDraft({
+                  personaRole: o.id,
+                  primarySport: roleNeedsSport(o.id) ? draft.primarySport : '',
+                  sports: roleNeedsSport(o.id) ? draft.sports : [],
+                })
+              }
+              style={[styles.chip, on && styles.chipOn]}
+            >
+              <Text style={[styles.chipText, on && styles.chipTextOn]}>{o.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {needsSport ? (
+        <View style={styles.sportBlock}>
+          <Text style={styles.sportHeading}>{sportStepTitle(draft.personaRole)}</Text>
+          <Text style={styles.sportSub}>{sportStepSubtitle(draft.personaRole)}</Text>
+          <View style={styles.chipGrid}>
+            {SPORT_OPTIONS.map((s) => {
+              const on = draft.primarySport === s;
+              return (
+                <Pressable
+                  key={s}
+                  onPress={() =>
+                    setDraft({
+                      primarySport: s,
+                      sports: draft.sports.includes(s) ? draft.sports : [...draft.sports, s],
+                    })
+                  }
+                  style={[styles.chip, on && styles.chipPrimary]}
+                >
+                  <Text style={[styles.chipText, on && styles.chipPrimaryText]}>{s}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+    </StepChrome>
   );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={authS.field}>
+      <Text style={authS.label}>{label}</Text>
       {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: DS.color.background },
+  root: { flex: 1, backgroundColor: DALTON_BOOT_VIDEO_BG },
   scroll: { paddingHorizontal: DS.space.lg, flexGrow: 1 },
-  logoRow: { alignItems: 'center', marginBottom: DS.space.lg },
+  scrollWeb: Platform.OS === 'web' ? { maxWidth: WEB_MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center' } : {},
+  stepBadge: {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 12,
+    letterSpacing: 1.2,
+    color: DS.color.gold,
+    textTransform: 'uppercase',
+    marginBottom: DS.space.sm,
+  },
   stepTitle: {
     fontFamily: DS.font.heading,
     fontSize: 28,
@@ -595,40 +510,33 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: DS.space.xl,
   },
-  membershipBody: {
-    fontFamily: DS.font.body,
-    fontSize: 15,
-    color: DS.color.textMuted,
-    lineHeight: 22,
-  },
-  field: { marginBottom: DS.apple.fieldGap },
-  label: {
-    fontFamily: DS.font.bodyMedium,
-    fontSize: DS.type.labelUppercaseSize,
-    fontWeight: '700',
-    color: DS.color.gold,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: DS.space.sm,
-  },
-  input: {
-    backgroundColor: DS.color.input,
-    borderRadius: DS.apple.radiusField,
-    paddingVertical: 14,
-    paddingHorizontal: DS.space.md,
+  sportBlock: { marginTop: DS.space.xl },
+  sportHeading: {
+    fontFamily: DS.font.bodyBold,
     fontSize: 16,
     color: DS.color.text,
+    marginBottom: DS.space.xs,
+  },
+  sportSub: {
     fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    lineHeight: 20,
+    marginBottom: DS.space.md,
   },
   footer: {
     paddingHorizontal: DS.space.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: DS.apple.separator,
     paddingTop: DS.space.md,
-    backgroundColor: DS.color.background,
+    backgroundColor: DALTON_BOOT_VIDEO_BG,
+    ...(Platform.OS === 'web'
+      ? { maxWidth: WEB_MAX_CONTENT_WIDTH, width: '100%', alignSelf: 'center' }
+      : {}),
   },
   footerRow: { flexDirection: 'row', gap: DS.space.md },
   footerHalf: { flex: 1 },
+  footerFull: { flex: 1, width: '100%' },
   chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: DS.space.sm },
   chip: {
     paddingVertical: 12,
@@ -651,62 +559,5 @@ const styles = StyleSheet.create({
   chipPrimaryText: {
     color: DS.color.background,
     fontFamily: DS.font.bodyMedium,
-  },
-  chipCol: { gap: DS.space.sm },
-  choiceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: DS.space.base,
-    paddingHorizontal: DS.space.md,
-    borderRadius: DS.apple.radiusField,
-    backgroundColor: DS.apple.fillSecondary,
-    borderWidth: 1,
-    borderColor: DS.apple.separator,
-  },
-  choiceRowOn: {
-    borderColor: DS.color.gold,
-    backgroundColor: DS.color.goldTint10,
-  },
-  choiceText: { fontFamily: DS.font.body, fontSize: 16, color: DS.color.text, flex: 1 },
-  choiceTextOn: { fontFamily: DS.font.bodyMedium, color: DS.color.gold },
-  completeRoot: {
-    flex: 1,
-    backgroundColor: DALTON_BOOT_VIDEO_BG,
-    paddingHorizontal: DS.space.lg,
-    paddingTop: 56,
-    alignItems: 'center',
-  },
-  riveBlock: {
-    height: 220,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: DS.space.lg,
-    backgroundColor: DALTON_BOOT_VIDEO_BG,
-  },
-  completeTitle: {
-    fontFamily: DS.font.heading,
-    fontSize: 32,
-    color: DS.color.gold,
-    letterSpacing: 2,
-    marginBottom: DS.space.md,
-    textAlign: 'center',
-  },
-  completeBody: {
-    fontFamily: DS.font.body,
-    fontSize: 15,
-    color: DS.color.textMuted,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: DS.space.xl,
-    maxWidth: 340,
-  },
-  enterBtn: { alignSelf: 'stretch', width: '100%' },
-  restart: {
-    marginTop: DS.space.lg,
-    fontFamily: DS.font.body,
-    fontSize: 14,
-    color: DS.color.textMuted,
   },
 });

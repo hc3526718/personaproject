@@ -114,3 +114,127 @@ Use a **real email** you control (e.g. `daltongrant@hotmail.co.uk`) because conf
 **What reviewers will not exercise with this account:** new sign-up + email confirmation, password reset, and first-time IAP purchase. Mention that in App Review notes, or provide a **second Sandbox-only account** without exempt SQL if Apple must test IAP.
 
 **Your own testing:** use a separate email without exempt SQL when you need to test paywall and signup flows end-to-end.
+
+## Production deployment (web + native auto-submit)
+
+One-shot commands for shipping **marketing + web** (`daltongrantacademy.uk`) and **store binaries** (TestFlight / App Store / Play). Run from a machine with `git` pushed to GitHub, `eas-cli` logged in, and Vercel CLI linked.
+
+### Pre-flight (every release)
+
+1. **Commit and push** — EAS builds the latest commit on your branch (not unstaged local files).
+2. **Bump marketing version** in `expo-app/app.config.js` → `version` (e.g. `1.0.1` → `1.0.2`) when App Store / Play require it. Build numbers auto-increment via `eas.json` → `production.autoIncrement`.
+3. **EAS Production environment** ([expo.dev](https://expo.dev) → project **dalton-demo** → Environment variables → **production**) must include at least:
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon>
+EXPO_PUBLIC_DALTON_WEB_URL=https://daltongrantacademy.uk
+EXPO_PUBLIC_REVENUECAT_API_KEY_IOS=appl_...
+EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID=goog_...
+EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+EXPO_PUBLIC_ACCESS_EXEMPT_EMAILS=haydncampbell22@gmail.com,daltongrant@hotmail.co.uk
+```
+
+Optional but recommended: `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_TICKET_SIGNING_SECRET`. Never put service-role or webhook secrets in `EXPO_PUBLIC_*`.
+
+4. **Store submit credentials (one-time)** — In Expo dashboard or via `eas credentials`: Apple App Store Connect API key (iOS submit). Google Play service account JSON (Android submit). `eas.json` already defines `submit.production`.
+
+More detail: `docs/SECRETS_CHECKLIST.md`, `docs/TESTFLIGHT.md`, `docs/STORE_RELEASE.md`.
+
+### 1. Deploy marketing + web app (Vercel)
+
+Custom domain **`daltongrantacademy.uk`** must point at the **`personaproject`** Vercel project (not a stale preview).
+
+```powershell
+cd C:\Users\haydn\Downloads\DaltonProject\expo-app
+
+# First time only (link to production project):
+npx vercel link --project personaproject
+
+# Production deploy:
+npx vercel deploy --prod --yes
+```
+
+**Verify:** `https://daltongrantacademy.uk/email-confirmed` loads the confirmation page; `https://daltongrantacademy.uk/app` opens the web app.
+
+Set the same `EXPO_PUBLIC_*` values on Vercel **Production** env if the web app needs them at build time.
+
+### 2. Deploy Supabase Edge Functions (when auth/backend changed)
+
+```powershell
+cd C:\Users\haydn\Downloads\DaltonProject\expo-app
+
+supabase functions deploy send-auth-email --project-ref txehbzyntvqpkkegjrwp
+supabase functions deploy verify-master-pin --project-ref txehbzyntvqpkkegjrwp
+```
+
+Add any other functions you changed in the same session.
+
+### 3. Native production build + auto-submit (stores)
+
+From `expo-app`, after `npm i -g eas-cli` and `eas login`:
+
+**iOS → TestFlight / App Store Connect (build + submit in one step):**
+
+```powershell
+cd C:\Users\haydn\Downloads\DaltonProject\expo-app
+
+eas build --platform ios --profile production --auto-submit
+```
+
+**Android → Google Play (internal / production track):**
+
+```powershell
+eas build --platform android --profile production --auto-submit
+```
+
+**Both platforms:**
+
+```powershell
+eas build --platform all --profile production --auto-submit
+```
+
+`--auto-submit` uses the `submit.production` profile in `eas.json` and uploads the finished artifact when the build completes. First run may prompt for ASC / Play credentials; store them in Expo for non-interactive runs.
+
+**Non-interactive (CI or repeat deploys):**
+
+```powershell
+eas build --platform ios --profile production --auto-submit --non-interactive
+```
+
+**Build only, submit later:**
+
+```powershell
+eas build --platform ios --profile production
+# after build finishes:
+eas submit --platform ios --latest --profile production
+```
+
+```powershell
+eas build --platform android --profile production
+eas submit --platform android --latest --profile production
+```
+
+**Clean rebuild** (if TestFlight crashes on launch with a stale binary):
+
+```powershell
+eas build --platform ios --profile production --auto-submit --clear-cache
+```
+
+| `eas.json` profile | Use |
+|--------------------|-----|
+| `development` | Dev client (Metro) |
+| `preview` | Internal testing |
+| **`production`** | **App Store / Play** — `distribution: store`, `autoIncrement: true`, iOS `sdk-54` |
+
+Bundle ID / package: `com.hc111.daltondemo` (must match App Store Connect and Play Console).
+
+### 4. After deploy
+
+1. **App Store Connect** → TestFlight → wait for processing (~10–30 min) → install on device; icon should read **The Dalton Grant Academy**.
+2. When ready for review: ASC → **Submit for Review** (auto-submit only uploads the build; review is still manual unless you use ASC automation).
+3. **Google Play** → confirm the new AAB on your chosen track → roll out.
+4. **Smoke test on the store build:** sign in (email + OAuth), complete onboarding (≤3 steps), welcome tour, community feed, paywall / exempt account.
+5. **Auth email:** request a **new** signup confirmation after Vercel deploy — old links may lack `token_hash`.
+
+App Review tester setup: section **App Store reviewer / tester account** above.

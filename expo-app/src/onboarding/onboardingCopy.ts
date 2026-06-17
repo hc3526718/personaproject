@@ -9,6 +9,26 @@ export const PERSONA_OPTIONS = [
   { id: 'other', label: 'Other' },
 ] as const;
 
+export function roleNeedsSport(personaRole: string): boolean {
+  return personaRole === 'athlete' || personaRole === 'coach';
+}
+
+export function sportStepTitle(personaRole: string): string {
+  if (personaRole === 'coach') return 'Sport you mainly coach';
+  if (personaRole === 'athlete') return 'Sport you compete in';
+  return 'Your sport';
+}
+
+export function sportStepSubtitle(personaRole: string): string {
+  if (personaRole === 'coach') {
+    return 'Pick the main sport you work in. You can refine this later in your profile.';
+  }
+  if (personaRole === 'athlete') {
+    return 'Helps structure achievements and highlights on your profile.';
+  }
+  return 'Select a sport if it applies to you.';
+}
+
 export const SPORT_OPTIONS = [
   'Athletics',
   'Football (soccer)',
