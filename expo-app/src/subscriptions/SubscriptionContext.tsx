@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { isPremiumDemoEmail } from '../auth/demoAccounts';
+import { isAccessExemptUser } from './appAccess';
 import {
   initRevenueCat,
   restorePurchases,
@@ -18,6 +19,7 @@ import {
 } from './revenueCat';
 import { resolvePaymentVerifiedAccess, resolvePremiumAccess } from './resolvePremiumAccess';
 import { useStripeCheckoutReturn } from './useStripeCheckoutReturn';
+import { withTimeout } from '../lib/withTimeout';
 
 type SubscriptionContextValue = {
   /** Legacy premium flag — kept for compatibility; mirrors payment verified for launch. */
@@ -55,17 +57,26 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setBusy(false);
       return;
     }
-    if (isPremiumDemoEmail(sessionEmail)) {
+    if (isAccessExemptUser(user, sessionEmail) || isPremiumDemoEmail(sessionEmail)) {
       setIsPro(true);
       setIsPaymentVerified(true);
       setBusy(false);
       return;
     }
-    const [paid, pro] = await Promise.all([resolvePaymentVerifiedAccess(), resolvePremiumAccess()]);
-    setIsPaymentVerified(paid);
-    setIsPro(pro || paid);
-    setBusy(false);
-  }, [sessionEmail]);
+    try {
+      const [paid, pro] = await withTimeout(
+        Promise.all([resolvePaymentVerifiedAccess(), resolvePremiumAccess()]),
+        { ms: 15000, timeoutMessage: 'subscription_refresh_timeout' },
+      );
+      setIsPaymentVerified(paid);
+      setIsPro(pro || paid);
+    } catch {
+      setIsPaymentVerified(false);
+      setIsPro(false);
+    } finally {
+      setBusy(false);
+    }
+  }, [sessionEmail, user]);
 
   const onStripeReturn = useCallback(
     (_kind: 'success' | 'cancel') => {
@@ -84,7 +95,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setBusy(false);
       return false;
     }
-    if (isPremiumDemoEmail(sessionEmail)) {
+    if (isAccessExemptUser(user, sessionEmail) || isPremiumDemoEmail(sessionEmail)) {
       setIsPro(true);
       setIsPaymentVerified(true);
       setBusy(false);
@@ -103,7 +114,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       void refresh();
     }
     return gained;
-  }, [sessionEmail, refresh]);
+  }, [sessionEmail, user, refresh]);
 
   useEffect(() => {
     void refresh();

@@ -26,6 +26,8 @@ import {
   isAccountGonePostgrestError,
   signOutDeletedAccountSession,
 } from '../auth/invalidAccountSession';
+import { safeGetSession } from '../auth/authSessionRecovery';
+import { withTimeout } from '../lib/withTimeout';
 import { OAuthProfileSetupModal } from '../components/OAuthProfileSetupModal';
 import { OnboardingNavigator } from '../onboarding/OnboardingNavigator';
 import type {
@@ -325,74 +327,86 @@ function AuthenticatedShell() {
       return;
     }
 
-    const { data: authUserRes, error: authUserErr } = await supabase.auth.getUser();
-    if (authUserErr && isAccountGoneError(authUserErr)) {
-      await signOutDeletedAccountSession(supabase, logout);
-      return;
-    }
-
-    const authUser = authUserRes.user;
-    const userId = authUser?.id ?? user.id;
-    if (!userId) {
-      return;
-    }
-
-    const identities = authUser?.identities ?? [];
-    const providers = new Set(identities.map((i) => i.provider));
-    const oauthAppleGoogleOnly =
-      !providers.has('email') && (providers.has('google') || providers.has('apple'));
-
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('onboarding_completed_at')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (error) {
-      if (__DEV__) console.warn('[AuthenticatedShell] profile fetch', error.message);
-      if (isAccountGonePostgrestError(error)) {
-        await signOutDeletedAccountSession(supabase, logout);
+    try {
+      const session = await withTimeout(safeGetSession(supabase), {
+        ms: 12000,
+        timeoutMessage: 'session_read_timeout',
+      });
+      const sessionUser = session?.user;
+      if (!sessionUser?.id) {
+        setOauthProfileSetupOpen(false);
+        setGate('onboarding');
         return;
       }
-      const ensured = await ensureProfileRow(user.id, user.email ?? null);
-      if (!ensured.ok && ensured.accountGone) {
-        await signOutDeletedAccountSession(supabase, logout);
+
+      const identities = sessionUser.identities ?? [];
+      const providers = new Set(identities.map((i) => i.provider));
+      const oauthAppleGoogleOnly =
+        !providers.has('email') && (providers.has('google') || providers.has('apple'));
+
+      const { data: profile, error } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('onboarding_completed_at')
+          .eq('id', user.id)
+          .maybeSingle(),
+        { ms: 12000, timeoutMessage: 'profile_read_timeout' },
+      );
+
+      if (error) {
+        if (__DEV__) console.warn('[AuthenticatedShell] profile fetch', error.message);
+        if (isAccountGonePostgrestError(error)) {
+          await signOutDeletedAccountSession(supabase, logout);
+          return;
+        }
+        const ensured = await ensureProfileRow(user.id, user.email ?? null);
+        if (!ensured.ok && ensured.accountGone) {
+          await signOutDeletedAccountSession(supabase, logout);
+          return;
+        }
+        setOauthProfileSetupOpen(false);
+        setGate('onboarding');
         return;
       }
+
+      let onboardingAt = profile?.onboarding_completed_at ?? null;
+      if (!profile) {
+        const ensured = await ensureProfileRow(user.id, user.email ?? null);
+        if (!ensured.ok && ensured.accountGone) {
+          await signOutDeletedAccountSession(supabase, logout);
+          return;
+        }
+        const { data: again } = await supabase
+          .from('profiles')
+          .select('onboarding_completed_at')
+          .eq('id', user.id)
+          .maybeSingle();
+        onboardingAt = again?.onboarding_completed_at ?? null;
+      }
+
+      if (onboardingAt) {
+        setOauthProfileSetupOpen(false);
+        setGate('app');
+        return;
+      }
+
+      if (oauthAppleGoogleOnly) {
+        setOauthProfileSetupOpen(true);
+        setGate('app');
+        return;
+      }
+
       setOauthProfileSetupOpen(false);
       setGate('onboarding');
-      return;
-    }
-
-    let onboardingAt = profile?.onboarding_completed_at ?? null;
-    if (!profile) {
-      const ensured = await ensureProfileRow(user.id, user.email ?? null);
-      if (!ensured.ok && ensured.accountGone) {
+    } catch (err) {
+      if (__DEV__) console.warn('[AuthenticatedShell] refreshGate', err);
+      if (isAccountGoneError(err)) {
         await signOutDeletedAccountSession(supabase, logout);
         return;
       }
-      const { data: again } = await supabase
-        .from('profiles')
-        .select('onboarding_completed_at')
-        .eq('id', user.id)
-        .maybeSingle();
-      onboardingAt = again?.onboarding_completed_at ?? null;
-    }
-
-    if (onboardingAt) {
       setOauthProfileSetupOpen(false);
       setGate('app');
-      return;
     }
-
-    if (oauthAppleGoogleOnly) {
-      setOauthProfileSetupOpen(true);
-      setGate('app');
-      return;
-    }
-
-    setOauthProfileSetupOpen(false);
-    setGate('onboarding');
   }, [user, supabase, logout]);
 
   useEffect(() => {
