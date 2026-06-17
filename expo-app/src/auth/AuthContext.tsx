@@ -83,6 +83,10 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<LoginResult>;
   /** Supabase email/password registration; no-op when Supabase is not configured */
   signUp: (email: string, password: string) => Promise<SignUpResult>;
+  /** Resend signup confirmation email (after fixing marketing link / expired OTP). */
+  resendSignupConfirmation: (
+    email: string,
+  ) => Promise<{ ok: true } | { ok: false; message: string }>;
   /** Email magic link → same redirect URL as OAuth (`/app/auth/callback` on web, native scheme deep link). */
   requestPasswordReset: (email: string) => Promise<{ ok: true } | { ok: false; message: string }>;
   passwordRecoveryPending: boolean;
@@ -511,6 +515,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [supabase],
   );
 
+  const resendSignupConfirmation = useCallback(
+    async (email: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+      if (!supabase) {
+        return { ok: false, message: 'Supabase is not configured.' };
+      }
+      const trimmed = email.trim();
+      if (!trimmed) {
+        return { ok: false, message: 'Enter your email address.' };
+      }
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: trimmed,
+        options: { emailRedirectTo: getEmailConfirmRedirectUri() },
+      });
+      if (error) return { ok: false, message: mapAuthEmailErrorMessage(error.message) };
+      return { ok: true };
+    },
+    [supabase],
+  );
+
   const requestPasswordReset = useCallback(
     async (email: string): Promise<{ ok: true } | { ok: false; message: string }> => {
       if (!supabase) {
@@ -658,6 +682,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       oAuthBusy,
       login,
       signUp,
+      resendSignupConfirmation,
       requestPasswordReset,
       passwordRecoveryPending,
       clearPasswordRecoveryFlow,
@@ -673,6 +698,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       oAuthBusy,
       login,
       signUp,
+      resendSignupConfirmation,
       requestPasswordReset,
       passwordRecoveryPending,
       clearPasswordRecoveryFlow,

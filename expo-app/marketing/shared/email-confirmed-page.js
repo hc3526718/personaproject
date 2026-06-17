@@ -149,9 +149,8 @@
       });
   }
 
-  showPending('Confirming your email address…');
-  if (confirmBtn) confirmBtn.hidden = true;
-  runVerify();
+  showPending('Tap the button below to confirm your email on this device.');
+  if (confirmBtn) confirmBtn.hidden = false;
 
   if (confirmBtn) {
     confirmBtn.addEventListener('click', function (e) {

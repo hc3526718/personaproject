@@ -51,13 +51,14 @@ export default function GrantAccessScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<GrantRoute>();
-  const { login, signUp } = useAuth();
+  const { login, signUp, resendSignupConfirmation } = useAuth();
   const scrollRef = useRef<ScrollViewType>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [resendBusy, setResendBusy] = useState(false);
   const [signupConfirmEmail, setSignupConfirmEmail] = useState<string | null>(null);
   const [continueBusy, setContinueBusy] = useState(false);
 
@@ -178,6 +179,25 @@ export default function GrantAccessScreen() {
     void clearSignupPendingEmail();
   }, []);
 
+  const resendConfirmationEmail = useCallback(async () => {
+    const trimmed = (signupConfirmEmail ?? email).trim();
+    if (!trimmed) {
+      Alert.alert('Email required', 'Enter the email you used to sign up.');
+      return;
+    }
+    setResendBusy(true);
+    const result = await resendSignupConfirmation(trimmed);
+    setResendBusy(false);
+    if (!result.ok) {
+      Alert.alert('Could not resend', result.message);
+      return;
+    }
+    Alert.alert(
+      'Email sent',
+      `We sent a new confirmation link to ${trimmed}. Open it on this device and tap Confirm email.`,
+    );
+  }, [email, resendSignupConfirmation, signupConfirmEmail]);
+
   const tryContinueAfterEmailConfirm = useCallback(async () => {
     const trimmed = (signupConfirmEmail ?? email).trim();
     if (!trimmed || !password) {
@@ -270,7 +290,17 @@ export default function GrantAccessScreen() {
             >
               I&apos;ve confirmed — continue
             </AppleHeroButton>
-            <Pressable onPress={dismissConfirmBanner} hitSlop={10} style={{ marginTop: DS.space.sm }}>
+            <Pressable
+              onPress={() => void resendConfirmationEmail()}
+              disabled={resendBusy}
+              hitSlop={10}
+              style={{ marginTop: DS.space.sm, alignSelf: 'center' }}
+            >
+              <Text style={local.confirmBannerDismiss}>
+                {resendBusy ? 'Sending…' : 'Resend confirmation email'}
+              </Text>
+            </Pressable>
+            <Pressable onPress={dismissConfirmBanner} hitSlop={10} style={{ marginTop: DS.space.xs }}>
               <Text style={local.confirmBannerDismiss}>Dismiss</Text>
             </Pressable>
           </View>
