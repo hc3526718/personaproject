@@ -212,41 +212,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const applySessionUser = async (session: Session | null) => {
       if (session?.user) {
-        const { data: authData, error: authErr } = await supabase.auth.getUser();
-        if (authErr && isAccountGoneError(authErr)) {
-          await clearStaleAuthSession(supabase);
-          setAllowMessagesFrom('everyone');
-          setUser(null);
-          setMfaStepUpPending(false);
-          return;
-        }
+        const sessionUser = session.user;
+        setUser(appUserFromSupabaseUser(sessionUser));
 
-        const liveUser = authData.user ?? session.user;
-        if (!liveUser?.id) {
-          await clearStaleAuthSession(supabase);
-          setAllowMessagesFrom('everyone');
-          setUser(null);
-          setMfaStepUpPending(false);
-          return;
-        }
-
-        setUser(appUserFromSupabaseUser(liveUser));
         void (async () => {
+          const { data: authData, error: authErr } = await supabase.auth.getUser();
+          if (authErr && isAccountGoneError(authErr)) {
+            await clearStaleAuthSession(supabase);
+            setAllowMessagesFrom('everyone');
+            setUser(null);
+            setMfaStepUpPending(false);
+            return;
+          }
+
+          const liveUser = authData.user ?? sessionUser;
+          if (!liveUser?.id) {
+            await clearStaleAuthSession(supabase);
+            setAllowMessagesFrom('everyone');
+            setUser(null);
+            setMfaStepUpPending(false);
+            return;
+          }
+
+          setUser(appUserFromSupabaseUser(liveUser));
           const ensured = await ensureProfileRow(liveUser.id, liveUser.email ?? null);
           if (!ensured.ok && ensured.accountGone) {
             await clearStaleAuthSession(supabase);
             setUser(null);
           }
         })();
+
         void syncProfileDisplayNameFromAuth(
-          liveUser.id,
-          liveUser.user_metadata as Record<string, unknown> | undefined,
-          liveUser.email ?? null,
+          sessionUser.id,
+          sessionUser.user_metadata as Record<string, unknown> | undefined,
+          sessionUser.email ?? null,
         );
-        void hydrateDmPolicy(liveUser.id);
-        void syncProfileFlags(liveUser.id);
+        void hydrateDmPolicy(sessionUser.id);
+        void syncProfileFlags(sessionUser.id);
         void import('../lib/pushRegistration').then((m) =>
-          m.schedulePushRegistration(liveUser.id),
+          m.schedulePushRegistration(sessionUser.id),
         );
         void (async () => {
           try {
@@ -278,31 +282,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }, AUTH_GET_SESSION_TIMEOUT_MS);
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (cancelled) return;
-        if (event === 'PASSWORD_RECOVERY') {
-          setPasswordRecoveryPending(true);
-        }
-        if (
-          Platform.OS === 'web' &&
-          (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
-          session
-        ) {
-          cleanupWebAuthUrlAfterSignIn();
-        }
-        await applySessionUser(session);
-      } catch (err) {
-        if (!cancelled && isStaleRefreshTokenError(err)) {
-          await recoverStaleAuthSession(supabase, err);
-          setUser(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setOAuthBusy(false);
-          setReady(true);
-        }
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecoveryPending(true);
       }
+      if (
+        Platform.OS === 'web' &&
+        (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') &&
+        session
+      ) {
+        cleanupWebAuthUrlAfterSignIn();
+      }
+      // Never await Supabase auth calls inside this callback — it deadlocks OAuth flows.
+      void applySessionUser(session).catch((err) => {
+        if (!cancelled && isStaleRefreshTokenError(err)) {
+          void recoverStaleAuthSession(supabase, err).then(() => setUser(null));
+        }
+      });
+      setOAuthBusy(false);
+      setReady(true);
     });
 
     (async () => {
@@ -614,7 +613,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })();
       }
       return true;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google sign in failed. Please try again.';
+      authAlert('Google sign in', msg);
       return false;
     } finally {
       setOAuthBusy(false);
@@ -679,7 +680,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })();
       }
       return true;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Apple sign in failed. Please try again.';
+      authAlert('Apple sign in', msg);
       return false;
     } finally {
       setOAuthBusy(false);
