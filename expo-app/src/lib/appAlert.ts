@@ -104,6 +104,11 @@ export function showAppAlert(title: string, message?: string, buttons?: AppAlert
     ? supportErrorMessage(title, message)
     : message;
 
+  if (bridge) {
+    bridge.alert(title, displayMessage, buttons);
+    return;
+  }
+
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined') {
       window.alert(displayMessage ? `${title}\n\n${displayMessage}` : title);
@@ -129,6 +134,11 @@ export function showAppPrompt(
   type: 'default' | 'plain-text' | 'secure-text' = 'plain-text',
   defaultValue = '',
 ): void {
+  if (bridge) {
+    bridge.prompt(title, message, buttons, type, defaultValue);
+    return;
+  }
+
   if (Platform.OS === 'ios' && nativePrompt && !bridge) {
     nativePrompt(title, message, buttons, type, defaultValue);
     return;

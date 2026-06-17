@@ -21,8 +21,8 @@ import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { safeGetSession } from '../auth/authSessionRecovery';
-import { deleteOwnAccount } from '../auth/accountDeletionService';
-import { showSupportError, userFacingErrorBody } from '../lib/appAlert';
+import { startDeleteAccountFlow } from '../auth/deleteAccountFlow';
+import { showAppAlert, showSupportError, userFacingErrorBody } from '../lib/appAlert';
 import { AppleHeroButton } from '../components/AppleHeroButton';
 import { HighlightVideoModal } from '../components/HighlightVideoModal';
 import { InterestsEditor } from '../components/InterestsEditor';
@@ -583,72 +583,13 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
           style={styles.deleteAccountWrap}
           onPress={() => {
             if (!isSupabaseConfigured() || !user || user.id.startsWith('demo-')) {
-              Alert.alert(
+              showAppAlert(
                 'Delete account',
                 'Sign in with a live account to delete it here, or contact Support.',
               );
               return;
             }
-            const confirmDelete = async (phrase: string) => {
-              const client = getSupabase();
-              if (!client) return;
-              const session = await safeGetSession(client);
-              const token = session?.access_token;
-              if (!token) {
-                Alert.alert('Delete account', 'Session expired. Sign in again and retry.');
-                return;
-              }
-              const result = await deleteOwnAccount(token, phrase);
-              if (result.ok) {
-                await logout();
-                return;
-              }
-              showSupportError('Could not delete account', 'delete your account');
-            };
-            Alert.alert(
-              'Delete account',
-              'This permanently deletes your Dalton Grant Academy account and data stored with us — including profile, bookings, posts, messages, and media uploads tied to this account.\n\n' +
-                'Before you delete: if you subscribed to Premium on iPhone, cancel from Apple subscriptions; if you pay on web via Stripe, cancel via the Stripe billing portal and wait for confirmations to settle. Charges are handled by Apple or Stripe — DGA cannot remove them for you after deletion.\n\n' +
-                'This action cannot be undone.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Continue',
-                  style: 'destructive',
-                  onPress: () => {
-                    if (Platform.OS === 'web') {
-                      Alert.alert(
-                        'Final confirmation',
-                        'Delete your account permanently?',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete forever',
-                            style: 'destructive',
-                            onPress: () => void confirmDelete('DELETE'),
-                          },
-                        ],
-                      );
-                      return;
-                    }
-                    Alert.prompt(
-                      'Type DELETE to confirm',
-                      'This cannot be undone.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: (text?: string) => void confirmDelete(text ?? ''),
-                        },
-                      ],
-                      'plain-text',
-                      '',
-                    );
-                  },
-                },
-              ],
-            );
+            startDeleteAccountFlow(() => logout());
           }}
         >
           <Text style={styles.deleteAccountTxt}>Delete Account</Text>
