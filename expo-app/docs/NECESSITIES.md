@@ -261,6 +261,6 @@ $env:STRIPE_SECRET_KEY = "sk_test_..."
 node scripts/verify-stripe-supabase-secrets.mjs
 ```
 
-**Production live checkout:** replace `sk_test_` with `sk_live_`, set `STRIPE_PRICE_ACCESS_MONTHLY_ID` to your **live** £2/mo `price_…`, and set Vercel `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_…`.
+**Production live checkout:** set `STRIPE_SECRET_KEY=sk_live_…` (Dashboard → Developers → API keys), `STRIPE_PRICE_ACCESS_MONTHLY_ID=price_1TbkdqRiVFlZ45SIMWXBnSCH` (£2/mo live), and Vercel `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_…`. Align `STRIPE_WEBHOOK_SECRET` with the **live** webhook at `…/stripe-webhook`.
 
 **After paying:** Stripe webhook → `subscription_state.is_payment_verified`; tap **I already paid — refresh access** or reload the app.

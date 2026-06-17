@@ -173,11 +173,6 @@ export async function completeWebOAuthSessionIfNeeded(
     const returnUrl = window.location.href;
     const code = parseOAuthCodeFromReturnUrl(returnUrl);
     if (code) {
-      const existing = await safeGetSession(supabase);
-      if (existing) {
-        cleanupWebAuthUrlAfterSignIn();
-        return { exchanged: true };
-      }
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
         if (isPkceVerifierMissingError(error.message)) {
@@ -305,6 +300,21 @@ function parseAuthCallbackType(returnUrl: string): string {
   return 'signup';
 }
 
+/** Dismiss any in-flight native OAuth browser session (safe no-op on web). */
+export async function dismissOAuthBrowserSession(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    await WebBrowser.dismissAuthSession();
+  } catch {
+    /* no active session */
+  }
+  try {
+    await WebBrowser.coolDownAsync();
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function signInWithGoogleOAuth(
   supabase: SupabaseClient,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
@@ -316,6 +326,11 @@ export async function signInWithGoogleOAuth(
   };
 
   if (Platform.OS === 'web') {
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      /* best-effort — ensures PKCE + account switch after logout */
+    }
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: oauthOptions,
@@ -331,6 +346,8 @@ export async function signInWithGoogleOAuth(
       message: coerceApiError('sign you in with Google'),
     };
   }
+
+  await dismissOAuthBrowserSession();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

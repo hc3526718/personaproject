@@ -15,10 +15,12 @@ import { getSupabase } from '../lib/supabase';
 import {
   cleanupWebAuthUrlAfterSignIn,
   completeWebOAuthSessionIfNeeded,
+  dismissOAuthBrowserSession,
   getEmailConfirmRedirectUri,
   getOAuthRedirectUri,
   getPasswordResetRedirectUri,
   ingestSessionFromAuthCallbackUrl,
+  readOAuthCodeFromWebLocation,
   signInWithAppleNative,
   signInWithGoogleOAuth,
 } from './oauthSupabase';
@@ -50,6 +52,7 @@ import { mapAuthEmailErrorMessage, mapSignUpErrorMessage } from './passwordValid
 import { hasVerifiedTotpFactor, needsMfaStepUp } from './mfaService';
 import { withTimeout } from '../lib/withTimeout';
 import { clearSignupPendingEmail } from './signupPendingStorage';
+import { identifyRevenueCatUser } from '../subscriptions/revenueCat';
 
 export { DEMO_EMAIL, PREMIUM_DEMO_EMAIL } from './demoAccounts';
 
@@ -100,6 +103,8 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+let logoutInFlight: Promise<void> | null = null;
 
 function roleFromMetadata(meta: Record<string, unknown> | undefined): AppUser['role'] {
   const r = meta?.role;
@@ -350,6 +355,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(slowSessionId);
       sub.subscription.unsubscribe();
     };
+  }, [supabase, refreshMfaStepUp]);
+
+  /** Web: re-run OAuth callback exchange when returning from Google without a full remount. */
+  useEffect(() => {
+    if (!supabase || Platform.OS !== 'web' || typeof window === 'undefined') return;
+    let alive = true;
+
+    const tryOAuthReturn = () => {
+      if (!alive) return;
+      if (!readOAuthCodeFromWebLocation()) return;
+      void completeWebOAuthSessionIfNeeded(supabase).catch(() => {
+        /* non-fatal */
+      });
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tryOAuthReturn();
+    };
+
+    tryOAuthReturn();
+    window.addEventListener('pageshow', tryOAuthReturn);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      alive = false;
+      window.removeEventListener('pageshow', tryOAuthReturn);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [supabase]);
 
   /** Web: password recovery links set this flag in `completeWebOAuthSessionIfNeeded` before the hash is cleared. */
@@ -561,19 +593,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    setOAuthBusy(false);
-    if (supabase) {
-      try {
-        await supabase.auth.signOut({ scope: 'global' });
-      } catch {
-        await clearStaleAuthSession(supabase);
+    if (logoutInFlight) {
+      await logoutInFlight;
+      return;
+    }
+    logoutInFlight = (async () => {
+      setOAuthBusy(false);
+      setMfaStepUpPending(false);
+      setPasswordRecoveryPending(false);
+      if (supabase) {
+        try {
+          await supabase.auth.signOut({ scope: 'global' });
+        } catch {
+          await clearStaleAuthSession(supabase);
+        }
       }
+      await dismissOAuthBrowserSession();
+      await identifyRevenueCatUser(null);
+      if (Platform.OS === 'web') {
+        cleanupWebAuthUrlAfterSignIn();
+      }
+      setUser(null);
+    })();
+    try {
+      await logoutInFlight;
+    } finally {
+      logoutInFlight = null;
     }
-    if (Platform.OS === 'web') {
-      cleanupWebAuthUrlAfterSignIn();
-    }
-    setUser(null);
-    setMfaStepUpPending(false);
   }, [supabase]);
 
   const signInWithGoogle = useCallback(async () => {
@@ -584,6 +630,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       return false;
     }
+    if (logoutInFlight) await logoutInFlight;
     setOAuthBusy(true);
     void clearSignupPendingEmail();
     try {
@@ -634,6 +681,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       return false;
     }
+    if (logoutInFlight) await logoutInFlight;
     setOAuthBusy(true);
     void clearSignupPendingEmail();
     try {

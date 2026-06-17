@@ -36,6 +36,16 @@ const KNOWN_PRICE_DIGESTS = {
     label: 'STRIPE_PRICE_ANNUAL_ID (live)',
     value: 'price_1TXSEORiVFlZ45SINHhHucgV',
   },
+  '3c32b543f588b0d0d057f8d92de0fb99a5f6aeea5a5d5c6a01624eed7a1b25fe': {
+    mode: 'live',
+    label: 'STRIPE_PRICE_ACCESS_MONTHLY_ID (live £2/mo)',
+    value: 'price_1TbkdqRiVFlZ45SIMWXBnSCH',
+  },
+  'c1dde5699b88a04630e83b4601e445cdaef1eea1fc5691ed67d270c02ea33735': {
+    mode: 'test',
+    label: 'STRIPE_PRICE_ACCESS_MONTHLY_ID (test £2/mo)',
+    value: 'price_1TcLzSRiVFlZ45SIGrBvr0tm',
+  },
 };
 
 function digest(value) {
@@ -87,6 +97,7 @@ console.log(`Supabase project ref: ${PROJECT_REF}\n`);
 
 const remote = fetchSupabaseDigests();
 const names = [
+  'STRIPE_PRICE_ACCESS_MONTHLY_ID',
   'STRIPE_PRICE_MONTHLY_ID',
   'STRIPE_PRICE_ANNUAL_ID',
   'STRIPE_SECRET_KEY',

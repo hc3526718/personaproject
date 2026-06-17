@@ -203,17 +203,23 @@ export function AccountSecurityScreen({ navigation }: PProps<'AccountSecurity'>)
           ) : null}
         </View>
 
-        {staffAccount ? (
+        {user && !isDemo ? (
           <>
-            <Text style={styles.cardKickerSpaced}>Two-factor authentication (recommended for staff)</Text>
+            <Text style={styles.cardKickerSpaced}>
+              Two-factor authentication{staffAccount ? ' (recommended for staff)' : ''}
+            </Text>
             <View style={styles.card}>
               <View style={styles.toggleRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.toggleTitle}>Authenticator app</Text>
                   <Text style={styles.toggleSub}>
                     {mfaEnrolled
-                      ? 'Enrolled — you will enter a code when signing in and before Master Control.'
-                      : 'Recommended for Master Control. Scan a QR code with Google Authenticator, 1Password, or Authy.'}
+                      ? staffAccount
+                        ? 'Enrolled — you will enter a code when signing in and before Master Control.'
+                        : 'Enrolled — you will enter a code when signing in.'
+                      : staffAccount
+                        ? 'Recommended for Master Control. Scan a QR code with Google Authenticator, 1Password, or Authy.'
+                        : 'Add an extra layer of security. Scan a QR code with Google Authenticator, 1Password, or Authy.'}
                   </Text>
                 </View>
                 <View style={[styles.statusPillMuted, mfaEnrolled && styles.statusPillOk]}>

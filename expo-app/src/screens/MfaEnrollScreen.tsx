@@ -81,14 +81,6 @@ export function MfaEnrollScreen({ navigation }: Props) {
         ]);
         return undefined;
       }
-      if (!isStaffAccount(user)) {
-        Alert.alert(
-          'Staff only',
-          'Two-factor authentication enrollment is for master and staff accounts.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }],
-        );
-        return undefined;
-      }
       void load();
       return undefined;
     }, [load, navigation, user]),

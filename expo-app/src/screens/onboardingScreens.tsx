@@ -194,6 +194,12 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
     Alert.alert(
       'Check your email',
       'If an account exists for that address, we sent a reset link. Open it on this device, then set a new password in the app. Check spam if you do not see it within a few minutes.',
+      [
+        {
+          text: 'Continue to Log In',
+          onPress: () => navigation.navigate('LogIn'),
+        },
+      ],
     );
   };
 
@@ -231,6 +237,11 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
         <AppleHeroButton loading={busy} disabled={sent} onPress={() => void send()}>
           {sent ? 'Email sent' : 'Send reset link'}
         </AppleHeroButton>
+        {sent ? (
+          <AppleHeroButton onPress={() => navigation.navigate('LogIn')} style={{ marginTop: DS.space.md }}>
+            Continue to Log In
+          </AppleHeroButton>
+        ) : null}
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Remember your password? </Text>
           <Pressable onPress={() => navigation.navigate('LogIn')}>
