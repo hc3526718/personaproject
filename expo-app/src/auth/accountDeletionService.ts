@@ -2,7 +2,7 @@ import { getDeleteOwnAccountEdgeUrl, getSupabaseAnonKey } from '../lib/env';
 import { coerceApiError } from '../lib/appAlert';
 
 export type DeleteOwnAccountResult =
-  | { ok: true }
+  | { ok: true; stripeSubscriptionsScheduled?: string[] }
   | { ok: false; message: string };
 
 /** Permanently deletes the signed-in user (requires confirm phrase DELETE). */
@@ -29,14 +29,21 @@ export async function deleteOwnAccount(
       },
       body: JSON.stringify({ confirm_phrase: confirmPhrase.trim() }),
     });
-    const json = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean };
+    const json = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      ok?: boolean;
+      stripe_subscriptions_scheduled?: string[];
+    };
     if (!res.ok) {
       return {
         ok: false,
         message: coerceApiError('delete your account', json.error ?? `Request failed (${res.status})`),
       };
     }
-    return { ok: true };
+    const scheduled = Array.isArray(json.stripe_subscriptions_scheduled)
+      ? json.stripe_subscriptions_scheduled.filter((id): id is string => typeof id === 'string')
+      : undefined;
+    return { ok: true, stripeSubscriptionsScheduled: scheduled };
   } catch (e) {
     return {
       ok: false,

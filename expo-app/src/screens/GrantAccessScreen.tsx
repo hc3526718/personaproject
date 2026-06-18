@@ -40,6 +40,7 @@ import {
 } from '../auth/signupPendingStorage';
 import type { AuthStackParamList } from '../navigation/types';
 import { AuthWebBackBar } from '../components/AuthWebBackBar';
+import { AuthLegalFooter } from '../components/AuthLegalFooter';
 import { authBackHandler } from '../lib/authNavigation';
 import { AuthFormField, authScreenSharedStyles as S } from './onboardingScreens';
 
@@ -378,6 +379,7 @@ export default function GrantAccessScreen() {
         <Pressable style={local.resetLink} onPress={() => navigation.navigate('ForgotPassword')}>
           <Text style={S.gold}>Reset password</Text>
         </Pressable>
+        <AuthLegalFooter />
       </ScrollView>
     </KeyboardAvoidingView>
   );

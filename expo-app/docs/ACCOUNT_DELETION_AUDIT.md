@@ -1,14 +1,16 @@
 # Account deletion audit
 
-Last verified against production project `txehbzyntvqpkkegjrwp` via Management API.
+Last verified against production project `txehbzyntvqpkkegjrwp`.
 
 ## User path
 
 1. **Profile → Settings → Delete account**
-2. Confirm dialog (Apple / Stripe cancellation guidance)
-3. iOS: `Alert.prompt` — type **DELETE**
+2. Confirm dialog — platform-specific copy:
+   - **Web:** Stripe subscription scheduled to cancel at period end on delete
+   - **Mobile:** Apple / Google subscription **not** auto-cancelled; user must cancel in device settings
+3. Type **DELETE** (prompt on all platforms; web uses modal prompt)
 4. `POST /functions/v1/delete-own-account` with user JWT + `{ confirm_phrase: "DELETE" }`
-5. On success: local sign-out + confirmation alert
+5. On success: local sign-out + confirmation alert (mobile includes subscription cancellation reminder)
 
 ## Edge Function (`delete-own-account`)
 
@@ -16,11 +18,33 @@ Last verified against production project `txehbzyntvqpkkegjrwp` via Management A
 |------|--------|
 | Auth | Validates Bearer JWT; only deletes `auth.uid()` |
 | Confirm | Requires `confirm_phrase === DELETE` |
-| Audit | Inserts `security_audit_log` (`self_delete_account`) |
-| Storage | **Best-effort** purge via `purgeUserStorage()` (see below) |
+| Stripe | If `STRIPE_SECRET_KEY` set: `subscriptions.update(id, { cancel_at_period_end: true })` for active web subscriptions (customer search + stored `stripe_subscription_id`) |
+| Audit | Inserts `security_audit_log` (`self_delete_account`) with `stripe_subscriptions_scheduled` |
+| Storage | **Best-effort** purge via `purgeUserStorage()` |
 | Auth delete | `auth.admin.deleteUser(userId)` |
 
-**Deploy status:** ACTIVE (verify version after each deploy).
+Response includes `stripe_subscriptions_scheduled: string[]` for web clients.
+
+**Deploy:** `supabase functions deploy delete-own-account --project-ref txehbzyntvqpkkegjrwp`
+
+Requires `STRIPE_SECRET_KEY` on the function (same as `stripe-webhook`).
+
+## Subscription liability (mobile)
+
+When a user deletes their account on **iOS or Android**, App Store / Google Play billing is **not** cancelled by DGA. The app shows an explicit post-deletion alert directing the user to cancel in device subscription settings.
+
+**The Dalton Grant Academy is not liable for any unrecalled payments** when accounts are deleted on mobile without the user cancelling their Apple or Google subscription.
+
+Documented in:
+
+- In-app delete warning (`deleteAccountFlow.ts`)
+- Post-delete alert (mobile)
+- [Terms of Use](/terms) §5 (subscriptions & billing)
+- This file
+
+## Web Stripe auto-cancel
+
+On **web** account deletion, active Stripe subscriptions are set to `cancel_at_period_end: true` before the auth user is removed. This cannot be undone; the user retains access until the end of the paid period but will not renew.
 
 ## Database cascade (auth.users → profiles → …)
 
@@ -37,39 +61,22 @@ Last verified against production project `txehbzyntvqpkkegjrwp` via Management A
 | follows, follow_requests, content_proposals (author) | CASCADE |
 | in_app_notifications | CASCADE |
 
-Some FKs **SET NULL** (e.g. `events.created_by`, proposal reviewers) — content may remain anonymised, not tied to a live account.
-
 ## Storage (not FK-linked)
 
-`storage.objects` does **not** cascade on SQL delete. `purgeUserStorage` removes prefixes:
-
-- `profiles/{userId}/`
-- `posts/{userId}/`
-- `events/{userId}/`
-- `proposals/{userId}/`
-- `messages/{conversationId}/{userId}/` (per conversation membership)
-
-Objects uploaded under other prefixes without `userId` in the path may require manual ops cleanup (rare).
+`purgeUserStorage` removes user prefixes under `media_assets` bucket. Objects outside those prefixes may need manual ops cleanup.
 
 ## Not deleted / retained by design
 
 | Item | Reason |
 |------|--------|
 | `security_audit_log` rows | Security / compliance audit trail |
-| Apple / Google identity at provider | User must revoke at provider; Supabase auth row is removed |
-| RevenueCat / App Store subscription | User must cancel in iOS Subscriptions; deletion does not refund |
-| Stripe web subscription | User must cancel via Stripe portal (stated in delete copy) |
-| Post reports **about** the user’s content | Reporter rows cascade; reported posts may be deleted with author CASCADE |
-
-## Gaps / ops
-
-- Redeploy `delete-own-account` after changing `purgeUserStorage.ts`.
-- Run `node scripts/verify-auth-email-setup.mjs` separately for mail — unrelated to deletion.
-- For GDPR export before delete, use Support — no in-app export yet.
+| Stripe customer record | Retained by Stripe; subscription set to cancel at period end |
+| Apple / Google subscription (mobile) | User must cancel at provider |
+| Billing / tax records | Legal retention per Privacy Policy |
 
 ## Manual verification checklist
 
-- [ ] Create test user → post + upload avatar → delete → confirm auth user gone in Dashboard
-- [ ] Confirm storage prefix empty in Dashboard → Storage → `media_assets`
-- [ ] Confirm `subscription_state` row gone for user id
+- [ ] Web user with Stripe sub → delete → confirm `cancel_at_period_end` in Stripe Dashboard
+- [ ] Mobile user → delete → confirm post-delete subscription alert shown
+- [ ] Confirm auth user gone; `subscription_state` row removed
 - [ ] Confirm sign-in fails for deleted email

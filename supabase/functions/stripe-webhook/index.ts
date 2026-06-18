@@ -28,8 +28,13 @@ async function setPremium(
   userId: string,
   isPro: boolean,
   raw: unknown,
+  stripeIds?: { customerId?: string | null; subscriptionId?: string | null },
 ): Promise<void> {
   const entitlementIds = isPro ? ['premium'] : [];
+  const base =
+    typeof raw === 'object' && raw !== null ? { ...(raw as Record<string, unknown>) } : { payload: raw };
+  if (stripeIds?.customerId) base.stripe_customer_id = stripeIds.customerId;
+  if (stripeIds?.subscriptionId) base.stripe_subscription_id = stripeIds.subscriptionId;
   await admin.from('subscription_state').upsert(
     {
       user_id: userId,
@@ -37,7 +42,7 @@ async function setPremium(
       is_payment_verified: isPro,
       entitlement_ids: entitlementIds,
       updated_at: new Date().toISOString(),
-      raw: raw as Record<string, unknown>,
+      raw: base,
     },
     { onConflict: 'user_id' },
   );
@@ -160,7 +165,14 @@ Deno.serve(async (req) => {
         if (session.mode !== 'subscription') break;
         const userId = userIdFromSession(session);
         if (!userId) break;
-        await setPremium(admin, userId, true, { event: event.type, session });
+        await setPremium(admin, userId, true, { event: event.type, session }, {
+          customerId:
+            typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
+          subscriptionId:
+            typeof session.subscription === 'string'
+              ? session.subscription
+              : session.subscription?.id ?? null,
+        });
         break;
       }
       case 'customer.subscription.updated':
@@ -176,7 +188,10 @@ Deno.serve(async (req) => {
         if (!userId) break;
         const active =
           sub.status === 'active' || sub.status === 'trialing';
-        await setPremium(admin, userId, active, { event: event.type, subscription: sub });
+        await setPremium(admin, userId, active, { event: event.type, subscription: sub }, {
+          customerId: typeof sub.customer === 'string' ? sub.customer : sub.customer?.id ?? null,
+          subscriptionId: sub.id,
+        });
         break;
       }
       default:

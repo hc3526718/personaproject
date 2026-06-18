@@ -49,6 +49,10 @@ export function SubscriptionLegalFooter({
         <Pressable accessibilityRole="link" onPress={() => void openLegalPage('/terms')}>
           <Text style={styles.link}>Terms of Service</Text>
         </Pressable>
+        <Text style={styles.sep}>·</Text>
+        <Pressable accessibilityRole="link" onPress={() => void openLegalPage('/cookie-policy')}>
+          <Text style={styles.link}>Cookie Policy</Text>
+        </Pressable>
       </View>
     </View>
   );

@@ -8,6 +8,8 @@
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import Stripe from 'npm:stripe@17.7.0';
+import { cancelStripeSubscriptionsForUser } from '../_shared/cancelStripeSubscriptions.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { purgeUserStorage } from '../_shared/purgeUserStorage.ts';
 
@@ -77,12 +79,37 @@ Deno.serve(async (req) => {
     null;
 
   try {
+    let stripeCancel: Awaited<ReturnType<typeof cancelStripeSubscriptionsForUser>> | null = null;
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')?.trim();
+    if (stripeKey) {
+      const stripe = new Stripe(stripeKey);
+      const knownSubIds: string[] = [];
+      const { data: subRow } = await admin
+        .from('subscription_state')
+        .select('raw')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const raw = subRow?.raw as Record<string, unknown> | null;
+      const fromRaw = raw?.stripe_subscription_id;
+      if (typeof fromRaw === 'string' && fromRaw.trim()) knownSubIds.push(fromRaw.trim());
+      stripeCancel = await cancelStripeSubscriptionsForUser(
+        stripe,
+        userId,
+        userData.user.email,
+        knownSubIds,
+      );
+    }
+
     const { error: auditErr } = await admin.from('security_audit_log').insert({
       action: 'self_delete_account',
       actor_user_id: userId,
       target_user_id: userId,
       client_ip: clientIp,
-      metadata: { user_agent: req.headers.get('user-agent') ?? null },
+      metadata: {
+        user_agent: req.headers.get('user-agent') ?? null,
+        stripe_subscriptions_scheduled: stripeCancel?.scheduled ?? [],
+        stripe_cancel_errors: stripeCancel?.errors ?? [],
+      },
     });
     if (auditErr) {
       console.error('[delete-own-account] audit_log_failed', auditErr.message);
@@ -101,10 +128,16 @@ Deno.serve(async (req) => {
         headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        stripe_subscriptions_scheduled: stripeCancel?.scheduled ?? [],
+      }),
+      {
+        status: 200,
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      },
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'delete_failed';
     return new Response(JSON.stringify({ error: msg }), {

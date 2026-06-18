@@ -1,12 +1,21 @@
+import { Platform } from 'react-native';
 import { showAppAlert, showAppPrompt } from '../lib/appAlert';
 import { getSupabase } from '../lib/supabase';
 import { safeGetSession } from './authSessionRecovery';
 import { deleteOwnAccount } from './accountDeletionService';
 
-const DELETE_ACCOUNT_WARNING =
+const DELETE_ACCOUNT_WARNING_WEB =
   'This permanently deletes your Dalton Grant Academy account and data stored with us — including profile, bookings, posts, messages, and media uploads tied to this account.\n\n' +
-  'Before you delete: if you subscribed to Premium on iPhone, cancel from Apple subscriptions; if you pay on web via Stripe, cancel via the Stripe billing portal and wait for confirmations to settle. Charges are handled by Apple or Stripe — DGA cannot remove them for you after deletion.\n\n' +
+  'If you pay for Premium on the web via Stripe, your subscription will be scheduled to cancel at the end of the current billing period when you delete. You will not be charged again after that period, but this cannot be undone and we cannot refund the current period.\n\n' +
   'This action cannot be undone.';
+
+const DELETE_ACCOUNT_WARNING_NATIVE =
+  'This permanently deletes your Dalton Grant Academy account and data stored with us — including profile, bookings, posts, messages, and media uploads tied to this account.\n\n' +
+  'IMPORTANT — Apple / Google subscriptions: deleting your account does NOT cancel App Store or Google Play billing. You must cancel yourself in iOS Settings → Subscriptions (or Google Play → Subscriptions) before or immediately after deletion. The Dalton Grant Academy is not liable for any charges that continue if you delete without cancelling with Apple or Google.\n\n' +
+  'This action cannot be undone.';
+
+const DELETE_ACCOUNT_WARNING =
+  Platform.OS === 'web' ? DELETE_ACCOUNT_WARNING_WEB : DELETE_ACCOUNT_WARNING_NATIVE;
 
 async function confirmDeletePhrase(phrase: string, onDeleted: () => void | Promise<void>) {
   const client = getSupabase();
@@ -23,9 +32,22 @@ async function confirmDeletePhrase(phrase: string, onDeleted: () => void | Promi
     return;
   }
   await onDeleted();
+  if (Platform.OS === 'web') {
+    const scheduled = result.stripeSubscriptionsScheduled?.length ?? 0;
+    const stripeNote =
+      scheduled > 0
+        ? ` Your Stripe subscription is scheduled to end at the close of the current billing period (${scheduled} subscription${scheduled === 1 ? '' : 's'}).`
+        : '';
+    showAppAlert(
+      'Account deleted',
+      `Your account and data have been permanently removed.${stripeNote} You can create a new account anytime from the welcome screen.`,
+      [{ text: 'OK' }],
+    );
+    return;
+  }
   showAppAlert(
-    'Account deleted',
-    'Your account and data have been permanently removed. You can create a new account anytime from the welcome screen.',
+    'Account deleted — cancel your subscription',
+    'Your account has been deleted. If you subscribed through Apple or Google, open your device subscription settings now and cancel Premium to avoid future charges. The Dalton Grant Academy is not liable for payments that continue after account deletion if you did not cancel with Apple or Google.',
     [{ text: 'OK' }],
   );
 }
@@ -40,7 +62,7 @@ export function startDeleteAccountFlow(onDeleted: () => void | Promise<void>) {
       onPress: () => {
         showAppPrompt(
           'Type DELETE to confirm',
-          'Enter DELETE in capital letters to permanently delete your account.',
+          'Enter DELETE in capital letters to permanently delete your account. This cannot be undone.',
           [
             { text: 'Cancel', style: 'cancel' },
             {

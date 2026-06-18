@@ -264,3 +264,36 @@ node scripts/verify-stripe-supabase-secrets.mjs
 **Production live checkout:** set `STRIPE_SECRET_KEY=sk_live_…` (Dashboard → Developers → API keys), `STRIPE_PRICE_ACCESS_MONTHLY_ID=price_1TbkdqRiVFlZ45SIMWXBnSCH` (£2/mo live), and Vercel `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_…`. Align `STRIPE_WEBHOOK_SECRET` with the **live** webhook at `…/stripe-webhook`.
 
 **After paying:** Stripe webhook → `subscription_state.is_payment_verified`; tap **I already paid — refresh access** or reload the app.
+
+## UK legal compliance (web)
+
+Public pages (synced to `expo-app/marketing/` on Vercel build):
+
+| Document | URL |
+|----------|-----|
+| Terms of Use | `/terms` |
+| Privacy Policy | `/privacy` |
+| Cookie Policy | `/cookie-policy` |
+
+- Marketing pages load `shared/cookie-consent.js` (PECR banner).
+- Web app (`/app`) shows `CookieConsentBanner` + legal links on auth screens (`AuthLegalFooter`).
+- In-app: Profile → Settings → Legal.
+
+Operator contact: [contact form](https://daltongrantacademy.uk/contact-us). Privacy requests: choose “Privacy & data requests”.
+
+## Account deletion & subscriptions
+
+| Platform | Subscription on delete |
+|----------|------------------------|
+| **Web** | `delete-own-account` calls Stripe `subscriptions.update(id, { cancel_at_period_end: true })` before removing the auth user |
+| **iOS / Android** | **Not** auto-cancelled — user must cancel in Apple/Google subscription settings |
+
+Mobile post-delete alert + Terms §5 state **DGA is not liable** for charges that continue if the user deletes without cancelling with Apple/Google.
+
+See `docs/ACCOUNT_DELETION_AUDIT.md`. Redeploy after changes:
+
+```powershell
+npx supabase functions deploy delete-own-account --project-ref txehbzyntvqpkkegjrwp
+```
+
+Requires `STRIPE_SECRET_KEY` on the function (same key as `stripe-webhook`).

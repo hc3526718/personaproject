@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { webPageShellStyle } from '../layout/webLayout';
 import { WebAppFrame } from '../components/WebAppFrame';
+import { CookieConsentBanner } from '../components/CookieConsentBanner';
 import { AccessibilityBanner } from '../components/AccessibilityBanner';
 import {
   NavigationContainer,
@@ -644,6 +645,7 @@ export function AppNavigator() {
           )}
         </RootStack.Navigator>
       </NavigationContainer>
+        <CookieConsentBanner />
         </View>
     </WebAppFrame>
   );

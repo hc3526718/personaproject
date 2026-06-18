@@ -17,6 +17,7 @@ import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { AuthWebBackBar } from '../components/AuthWebBackBar';
+import { AuthLegalFooter } from '../components/AuthLegalFooter';
 import { AuthSocialSignIn } from '../components/AuthSocialSignIn';
 import { AuthWelcomeRiveHero } from '../components/AuthWelcomeRiveHero';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -66,6 +67,7 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
           <Text style={styles.gold}>Reset password</Text>
         </Pressable>
       </View>
+      <AuthLegalFooter />
     </View>
   );
 }
@@ -170,6 +172,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
             <Text style={styles.gold}>Create Account</Text>
           </Pressable>
         </View>
+        <AuthLegalFooter />
       </ScrollView>
     </KeyboardAvoidingView>
   );
