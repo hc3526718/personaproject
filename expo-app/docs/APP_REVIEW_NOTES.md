@@ -2,6 +2,60 @@
 
 Paste the sections below into **App Review Information → Notes** when submitting **The Dalton Grant Academy** (bundle `com.hc111.daltondemo`).
 
+Also enter the demo **Username** and **Password** in the **Sign-in required** fields at the top of App Review Information.
+
+---
+
+## Pre-provisioned demo account (recommended — paste into Notes)
+
+Copy this block and replace the bracketed placeholders before submit:
+
+```
+PRE-PROVISIONED REVIEW ACCOUNT
+
+Username: [reviewer email — e.g. daltongrant@hotmail.co.uk]
+Password: [strong password — same as Sign-in required field above]
+
+This account is already set up for review:
+• Email address is confirmed in our production backend (no confirmation email step required).
+• Onboarding / profile setup is complete (reviewer goes straight to the main app after Log In).
+• Academy Access subscription is active on our server (is_payment_verified = true) — no App Store sandbox purchase is required to test Community, Messages, Media, Events, Sponsors, or Profile.
+
+HOW TO TEST
+1. Open The Dalton Grant Academy on the review device.
+2. Tap Log In (do not use Sign Up).
+3. Enter the username and password above.
+4. You should enter the main app within a few seconds. A one-time introduction tour may appear — tap Skip or Get started.
+
+OPTIONAL — subscription purchase flow
+If Apple needs to test In-App Purchase separately, we can provide a second account without pre-applied access. For that flow: sign in → Academy access screen → Subscribe with App Store → use a Sandbox Apple ID (Settings → App Store → Sandbox Account).
+
+ACCOUNT DELETION (optional)
+Profile → Settings → Delete account → type DELETE. Apple subscriptions are not cancelled automatically on iOS — see in-app warning.
+
+Support: https://daltongrantacademy.uk/contact-team
+Privacy: https://daltongrantacademy.uk/privacy
+Terms: https://daltongrantacademy.uk/terms
+```
+
+**Backend setup before submit** (Supabase production `txehbzyntvqpkkegjrwp`):
+
+1. Create user in Authentication (or sign up once in-app).
+2. Dashboard → Users → confirm email.
+3. Complete onboarding once in the app on a test device.
+4. Grant server-side access:
+
+```sql
+INSERT INTO public.subscription_state (user_id, is_payment_verified, is_pro)
+SELECT u.id, true, true
+FROM auth.users u
+WHERE lower(coalesce(u.email, '')) = lower('[reviewer email]')
+ON CONFLICT (user_id) DO UPDATE
+SET is_payment_verified = true, is_pro = true, updated_at = now();
+```
+
+5. Sign out and sign in on the review device to verify you land in the main app (not paywall).
+
 ---
 
 ## Demo account (required)

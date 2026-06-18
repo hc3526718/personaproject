@@ -16,7 +16,14 @@ import { ProposalOutcomeModal } from './ProposalOutcomeModal';
  * Shows proposal decision modal on cold start / login; while app is active, decision
  * notifications only show a tappable banner that opens the modal.
  */
-export function ProposalOutcomeHost({ children }: { children: React.ReactNode }) {
+export function ProposalOutcomeHost({
+  children,
+  pauseInitialCheck = false,
+}: {
+  children: React.ReactNode;
+  /** When true (e.g. welcome tour open), defer proposal outcome modal until dismissed. */
+  pauseInitialCheck?: boolean;
+}) {
   const { user } = useAuth();
   const showBanner = useActionBanner();
   const [modalProposal, setModalProposal] = useState<ContentProposalRow | null>(null);
@@ -39,18 +46,23 @@ export function ProposalOutcomeHost({ children }: { children: React.ReactNode })
   }, [openModal]);
 
   const checkPendingOnLaunch = useCallback(async () => {
+    if (pauseInitialCheck) return;
     if (!user?.id || user.id.startsWith('demo-') || !isSupabaseConfigured()) return;
     const pending = await listAuthorPendingOutcomeProposals();
     if (pending.length > 0 && !initialModalDone.current) {
       initialModalDone.current = true;
       await openModal(pending[0]!.id);
     }
-  }, [openModal, user?.id]);
+  }, [openModal, pauseInitialCheck, user?.id]);
 
   useEffect(() => {
+    if (pauseInitialCheck) return;
     initialModalDone.current = false;
-    void checkPendingOnLaunch();
-  }, [checkPendingOnLaunch, user?.id]);
+    const timer = setTimeout(() => {
+      void checkPendingOnLaunch();
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [checkPendingOnLaunch, pauseInitialCheck, user?.id]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {

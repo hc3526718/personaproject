@@ -39,6 +39,7 @@ import {
   saveSignupPendingEmail,
 } from '../auth/signupPendingStorage';
 import type { AuthStackParamList } from '../navigation/types';
+import { AuthFlowBlockingOverlay } from '../components/AuthFlowBlockingOverlay';
 import { AuthWebBackBar } from '../components/AuthWebBackBar';
 import { AuthLegalFooter } from '../components/AuthLegalFooter';
 import { authBackHandler } from '../lib/authNavigation';
@@ -62,6 +63,7 @@ export default function GrantAccessScreen() {
   const [resendBusy, setResendBusy] = useState(false);
   const [signupConfirmEmail, setSignupConfirmEmail] = useState<string | null>(null);
   const [continueBusy, setContinueBusy] = useState(false);
+  const [signupBusy, setSignupBusy] = useState(false);
 
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: true });
@@ -140,39 +142,44 @@ export default function GrantAccessScreen() {
     }
     scrollToTop();
     Keyboard.dismiss();
-    if (isSupabaseConfigured()) {
-      const result = await signUp(trimmed, password);
-      if (!result.ok) {
-        Alert.alert('Create account', result.message);
-        return;
+    setSignupBusy(true);
+    try {
+      if (isSupabaseConfigured()) {
+        const result = await signUp(trimmed, password);
+        if (!result.ok) {
+          Alert.alert('Create account', result.message);
+          return;
+        }
+        if (result.needsEmailConfirmation) {
+          showPendingBanner(trimmed);
+          Alert.alert(
+            'Confirm your email',
+            Platform.OS === 'web'
+              ? `We sent a confirmation link to ${trimmed}. Open it on this device — you'll land on our website to confirm, then return to the app and tap "I've confirmed — continue" below.`
+              : `We sent a confirmation link to ${trimmed}. Open it on this device — you'll see an Email confirmed page on daltongrantacademy.uk, then return here and tap "I've confirmed — continue" below.`,
+          );
+          return;
+        }
+        setSignupConfirmEmail(null);
+        void clearSignupPendingEmail();
       }
-      if (result.needsEmailConfirmation) {
+      const loginResult = await login(trimmed, password);
+      if (loginResult.ok) return;
+      if (loginResult.reason === 'email_not_confirmed') {
         showPendingBanner(trimmed);
         Alert.alert(
           'Confirm your email',
-          Platform.OS === 'web'
-            ? `We sent a confirmation link to ${trimmed}. Open it on this device — you'll land on our website to confirm, then return to the app and tap "I've confirmed — continue" below.`
-            : `We sent a confirmation link to ${trimmed}. Open it on this device — you'll see an Email confirmed page on daltongrantacademy.uk, then return here and tap "I've confirmed — continue" below.`,
+          `Please confirm your account using the link we sent to ${trimmed} before logging in.`,
         );
         return;
       }
-      setSignupConfirmEmail(null);
-      void clearSignupPendingEmail();
-    }
-    const loginResult = await login(trimmed, password);
-    if (loginResult.ok) return;
-    if (loginResult.reason === 'email_not_confirmed') {
-      showPendingBanner(trimmed);
       Alert.alert(
-        'Confirm your email',
-        `Please confirm your account using the link we sent to ${trimmed} before logging in.`,
+        'Could not finish sign-up',
+        'Please check your details and internet connection. If you already have an account, use Log In.',
       );
-      return;
+    } finally {
+      setSignupBusy(false);
     }
-    Alert.alert(
-      'Could not finish sign-up',
-      'Please check your details and internet connection. If you already have an account, use Log In.',
-    );
   }, [email, password, confirmPassword, login, scrollToTop, showPendingBanner, signUp]);
 
   const dismissConfirmBanner = useCallback(() => {
@@ -261,6 +268,10 @@ export default function GrantAccessScreen() {
 
   return (
     <KeyboardAvoidingView style={local.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <AuthFlowBlockingOverlay
+        visible={signupBusy || continueBusy}
+        message={continueBusy ? 'Checking your confirmation…' : 'Creating your account…'}
+      />
       <AuthWebBackBar />
       <ScreenHeader
         title="Create Account"
@@ -366,7 +377,11 @@ export default function GrantAccessScreen() {
             ) : null}
           </AuthFormField>
         ) : null}
-        <AppleHeroButton style={{ marginTop: DS.space.sm }} onPress={() => void tryCreateAccount()}>
+        <AppleHeroButton
+          style={{ marginTop: DS.space.sm }}
+          loading={signupBusy}
+          onPress={() => void tryCreateAccount()}
+        >
           Sign Up
         </AppleHeroButton>
         <AuthSocialSignIn />

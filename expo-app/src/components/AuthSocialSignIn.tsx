@@ -2,6 +2,7 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { AppleHeroButton } from './AppleHeroButton';
+import { AuthFlowBlockingOverlay } from './AuthFlowBlockingOverlay';
 import { DS } from '../designSystem';
 
 function socialLabelStyle() {
@@ -19,6 +20,7 @@ export function AuthSocialSignIn() {
 
   return (
     <>
+      <AuthFlowBlockingOverlay visible={oAuthBusy} message="Signing in…" />
       <View style={styles.orRow}>
         <View style={styles.orLine} />
         <Text style={styles.orText}>OR</Text>

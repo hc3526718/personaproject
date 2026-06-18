@@ -420,16 +420,22 @@ function AuthenticatedShell() {
   const accessGranted = hasAppAccess(user, isPaymentVerified, sessionEmail);
 
   useEffect(() => {
-    if (gate !== 'app' || !user?.id || (needsPaidAccess && !accessGranted)) return;
+    if (gate !== 'app' || !user?.id) return;
+    if (needsPaidAccess && (subscriptionBusy || !accessGranted)) return;
     let alive = true;
-    void (async () => {
-      const done = await hasCompletedAppWelcomeTour(user.id);
-      if (alive && !done) setWelcomeTourOpen(true);
-    })();
+    const timer = setTimeout(() => {
+      void (async () => {
+        const done = await hasCompletedAppWelcomeTour(user.id);
+        if (!alive || done) return;
+        void markAppWelcomeTourCompleted(user.id);
+        setWelcomeTourOpen(true);
+      })();
+    }, 400);
     return () => {
       alive = false;
+      clearTimeout(timer);
     };
-  }, [accessGranted, gate, needsPaidAccess, user?.id]);
+  }, [accessGranted, gate, needsPaidAccess, subscriptionBusy, user?.id]);
 
   const completeWelcomeTour = useCallback(() => {
     setWelcomeTourOpen(false);
@@ -449,9 +455,6 @@ function AuthenticatedShell() {
       />
     );
   }
-  if (needsPaidAccess && subscriptionBusy) {
-    return <AuthShellLoading backgroundColor={colors.background} />;
-  }
   if (needsPaidAccess && !accessGranted) {
     return (
       <AcademyAccessPaywall
@@ -463,7 +466,7 @@ function AuthenticatedShell() {
   }
 
   return (
-    <ProposalOutcomeHost>
+    <ProposalOutcomeHost pauseInitialCheck={welcomeTourOpen}>
       <MainTabNavigator />
       <AppWelcomeTourModal visible={welcomeTourOpen} onComplete={completeWelcomeTour} />
     </ProposalOutcomeHost>

@@ -16,6 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { AuthFlowBlockingOverlay } from '../components/AuthFlowBlockingOverlay';
 import { AuthWebBackBar } from '../components/AuthWebBackBar';
 import { AuthLegalFooter } from '../components/AuthLegalFooter';
 import { AuthSocialSignIn } from '../components/AuthSocialSignIn';
@@ -79,11 +80,13 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(true);
+  const [loginBusy, setLoginBusy] = useState(false);
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <AuthFlowBlockingOverlay visible={loginBusy} message="Signing in…" />
       <AuthWebBackBar />
       <ScreenHeader
         title="Log In"
@@ -145,21 +148,27 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
           </Pressable>
         </View>
         <AppleHeroButton
+          loading={loginBusy}
           onPress={() => {
             void (async () => {
-              const result = await login(email.trim(), password);
-              if (result.ok) return;
-              if (result.reason === 'email_not_confirmed') {
+              setLoginBusy(true);
+              try {
+                const result = await login(email.trim(), password);
+                if (result.ok) return;
+                if (result.reason === 'email_not_confirmed') {
+                  Alert.alert(
+                    'Confirm your email',
+                    `Please check your inbox (${result.email}) and tap the confirmation link before logging in. Check spam if you do not see it within a few minutes.`,
+                  );
+                  return;
+                }
                 Alert.alert(
-                  'Confirm your email',
-                  `Please check your inbox (${result.email}) and tap the confirmation link before logging in. Check spam if you do not see it within a few minutes.`,
+                  'Log in failed',
+                  'Check your email and password, or sign in with Apple or Google.',
                 );
-                return;
+              } finally {
+                setLoginBusy(false);
               }
-              Alert.alert(
-                'Log in failed',
-                'Check your email and password, or sign in with Apple or Google.',
-              );
             })();
           }}
         >

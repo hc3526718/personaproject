@@ -24,6 +24,8 @@ export type UserPrefsDoc = {
   saved_media_ids?: string[];
   /** In-app banner category toggles (synced across devices). */
   in_app_notify?: InAppNotifyPrefs;
+  /** ISO timestamp — intro tour shown or dismissed; never show again for this account. */
+  app_welcome_tour_completed_at?: string | null;
 };
 
 export const DEFAULT_USER_PREFS: UserPrefsDoc = {
@@ -51,6 +53,10 @@ function mergePrefs(base: UserPrefsDoc, patch: Partial<UserPrefsDoc>): UserPrefs
     in_app_notify: patch.in_app_notify
       ? { ...base.in_app_notify, ...patch.in_app_notify }
       : base.in_app_notify,
+    app_welcome_tour_completed_at:
+      patch.app_welcome_tour_completed_at !== undefined
+        ? patch.app_welcome_tour_completed_at
+        : base.app_welcome_tour_completed_at,
   };
 }
 
@@ -93,6 +99,8 @@ export async function fetchUserPrefsDoc(userId: string): Promise<UserPrefsDoc> {
   const notification_channels = (p.notification_channels as UserPrefsDoc['notification_channels']) ?? {};
   const accessibility = (p.accessibility as UserPrefsDoc['accessibility']) ?? {};
   const in_app_notify = (p.in_app_notify as UserPrefsDoc['in_app_notify']) ?? undefined;
+  const app_welcome_tour_completed_at =
+    typeof p.app_welcome_tour_completed_at === 'string' ? p.app_welcome_tour_completed_at : undefined;
   const blocked_user_ids = Array.isArray(p.blocked_user_ids)
     ? (p.blocked_user_ids as string[]).filter((id) => typeof id === 'string')
     : undefined;
@@ -101,6 +109,7 @@ export async function fetchUserPrefsDoc(userId: string): Promise<UserPrefsDoc> {
     notification_channels,
     accessibility,
     ...(in_app_notify ? { in_app_notify } : {}),
+    ...(app_welcome_tour_completed_at ? { app_welcome_tour_completed_at } : {}),
     ...(blocked_user_ids ? { blocked_user_ids } : {}),
   });
 }
@@ -118,6 +127,10 @@ export async function patchUserPrefsDoc(userId: string, patch: Partial<UserPrefs
       (raw.notification_channels as UserPrefsDoc['notification_channels']) ?? {};
     const accessibility = (raw.accessibility as UserPrefsDoc['accessibility']) ?? {};
     const in_app_notify = (raw.in_app_notify as UserPrefsDoc['in_app_notify']) ?? undefined;
+    const app_welcome_tour_completed_at =
+      typeof raw.app_welcome_tour_completed_at === 'string'
+        ? raw.app_welcome_tour_completed_at
+        : undefined;
     const blocked_user_ids = Array.isArray(raw.blocked_user_ids)
       ? (raw.blocked_user_ids as string[]).filter((id) => typeof id === 'string')
       : undefined;
@@ -126,6 +139,7 @@ export async function patchUserPrefsDoc(userId: string, patch: Partial<UserPrefs
       notification_channels,
       accessibility,
       ...(in_app_notify ? { in_app_notify } : {}),
+      ...(app_welcome_tour_completed_at ? { app_welcome_tour_completed_at } : {}),
       ...(blocked_user_ids ? { blocked_user_ids } : {}),
     });
   }
