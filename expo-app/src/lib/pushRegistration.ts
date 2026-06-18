@@ -48,7 +48,7 @@ function getEasProjectId(): string | null {
 /** Expo `exp.host` token API — often flaky (503 / connection timeout). */
 function isTransientExpoPushTokenError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? '');
-  return /upstream connect error|connection timeout|connection termination|503|504|ECONNRESET|ECONNREFUSED|no healthy upstream|fetching Expo token/i.test(
+  return /upstream connect error|connection timeout|connection termination|503|504|ECONNRESET|ECONNREFUSED|ENOTFOUND|no healthy upstream|fetching Expo token|api\.expo\.dev/i.test(
     msg,
   );
 }

@@ -315,55 +315,73 @@ export async function dismissOAuthBrowserSession(): Promise<void> {
   }
 }
 
-export async function signInWithGoogleOAuth(
+type OAuthProvider = 'google' | 'apple';
+
+async function clearLocalSessionIfSignedIn(supabase: SupabaseClient): Promise<void> {
+  const existing = await safeGetSession(supabase);
+  if (!existing?.user) return;
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    /* best-effort — account switch only when a session exists */
+  }
+}
+
+/** Browser redirect OAuth (web). */
+async function signInWithOAuthWebRedirect(
   supabase: SupabaseClient,
+  provider: OAuthProvider,
+  label: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const redirectTo = getOAuthRedirectUri();
-
-  const oauthOptions = {
-    redirectTo,
-    queryParams: { prompt: 'select_account' as const },
-  };
-
-  if (Platform.OS === 'web') {
-    try {
-      await supabase.auth.signOut({ scope: 'local' });
-    } catch {
-      /* best-effort — ensures PKCE + account switch after logout */
-    }
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: oauthOptions,
-    });
-    if (error) return { ok: false, message: coerceApiError('sign you in with Google', error.message) };
-    const url = data?.url;
-    if (url && typeof window !== 'undefined') {
-      window.location.assign(url);
-      return { ok: true };
-    }
-    return {
-      ok: false,
-      message: coerceApiError('sign you in with Google'),
-    };
-  }
-
-  await dismissOAuthBrowserSession();
+  await clearLocalSessionIfSignedIn(supabase);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
+    provider,
     options: {
-      ...oauthOptions,
-      skipBrowserRedirect: true,
+      redirectTo,
+      ...(provider === 'google'
+        ? { queryParams: { prompt: 'select_account' as const } }
+        : {}),
     },
   });
-  if (error) return { ok: false, message: coerceApiError('sign you in with Google', error.message) };
+  if (error) return { ok: false, message: coerceApiError(`sign you in with ${label}`, error.message) };
+  const url = data?.url;
+  if (url && typeof window !== 'undefined') {
+    window.location.assign(url);
+    return { ok: true };
+  }
+  return { ok: false, message: coerceApiError(`sign you in with ${label}`) };
+}
+
+/** Native in-app browser OAuth (iOS / Android). */
+async function signInWithOAuthNativeBrowser(
+  supabase: SupabaseClient,
+  provider: OAuthProvider,
+  label: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const redirectTo = getOAuthRedirectUri();
+  await dismissOAuthBrowserSession();
+  await clearLocalSessionIfSignedIn(supabase);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+      ...(provider === 'google'
+        ? { queryParams: { prompt: 'select_account' as const } }
+        : {}),
+    },
+  });
+  if (error) return { ok: false, message: coerceApiError(`sign you in with ${label}`, error.message) };
   if (!data.url) return { ok: false, message: 'No OAuth URL returned' };
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   void WebBrowser.coolDownAsync();
   if (result.type === 'cancel') return { ok: false, message: 'Sign in cancelled' };
   if (result.type !== 'success' || !result.url) {
-    return { ok: false, message: 'Could not complete Google sign in' };
+    return { ok: false, message: `Could not complete ${label} sign in` };
   }
 
   const ingest = await ingestSessionFromAuthCallbackUrl(supabase, result.url);
@@ -380,13 +398,11 @@ export async function signInWithGoogleOAuth(
     if (!exchangeError) return { ok: true };
     const retry = await ingestSessionFromAuthCallbackUrl(supabase, result.url);
     if (retry.ok) return { ok: true };
-    return { ok: false, message: coerceApiError('sign you in with Google', exchangeError.message) };
+    return { ok: false, message: coerceApiError(`sign you in with ${label}`, exchangeError.message) };
   }
 
   const implicitOk = await tryImplicitSessionFromReturnUrl(supabase, result.url);
-  if (implicitOk) {
-    return { ok: true };
-  }
+  if (implicitOk) return { ok: true };
 
   const parsed = Linking.parse(result.url);
   const errDesc = parsed.queryParams?.error_description;
@@ -395,26 +411,44 @@ export async function signInWithGoogleOAuth(
     const msg = Array.isArray(errDesc) ? errDesc[0] : errDesc;
     return {
       ok: false,
-      message: coerceApiError('sign you in with Google', msg || String(err)),
+      message: coerceApiError(`sign you in with ${label}`, msg || String(err)),
     };
   }
 
   if (ingest.error) {
-    return { ok: false, message: coerceApiError('sign you in with Google', ingest.error) };
+    return { ok: false, message: coerceApiError(`sign you in with ${label}`, ingest.error) };
   }
 
   if (__DEV__) {
     console.warn(
-      '[OAuth] Google redirect had no session. redirectTo=',
+      `[OAuth] ${label} redirect had no session. redirectTo=`,
       redirectTo,
       'returnUrl(start)=',
       result.url.slice(0, 240),
     );
   }
-  return {
-    ok: false,
-    message: coerceApiError('sign you in with Google'),
-  };
+  return { ok: false, message: coerceApiError(`sign you in with ${label}`) };
+}
+
+export async function signInWithGoogleOAuth(
+  supabase: SupabaseClient,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (Platform.OS === 'web') {
+    return signInWithOAuthWebRedirect(supabase, 'google', 'Google');
+  }
+  return signInWithOAuthNativeBrowser(supabase, 'google', 'Google');
+}
+
+export async function signInWithAppleOAuth(
+  supabase: SupabaseClient,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (Platform.OS === 'web') {
+    return signInWithOAuthWebRedirect(supabase, 'apple', 'Apple');
+  }
+  if (Platform.OS === 'ios') {
+    return signInWithAppleNative(supabase);
+  }
+  return signInWithOAuthNativeBrowser(supabase, 'apple', 'Apple');
 }
 
 export async function signInWithAppleNative(

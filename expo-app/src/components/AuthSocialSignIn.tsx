@@ -24,7 +24,7 @@ export function AuthSocialSignIn() {
         <Text style={styles.orText}>OR</Text>
         <View style={styles.orLine} />
       </View>
-      {Platform.OS === 'ios' ? (
+      {Platform.OS === 'ios' || Platform.OS === 'web' ? (
         <AppleHeroButton
           variant="social"
           loading={oAuthBusy}

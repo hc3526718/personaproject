@@ -21,7 +21,7 @@ import {
   getPasswordResetRedirectUri,
   ingestSessionFromAuthCallbackUrl,
   readOAuthCodeFromWebLocation,
-  signInWithAppleNative,
+  signInWithAppleOAuth,
   signInWithGoogleOAuth,
 } from './oauthSupabase';
 import { authAlert } from './authAlert';
@@ -310,7 +310,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void recoverStaleAuthSession(supabase, err).then(() => setUser(null));
         }
       });
-      setOAuthBusy(false);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setOAuthBusy(false);
+      }
       setReady(true);
     });
 
@@ -633,6 +635,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (logoutInFlight) await logoutInFlight;
     setOAuthBusy(true);
     void clearSignupPendingEmail();
+    let redirecting = false;
     try {
       const result = await withTimeout(signInWithGoogleOAuth(supabase), {
         ms: 45000,
@@ -653,6 +656,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
       if (Platform.OS === 'web') {
+        redirecting = true;
         return true;
       }
       for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -669,7 +673,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authAlert('Google sign in', msg);
       return false;
     } finally {
-      setOAuthBusy(false);
+      if (!redirecting) setOAuthBusy(false);
     }
   }, [supabase]);
 
@@ -684,8 +688,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (logoutInFlight) await logoutInFlight;
     setOAuthBusy(true);
     void clearSignupPendingEmail();
+    let redirecting = false;
     try {
-      const result = await withTimeout(signInWithAppleNative(supabase), {
+      const result = await withTimeout(signInWithAppleOAuth(supabase), {
         ms: 45000,
         timeoutMessage: 'Apple sign in took too long. Please try again.',
       });
@@ -703,6 +708,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return false;
       }
+      if (Platform.OS === 'web') {
+        redirecting = true;
+        return true;
+      }
       for (let attempt = 0; attempt < 30; attempt += 1) {
         const session = await safeGetSession(supabase);
         if (session?.user) {
@@ -717,7 +726,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authAlert('Apple sign in', msg);
       return false;
     } finally {
-      setOAuthBusy(false);
+      if (!redirecting) setOAuthBusy(false);
     }
   }, [supabase]);
 
