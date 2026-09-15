@@ -34,7 +34,7 @@ export function UsernameSetupFields({
   let statusText = '';
   let statusColor: string = DS.color.textMuted;
   if (skipped) {
-    statusText = `We&apos;ll assign something like ${previewExample} (your first name + four random digits).`;
+    statusText = `We'll assign something like ${previewExample} (your first name + four random digits).`;
     statusColor = DS.color.textMuted;
   } else if (!usernameInput.trim()) {
     statusText = `${USERNAME_MIN}–${USERNAME_MAX} characters: lowercase letters, numbers, underscores.`;
