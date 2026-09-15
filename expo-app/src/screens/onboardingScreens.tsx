@@ -176,7 +176,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
         </AppleHeroButton>
         <AuthSocialSignIn />
         <View style={styles.footerRow}>
-          <Text style={styles.muted}>Don&apos;t have an account? </Text>
+          <Text style={styles.muted}>Don't have an account? </Text>
           <Pressable onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}>
             <Text style={styles.gold}>Create Account</Text>
           </Pressable>
@@ -229,7 +229,7 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
           <View style={{ flex: 1 }}>
             <Text style={styles.infoCardTitle}>Request a reset link</Text>
             <Text style={styles.infoCardBody}>
-              Enter the email you use to sign in. We&apos;ll email you a secure link — you can only choose a
+              Enter the email you use to sign in. We'll email you a secure link — you can only choose a
               new password after opening that link. Apple and Google sign-in accounts cannot reset here.
             </Text>
           </View>

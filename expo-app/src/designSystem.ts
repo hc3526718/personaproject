@@ -12,7 +12,7 @@ export const DS = {
     /** Bottom dock / raised bar (HTML community nav) */
     tabBarRaised: '#141414',
     input: '#2A2A2A',
-    gold: '#C8A84B',
+    gold: '#C5A059',
     text: '#D4D0C8',
     /** Screen titles (top-left, light grey) */
     screenTitle: '#B8B4AC',
@@ -27,10 +27,10 @@ export const DS = {
     /** Slightly stronger panel fill (contrast mode). */
     panelStrong: 'rgba(255, 255, 255, 0.10)',
     error: '#E8533A',
-    goldTint10: 'rgba(200, 168, 75, 0.1)',
-    goldTint30: 'rgba(200, 168, 75, 0.3)',
-    goldTint90: 'rgba(200, 168, 75, 0.9)',
-    cardBorder: 'rgba(200, 168, 75, 0.3)',
+    goldTint10: 'rgba(197, 160, 89, 0.1)',
+    goldTint30: 'rgba(197, 160, 89, 0.3)',
+    goldTint90: 'rgba(197, 160, 89, 0.9)',
+    cardBorder: 'rgba(197, 160, 89, 0.3)',
     borderHairline: 'rgba(120, 117, 112, 0.2)',
     borderHairlineLight: 'rgba(120, 117, 112, 0.1)',
     scrimBottom: 'rgba(10, 10, 10, 0.88)',
@@ -44,7 +44,7 @@ export const DS = {
     /** HTML `border-white/5` dividers on feed cards */
     borderWhite5: 'rgba(255, 255, 255, 0.05)',
     /** HTML `border-brand-gold/20` on community posts */
-    postBorderGold20: 'rgba(200, 168, 75, 0.2)',
+    postBorderGold20: 'rgba(197, 160, 89, 0.2)',
     /** Brand partner detail — HTML accentOrange */
     accentOrange: '#F95A1E',
     /** Status dot — HTML green-500 */

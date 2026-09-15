@@ -1702,6 +1702,7 @@ export function createCommunityStyles(c: AccessibleColors, _textScale: number) {
     color: c.textMuted,
     textAlign: 'center',
     marginTop: DS.space.md,
+    marginBottom: DS.space.lg,
     paddingHorizontal: DS.space.lg,
   },
   brandAbout: {
