@@ -82,7 +82,7 @@ export function AcademyAccessPaywall({ onAccessGranted }: Props) {
     <View style={[styles.root, { paddingTop: insets.top + DS.space.lg, paddingBottom: insets.bottom + DS.space.lg }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.kicker}>THE DALTON GRANT ACADEMY</Text>
-        <Text style={styles.title}>Unlock full academy access</Text>
+        <Text style={styles.title}>UNLOCK FULL ACADEMY ACCESS</Text>
         <Text style={styles.subtitle}>
           A small monthly fee keeps the app alive and funds high-quality content from Dalton, while connecting you with
           likeminded aspiring athletes for support, encouragement, and guidance — plus media, events, and sponsors.
@@ -172,8 +172,8 @@ const styles = StyleSheet.create({
     padding: DS.space.lg,
     borderRadius: DS.radius.xl,
     borderWidth: 1,
-    borderColor: 'rgba(200,168,75,0.35)',
-    backgroundColor: 'rgba(200,168,75,0.08)',
+    borderColor: DS.color.goldTint30,
+    backgroundColor: DS.color.goldTint10,
     alignItems: 'center',
   },
   price: {
