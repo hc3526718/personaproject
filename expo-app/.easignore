@@ -1,6 +1,12 @@
-﻿.agents/
+.agents/
+.agents.*/
 .claude/
+.claude.*/
 .windsurf/
+.windsurf.*/
+**/.agents/**
+**/.claude/**
+**/.windsurf/**
 skills-lock.json
 programme-drafts/
 **/*.corrupt.bak
