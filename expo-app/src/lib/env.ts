@@ -1,12 +1,70 @@
+import Constants from 'expo-constants';
+
+type ExtraShape = {
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+};
+
+function trimExtra(x: unknown): ExtraShape {
+  if (!x || typeof x !== 'object') return {};
+  const o = x as Record<string, unknown>;
+  return {
+    supabaseUrl: typeof o.supabaseUrl === 'string' ? o.supabaseUrl : '',
+    supabaseAnonKey: typeof o.supabaseAnonKey === 'string' ? o.supabaseAnonKey : '',
+  };
+}
+
 /**
- * Public env vars (EXPO_PUBLIC_*) available at runtime in Expo.
+ * Resolve `expo.extra` from every place Expo / dev-client may put it.
+ * Dev launcher often serves manifest2 where config lives under `extra.expoClient`.
+ */
+function fromExpoExtra(): ExtraShape {
+  const expoConfig = Constants.expoConfig as Record<string, unknown> | null | undefined;
+  if (expoConfig?.extra) {
+    const e = trimExtra(expoConfig.extra);
+    if (e.supabaseUrl && e.supabaseAnonKey) return e;
+  }
+
+  const manifest = Constants.manifest as Record<string, unknown> | null | undefined;
+  if (manifest?.extra) {
+    const e = trimExtra(manifest.extra);
+    if (e.supabaseUrl && e.supabaseAnonKey) return e;
+  }
+
+  // manifest2 (EAS Update / dev client): extra.expoClient holds the full app config
+  const m2 = Constants.manifest2 as
+    | {
+        extra?: { expoClient?: { extra?: unknown } };
+      }
+    | null
+    | undefined;
+  const nested = m2?.extra?.expoClient?.extra;
+  if (nested) {
+    const e = trimExtra(nested);
+    if (e.supabaseUrl && e.supabaseAnonKey) return e;
+  }
+
+  if (expoConfig?.extra) return trimExtra(expoConfig.extra);
+  if (manifest?.extra) return trimExtra(manifest.extra);
+  if (m2?.extra?.expoClient?.extra) return trimExtra(m2.extra.expoClient.extra);
+
+  return {};
+}
+
+/**
+ * Public Supabase config: Metro may inline EXPO_PUBLIC_* from `.env` when bundling.
+ * Fallback: `expo.extra` from app.config (refreshed each time Metro evaluates config).
  */
 export function getSupabaseUrl(): string {
-  return (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').trim();
+  const fromEnv = (process.env.EXPO_PUBLIC_SUPABASE_URL ?? '').trim();
+  if (fromEnv) return fromEnv;
+  return (fromExpoExtra().supabaseUrl ?? '').trim();
 }
 
 export function getSupabaseAnonKey(): string {
-  return (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+  const fromEnv = (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '').trim();
+  if (fromEnv) return fromEnv;
+  return (fromExpoExtra().supabaseAnonKey ?? '').trim();
 }
 
 export function isSupabaseConfigured(): boolean {
@@ -27,6 +85,5 @@ export function getTicketSigningSecret(): string {
 export function getRevenueCatApiKey(): string | undefined {
   const ios = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS?.trim();
   const android = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID?.trim();
-  // Caller should pass Platform.OS
   return ios || android;
 }

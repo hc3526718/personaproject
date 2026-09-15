@@ -19,6 +19,10 @@ See root `.env.example`. Required for live auth:
 
 When these are **empty**, the app keeps the **demo** email/password gate (`AuthContext`).
 
+## Creator / host flags
+
+Set **`dalton_verified: true`** in `auth.users.raw_user_meta_data` (or your profiles table mirrored into metadata) for users allowed to use **Create media** and **Create event** after the client checks Premium + verification (`canCreateVerifiedContent` in `src/creator/creatorAccess.ts`). The server must re-check before accepting uploads.
+
 ## Auth flows (app)
 
 1. **Demo (default)** — `user123@gmail.com` / `12345!` sets local session only.

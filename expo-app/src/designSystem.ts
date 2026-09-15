@@ -1,3 +1,5 @@
+import type { TextStyle } from 'react-native';
+
 /**
  * Dalton design tokens — aligned with shared/theme.css and HTML brand.* colors.
  * Use these references in StyleSheet instead of raw hex literals.
@@ -12,6 +14,8 @@ export const DS = {
     input: '#2A2A2A',
     gold: '#C8A84B',
     text: '#D4D0C8',
+    /** Screen titles (top-left, light grey) */
+    screenTitle: '#B8B4AC',
     textMuted: '#9A9690',
     border: '#787570',
     error: '#E8533A',
@@ -68,6 +72,41 @@ export const DS = {
     headingLetterSpacing: 1.5,
     labelUppercaseSize: 11,
   },
+  /**
+   * Apple / Instagram-adjacent rhythm on dark canvas; field radii echo HeroUI `--field-radius` feel.
+   */
+  apple: {
+    controlHeight: 50,
+    radiusButton: 14,
+    radiusField: 12,
+    radiusCard: 16,
+    fieldGap: 18,
+    sectionGap: 28,
+    fillSecondary: 'rgba(255, 255, 255, 0.06)',
+    fillTertiary: 'rgba(255, 255, 255, 0.04)',
+    separator: 'rgba(255, 255, 255, 0.1)',
+    shadowButton: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+  },
 } as const;
 
 export type DSColor = (typeof DS)['color'];
+
+/** Top-left tab titles (same spec as Media → `MEDIA`). */
+export const tabRootTitleText: TextStyle = {
+  fontFamily: DS.font.heading,
+  fontSize: 36,
+  color: DS.color.text,
+  letterSpacing: 2,
+};
+
+/** Horizontal + bottom padding for tab root title rows (Media `mediaTop`). */
+export const tabRootHeaderPadding = {
+  paddingHorizontal: DS.space.lg,
+  paddingBottom: DS.space.md,
+} as const;

@@ -29,3 +29,11 @@ eas submit --platform ios --latest
 - [ ] Supabase/production API URLs in EAS **secrets** or project env, not committed.
 
 See also `SECRETS_CHECKLIST.md`.
+
+## Pre-submit build checklist (app repo)
+
+- [ ] `eas build --profile preview --platform all` succeeds after adding native modules (e.g. `rive-react-native` requires a **development/preview** build, not Expo Go).
+- [ ] `ios.bundleIdentifier` / `android.package` are final in `app.json`.
+- [ ] Apple Wallet: backend pass signing is live before marketing “Add to Wallet” in production.
+- [ ] Run through auth → main tabs → booking QR → admin tools on a **physical device** build.
+

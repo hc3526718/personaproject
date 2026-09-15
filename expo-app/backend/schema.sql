@@ -66,6 +66,32 @@ create table if not exists public.posts (
 
 create index if not exists posts_author_idx on public.posts (author_id);
 
+create table if not exists public.post_likes (
+  post_id uuid not null references public.posts (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+create table if not exists public.post_reactions (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid not null references public.posts (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  unique (post_id, user_id, emoji)
+);
+
+create table if not exists public.post_comments (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid not null references public.posts (id) on delete cascade,
+  author_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists post_comments_post_idx on public.post_comments (post_id, created_at desc);
+
 -- Messages (DM or thread)
 create table if not exists public.conversations (
   id uuid primary key default uuid_generate_v4(),
@@ -125,12 +151,25 @@ create table if not exists public.subscription_state (
   raw jsonb
 );
 
+-- Profile extensions (safe re-run on existing DBs; validate enums in app / later CHECK)
+alter table public.profiles add column if not exists allow_messages_from text default 'everyone';
+alter table public.profiles add column if not exists dalton_verified boolean default false;
+alter table public.profiles add column if not exists first_name text;
+alter table public.profiles add column if not exists last_name text;
+alter table public.profiles add column if not exists persona_role text;
+alter table public.profiles add column if not exists sports text[] not null default '{}';
+alter table public.profiles add column if not exists discovery_source text;
+alter table public.profiles add column if not exists onboarding_completed_at timestamptz;
+
 -- RLS: enable and add policies in Supabase UI (example stubs)
 alter table public.profiles enable row level security;
 alter table public.posts enable row level security;
 alter table public.messages enable row level security;
 alter table public.media_assets enable row level security;
 alter table public.bookings enable row level security;
+alter table public.post_likes enable row level security;
+alter table public.post_reactions enable row level security;
+alter table public.post_comments enable row level security;
 
 -- Example policy pattern (uncomment & adjust):
 -- create policy "read own profile" on public.profiles for select using (auth.uid() = id);

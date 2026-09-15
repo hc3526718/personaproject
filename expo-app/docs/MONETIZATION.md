@@ -1,6 +1,6 @@
 # Monetization — planning doc
 
-Aligns with **`ACCESS_MODEL.md`** (trust, staff roles, stacked grants) and **`backend/schema.sql`** (`subscription_state`, `entitlement_ids`). Implementation notes: **`docs/REVENUECAT.md`**, app wiring in `src/subscriptions/`. **Roadmap:** **`docs/NEXT_STEPS.md`** §4–§5.
+Aligns with `**ACCESS_MODEL.md**` (trust, staff roles, stacked grants) and `**backend/schema.sql**` (`subscription_state`, `entitlement_ids`). Implementation notes: `**docs/REVENUECAT.md**`, app wiring in `src/subscriptions/`. **Roadmap:** `**docs/NEXT_STEPS.md`** §4–§5.
 
 ---
 
@@ -32,15 +32,17 @@ Aligns with **`ACCESS_MODEL.md`** (trust, staff roles, stacked grants) and **`ba
 - RevenueCat (or store) **multiple entitlements**, mirrored in `subscription_state.entitlement_ids`.
 - Examples (names are placeholders — rename in product):
 
-| Entitlement (example id) | Rough purpose |
-|--------------------------|----------------|
-| `premium` | Cross-cutting perks (badge, reduced ads, priority support) |
-| `creator_media` | Post/upload media to feed beyond free quota |
-| `events_host` | Create / manage bookable events or meetings |
-| `sponsor_featured` | Featured placement or analytics on sponsor surfaces |
-| `coach_tools` | Scheduling, extended profile, host dashboards |
 
-Free users still **open** each area; specific actions check **`entitlement_ids` ∪ `is_pro`** (if you fold some into Pro-only).
+| Entitlement (example id) | Rough purpose                                              |
+| ------------------------ | ---------------------------------------------------------- |
+| `premium`                | Cross-cutting perks (badge, reduced ads, priority support) |
+| `creator_media`          | Post/upload media to feed beyond free quota                |
+| `events_host`            | Create / manage bookable events or meetings                |
+| `sponsor_featured`       | Featured placement or analytics on sponsor surfaces        |
+| `coach_tools`            | Scheduling, extended profile, host dashboards              |
+
+
+Free users still **open** each area; specific actions check `**entitlement_ids` ∪ `is_pro`** (if you fold some into Pro-only).
 
 ### C. B2B / sponsor revenue (orthogonal)
 
@@ -50,13 +52,15 @@ Free users still **open** each area; specific actions check **`entitlement_ids` 
 
 ## 4. Section brainstorm (edit to fit Dalton)
 
-| Section | Free (baseline) | Paid / upsell (examples) |
-|---------|-------------------|---------------------------|
-| **Community** | Read feed, basic interaction | Creator posting, media uploads, longer video, pinned posts |
-| **Media** | Browse catalog, standard playback | Full library tier, offline/background, HD |
-| **Events** | Discover, book public/free events | Paid classes, **host/create** events, waitlist priority |
-| **Sponsors** | Browse directory | **Featured** listing, analytics, verified partner placement |
-| **Profile** | Basic profile | Pro badge, extended links, coach-specific layouts |
+
+| Section       | Free (baseline)                   | Paid / upsell (examples)                                    |
+| ------------- | --------------------------------- | ----------------------------------------------------------- |
+| **Community** | Read feed, basic interaction      | Creator posting, media uploads, longer video, pinned posts  |
+| **Media**     | Browse catalog, standard playback | Full library tier, offline/background, HD                   |
+| **Events**    | Discover, book public/free events | Paid classes, **host/create** events, waitlist priority     |
+| **Sponsors**  | Browse directory                  | **Featured** listing, analytics, verified partner placement |
+| **Profile**   | Basic profile                     | Pro badge, extended links, coach-specific layouts           |
+
 
 ---
 
@@ -79,6 +83,9 @@ Free users still **open** each area; specific actions check **`entitlement_ids` 
 
 ## 7. Changelog
 
-| Date | Change |
-|------|--------|
-| *(add as you edit)* | |
+
+| Date                | Change |
+| ------------------- | ------ |
+| *(add as you edit)* |        |
+
+

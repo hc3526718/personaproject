@@ -25,3 +25,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local agent / editor tooling (do not publish)
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+
+# Local junk / backups
+*.corrupt.bak
+programme-drafts/

@@ -18,10 +18,13 @@ export type MediaStackParamList = {
   MediaPlayer: { title?: string };
   SavedMedia: undefined;
   MediaCommunityFeed: undefined;
+  CreateMediaContent: undefined;
 };
 
 export type BookingConfirmParams = {
   reference?: string;
+  bookingId?: string;
+  eventId?: string;
   title?: string;
   imageUri?: string;
   recapDate?: string;
@@ -39,7 +42,9 @@ export type EventsStackParamList = {
   BookingConfirm: BookingConfirmParams | undefined;
   SavedEvents: undefined;
   MyBookings: undefined;
-  StaffCheckIn: undefined;
+  StaffCheckIn: { eventId?: string; eventTitle?: string } | undefined;
+  HostEventDashboard: undefined;
+  CreateEvent: undefined;
 };
 
 export type SponsorsStackParamList = {
@@ -51,6 +56,7 @@ export type ProfileStackParamList = {
   AthleteProfile: undefined;
   Paywall: undefined;
   AdminTools: undefined;
+  AdminMediaUpload: undefined;
   Settings: undefined;
   AccountSecurity: undefined;
   PrivacyVisibility: undefined;
@@ -68,12 +74,21 @@ export type ProfileStackParamList = {
 
 /** Shown before sign-in — no tab bar. */
 export type AuthStackParamList = {
-  GrantAccess: { startAt?: 'splash' | 'signup' } | undefined;
+  GrantAccess: { startAt?: 'signup' } | undefined;
   WelcomeHub: undefined;
   LogIn: undefined;
   ForgotPassword: undefined;
   VerifyReset: undefined;
   CreatePassword: undefined;
+};
+
+/** Post–sign-in profile questions (first session). */
+export type OnboardingStackParamList = {
+  OnboardingName: undefined;
+  OnboardingRole: undefined;
+  OnboardingSports: undefined;
+  OnboardingDiscovery: undefined;
+  OnboardingComplete: undefined;
 };
 
 export type MainTabParamList = {
@@ -86,5 +101,6 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   Auth: undefined;
+  /** Tabs or first-run onboarding — see `AuthenticatedShell` in `AppNavigator`. */
   Main: undefined;
 };

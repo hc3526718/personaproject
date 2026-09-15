@@ -9,14 +9,29 @@ const secureStoreAdapter = {
 };
 
 let client: SupabaseClient | null = null;
+let cachedUrl = '';
+let cachedKey = '';
 
 /**
- * Shared Supabase browser/RN client. Null when env is not configured (demo-only mode).
+ * Shared Supabase client. Null when env is not configured (demo-only mode).
+ * Recreates the client if URL/key change (e.g. after Metro loads app config).
  */
 export function getSupabase(): SupabaseClient | null {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    client = null;
+    cachedUrl = '';
+    cachedKey = '';
+    return null;
+  }
+  const url = getSupabaseUrl();
+  const key = getSupabaseAnonKey();
+  if (client && (cachedUrl !== url || cachedKey !== key)) {
+    client = null;
+  }
   if (!client) {
-    client = createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    cachedUrl = url;
+    cachedKey = key;
+    client = createClient(url, key, {
       auth: {
         storage: secureStoreAdapter,
         autoRefreshToken: true,

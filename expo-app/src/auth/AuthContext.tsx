@@ -7,16 +7,27 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Alert } from 'react-native';
+import { isSupabaseConfigured } from '../lib/env';
 import { getSupabase } from '../lib/supabase';
+import { signInWithAppleNative, signInWithGoogleOAuth } from './oauthSupabase';
+import {
+  isPremiumDemoEmail,
+  PREMIUM_DEMO_EMAIL,
+  PREMIUM_DEMO_PASSWORD,
+} from './demoAccounts';
 
 export const DEMO_EMAIL = 'user123@gmail.com';
 export const DEMO_PASSWORD = '12345!';
+export { PREMIUM_DEMO_EMAIL, PREMIUM_DEMO_PASSWORD } from './demoAccounts';
 
 export type AppUser = {
   id: string;
   email: string;
   /** From Supabase user_metadata.role or demo default */
   role: 'member' | 'admin' | 'super_admin';
+  /** Dalton-verified creator/host — set in user_metadata.dalton_verified for Supabase */
+  daltonVerified: boolean;
 };
 
 type AuthContextValue = {
@@ -24,8 +35,11 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   user: AppUser | null;
   sessionEmail: string | null;
+  oAuthBusy: boolean;
   /** Demo or Supabase email/password */
   login: (email: string, password: string) => Promise<boolean>;
+  signInWithGoogle: () => Promise<boolean>;
+  signInWithApple: () => Promise<boolean>;
   logout: () => Promise<void>;
 };
 
@@ -37,15 +51,50 @@ function roleFromMetadata(meta: Record<string, unknown> | undefined): AppUser['r
   return 'member';
 }
 
+function daltonVerifiedFromMetadata(meta: Record<string, unknown> | undefined): boolean {
+  const v = meta?.dalton_verified ?? meta?.daltonVerified;
+  return v === true;
+}
+
+function appUserFromSupabaseUser(u: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}): AppUser {
+  const meta = u.user_metadata;
+  return {
+    id: u.id,
+    email: u.email ?? '',
+    role: roleFromMetadata(meta),
+    daltonVerified: daltonVerifiedFromMetadata(meta),
+  };
+}
+
 function demoRoleForEmail(email: string): AppUser['role'] {
-  if (email.trim().toLowerCase() === DEMO_EMAIL.toLowerCase()) return 'super_admin';
+  const e = email.trim().toLowerCase();
+  if (e === DEMO_EMAIL.toLowerCase()) return 'super_admin';
+  if (isPremiumDemoEmail(email)) return 'super_admin';
   return 'member';
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  /** Re-render briefly so we pick up `expo.extra` once the dev client manifest is ready. */
+  const [, setConfigPoll] = useState(0);
+  useEffect(() => {
+    if (isSupabaseConfigured()) return;
+    let n = 0;
+    const id = setInterval(() => {
+      n += 1;
+      setConfigPoll((c) => c + 1);
+      if (isSupabaseConfigured() || n > 24) clearInterval(id);
+    }, 125);
+    return () => clearInterval(id);
+  }, []);
+
   const supabase = getSupabase();
   const [ready, setReady] = useState(!supabase);
   const [user, setUser] = useState<AppUser | null>(null);
+  const [oAuthBusy, setOAuthBusy] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -58,11 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       const s = data.session;
       if (s?.user) {
-        setUser({
-          id: s.user.id,
-          email: s.user.email ?? '',
-          role: roleFromMetadata(s.user.user_metadata as Record<string, unknown>),
-        });
+        setUser(appUserFromSupabaseUser(s.user));
       } else {
         setUser(null);
       }
@@ -70,11 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email ?? '',
-          role: roleFromMetadata(session.user.user_metadata as Record<string, unknown>),
-        });
+        setUser(appUserFromSupabaseUser(session.user));
       } else {
         setUser(null);
       }
@@ -96,13 +137,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error || !data.session?.user) return false;
         return true;
       }
-      const ok =
+      const demoLegacy =
         trimmed.toLowerCase() === DEMO_EMAIL.toLowerCase() && password === DEMO_PASSWORD;
+      const demoPremium =
+        trimmed.toLowerCase() === PREMIUM_DEMO_EMAIL.toLowerCase() &&
+        password === PREMIUM_DEMO_PASSWORD;
+      const ok = demoLegacy || demoPremium;
       if (ok) {
         setUser({
-          id: 'demo-user',
+          id: demoPremium ? 'demo-premium-admin' : 'demo-user',
           email: trimmed,
           role: demoRoleForEmail(trimmed),
+          daltonVerified: true,
         });
       }
       return ok;
@@ -115,16 +161,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, [supabase]);
 
+  const signInWithGoogle = useCallback(async () => {
+    if (!supabase) {
+      Alert.alert(
+        'Supabase not configured',
+        'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to expo-app/.env, restart Metro with npx expo start -c. For EAS dev builds, set the same keys in Expo project Environment Variables and rebuild.',
+      );
+      return false;
+    }
+    setOAuthBusy(true);
+    const result = await signInWithGoogleOAuth(supabase);
+    setOAuthBusy(false);
+    if (!result.ok) {
+      if (result.message !== 'Sign in cancelled') {
+        Alert.alert('Google sign in', result.message);
+      }
+      return false;
+    }
+    return true;
+  }, [supabase]);
+
+  const signInWithApple = useCallback(async () => {
+    if (!supabase) {
+      Alert.alert(
+        'Supabase not configured',
+        'Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to expo-app/.env, restart Metro with npx expo start -c. For EAS dev builds, set the same keys in Expo project Environment Variables and rebuild.',
+      );
+      return false;
+    }
+    setOAuthBusy(true);
+    const result = await signInWithAppleNative(supabase);
+    setOAuthBusy(false);
+    if (!result.ok) {
+      if (result.message !== 'Sign in cancelled') {
+        Alert.alert('Apple sign in', result.message);
+      }
+      return false;
+    }
+    return true;
+  }, [supabase]);
+
   const value = useMemo(
     () => ({
       ready,
       isAuthenticated: !!user,
       user,
       sessionEmail: user?.email ?? null,
+      oAuthBusy,
       login,
+      signInWithGoogle,
+      signInWithApple,
       logout,
     }),
-    [ready, user, login, logout],
+    [ready, user, oAuthBusy, login, signInWithGoogle, signInWithApple, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

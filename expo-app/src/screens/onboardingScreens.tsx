@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,19 +11,37 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AppleHeroButton } from '../components/AppleHeroButton';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome, FontAwesome5 } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DEMO_EMAIL, DEMO_PASSWORD, useAuth } from '../auth/AuthContext';
+import {
+  DEMO_EMAIL,
+  DEMO_PASSWORD,
+  PREMIUM_DEMO_EMAIL,
+  PREMIUM_DEMO_PASSWORD,
+  useAuth,
+} from '../auth/AuthContext';
+import { BrandLogo } from '../components/BrandLogo';
+import { BrandLogoMark } from '../components/BrandLogoMark';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { BRAND_LOGO } from '../constants/brandLogo';
 import { DS } from '../designSystem';
 import type { AuthStackParamList } from '../navigation/types';
 
 type Props<K extends keyof AuthStackParamList> = NativeStackScreenProps<AuthStackParamList, K>;
 
+function socialLabelStyle() {
+  return {
+    fontFamily: DS.font.bodyMedium,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: DS.color.text,
+  };
+}
+
 export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
   const insets = useSafeAreaInsets();
+  const { signInWithGoogle, signInWithApple, oAuthBusy } = useAuth();
   return (
     <View
       style={[
@@ -34,7 +51,7 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
     >
       <ScrollView contentContainerStyle={styles.welcomeScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeHero}>
-          <Image source={BRAND_LOGO} style={styles.welcomeLogo} resizeMode="contain" />
+          <BrandLogo width={120} height={120} style={styles.welcomeLogo} />
           <Text style={styles.grant}>Grant Access</Text>
           <Text style={styles.welcomeLead}>Elite Athletic Mentorship</Text>
           <Text style={styles.welcomeSub}>
@@ -42,33 +59,48 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
             community insights.
           </Text>
           <Text style={styles.demoHint}>
-            Demo sign-in: {DEMO_EMAIL} · Password: {DEMO_PASSWORD}
+            Admin demo: {DEMO_EMAIL} / {DEMO_PASSWORD}
+            {'\n'}
+            Premium + admin (media/events): {PREMIUM_DEMO_EMAIL} / {PREMIUM_DEMO_PASSWORD}
           </Text>
         </View>
       </ScrollView>
       <View style={styles.welcomeActions}>
-        <Pressable
-          style={styles.primaryBtn}
-          onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}
-        >
-          <Text style={styles.primaryBtnText}>Sign Up</Text>
-        </Pressable>
-        <Pressable style={styles.ghostBtn} onPress={() => navigation.navigate('LogIn')}>
-          <Text style={styles.ghostBtnText}>Log In</Text>
-        </Pressable>
+        <AppleHeroButton onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}>
+          Sign Up
+        </AppleHeroButton>
+        <AppleHeroButton variant="ghost" onPress={() => navigation.navigate('LogIn')}>
+          Log In
+        </AppleHeroButton>
         <View style={styles.orRow}>
           <View style={styles.orLine} />
           <Text style={styles.orText}>OR</Text>
           <View style={styles.orLine} />
         </View>
-        <Pressable style={styles.socialBtn}>
-          <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
-          <Text style={styles.socialText}>Continue with Apple</Text>
-        </Pressable>
-        <Pressable style={styles.socialBtn}>
-          <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
-          <Text style={styles.socialText}>Continue with Google</Text>
-        </Pressable>
+        {Platform.OS === 'ios' ? (
+          <AppleHeroButton
+            variant="social"
+            loading={oAuthBusy}
+            onPress={() => void signInWithApple()}
+            style={styles.socialBtnMargin}
+          >
+            <View style={styles.socialInner}>
+              <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
+              <Text style={socialLabelStyle()}>Continue with Apple</Text>
+            </View>
+          </AppleHeroButton>
+        ) : null}
+        <AppleHeroButton
+          variant="social"
+          loading={oAuthBusy}
+          onPress={() => void signInWithGoogle()}
+          style={styles.socialBtnMargin}
+        >
+          <View style={styles.socialInner}>
+            <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
+            <Text style={socialLabelStyle()}>Continue with Google</Text>
+          </View>
+        </AppleHeroButton>
         <Text style={styles.legal}>
           By continuing, you agree to our <Text style={styles.gold}>Terms</Text> and{' '}
           <Text style={styles.gold}>Privacy Policy</Text>
@@ -80,9 +112,9 @@ export function WelcomeHubScreen({ navigation }: Props<'WelcomeHub'>) {
 
 export function LogInScreen({ navigation }: Props<'LogIn'>) {
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
-  const [email, setEmail] = useState(DEMO_EMAIL);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const { login, signInWithGoogle, signInWithApple, oAuthBusy } = useAuth();
+  const [email, setEmail] = useState(PREMIUM_DEMO_EMAIL);
+  const [password, setPassword] = useState(PREMIUM_DEMO_PASSWORD);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(true);
   return (
@@ -90,18 +122,28 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScreenHeader title="Log In" onBack={() => navigation.goBack()} />
+      <ScreenHeader
+        title="Log In"
+        onBack={navigation.canGoBack() ? () => navigation.goBack() : undefined}
+      />
       <ScrollView
-        contentContainerStyle={[styles.scrollPad, { paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.scrollPad, styles.scrollPadCompact, { paddingBottom: insets.bottom + 24 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.loginDemoHint}>
-          Demo: fields are pre-filled. Tap Log In, or edit and use {DEMO_EMAIL} / {DEMO_PASSWORD}
-        </Text>
+        <View style={styles.loginLogoRow}>
+          <BrandLogoMark width={80} height={80} />
+        </View>
+        {__DEV__ ? (
+          <Text style={styles.loginDemoHint}>
+            Premium test: {PREMIUM_DEMO_EMAIL} / {PREMIUM_DEMO_PASSWORD}
+            {' · '}
+            Legacy admin: {DEMO_EMAIL} / {DEMO_PASSWORD}
+          </Text>
+        ) : null}
         <Field label="Email">
           <TextInput
-            style={styles.input}
+            style={styles.inputCompact}
             placeholder="athlete@example.com"
             placeholderTextColor={DS.color.textMuted}
             keyboardType="email-address"
@@ -113,7 +155,7 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
         <Field label="Password">
           <View style={styles.inputRow}>
             <TextInput
-              style={[styles.input, styles.inputFlex]}
+              style={[styles.inputCompact, styles.inputFlex]}
               placeholder="••••••••"
               placeholderTextColor={DS.color.textMuted}
               secureTextEntry={!passwordVisible}
@@ -142,34 +184,52 @@ export function LogInScreen({ navigation }: Props<'LogIn'>) {
             <Text style={styles.gold}>Forgot Password?</Text>
           </Pressable>
         </View>
-        <Pressable
-          style={styles.primaryBtn}
+        <AppleHeroButton
           onPress={() => {
             void (async () => {
               const ok = await login(email.trim(), password);
               if (ok) return;
-              Alert.alert('Log in failed', `Use ${DEMO_EMAIL} and password: ${DEMO_PASSWORD}`);
+              Alert.alert(
+                'Log in failed',
+                `Offline mode: use ${PREMIUM_DEMO_EMAIL} + ${PREMIUM_DEMO_PASSWORD}, or ${DEMO_EMAIL} + ${DEMO_PASSWORD}.`,
+              );
             })();
           }}
         >
-          <Text style={styles.primaryBtnText}>Log In</Text>
-        </Pressable>
+          Log In
+        </AppleHeroButton>
         <View style={styles.orRow}>
           <View style={styles.orLine} />
           <Text style={styles.orText}>OR</Text>
           <View style={styles.orLine} />
         </View>
-        <Pressable style={styles.socialBtn}>
-          <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
-          <Text style={styles.socialText}>Continue with Apple</Text>
-        </Pressable>
-        <Pressable style={styles.socialBtn}>
-          <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
-          <Text style={styles.socialText}>Continue with Google</Text>
-        </Pressable>
+        {Platform.OS === 'ios' ? (
+          <AppleHeroButton
+            variant="social"
+            loading={oAuthBusy}
+            onPress={() => void signInWithApple()}
+            style={styles.socialBtnMargin}
+          >
+            <View style={styles.socialInner}>
+              <FontAwesome5 name="apple" size={20} color={DS.color.text} brand />
+              <Text style={socialLabelStyle()}>Continue with Apple</Text>
+            </View>
+          </AppleHeroButton>
+        ) : null}
+        <AppleHeroButton
+          variant="social"
+          loading={oAuthBusy}
+          onPress={() => void signInWithGoogle()}
+          style={styles.socialBtnMargin}
+        >
+          <View style={styles.socialInner}>
+            <FontAwesome5 name="google" size={18} color={DS.color.text} brand />
+            <Text style={socialLabelStyle()}>Continue with Google</Text>
+          </View>
+        </AppleHeroButton>
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Don&apos;t have an account? </Text>
-          <Pressable onPress={() => navigation.navigate('GrantAccess', { startAt: 'signup' })}>
+          <Pressable onPress={() => navigation.navigate('WelcomeHub')}>
             <Text style={styles.gold}>Create Account</Text>
           </Pressable>
         </View>
@@ -208,9 +268,7 @@ export function ForgotPasswordScreen({ navigation }: Props<'ForgotPassword'>) {
             autoCapitalize="none"
           />
         </Field>
-        <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('VerifyReset')}>
-          <Text style={styles.primaryBtnText}>Send Reset Code</Text>
-        </Pressable>
+        <AppleHeroButton onPress={() => navigation.navigate('VerifyReset')}>Send reset code</AppleHeroButton>
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Remember your password? </Text>
           <Pressable onPress={() => navigation.navigate('LogIn')}>
@@ -266,9 +324,7 @@ export function VerifyResetScreen({ navigation }: Props<'VerifyReset'>) {
           <FontAwesome name="refresh" size={14} color={DS.color.gold} />
           <Text style={styles.resendText}> Resend Code</Text>
         </Pressable>
-        <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('CreatePassword')}>
-          <Text style={styles.primaryBtnText}>Verify &amp; Continue</Text>
-        </Pressable>
+        <AppleHeroButton onPress={() => navigation.navigate('CreatePassword')}>Verify &amp; continue</AppleHeroButton>
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Need help? </Text>
           <Pressable>
@@ -386,9 +442,7 @@ export function CreatePasswordScreen({ navigation }: Props<'CreatePassword'>) {
             {r.t}
           </Text>
         ))}
-        <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('LogIn')}>
-          <Text style={styles.primaryBtnText}>Create Password</Text>
-        </Pressable>
+        <AppleHeroButton onPress={() => navigation.navigate('LogIn')}>Create password</AppleHeroButton>
         <View style={styles.footerRow}>
           <Text style={styles.muted}>Need help? </Text>
           <Pressable>
@@ -419,11 +473,19 @@ const styles = StyleSheet.create({
     paddingTop: DS.space.md,
     flexGrow: 1,
   },
+  scrollPadCompact: {
+    paddingTop: DS.space.sm,
+  },
+  loginLogoRow: {
+    alignItems: 'center',
+    marginBottom: DS.space.md,
+  },
   loginDemoHint: {
-    fontSize: 12,
+    fontSize: 11,
     color: DS.color.textMuted,
-    lineHeight: 18,
-    marginBottom: DS.space.lg,
+    lineHeight: 16,
+    marginBottom: DS.space.md,
+    textAlign: 'center',
   },
   welcomeScroll: {
     flexGrow: 1,
@@ -436,8 +498,6 @@ const styles = StyleSheet.create({
     marginBottom: DS.space.xl,
   },
   welcomeLogo: {
-    width: 120,
-    height: 120,
     marginBottom: DS.space.md,
   },
   grant: {
@@ -491,13 +551,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: DS.color.text,
   },
+  inputCompact: {
+    backgroundColor: DS.color.input,
+    borderRadius: DS.radius.md,
+    paddingVertical: 12,
+    paddingHorizontal: DS.space.md,
+    fontSize: 15,
+    color: DS.color.text,
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: DS.color.input,
-    borderRadius: DS.radius.lg,
-    paddingHorizontal: DS.space.base,
-    paddingVertical: DS.space.md,
+    borderRadius: DS.radius.md,
+    paddingHorizontal: DS.space.md,
+    paddingVertical: 10,
   },
   inputFlex: {
     flex: 1,
@@ -534,34 +602,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: DS.color.text,
   },
-  primaryBtn: {
-    backgroundColor: DS.color.gold,
-    paddingVertical: DS.space.base,
-    borderRadius: DS.radius.lg,
-    alignItems: 'center',
-    marginTop: DS.space.md,
-  },
-  primaryBtnText: {
-    color: DS.color.background,
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  ghostBtn: {
-    borderWidth: 1,
-    borderColor: DS.color.border,
-    paddingVertical: DS.space.base,
-    borderRadius: DS.radius.lg,
-    alignItems: 'center',
-  },
-  ghostBtnText: {
-    color: DS.color.text,
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
   orRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,20 +618,13 @@ const styles = StyleSheet.create({
     color: DS.color.textMuted,
     fontSize: 14,
   },
-  socialBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: DS.space.md,
-    backgroundColor: DS.color.surface,
-    paddingVertical: DS.space.base,
-    borderRadius: DS.radius.lg,
+  socialBtnMargin: {
     marginBottom: DS.space.sm,
   },
-  socialText: {
-    color: DS.color.text,
-    fontSize: 16,
-    fontWeight: '500',
+  socialInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: DS.space.md,
   },
   legal: {
     textAlign: 'center',

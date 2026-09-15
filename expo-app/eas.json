@@ -1,33 +1,40 @@
-{
+﻿{
   "cli": {
     "version": ">= 12.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
+    "base": {
+      "node": "20.19.4",
+      "env": {
+        "EAS_NO_FROZEN_LOCKFILE": "1",
+        "EAS_BUILD_DISABLE_NPM_CACHE": "1",
+        "TMPDIR": "/tmp"
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "simulator": true
-      },
-      "android": {
-        "buildType": "apk"
-      }
+      "ios": { "simulator": false },
+      "android": { "buildType": "apk" },
+      "cache": { "disabled": true }
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal",
-      "ios": {
-        "simulator": false
-      },
-      "android": {
-        "buildType": "apk"
-      }
+      "ios": { "simulator": false },
+      "android": { "buildType": "apk" }
     },
     "production": {
-      "autoIncrement": true
+      "extends": "base"
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6767238211"
+      }
+    }
   }
 }

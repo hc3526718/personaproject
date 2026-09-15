@@ -7,6 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { isPremiumDemoEmail } from '../auth/demoAccounts';
 import {
   customerHasPremium,
   fetchCustomerInfo,
@@ -24,23 +26,34 @@ type SubscriptionContextValue = {
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
+  const { sessionEmail } = useAuth();
   const [isPro, setIsPro] = useState(false);
   const [busy, setBusy] = useState(true);
 
   const refresh = useCallback(async () => {
     setBusy(true);
+    if (isPremiumDemoEmail(sessionEmail)) {
+      setIsPro(true);
+      setBusy(false);
+      return;
+    }
     await initRevenueCat();
     const info = await fetchCustomerInfo();
     setIsPro(customerHasPremium(info));
     setBusy(false);
-  }, []);
+  }, [sessionEmail]);
 
   const restore = useCallback(async () => {
     setBusy(true);
+    if (isPremiumDemoEmail(sessionEmail)) {
+      setIsPro(true);
+      setBusy(false);
+      return;
+    }
     const info = await restorePurchases();
     setIsPro(customerHasPremium(info));
     setBusy(false);
-  }, []);
+  }, [sessionEmail]);
 
   useEffect(() => {
     void refresh();

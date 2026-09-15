@@ -17,6 +17,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FontAwesome } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import { AppleHeroButton } from '../components/AppleHeroButton';
+import { BrandLogo } from '../components/BrandLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { DS } from '../designSystem';
 import type { ProfileStackParamList } from '../navigation/types';
@@ -202,6 +204,9 @@ export function SettingsScreen({ navigation }: PProps<'Settings'>) {
     <View style={styles.root}>
       <ScreenHeader title="Settings" onBack={() => navigation.goBack()} largeTitle />
       <ScrollView contentContainerStyle={styles.padded}>
+        <View style={styles.settingsLogoRow}>
+          <BrandLogo width={72} height={72} />
+        </View>
         {rows.map((r) => (
           <Pressable key={r.title} style={styles.settingsCard} onPress={r.onPress}>
             <View style={styles.settingsIcon}>
@@ -377,9 +382,9 @@ export function EditBasicScreen({ navigation }: PProps<'EditBasic'>) {
             <FontAwesome name="chevron-down" size={14} color={DS.color.textMuted} />
           </Pressable>
 
-          <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={onSave}>
-            <Text style={styles.primaryBtnText}>Save Changes</Text>
-          </Pressable>
+          <AppleHeroButton style={styles.saveBtnSpaced} onPress={onSave}>
+            Save changes
+          </AppleHeroButton>
           <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelBtnText}>Cancel</Text>
           </Pressable>
@@ -494,9 +499,9 @@ export function EditProfilePhotoScreen({ navigation }: PProps<'EditProfilePhoto'
           <Text style={styles.photoRemoveLabel}>Remove Photo</Text>
         </Pressable>
 
-        <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={() => setToast(true)}>
-          <Text style={styles.primaryBtnText}>Save Changes</Text>
-        </Pressable>
+        <AppleHeroButton style={styles.saveBtnSpaced} onPress={() => setToast(true)}>
+          Save changes
+        </AppleHeroButton>
         <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </Pressable>
@@ -607,9 +612,9 @@ export function EditAthleteScreen({ navigation }: PProps<'EditAthlete'>) {
           ))}
         </View>
 
-        <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={onSave}>
-          <Text style={styles.primaryBtnText}>Save Changes</Text>
-        </Pressable>
+        <AppleHeroButton style={styles.saveBtnSpaced} onPress={onSave}>
+          Save changes
+        </AppleHeroButton>
         <Pressable style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </Pressable>
@@ -893,9 +898,9 @@ export function EditProfileSectionDetailScreen({
           </>
         ) : null}
 
-        <Pressable style={[styles.primaryBtn, styles.saveBtnSpaced]} onPress={() => setToast(true)}>
-          <Text style={styles.primaryBtnText}>Save</Text>
-        </Pressable>
+        <AppleHeroButton style={styles.saveBtnSpaced} onPress={() => setToast(true)}>
+          Save
+        </AppleHeroButton>
       </ScrollView>
     </View>
   );
@@ -1143,6 +1148,10 @@ const styles = StyleSheet.create({
   padded: {
     padding: DS.space.lg,
   },
+  settingsLogoRow: {
+    alignItems: 'center',
+    marginBottom: DS.space.lg,
+  },
   settingsCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1381,25 +1390,6 @@ const styles = StyleSheet.create({
     color: DS.color.text,
     borderWidth: 1,
     borderColor: DS.color.borderHairline,
-  },
-  primaryBtn: {
-    backgroundColor: DS.color.gold,
-    paddingVertical: 14,
-    borderRadius: DS.radius.lg,
-    alignItems: 'center',
-    marginTop: DS.space.xl,
-    shadowColor: DS.color.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryBtnText: {
-    color: DS.color.background,
-    fontWeight: '700',
-    fontSize: 16,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
   },
   largeAvatar: {
     width: 160,

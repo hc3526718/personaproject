@@ -2,6 +2,7 @@
   "expo": {
     "name": "Dalton Demo",
     "slug": "dalton-demo",
+    "scheme": "dalton-demo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,14 +29,31 @@
     },
     "plugins": [
       "expo-font",
+      "expo-web-browser",
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Dalton to access your photos and videos for uploads.",
+          "cameraPermission": "Allow Dalton to use your camera for uploads."
+        }
+      ],
       [
         "expo-build-properties",
         {
+          "ios": {
+            "deploymentTarget": "15.1"
+          },
           "android": {
             "usesCleartextTraffic": true
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8b3d97c5-6276-49b3-ab55-aa9b87e47047"
+      }
+    }
   }
 }
