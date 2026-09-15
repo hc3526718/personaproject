@@ -1,0 +1,7 @@
+﻿.agents/
+.claude/
+.windsurf/
+skills-lock.json
+programme-drafts/
+**/*.corrupt.bak
+**/node_modules/

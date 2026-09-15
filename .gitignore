@@ -40,3 +40,11 @@ expo-app/app.json.json
 # Supabase CLI local link metadata
 supabase/.temp/
 .vercel
+
+# Local agent / editor tooling (breaks EAS archive symlinks on Windows)
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+programme-drafts/
+*.corrupt.bak
