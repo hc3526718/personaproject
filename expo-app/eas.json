@@ -41,7 +41,6 @@
     "production": {
       "extends": "base",
       "channel": "production",
-      "autoIncrement": true,
       "distribution": "store",
       "android": {
         "buildType": "app-bundle"
