@@ -105,7 +105,7 @@ const baseExpo = {
   name: 'The Dalton Grant Academy',
   slug: 'dalton-demo',
   scheme: 'dalton-demo',
-  version: '1.0.1',
+  version: '1.0.2',
   orientation: 'portrait',
   icon: ICON_1024,
   userInterfaceStyle: 'dark',
