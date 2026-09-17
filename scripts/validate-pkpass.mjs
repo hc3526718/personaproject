@@ -6,7 +6,9 @@
  * - Computes SHA-1 hash for each file listed in manifest
  * - Compares computed hash against manifest value
  *
- * Usage: node scripts/validate-pkpass.mjs <path-to-file.pkpass>
+ * Usage: 
+ *   npm install adm-zip  # Install dependency first
+ *   node scripts/validate-pkpass.mjs <path-to-file.pkpass>
  */
 
 import { createHash } from 'crypto';
