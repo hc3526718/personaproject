@@ -13,7 +13,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -108,6 +107,7 @@ import {
   type ConversationSummary,
 } from '../roadmap/messagingService';
 import { fetchProfileByUserId } from '../roadmap/profileService';
+import { shareSponsor } from '../lib/professionalShare';
 import {
   clampComposerMedia,
   inferContentType,
@@ -3199,8 +3199,10 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
         ) : (
           <Pressable
             onPress={() => {
-              void Share.share({
-                message: siteUri ? `${page.business_name}\n${siteUri}` : page.business_name,
+              void shareSponsor({
+                sponsorId: page.id,
+                businessName: page.business_name,
+                websiteUrl: siteUri || undefined,
               });
             }}
             style={styles.brandNavBtn}
@@ -3228,8 +3230,10 @@ export function BrandPartnerScreen({ navigation, route }: BrandPartnerScreenProp
             label: 'Share sponsor',
             onPress: () => {
               setMenuOpen(false);
-              void Share.share({
-                message: siteUri ? `${page.business_name}\n${siteUri}` : page.business_name,
+              void shareSponsor({
+                sponsorId: page.id,
+                businessName: page.business_name,
+                websiteUrl: siteUri || undefined,
               });
             },
           },

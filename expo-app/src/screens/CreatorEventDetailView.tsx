@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -34,6 +33,7 @@ import { isSupabaseConfigured } from '../lib/env';
 import { useAuth } from '../auth/AuthContext';
 import { canManageEvent } from '../auth/staffAccess';
 import { eventEffectiveEndMs, isEventArchivedForBrowse, reviewsUnlockAtMs } from '../lib/eventTiming';
+import { shareEvent } from '../lib/professionalShare';
 
 const DEFAULT_HERO =
   'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=600&auto=format&fit=crop';
@@ -162,9 +162,12 @@ export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onD
             onPress={
               onShare ??
               (() =>
-                void Share.share({
-                  message: `${event.title} — Dalton Grant Sports`,
-                }).catch(() => undefined))
+                void shareEvent({
+                  eventId: event.id,
+                  eventTitle: event.title,
+                  eventDate: formatSchedule(event),
+                  venue: event.venue ?? undefined,
+                }))
             }
             accessibilityLabel="Share event"
           >
@@ -194,9 +197,12 @@ export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onD
             onPress: () => {
               if (onShare) onShare();
               else {
-                void Share.share({
-                  message: `${event.title} — Dalton Grant Sports`,
-                }).catch(() => undefined);
+                void shareEvent({
+                  eventId: event.id,
+                  eventTitle: event.title,
+                  eventDate: formatSchedule(event),
+                  venue: event.venue ?? undefined,
+                });
               }
             },
           },
