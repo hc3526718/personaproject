@@ -22,6 +22,7 @@ import { saveTicketAsPdf, saveTicketAsPng } from '../lib/ticketExport';
 import { userFacingErrorBody } from '../lib/appAlert';
 import { useActionBanner } from '../actionBanner/ActionBannerContext';
 import { useAuth } from '../auth/AuthContext';
+import { canManageEvent } from '../auth/staffAccess';
 import {
   issueTicketTokenForBooking,
   signTicketPayloadDevFallback,
@@ -911,6 +912,8 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
   const [deleteEventBusy, setDeleteEventBusy] = useState(false);
   const [viewerBooking, setViewerBooking] = useState<BookingWithEvent | null>(null);
 
+  const canManage = canManageEvent(user, dbEvent?.created_by);
+
   const storageKeyEarly =
     route.params?.eventStorageKey ??
     unifiedEventSlug({
@@ -1105,7 +1108,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
         <Pressable style={styles.headerRoundBtn} onPress={() => navigation.goBack()}>
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
-        {user?.masterControl ? (
+        {canManage ? (
           <Pressable
             style={styles.headerRoundBtn}
             onPress={() => setMasterMenuOpen(true)}
@@ -1281,7 +1284,7 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
               ))}
             </>
           )}
-          {user?.masterControl && supabaseEventId ? (
+          {canManage && supabaseEventId ? (
             <Pressable
               style={styles.masterDeleteEventBtn}
               onPress={() => setDeleteEventConfirmOpen(true)}

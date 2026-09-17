@@ -32,6 +32,7 @@ import {
 } from '../roadmap/liveDataService';
 import { isSupabaseConfigured } from '../lib/env';
 import { useAuth } from '../auth/AuthContext';
+import { canManageEvent } from '../auth/staffAccess';
 import { eventEffectiveEndMs, isEventArchivedForBrowse, reviewsUnlockAtMs } from '../lib/eventTiming';
 
 const DEFAULT_HERO =
@@ -84,6 +85,8 @@ export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onD
   const [reviews, setReviews] = useState<EventReviewRow[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const canManage = canManageEvent(user, event.created_by);
 
   const endMs = useMemo(() => eventEffectiveEndMs(event), [event.starts_at, event.ends_at]);
   const archived = useMemo(() => isEventArchivedForBrowse(event), [event.starts_at, event.ends_at]);
@@ -145,7 +148,7 @@ export function CreatorEventDetailView({ navigation, event, onShare, onEdit, onD
           <FontAwesome name="arrow-left" size={18} color={DS.color.text} />
         </Pressable>
         <Text style={styles.topBadge}>HOST DASHBOARD</Text>
-        {user?.masterControl ? (
+        {canManage ? (
           <Pressable
             style={styles.roundBtn}
             onPress={() => setMenuOpen(true)}
