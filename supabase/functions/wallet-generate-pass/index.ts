@@ -14,6 +14,7 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { PKPass } from 'npm:passkit-generator@3.5.7';
+import { Buffer } from 'node:buffer';
 
 const DEFAULT_ORIGINS = [
   'https://daltongrantacademy.uk',
@@ -127,12 +128,13 @@ async function buildPassBuffer(opts: {
 }): Promise<Uint8Array> {
   const webServiceURL = `${Deno.env.get('SUPABASE_URL')?.replace(/\/$/, '')}/functions/v1/wallet-passes`;
 
-  const icon1 = await Deno.readFile(new URL('./assets/icon.png', import.meta.url));
-  const icon2 = await Deno.readFile(new URL('./assets/icon@2x.png', import.meta.url));
-  const icon3 = await Deno.readFile(new URL('./assets/icon@3x.png', import.meta.url));
-  const logo1 = await Deno.readFile(new URL('./assets/logo.png', import.meta.url));
-  const logo2 = await Deno.readFile(new URL('./assets/logo@2x.png', import.meta.url));
-  const logo3 = await Deno.readFile(new URL('./assets/logo@3x.png', import.meta.url));
+  // passkit-generator hashes via buffer.toString('binary'); Uint8Array breaks that on Deno — must use Node Buffer.
+  const icon1 = Buffer.from(await Deno.readFile(new URL('./assets/icon.png', import.meta.url)));
+  const icon2 = Buffer.from(await Deno.readFile(new URL('./assets/icon@2x.png', import.meta.url)));
+  const icon3 = Buffer.from(await Deno.readFile(new URL('./assets/icon@3x.png', import.meta.url)));
+  const logo1 = Buffer.from(await Deno.readFile(new URL('./assets/logo.png', import.meta.url)));
+  const logo2 = Buffer.from(await Deno.readFile(new URL('./assets/logo@2x.png', import.meta.url)));
+  const logo3 = Buffer.from(await Deno.readFile(new URL('./assets/logo@3x.png', import.meta.url)));
 
   const certs = signingCerts();
   if (!certs) {
