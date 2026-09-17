@@ -7,7 +7,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -17,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DS } from '../designSystem';
 import { copyTextToClipboard } from '../lib/clipboard';
 import { buildPostShareMessage, loadSharePostTargets, type SharePostTarget } from '../lib/sharePostTargets';
+import { shareCommunityPost } from '../lib/professionalShare';
 import { DALTON_LOGO_FINAL_IMG } from '../constants/brandAssets';
 
 type Props = {
@@ -83,15 +83,12 @@ export function SharePostSheet({
 
   const openNativeShare = useCallback(async () => {
     onClose();
-    try {
-      await Share.share({
-        title: `${authorName} · The Dalton Grant Academy`,
-        message: shareMessage,
-      });
-    } catch {
-      /* dismissed */
-    }
-  }, [authorName, shareMessage, onClose]);
+    await shareCommunityPost({
+      authorName,
+      bodySnippet: bodyText,
+      postId,
+    });
+  }, [authorName, bodyText, postId, onClose]);
 
   const externalApps: ExternalShareApp[] = [
     {

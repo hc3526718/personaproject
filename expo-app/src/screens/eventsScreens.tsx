@@ -7,7 +7,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -91,6 +90,7 @@ import {
   profileDisplayName,
   saveAttendeeNameFromBooking,
 } from '../roadmap/profileService';
+import { shareEvent, shareEventInvite } from '../lib/professionalShare';
 
 const eventCtaLabelStyle = {
   fontFamily: DS.font.bodyBold,
@@ -1078,9 +1078,12 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           navigation={navigation}
           event={dbEvent}
           onShare={() =>
-            void Share.share({
-              message: `${displayTitle} — Dalton Grant Sports`,
-            }).catch(() => undefined)
+            void shareEvent({
+              eventId: dbEvent.id,
+              eventTitle: displayTitle,
+              eventDate: displaySchedule,
+              venue: dbEvent.venue ?? undefined,
+            })
           }
           onEdit={() => navigation.navigate('EditEvent', { eventId: dbEvent.id })}
           onDelete={() => setDeleteEventConfirmOpen(true)}
@@ -1117,9 +1120,12 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
           <Pressable
             style={styles.headerRoundBtn}
             onPress={() =>
-              Share.share({
-                message: `${displayTitle} — Dalton Grant Sports`,
-              }).catch(() => undefined)
+              void shareEvent({
+                eventId: supabaseEventId || eventSlug,
+                eventTitle: displayTitle,
+                eventDate: displaySchedule,
+                venue: dbEvent?.venue ?? undefined,
+              })
             }
             accessibilityLabel="Share event"
           >
@@ -1148,9 +1154,12 @@ export function EventDetailsScreen({ navigation, route }: EProps<'EventDetails'>
             key: 'share',
             label: 'Share event',
             onPress: () =>
-              void Share.share({
-                message: `${displayTitle} — Dalton Grant Sports`,
-              }).catch(() => undefined),
+              void shareEvent({
+                eventId: supabaseEventId || eventSlug,
+                eventTitle: displayTitle,
+                eventDate: displaySchedule,
+                venue: dbEvent?.venue ?? undefined,
+              }),
           },
           {
             key: 'delete',
@@ -1721,6 +1730,9 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
   const recapTime = p?.recapTime ?? '10:00 AM - 12:00 PM';
   const venue = p?.venue ?? 'Elite Fitness Center';
   const attendeeEmail = p?.attendeeEmail ?? user?.email ?? '';
+  const evId = eventId || '';
+  const evSchedule = `${recapDate} · ${recapTime}`;
+  const evVenue = venue;
   const fitnessLevel = p?.fitnessLevel ?? 'Intermediate';
   const entryPaymentLine = p?.entryPaymentLine?.trim() || null;
   const scheduleForIcs = `${recapDate} • ${recapTime}`;
@@ -1950,9 +1962,12 @@ export function BookingConfirmScreen({ navigation, route }: EProps<'BookingConfi
       subtitle: 'Share this event',
       icon: <FontAwesome name="user-plus" size={14} color={DS.color.gold} />,
       onPress: () =>
-        Share.share({
-          message: `Join me for ${evTitle} on The Dalton Grant Academy.`,
-        }).catch(() => undefined),
+        void shareEventInvite({
+          eventId: evId,
+          eventTitle: evTitle,
+          eventDate: evSchedule,
+          venue: evVenue,
+        }),
     },
   ];
 
