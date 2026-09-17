@@ -13,10 +13,10 @@ const EAS_PROJECT_ID = '8b3d97c5-6276-49b3-ab55-aa9b87e47047';
 const EAS_UPDATE_URL = `https://u.expo.dev/${EAS_PROJECT_ID}`;
 
 /**
- * Base config without Supabase `extra` — those are merged in `module.exports` on every evaluation
+ * Base config without Supabase `extra` â€” those are merged in `module.exports` on every evaluation
  * so Metro / EAS always pick up current `process.env` and `.env`.
  *
- * **Native splash:** `./assets/dalton_logo_final_img.png` on `#0A0A0A` (`resizeMode: 'contain'`, centered — same idea as the boot Rive slot). Rebuild native after changes.
+ * **Native splash:** `./assets/dalton_logo_final_img.png` on `#0A0A0A` (`resizeMode: 'contain'`, centered â€” same idea as the boot Rive slot). Rebuild native after changes.
  *
  * **App icons:** `icon` = 1024 master (store / Android base). `ios.icon` = smaller iOS home-screen source (152@2x).
  * Adaptive Android foreground + Web favicon from `dalton_logo_final_img-icons/`. iOS home-screen fill is the PNG itself; use `#0A0A0A` in the asset or keep adaptive-style padding in design.
@@ -109,19 +109,19 @@ const baseExpo = {
   orientation: 'portrait',
   icon: ICON_1024,
   userInterfaceStyle: 'dark',
-  /** Native splash — `dalton_logo_final_img.png` + `#0A0A0A` (centered `contain`, matches boot hero). */
+  /** Native splash â€” `dalton_logo_final_img.png` + `#0A0A0A` (centered `contain`, matches boot hero). */
   splash: {
     image: './assets/dalton_logo_final_img.png',
     resizeMode: 'contain',
     backgroundColor: '#0A0A0A',
   },
   ios: {
-    buildNumber: '50',
+    buildNumber: '51',
     supportsTablet: true,
     bundleIdentifier: 'com.hc111.daltondemo',
     /** Smaller raster than 1024; Expo uses this for the iOS app icon when set. */
     icon: IOS_ICON_152,
-    /** Redundant with root `splash` — helps Xcode / prebuild pick the correct storyboard asset. */
+    /** Redundant with root `splash` â€” helps Xcode / prebuild pick the correct storyboard asset. */
     splash: {
       image: './assets/dalton_logo_final_img.png',
       resizeMode: 'contain',
@@ -249,7 +249,7 @@ module.exports = () => {
     daltonWebUrl: (process.env.EXPO_PUBLIC_DALTON_WEB_URL || 'https://daltongrantacademy.uk').trim(),
     supabaseUrl: (process.env.EXPO_PUBLIC_SUPABASE_URL || '').trim(),
     supabaseAnonKey: (process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '').trim(),
-    /** RevenueCat public SDK keys — duplicated here so native init can read `expo.extra` if env inlining differs. */
+    /** RevenueCat public SDK keys â€” duplicated here so native init can read `expo.extra` if env inlining differs. */
     revenueCatApiKeyIos: (process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS || '').trim(),
     revenueCatApiKeyAndroid: (process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID || '').trim(),
     /** Direct HTTPS `.riv` URL for native Rive; same as `EXPO_PUBLIC_RIVE_URL`. */
