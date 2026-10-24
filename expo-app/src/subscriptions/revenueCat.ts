@@ -172,6 +172,7 @@ export async function fetchOfferingForPaywall(): Promise<FetchOfferingResult> {
 export async function fetchOfferingForPaywallLegacy(): Promise<PurchasesOffering | null> {
   const result = await fetchOfferingForPaywall();
   return result.success ? result.offering : null;
+}
 
 export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
   const Purchases = tryPurchases();
