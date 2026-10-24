@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import type { CustomerInfo, PurchasesOffering } from 'react-native-purchases';
 import { getRevenueCatEntitlementId, getRevenueCatOfferingIdentifier } from '../lib/env';
+import { installRevenueCatLogHandler } from './revenueCatErrorHandler';
 
 const ENTITLEMENT_PREMIUM = getRevenueCatEntitlementId();
 
@@ -53,6 +54,9 @@ let purchasesSdkConfigured = false;
 /** Avoid `logOut()` on cold start before any `logIn` (can fatal in release when RC is configured). */
 let lastIdentifiedAppUserId: string | null = null;
 
+/** True after log handler is installed (only install once). */
+let logHandlerInstalled = false;
+
 /**
  * Never `import` Purchases at module scope — that loads the native module and breaks **Expo Go**.
  */
@@ -84,6 +88,10 @@ export async function initRevenueCat(): Promise<boolean> {
     return false;
   }
   try {
+    if (!logHandlerInstalled) {
+      installRevenueCatLogHandler();
+      logHandlerInstalled = true;
+    }
     Purchases.configure({ apiKey: key });
     purchasesSdkConfigured = true;
     return true;
@@ -93,6 +101,10 @@ export async function initRevenueCat(): Promise<boolean> {
   }
 }
 
+export type FetchOfferingResult =
+  | { success: true; offering: PurchasesOffering }
+  | { success: false; error: 'not_configured' | 'network_error' | 'no_offerings' | 'unknown'; errorMessage?: string };
+
 /**
  * Offering used by RevenueCat Paywall UI. Prefer `EXPO_PUBLIC_REVENUECAT_OFFERING_IDENTIFIER`
  * (RevenueCat **lookup key**, e.g. `Official Offering`); otherwise try that id; else dashboard **current**.
@@ -100,26 +112,66 @@ export async function initRevenueCat(): Promise<boolean> {
  * Important: if the dashboard **current** offering still points at **Test Store** products while your
  * paywall design uses **App Store** SKUs, you must either mark the App Store offering as current **or**
  * set this env so `presentPaywall({ offering })` loads StoreKit prices for the right products.
+ * 
+ * @returns Result with offering on success, or error details for graceful handling.
  */
-export async function fetchOfferingForPaywall(): Promise<PurchasesOffering | null> {
+export async function fetchOfferingForPaywall(): Promise<FetchOfferingResult> {
   const Purchases = tryPurchases();
-  if (!Purchases) return null;
+  if (!Purchases) {
+    return { success: false, error: 'not_configured' };
+  }
+
+  const configured = await initRevenueCat();
+  if (!configured) {
+    return { success: false, error: 'not_configured' };
+  }
+
   const fromEnv = getRevenueCatOfferingIdentifier();
   const preferredKeys = [
     ...(fromEnv ? [fromEnv] : []),
     'Official Offering',
   ];
+
   try {
     const offerings = await Purchases.getOfferings();
+    
+    // Try preferred offerings first
     for (const key of preferredKeys) {
       const o = offerings.all[key];
-      if (o) return o;
+      if (o) {
+        return { success: true, offering: o };
+      }
     }
-    return offerings.current ?? null;
-  } catch {
-    return null;
+    
+    // Fall back to current offering
+    if (offerings.current) {
+      return { success: true, offering: offerings.current };
+    }
+
+    // No offerings available
+    return { 
+      success: false, 
+      error: 'no_offerings',
+      errorMessage: 'No offerings configured in RevenueCat dashboard or products not available from App Store Connect'
+    };
+  } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    const isNetworkError = errorMessage.toLowerCase().includes('network') || 
+                          errorMessage.toLowerCase().includes('timeout') ||
+                          errorMessage.toLowerCase().includes('connection');
+    
+    return { 
+      success: false, 
+      error: isNetworkError ? 'network_error' : 'unknown',
+      errorMessage
+    };
   }
 }
+
+/** @deprecated Use fetchOfferingForPaywall instead for better error handling */
+export async function fetchOfferingForPaywallLegacy(): Promise<PurchasesOffering | null> {
+  const result = await fetchOfferingForPaywall();
+  return result.success ? result.offering : null;
 
 export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
   const Purchases = tryPurchases();
