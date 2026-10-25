@@ -18,6 +18,7 @@ export function PaywallScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { busy, refresh, restore, notifyNewPremiumFromPaywall, isPro } = useSubscription();
   const [presenting, setPresenting] = useState(false);
+  const [offeringError, setOfferingError] = useState<string | null>(null);
   const paywallBusy = useRef(false);
   const isWeb = Platform.OS === 'web';
 
@@ -25,8 +26,12 @@ export function PaywallScreen({ navigation }: Props) {
     if (paywallBusy.current) return;
     paywallBusy.current = true;
     setPresenting(true);
+    setOfferingError(null);
     try {
-      const { premiumActivated } = await presentRevenueCatPaywall();
+      const { premiumActivated, offeringError: error } = await presentRevenueCatPaywall();
+      if (error) {
+        setOfferingError(error);
+      }
       await refresh();
       if (premiumActivated) notifyNewPremiumFromPaywall(true);
     } finally {
@@ -123,6 +128,26 @@ export function PaywallScreen({ navigation }: Props) {
       <View style={styles.center}>
         {busy || presenting ? (
           <AppLoadingIndicator />
+        ) : offeringError ? (
+          <>
+            <View style={styles.errorIcon}>
+              <FontAwesome name="exclamation-triangle" size={48} color={DS.color.errorText} />
+            </View>
+            <Text style={styles.errorTitle}>Unable to Load Subscriptions</Text>
+            <Text style={styles.errorMessage}>
+              {offeringError === 'network_error'
+                ? 'Please check your internet connection and try again.'
+                : offeringError === 'no_offerings'
+                ? 'Subscription options are being configured. Please try again later.'
+                : 'There was a problem loading subscription options.'}
+            </Text>
+            <Pressable style={styles.primaryBtn} onPress={() => void showRevenueCatPaywall()}>
+              <Text style={styles.primaryBtnText}>Try Again</Text>
+            </Pressable>
+            <Pressable style={styles.linkBtn} onPress={exitPaywall}>
+              <Text style={styles.linkTxt}>Go Back</Text>
+            </Pressable>
+          </>
         ) : (
           <>
             <Text style={styles.lead}>
@@ -220,5 +245,24 @@ const styles = StyleSheet.create({
     fontFamily: DS.font.body,
     fontSize: 15,
     color: DS.color.gold,
+  },
+  errorIcon: {
+    alignItems: 'center',
+    marginBottom: DS.space.md,
+  },
+  errorTitle: {
+    fontFamily: DS.font.heading,
+    fontSize: 22,
+    color: DS.color.white,
+    textAlign: 'center',
+    marginBottom: DS.space.sm,
+  },
+  errorMessage: {
+    fontFamily: DS.font.body,
+    fontSize: 14,
+    color: DS.color.textMuted,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: DS.space.xl,
   },
 });
