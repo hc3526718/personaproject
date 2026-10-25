@@ -116,7 +116,7 @@ const baseExpo = {
     backgroundColor: '#0A0A0A',
   },
   ios: {
-    buildNumber: '51',
+    buildNumber: '52',
     supportsTablet: true,
     bundleIdentifier: 'com.hc111.daltondemo',
     /** Smaller raster than 1024; Expo uses this for the iOS app icon when set. */
